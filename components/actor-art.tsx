@@ -9,6 +9,7 @@ import { DarkTaleActorArt } from '@/components/dark-tale-actor-art';
 import { MidnightActorArt } from '@/components/midnight-actor-art';
 import { UnderworldActorArt } from '@/components/underworld-actor-art';
 import { DeadCellsActorArt } from '@/components/dead-cells-actor-art';
+import { PalaceActorArt } from '@/components/palace-actor-art';
 import { BasementActorArt } from '@/components/basement-actor-art';
 import type { Pose } from '@/game/motion';
 // Atlas coordinates measured from the generated source. Keep the texture intact:
@@ -37,6 +38,7 @@ const ENEMY: Record<Pose, Region> = {
 export function ActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
   const id = useId().replace(/:/g, '');
   const style = useVisualStyle();
+  if (style === 'palace') return <PalaceActorArt hero={hero} pose={pose} />;
   if (style === 'basement') return <BasementActorArt hero={hero} pose={pose} />;
   if (style === 'deadcells')
     return <DeadCellsActorArt hero={hero} pose={pose} />;

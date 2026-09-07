@@ -18,6 +18,7 @@ import {
   Flame,
   Skull,
   Droplet,
+  BookOpen,
 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -130,8 +131,10 @@ export function StylePicker({
               <Flame size={18} />
             ) : option.id === 'deadcells' ? (
               <Skull size={18} />
-            ) : (
+            ) : option.id === 'basement' ? (
               <Droplet size={18} />
+            ) : (
+              <BookOpen size={18} />
             )}
             <span className="style-option-label">{option.name}</span>
             {style === option.id && <Check className="style-check" size={14} />}

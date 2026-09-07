@@ -1,0 +1,325 @@
+{
+  "boundsConvention": "crop=[x,y,width,height], max edge exclusive; feet=[x,y] relative to crop. Crops are component-based, tight at alpha >=128. sourceFeet absolute. excludeRect removes pixels from adjacent sprite inside overlapping bounding rectangles, also available relative to crop. Hero death foot baseline manually set at y741 to exclude letter opener and match row grounding.",
+  "frames": {
+    "hero": {
+      "idle": {
+        "crop": [
+          86,
+          42,
+          180,
+          342
+        ],
+        "feet": [
+          67.8,
+          342
+        ],
+        "sourceFeet": [
+          153.8,
+          384
+        ]
+      },
+      "windup": {
+        "crop": [
+          374,
+          83,
+          224,
+          301
+        ],
+        "feet": [
+          89.2,
+          301
+        ],
+        "sourceFeet": [
+          463.2,
+          384
+        ]
+      },
+      "strike": {
+        "crop": [
+          672,
+          121,
+          332,
+          263
+        ],
+        "feet": [
+          103.7,
+          263
+        ],
+        "sourceFeet": [
+          775.7,
+          384
+        ]
+      },
+      "guard": {
+        "crop": [
+          59,
+          444,
+          213,
+          297
+        ],
+        "feet": [
+          80.4,
+          297
+        ],
+        "sourceFeet": [
+          139.4,
+          741
+        ]
+      },
+      "hurt": {
+        "crop": [
+          391,
+          471,
+          212,
+          270
+        ],
+        "feet": [
+          93.6,
+          270
+        ],
+        "sourceFeet": [
+          484.6,
+          741
+        ]
+      },
+      "death": {
+        "crop": [
+          645,
+          626,
+          360,
+          134
+        ],
+        "feet": [
+          135,
+          115
+        ],
+        "sourceFeet": [
+          780,
+          741
+        ]
+      }
+    },
+    "rival": {
+      "idle": {
+        "crop": [
+          40,
+          797,
+          247,
+          308
+        ],
+        "feet": [
+          112.9,
+          308
+        ],
+        "sourceFeet": [
+          152.9,
+          1105
+        ]
+      },
+      "windup": {
+        "crop": [
+          354,
+          799,
+          266,
+          306
+        ],
+        "feet": [
+          135.2,
+          306
+        ],
+        "sourceFeet": [
+          489.2,
+          1105
+        ],
+        "foreignAlpha128Pixels": 19,
+        "excludeRect": [
+          618,
+          900,
+          2,
+          11
+        ],
+        "excludeRectLocal": [
+          264,
+          101,
+          2,
+          11
+        ]
+      },
+      "strike": {
+        "crop": [
+          618,
+          799,
+          356,
+          329
+        ],
+        "feet": [
+          297.4,
+          329
+        ],
+        "sourceFeet": [
+          915.4,
+          1128
+        ],
+        "foreignAlpha128Pixels": 38,
+        "excludeRect": [
+          618,
+          941,
+          2,
+          21
+        ],
+        "excludeRectLocal": [
+          0,
+          142,
+          2,
+          21
+        ]
+      },
+      "guard": {
+        "crop": [
+          32,
+          1162,
+          223,
+          302
+        ],
+        "feet": [
+          124.3,
+          302
+        ],
+        "sourceFeet": [
+          156.3,
+          1464
+        ]
+      },
+      "hurt": {
+        "crop": [
+          343,
+          1165,
+          296,
+          299
+        ],
+        "feet": [
+          180,
+          299
+        ],
+        "sourceFeet": [
+          523,
+          1464
+        ]
+      },
+      "death": {
+        "crop": [
+          657,
+          1283,
+          348,
+          199
+        ],
+        "feet": [
+          205.5,
+          199
+        ],
+        "sourceFeet": [
+          862.5,
+          1482
+        ]
+      }
+    }
+  },
+  "icons": {
+    "blade": {
+      "crop": [
+        67,
+        31,
+        307,
+        306
+      ]
+    },
+    "shield": {
+      "crop": [
+        449,
+        31,
+        257,
+        306
+      ]
+    },
+    "spark": {
+      "crop": [
+        816,
+        31,
+        261,
+        315
+      ]
+    },
+    "focus": {
+      "crop": [
+        1174,
+        31,
+        301,
+        306
+      ]
+    },
+    "poison": {
+      "crop": [
+        84,
+        362,
+        216,
+        290
+      ]
+    },
+    "bomb": {
+      "crop": [
+        445,
+        361,
+        275,
+        291
+      ]
+    },
+    "heart": {
+      "crop": [
+        816,
+        389,
+        270,
+        253
+      ]
+    },
+    "coin": {
+      "crop": [
+        1194,
+        372,
+        256,
+        270
+      ]
+    },
+    "potion": {
+      "crop": [
+        79,
+        670,
+        222,
+        314
+      ]
+    },
+    "relic": {
+      "crop": [
+        428,
+        673,
+        274,
+        309
+      ]
+    },
+    "crown": {
+      "crop": [
+        814,
+        702,
+        280,
+        251
+      ]
+    },
+    "starStamp": {
+      "crop": [
+        1163,
+        670,
+        313,
+        311
+      ]
+    }
+  }
+}

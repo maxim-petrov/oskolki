@@ -1,0 +1,35 @@
+[
+  {
+    "name": "actors",
+    "sourcePath": "/Users/max/.codex/generated_images/01a07d91-9b7a-7663-b2f1-458bc9ce85c4/exec-4be4d357-70d6-4d94-88e0-62ca814a119d.png",
+    "sha256": "bd9505985e00e74744a05517aca7072a58560fb0ec61ab400da1668146c8b037",
+    "bytes": 1718977,
+    "width": 1024,
+    "height": 1536,
+    "colorType": 6,
+    "channels": 4,
+    "bitDepth": 8
+  },
+  {
+    "name": "icons",
+    "sourcePath": "/Users/max/.codex/generated_images/01a07d91-9b7a-7663-b2f1-458bc9ce85c4/exec-16f2fc0c-4fd2-4a2d-a7db-0d7fb79e4fd7.png",
+    "sha256": "3795486c9067cd432e437544b1589f26ff128ccc4e28c34406246cf01f764047",
+    "bytes": 1568765,
+    "width": 1536,
+    "height": 1024,
+    "colorType": 6,
+    "channels": 4,
+    "bitDepth": 8
+  },
+  {
+    "name": "arena",
+    "sourcePath": "/Users/max/.codex/generated_images/01a07d91-9b7a-7663-b2f1-458bc9ce85c4/exec-0a8b6f06-97f6-4247-9fc7-74c7a94c99aa.png",
+    "sha256": "1764ce462cc07e7080a18f8566a4c2dd7a8b9808ba6ed7a766b5790d07192393",
+    "bytes": 1197274,
+    "width": 1672,
+    "height": 941,
+    "colorType": 2,
+    "channels": 3,
+    "bitDepth": 8
+  }
+]
