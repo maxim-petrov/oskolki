@@ -1,0 +1,1049 @@
+/* Cold prison masonry, copper edges and the cyan light of collected cells. */
+html[data-skin='deadcells'] {
+  --background: #070f1a;
+  --foreground: #f1f2ed;
+  --card: #101e33;
+  --popover: #101e33;
+  --primary: #70ddf5;
+  --primary-foreground: #081421;
+  --secondary: #172c47;
+  --muted: #172c47;
+  --muted-foreground: #9caec5;
+  --accent: #214361;
+  --destructive: #e65b58;
+  --border: #6c4b41;
+  --input: #405c78;
+  --ring: #70ddf5;
+  --red: #f16e74;
+  --blue: #5cc7ef;
+  --gold: #ffd360;
+  --violet: #bb8df3;
+  --radius: 2px;
+  --cell-frame:
+    inset 0 0 0 2px #0a1423, inset 0 0 0 3px #314b65, 0 10px 30px #0003;
+  color-scheme: dark;
+
+  body {
+    background: radial-gradient(
+      ellipse at 55% 0,
+      #142f3c 0,
+      #0b1727 42%,
+      #070f1a 85%
+    );
+    font:
+      16px/1.45 'Nunito',
+      sans-serif;
+  }
+  button,
+  input,
+  select,
+  output {
+    font-family: inherit;
+  }
+  button {
+    border-radius: 2px;
+  }
+  .game-shell {
+    max-width: 1512px;
+  }
+  .topbar {
+    height: 80px;
+    border-bottom: 1px solid #965a41;
+    box-shadow: 0 2px #060e17;
+  }
+  .brand {
+    color: #8ce9fa;
+    gap: 10px;
+  }
+  .brand .deadcells-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .brand h1 {
+    color: #f1f9fb;
+    font:
+      29px/1 Georgia,
+      serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-shadow: 0 0 16px #5cc7ef50;
+  }
+  .build-tag {
+    background: #14263a;
+    color: #b6b6b0;
+    border-color: #705044;
+    border-radius: 0;
+    font-size: 12px;
+  }
+  .header-run {
+    color: #b0c1d4;
+    font-size: 14px;
+  }
+  .header-run svg,
+  .gold {
+    color: #ffd360;
+  }
+  .gold {
+    font-size: 22px;
+  }
+  .divider {
+    color: #4e6177;
+  }
+  .header-actions button {
+    color: #c6d6e2;
+    background: #111f32;
+    border: 1px solid #526880;
+  }
+  .header-actions button:hover {
+    color: #96edff;
+    border-color: #70ddf5;
+  }
+  .appearance-control {
+    gap: 12px;
+  }
+  .appearance-label {
+    color: #9caec5;
+    font-size: 14px;
+  }
+  .style-picker[data-slot='radio-group'] {
+    background: #0a1524;
+    border: 1px solid #40546c;
+    border-radius: 2px;
+    gap: 3px;
+    padding: 4px;
+  }
+  .style-option {
+    border-radius: 1px;
+    color: #aebed0;
+    font-size: 14px;
+    padding: 7px 9px;
+  }
+  .style-option.chosen {
+    background: #17364b;
+    border-color: #70ddf5;
+    color: #e8fcff;
+    box-shadow:
+      inset 0 0 0 1px #3ba8c6,
+      0 0 8px #33bce22b;
+  }
+  .game-layout {
+    gap: 24px;
+    padding-top: 22px;
+  }
+  .journey,
+  .loadout {
+    min-width: 0;
+    align-self: start;
+  }
+  .journey h2 {
+    color: #eef2ed;
+    font:
+      25px/1.15 Georgia,
+      serif;
+  }
+  .eyebrow {
+    color: #7eb0cf;
+    font-size: 12px;
+    letter-spacing: 0.07em;
+    font-weight: 700;
+  }
+  .journey-copy {
+    color: #9caec5;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .path-list li {
+    color: #8e9fb7;
+    font-size: 14px;
+  }
+  .path-list li.current {
+    color: #edf9ff;
+  }
+  .path-list li:after {
+    background: #314860;
+  }
+  .path-dot {
+    border: 1px solid #526880;
+    background: #0c1a2a;
+    color: #abc0d3;
+    border-radius: 2px;
+  }
+  .current .path-dot {
+    color: #eaffff;
+    background: #21435b;
+    border-color: #70ddf5;
+    box-shadow: 0 0 9px #5cc7ef45;
+  }
+  .complete .path-dot {
+    color: #51dfad;
+    background: #102b2c;
+    border-color: #348776;
+  }
+  .journey-bottom {
+    border-color: #314860;
+    color: #9caec5;
+  }
+  .journey-bottom p,
+  .streak-line {
+    color: #d2b390;
+  }
+  .journey-bottom small {
+    font-size: 12px;
+  }
+  .streak-line small {
+    color: #8e9fb7;
+  }
+
+  .arena {
+    height: 330px;
+    background: #101c30;
+    border: 2px solid #985d46;
+    border-radius: 2px;
+    box-shadow: var(--cell-frame);
+  }
+  .arena-bg {
+    opacity: 1;
+    image-rendering: pixelated;
+    object-position: center bottom;
+  }
+  .arena-shade {
+    background: linear-gradient(
+      180deg,
+      #09142925,
+      transparent 35%,
+      #070f1a10 70%,
+      #070f1aaa
+    );
+  }
+  .arena-dust {
+    opacity: 0.5;
+  }
+  .sprite-ground {
+    opacity: 0.55;
+    filter: blur(2px);
+  }
+  .fighter {
+    bottom: 12px;
+    width: 160px;
+    height: 245px;
+  }
+  .hero {
+    left: 8%;
+  }
+  .sprite-root {
+    top: auto;
+    bottom: 74px;
+    width: 208px;
+    height: 208px;
+  }
+  .deadcells-actor {
+    background: none;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 2px #081421);
+    animation: none;
+  }
+  .deadcells-actor.pose-idle {
+    animation: deadcells-idle 2s steps(2, end) infinite;
+  }
+  .enemies {
+    right: 8%;
+    height: 270px;
+    width: 160px;
+  }
+  .enemy {
+    bottom: 12px;
+  }
+  .enemies.count-2 {
+    width: 238px;
+    right: 2%;
+  }
+  .count-2 .enemy {
+    width: 116px;
+  }
+  .count-2 .enemy:last-child {
+    left: 120px;
+  }
+  .count-2 .sprite-root {
+    width: 168px;
+    height: 168px;
+  }
+  .fighter-caption {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #0a1424ed;
+    border: 1px solid #526880;
+    border-radius: 1px;
+    padding: 6px 7px;
+    box-shadow: 0 2px #060e17;
+  }
+  .fighter-caption strong {
+    color: #eef4f6;
+    font:
+      800 17px/1.15 'Nunito',
+      sans-serif;
+    text-shadow: none;
+  }
+  .health-number,
+  .enemy .health-number {
+    color: #d8f4e9;
+    font-size: 14px;
+  }
+  .health-bar {
+    height: 7px;
+    border: 1px solid #2b695d;
+  }
+  .health-bar [data-slot='progress-track'] {
+    background: #122b2c;
+    border-radius: 0;
+  }
+  .health-bar [data-slot='progress-indicator'] {
+    background: linear-gradient(#70f2bc, #20cf85 45%, #12a86c);
+    box-shadow: 0 0 6px #39df9370;
+    border-radius: 0;
+  }
+  .enemy .health-bar {
+    border-color: #834744;
+  }
+  .enemy .health-bar [data-slot='progress-indicator'] {
+    background: linear-gradient(#ffbb75, #f06b52 45%, #c13d41);
+    border-radius: 0;
+  }
+  .enemy.targeted .fighter-caption {
+    border-color: #70ddf5;
+    box-shadow: 0 0 6px #5cc7ef40;
+  }
+  .enemy.targeted .fighter-caption strong {
+    color: #b8f3ff;
+  }
+  .enemy-intent {
+    top: -8px;
+    background: #0b1628ed;
+    color: #ffb57a;
+    border: 1px solid #b07550;
+    border-radius: 2px;
+    font-size: 14px;
+    box-shadow: 0 2px #060e17;
+  }
+  .count-2 .fighter-caption strong {
+    font-size: 14px;
+    overflow-wrap: anywhere;
+  }
+  .arena-caption .eyebrow {
+    color: #cee8f0;
+    background: #0b1628d9;
+    border-left: 2px solid #d38a56;
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+  .turn-badge {
+    color: #e0f4f9;
+    background: #102138ed;
+    border: 1px solid #59748d;
+    border-radius: 1px;
+    font-size: 14px;
+  }
+  .block-orb {
+    color: #cff8ff;
+    background: #174463;
+    border: 1px solid #73def1;
+    border-radius: 2px;
+    box-shadow: 0 0 9px #5cc7ef40;
+  }
+  .poison-number {
+    color: #84df6d;
+  }
+  .ward {
+    border-color: #83f3fb;
+    background: #29b5e122;
+    color: #a6f6ff;
+  }
+  .sword-trail {
+    color: #ffb26b;
+  }
+
+  .board-heading {
+    color: #bacbde;
+    font-size: 14px;
+  }
+  .board-section {
+    background: linear-gradient(120deg, #152a45, #101c30);
+    border: 2px solid #985d46;
+    border-radius: 2px;
+    box-shadow: var(--cell-frame);
+  }
+  .board-frame {
+    background: #091423;
+    border: 1px solid #324d68;
+    border-radius: 1px;
+    box-shadow: none;
+  }
+  .board {
+    background: #081322;
+    border: 1px solid #314b65;
+    border-radius: 0;
+    gap: 3px;
+    padding: 4px;
+  }
+  .tile {
+    --tile-fill: #362033;
+    --tile-line: #9b4b65;
+    background: linear-gradient(135deg, var(--tile-fill), #0b1527);
+    border: 1px solid var(--tile-line);
+    border-radius: 1px;
+    box-shadow:
+      inset 0 0 0 2px #081321,
+      inset 0 3px 9px #ffffff12;
+  }
+  .tile-shield {
+    --tile-fill: #12374a;
+    --tile-line: #397fa1;
+  }
+  .tile-spark {
+    --tile-fill: #321e53;
+    --tile-line: #855db1;
+  }
+  .tile-focus {
+    --tile-fill: #3b331b;
+    --tile-line: #9b8350;
+  }
+  .tile .deadcells-icon {
+    width: 78%;
+    height: 78%;
+  }
+  .tile:before {
+    display: none;
+  }
+  .tile:after {
+    inset: 2px;
+    border: 0;
+    border-bottom: 2px solid var(--tile-line);
+    border-radius: 0;
+    opacity: 0.55;
+  }
+  .tile.selected {
+    outline: 2px solid #80efff;
+    outline-offset: -2px;
+    box-shadow:
+      inset 0 0 12px #59d9f255,
+      0 0 7px #59d9f2;
+  }
+  .arrow-row button,
+  .side-arrows button {
+    color: #7bc9e3;
+    background: #10233b;
+    border-color: #385b77;
+    border-radius: 1px;
+  }
+  .arrow-row button:hover,
+  .side-arrows button:hover {
+    color: #effeff;
+    background: #214361;
+    border-color: #70ddf5;
+  }
+  .board-legend,
+  .board-legend span {
+    color: #b2c7db;
+    font-size: 13px;
+  }
+  .hint-button {
+    color: #84deed;
+    font-size: 14px;
+  }
+  .phase-dot {
+    background: #35d99a;
+    box-shadow: 0 0 7px #35d99a65;
+  }
+  .move-message {
+    color: #e0eef5;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .end-turn,
+  .panel-main-action {
+    background: linear-gradient(120deg, #204862, #173249);
+    color: #edfcff;
+    border: 2px solid #6fdaef;
+    border-radius: 2px;
+    font:
+      800 17px/1.2 'Nunito',
+      sans-serif;
+    box-shadow:
+      inset 0 0 0 2px #0a1c2b,
+      0 0 12px #40b5d027;
+  }
+  .end-turn:hover:not(:disabled),
+  .panel-main-action:hover:not(:disabled) {
+    background: #285d77;
+    border-color: #fff0bc;
+  }
+  .end-turn:disabled {
+    opacity: 0.45;
+  }
+  .combat-hint,
+  .turn-help {
+    color: #9caec5;
+    font-size: 13px;
+  }
+
+  .loadout {
+    padding: 17px 13px;
+    border: 2px solid #985d46;
+    background: linear-gradient(155deg, #152a45, #0d192b);
+    box-shadow: var(--cell-frame);
+  }
+  .resource-row {
+    background: #0b1728;
+    border-color: #405771;
+  }
+  .resource {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 4px;
+  }
+  .resource > .deadcells-icon {
+    width: 28px;
+    height: 32px;
+  }
+  .resource strong {
+    color: #bb8df3;
+    font:
+      700 27px/1 'Nunito',
+      sans-serif;
+  }
+  .resource.focus strong {
+    color: #ffd360;
+  }
+  .resource small,
+  .resource > span,
+  .section-label > span:last-child {
+    color: #9caec5;
+    font-size: 12px;
+  }
+  .loadout h2,
+  .loadout h3 {
+    color: #edf0ed;
+    font-family: Georgia, serif;
+  }
+  .skill-card,
+  .edit-skill,
+  .potion {
+    background: linear-gradient(110deg, #11243c, #101c2f);
+    border: 1px solid #4c6480;
+    border-left: 3px solid #776299;
+    border-radius: 2px;
+    color: #f1f2ed;
+    box-shadow: inset 0 1px #ffffff09;
+  }
+  .skill-icon {
+    width: 34px;
+    min-width: 34px;
+  }
+  .skill-icon .deadcells-icon {
+    width: 34px;
+    height: 38px;
+  }
+  .edit-trigger > .deadcells-icon,
+  .potion > .deadcells-icon {
+    width: 30px;
+    height: 34px;
+  }
+  .skill-card:hover:not(:disabled),
+  .edit-skill:hover:not(:disabled),
+  .potion:hover:not(:disabled) {
+    background: #193550;
+    border-color: #70ddf5;
+    box-shadow: 0 0 8px #5cc7ef35;
+  }
+  .skill-card strong,
+  .edit-trigger strong,
+  .potion strong {
+    color: #eef3f5;
+    font:
+      800 17px/1.2 'Nunito',
+      sans-serif;
+  }
+  .skill-card p,
+  .skill-card small,
+  .edit-trigger small,
+  .potion small {
+    color: #b3c3d7;
+    font-size: 14px;
+  }
+  .skill-card:disabled,
+  .edit-trigger:disabled,
+  .potion:disabled {
+    opacity: 0.55;
+  }
+  .edit-trigger,
+  .potion b,
+  .cost,
+  .skill-cost {
+    color: #bb8df3;
+  }
+  .potion {
+    border-left-color: #d99148;
+  }
+  .empty-relics {
+    border: 1px dashed #47637d;
+    background: #0c192b;
+    border-radius: 2px;
+  }
+  .empty-relics p {
+    color: #9caec5;
+    font-size: 14px;
+  }
+  .battle-log {
+    border-color: #405771;
+  }
+  .battle-log p {
+    color: #8e9fb7;
+    font-size: 13px;
+  }
+  .battle-log p.latest {
+    color: #d0e7ed;
+  }
+  .game-footer {
+    color: #8e9fb7;
+    border-color: #314860;
+    font-size: 12px;
+  }
+  .relic-list > button,
+  .modifier-list > button,
+  .upgrade-pips span {
+    background: #172441;
+    color: #b6ecf7;
+    border: 1px solid #557693;
+    border-radius: 1px;
+  }
+  .relic-list > button,
+  .modifier-list > button {
+    font-size: 13px;
+  }
+  .family-choices button {
+    background: #11233a;
+    color: #bacbde;
+    border-color: #526880;
+  }
+  .family-choices button.chosen {
+    color: #ebffff;
+    background: #204560;
+    outline: 2px solid #70ddf5;
+  }
+  .deadcells-icon {
+    flex-shrink: 0;
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+
+  .game-dialog,
+  .run-dialog {
+    background: linear-gradient(135deg, #162b47, #111d33 70%, #142941);
+    color: #f1f2ed;
+    border: 2px solid #b77350;
+    border-radius: 2px;
+    box-shadow:
+      var(--cell-frame),
+      0 0 0 1px #241b20;
+  }
+  .game-dialog [data-slot='dialog-title'],
+  .game-dialog [data-slot='alert-dialog-title'] {
+    color: #f3f5f0;
+    font:
+      28px/1.2 Georgia,
+      serif;
+    text-shadow: 0 2px #070e19;
+  }
+  .run-dialog [data-slot='dialog-title'] {
+    font-size: 34px;
+  }
+  .game-dialog [data-slot='dialog-description'],
+  .help-copy p {
+    color: #b3c3d7;
+    font-size: 16px;
+  }
+  .game-dialog [data-slot='dialog-close'] {
+    color: #84deed;
+    opacity: 1;
+  }
+  .panel-emblem {
+    color: #ffd360;
+    background: #13263d;
+    border: 1px solid #b77350;
+    border-radius: 2px;
+    box-shadow: 0 0 15px #dc874426;
+  }
+  .offer-card,
+  .route-card,
+  .rest-heal,
+  .upgrade-grid button,
+  .replace-card {
+    background: linear-gradient(135deg, #152944, #0b1729);
+    color: #f1f2ed;
+    border: 1px solid #59718d;
+    border-radius: 2px;
+    box-shadow: inset 0 1px #cbe7f512;
+  }
+  .offer-card:hover:not(:disabled),
+  .route-card:hover:not(:disabled),
+  .rest-heal:hover:not(:disabled),
+  .upgrade-grid button:hover:not(:disabled),
+  .replace-card:hover:not(:disabled) {
+    background: #1b3550;
+    border-color: #70ddf5;
+    box-shadow:
+      inset 0 0 0 1px #49b4d0,
+      0 0 10px #59d9f245;
+  }
+  .offer-card > strong,
+  .route-card strong,
+  .rest-heal strong,
+  .upgrade-grid strong,
+  .replace-card strong {
+    color: #eef3f5;
+    font-family: 'Nunito', sans-serif;
+    font-size: 20px;
+  }
+  .offer-card p,
+  .route-card p,
+  .rest-heal small,
+  .upgrade-grid small,
+  .replace-card small {
+    color: #b3c3d7;
+    font-size: 16px;
+  }
+  .offer-kind,
+  .choice-divider {
+    color: #83b7d7;
+    font-size: 12px;
+  }
+  .offer-icon,
+  .route-symbol,
+  .route-card > svg {
+    color: #70ddf5;
+  }
+  .offer-tag {
+    color: #ffd360;
+    font-size: 14px;
+  }
+  .modifier-offer {
+    background: linear-gradient(135deg, #2c2144, #101b2d);
+    border-color: #8763ae;
+  }
+  .route-elite {
+    border-color: #be784b;
+  }
+  .panel-note {
+    color: #9caec5;
+    font-size: 14px;
+  }
+  .trial-brief strong,
+  .end-stats strong {
+    color: #ffd360;
+    font-family: Georgia, serif;
+  }
+  .trial-brief span,
+  .end-stats span {
+    color: #9caec5;
+    font-size: 14px;
+  }
+  .trial-brief > div {
+    color: #51dfad;
+  }
+  .trial-target {
+    background: #10213aeb;
+    border: 1px solid #70ddf5;
+    border-radius: 2px;
+    padding: 12px;
+    color: #c7e8ed;
+    bottom: 80px;
+  }
+  .trial-target > strong {
+    font:
+      20px/1.2 Georgia,
+      serif;
+  }
+  .discovery-toast {
+    background: #132940;
+    color: #effaff;
+    border: 2px solid #b77350;
+    border-radius: 2px;
+    box-shadow: 0 0 16px #5cc7ef30;
+  }
+  .discovery-list > div {
+    color: #8e9fb7;
+    border-color: #405771;
+  }
+  .discovery-list strong {
+    color: #83b7d7;
+    font-family: 'Nunito', sans-serif;
+  }
+  .discovery-list p {
+    color: #9caec5;
+  }
+  .discovery-list .unlocked,
+  .discovery-list .unlocked strong {
+    color: #51dfad;
+  }
+  .setting-row > span,
+  .seed-control {
+    color: #c4d8e5;
+    font-size: 16px;
+  }
+  .setting-row b {
+    color: #effaff;
+  }
+  .preset-options [aria-pressed='true'] {
+    background: #244c65;
+    color: #edfcff;
+    border-color: #70ddf5;
+  }
+  .seed-control input {
+    background: #0a1525;
+    color: #effaff;
+    border-color: #59718d;
+    border-radius: 2px;
+  }
+  [data-slot='tooltip-content'] {
+    color: #e6f5f8;
+    background: #12283f;
+    border: 1px solid #70ddf5;
+    border-radius: 2px;
+    font-size: 14px;
+  }
+  [data-slot='tooltip-arrow'] {
+    fill: #12283f;
+  }
+}
+@media (max-width: 1150px) {
+  html[data-skin='deadcells'] {
+    .game-layout {
+      gap: 18px;
+    }
+    .journey h2 {
+      font-size: 23px;
+    }
+    .hero {
+      left: 4%;
+    }
+    .fighter {
+      width: 142px;
+    }
+    .enemies {
+      width: 142px;
+      right: 4%;
+    }
+    .enemies.count-2 {
+      width: 214px;
+      right: 1%;
+    }
+    .count-2 .enemy {
+      width: 105px;
+    }
+    .count-2 .enemy:last-child {
+      left: 108px;
+    }
+    .count-2 .sprite-root {
+      width: 156px;
+      height: 156px;
+    }
+  }
+}
+@media (max-width: 640px) {
+  html[data-skin='deadcells'] {
+    .game-shell {
+      padding: 0 12px;
+    }
+    .topbar {
+      height: 66px;
+      gap: 8px;
+    }
+    .brand h1 {
+      font-size: 23px;
+      letter-spacing: 0.03em;
+    }
+    .brand .deadcells-icon {
+      width: 24px;
+      height: 24px;
+    }
+    .header-actions {
+      gap: 6px;
+    }
+    .header-actions button {
+      width: 28px;
+      height: 28px;
+    }
+    .header-run {
+      font-size: 14px;
+    }
+    .style-picker[data-slot='radio-group'] {
+      justify-content: center;
+      gap: 2px;
+    }
+    .style-option {
+      font-size: 13px;
+      padding: 6px;
+      gap: 4px;
+    }
+    .style-option > svg {
+      width: 14px;
+      height: 14px;
+    }
+    .arena {
+      height: 300px;
+    }
+    .arena-bg {
+      height: calc(100% - 50px);
+    }
+    .fighter {
+      width: 124px;
+      height: 225px;
+    }
+    .sprite-root {
+      width: 172px;
+      height: 172px;
+      bottom: 78px;
+    }
+    .hero {
+      left: 3%;
+    }
+    .enemies {
+      width: 124px;
+      right: 3%;
+    }
+    .fighter-caption strong {
+      font-size: 15px;
+    }
+    .health-number {
+      font-size: 13px;
+    }
+    .enemy-intent {
+      top: -16px;
+      font-size: 13px;
+    }
+    .enemies.count-2 {
+      width: 176px;
+      right: 1%;
+    }
+    .count-2 .enemy {
+      width: 87px;
+    }
+    .count-2 .enemy:last-child {
+      left: 89px;
+    }
+    .count-2 .sprite-root {
+      width: 132px;
+      height: 132px;
+      bottom: 90px;
+    }
+    .count-2 .fighter-caption strong {
+      font-size: 13px;
+      line-height: 1.1;
+    }
+    .count-2 .enemy-intent {
+      max-width: 95px;
+      white-space: normal;
+      font-size: 13px;
+    }
+    .arena-caption .eyebrow {
+      font-size: 12px;
+      max-width: 66%;
+    }
+    .board-section {
+      padding: 7px 3px 9px;
+    }
+    .tile .deadcells-icon {
+      width: 84%;
+      height: 84%;
+    }
+    .board-legend {
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .loadout {
+      padding: 14px;
+    }
+    .skill-card {
+      min-height: 93px;
+      padding: 10px 8px;
+    }
+    .game-dialog {
+      padding: 22px;
+      max-height: 90dvh;
+      overflow-y: auto;
+    }
+    .run-dialog [data-slot='dialog-title'] {
+      font-size: 28px;
+    }
+    .offer-card {
+      padding: 14px;
+    }
+    .trial-target {
+      width: 146px;
+      right: 3%;
+      bottom: 80px;
+    }
+  }
+}
+@keyframes deadcells-idle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@media (max-width: 360px) {
+  html[data-skin='deadcells'] {
+    .topbar {
+      flex-wrap: wrap;
+      height: auto;
+      min-height: 94px;
+      padding: 12px 0;
+      gap: 10px;
+    }
+    .brand {
+      justify-content: center;
+      width: 100%;
+    }
+    .header-actions {
+      width: 100%;
+      justify-content: center;
+    }
+    .hero {
+      width: 96px;
+      left: 2%;
+    }
+    .hero .sprite-root {
+      width: 144px;
+      height: 144px;
+    }
+    .hero .fighter-caption strong {
+      font-size: 14px;
+    }
+    .hero .block-orb {
+      right: 0;
+      bottom: 68px;
+    }
+    .enemies.count-2 {
+      width: 164px;
+    }
+    .count-2 .enemy {
+      width: 81px;
+    }
+    .count-2 .enemy:last-child {
+      left: 83px;
+    }
+    .count-2 .sprite-root {
+      width: 120px;
+      height: 120px;
+    }
+    .count-2 .fighter-caption {
+      padding-left: 3px;
+      padding-right: 3px;
+    }
+    .count-2 .fighter-caption strong {
+      font-size: 12px;
+    }
+  }
+}

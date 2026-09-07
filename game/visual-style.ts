@@ -58,6 +58,14 @@ export const VISUAL_STYLES = [
     arenaAlt:
       'Античный подземный зал с золотой резьбой, зелёным огнём и алыми трещинами',
   },
+  {
+    id: 'deadcells',
+    name: 'Мёртвые клетки',
+    description: 'В духе Dead Cells',
+    arena: '/art/dead-cells/arena.png',
+    arenaAlt:
+      'Пиксельная крепость над морем: туманный замок, каменные арки и огни тюремного двора',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {

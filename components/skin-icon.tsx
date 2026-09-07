@@ -6,6 +6,7 @@ import { CartoonIcon } from '@/components/cartoon-icon';
 import { DarkTaleIcon } from '@/components/dark-tale-icon';
 import { MidnightIcon } from '@/components/midnight-icon';
 import { UnderworldIcon } from '@/components/underworld-icon';
+import { DeadCellsIcon } from '@/components/dead-cells-icon';
 import {
   RoyalIcon,
   ROYAL_ICONS,
@@ -65,6 +66,7 @@ function PixelIcon({ name, size = 30, className = '' }: IconProps) {
 }
 export function SkinIcon(props: IconProps) {
   const style = useVisualStyle();
+  if (style === 'deadcells') return <DeadCellsIcon {...props} />;
   if (style === 'underworld') return <UnderworldIcon {...props} />;
   if (style === 'midnight') return <MidnightIcon {...props} />;
   if (style === 'darktale') return <DarkTaleIcon {...props} />;

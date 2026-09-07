@@ -8,6 +8,7 @@ import { CartoonActorArt } from '@/components/cartoon-actor-art';
 import { DarkTaleActorArt } from '@/components/dark-tale-actor-art';
 import { MidnightActorArt } from '@/components/midnight-actor-art';
 import { UnderworldActorArt } from '@/components/underworld-actor-art';
+import { DeadCellsActorArt } from '@/components/dead-cells-actor-art';
 import type { Pose } from '@/game/motion';
 // Atlas coordinates measured from the generated source. Keep the texture intact:
 // the renderer uses a light-background color key, like a sprite material.
@@ -35,6 +36,8 @@ const ENEMY: Record<Pose, Region> = {
 export function ActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
   const id = useId().replace(/:/g, '');
   const style = useVisualStyle();
+  if (style === 'deadcells')
+    return <DeadCellsActorArt hero={hero} pose={pose} />;
   if (style === 'underworld')
     return <UnderworldActorArt hero={hero} pose={pose} />;
   if (style === 'midnight') return <MidnightActorArt hero={hero} pose={pose} />;

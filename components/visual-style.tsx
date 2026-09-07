@@ -16,6 +16,7 @@ import {
   Heart,
   MoonStar,
   Flame,
+  Skull,
 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -124,8 +125,10 @@ export function StylePicker({
               <Heart size={18} />
             ) : option.id === 'midnight' ? (
               <MoonStar size={18} />
-            ) : (
+            ) : option.id === 'underworld' ? (
               <Flame size={18} />
+            ) : (
+              <Skull size={18} />
             )}
             <span className="style-option-label">{option.name}</span>
             {style === option.id && <Check className="style-check" size={14} />}
