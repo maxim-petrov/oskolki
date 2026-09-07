@@ -1,21 +1,22 @@
 'use client';
+import { DeadCellsCutout } from '@/components/dead-cells-cutout';
 import { useId } from 'react';
 import { ROYAL_ICONS, type RoyalIconName } from '@/components/royal-icon';
 
 // Native x/y/width/height, including each item's highlights and detached sparks.
 const REGIONS = [
-  [29, 12, 293, 345],
-  [398, 33, 290, 298],
-  [802, 10, 225, 344],
-  [1118, 16, 296, 347],
-  [66, 365, 260, 344],
-  [413, 366, 286, 331],
-  [785, 372, 254, 333],
-  [1135, 407, 254, 275],
-  [54, 732, 258, 324],
-  [416, 715, 258, 341],
-  [753, 746, 299, 292],
-  [1123, 722, 288, 325],
+  [32, 17, 282, 344],
+  [413, 43, 277, 294],
+  [778, 16, 257, 347],
+  [1102, 31, 309, 339],
+  [61, 371, 266, 342],
+  [412, 372, 301, 332],
+  [766, 374, 281, 340],
+  [1111, 406, 278, 288],
+  [42, 727, 282, 333],
+  [393, 704, 290, 356],
+  [745, 733, 305, 308],
+  [1102, 713, 309, 343],
 ];
 
 export function DeadCellsIcon({
@@ -32,6 +33,7 @@ export function DeadCellsIcon({
   const extent = Math.max(width, height) + 12;
   return (
     <svg
+      shapeRendering="crispEdges"
       aria-hidden="true"
       width={size}
       height={size}
@@ -42,22 +44,13 @@ export function DeadCellsIcon({
         <clipPath id={`deadcells-icon-${id}`}>
           <rect x={x} y={y} width={width} height={height} />
         </clipPath>
-        <filter
+        <DeadCellsCutout
           id={`deadcells-icon-alpha-${id}`}
-          filterUnits="userSpaceOnUse"
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          colorInterpolationFilters="sRGB"
-        >
-          <feComponentTransfer>
-            <feFuncA type="discrete" tableValues="0 1 1 1 1 1 1 1" />
-          </feComponentTransfer>
-        </filter>
+          bounds={[x, y, width, height]}
+        />
       </defs>
       <image
-        href="/art/dead-cells/icons.png"
+        href="/art/dead-cells/icons-pixel.png"
         width={1448}
         height={1086}
         clipPath={`url(#deadcells-icon-${id})`}

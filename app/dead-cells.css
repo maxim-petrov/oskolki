@@ -18,7 +18,7 @@ html[data-skin='deadcells'] {
   --blue: #5cc7ef;
   --gold: #ffd360;
   --violet: #bb8df3;
-  --radius: 2px;
+  --radius: 0;
   --cell-frame:
     inset 0 0 0 2px #0a1423, inset 0 0 0 3px #314b65, 0 10px 30px #0003;
   color-scheme: dark;
@@ -41,7 +41,7 @@ html[data-skin='deadcells'] {
     font-family: inherit;
   }
   button {
-    border-radius: 2px;
+    border-radius: 0;
   }
   .game-shell {
     max-width: 1512px;
@@ -108,12 +108,12 @@ html[data-skin='deadcells'] {
   .style-picker[data-slot='radio-group'] {
     background: #0a1524;
     border: 1px solid #40546c;
-    border-radius: 2px;
+    border-radius: 0;
     gap: 3px;
     padding: 4px;
   }
   .style-option {
-    border-radius: 1px;
+    border-radius: 0;
     color: #aebed0;
     font-size: 14px;
     padding: 7px 9px;
@@ -166,7 +166,7 @@ html[data-skin='deadcells'] {
     border: 1px solid #526880;
     background: #0c1a2a;
     color: #abc0d3;
-    border-radius: 2px;
+    border-radius: 0;
   }
   .current .path-dot {
     color: #eaffff;
@@ -198,7 +198,7 @@ html[data-skin='deadcells'] {
     height: 330px;
     background: #101c30;
     border: 2px solid #985d46;
-    border-radius: 2px;
+    border-radius: 0;
     box-shadow: var(--cell-frame);
   }
   .arena-bg {
@@ -220,7 +220,7 @@ html[data-skin='deadcells'] {
   }
   .sprite-ground {
     opacity: 0.55;
-    filter: blur(2px);
+    filter: none;
   }
   .fighter {
     bottom: 12px;
@@ -273,7 +273,7 @@ html[data-skin='deadcells'] {
     bottom: 0;
     background: #0a1424ed;
     border: 1px solid #526880;
-    border-radius: 1px;
+    border-radius: 0;
     padding: 6px 7px;
     box-shadow: 0 2px #060e17;
   }
@@ -298,7 +298,7 @@ html[data-skin='deadcells'] {
     border-radius: 0;
   }
   .health-bar [data-slot='progress-indicator'] {
-    background: linear-gradient(#70f2bc, #20cf85 45%, #12a86c);
+    background: linear-gradient(#70f2bc 0 25%, #20cf85 25% 75%, #12a86c 75%);
     box-shadow: 0 0 6px #39df9370;
     border-radius: 0;
   }
@@ -306,7 +306,7 @@ html[data-skin='deadcells'] {
     border-color: #834744;
   }
   .enemy .health-bar [data-slot='progress-indicator'] {
-    background: linear-gradient(#ffbb75, #f06b52 45%, #c13d41);
+    background: linear-gradient(#ffbb75 0 25%, #f06b52 25% 75%, #c13d41 75%);
     border-radius: 0;
   }
   .enemy.targeted .fighter-caption {
@@ -321,7 +321,7 @@ html[data-skin='deadcells'] {
     background: #0b1628ed;
     color: #ffb57a;
     border: 1px solid #b07550;
-    border-radius: 2px;
+    border-radius: 0;
     font-size: 14px;
     box-shadow: 0 2px #060e17;
   }
@@ -340,14 +340,14 @@ html[data-skin='deadcells'] {
     color: #e0f4f9;
     background: #102138ed;
     border: 1px solid #59748d;
-    border-radius: 1px;
+    border-radius: 0;
     font-size: 14px;
   }
   .block-orb {
     color: #cff8ff;
     background: #174463;
     border: 1px solid #73def1;
-    border-radius: 2px;
+    border-radius: 0;
     box-shadow: 0 0 9px #5cc7ef40;
   }
   .poison-number {
@@ -369,13 +369,13 @@ html[data-skin='deadcells'] {
   .board-section {
     background: linear-gradient(120deg, #152a45, #101c30);
     border: 2px solid #985d46;
-    border-radius: 2px;
+    border-radius: 0;
     box-shadow: var(--cell-frame);
   }
   .board-frame {
     background: #091423;
     border: 1px solid #324d68;
-    border-radius: 1px;
+    border-radius: 0;
     box-shadow: none;
   }
   .board {
@@ -388,12 +388,12 @@ html[data-skin='deadcells'] {
   .tile {
     --tile-fill: #362033;
     --tile-line: #9b4b65;
-    background: linear-gradient(135deg, var(--tile-fill), #0b1527);
+    background: var(--tile-fill);
     border: 1px solid var(--tile-line);
-    border-radius: 1px;
+    border-radius: 0;
     box-shadow:
       inset 0 0 0 2px #081321,
-      inset 0 3px 9px #ffffff12;
+      inset 0 3px #ffffff12;
   }
   .tile-shield {
     --tile-fill: #12374a;
@@ -433,7 +433,7 @@ html[data-skin='deadcells'] {
     color: #7bc9e3;
     background: #10233b;
     border-color: #385b77;
-    border-radius: 1px;
+    border-radius: 0;
   }
   .arrow-row button:hover,
   .side-arrows button:hover {
@@ -464,7 +464,7 @@ html[data-skin='deadcells'] {
     background: linear-gradient(120deg, #204862, #173249);
     color: #edfcff;
     border: 2px solid #6fdaef;
-    border-radius: 2px;
+    border-radius: 0;
     font:
       800 17px/1.2 'Nunito',
       sans-serif;
@@ -530,7 +530,7 @@ html[data-skin='deadcells'] {
     background: linear-gradient(110deg, #11243c, #101c2f);
     border: 1px solid #4c6480;
     border-left: 3px solid #776299;
-    border-radius: 2px;
+    border-radius: 0;
     color: #f1f2ed;
     box-shadow: inset 0 1px #ffffff09;
   }
@@ -586,7 +586,7 @@ html[data-skin='deadcells'] {
   .empty-relics {
     border: 1px dashed #47637d;
     background: #0c192b;
-    border-radius: 2px;
+    border-radius: 0;
   }
   .empty-relics p {
     color: #9caec5;
@@ -613,7 +613,7 @@ html[data-skin='deadcells'] {
     background: #172441;
     color: #b6ecf7;
     border: 1px solid #557693;
-    border-radius: 1px;
+    border-radius: 0;
   }
   .relic-list > button,
   .modifier-list > button {
@@ -640,7 +640,7 @@ html[data-skin='deadcells'] {
     background: linear-gradient(135deg, #162b47, #111d33 70%, #142941);
     color: #f1f2ed;
     border: 2px solid #b77350;
-    border-radius: 2px;
+    border-radius: 0;
     box-shadow:
       var(--cell-frame),
       0 0 0 1px #241b20;
@@ -669,7 +669,7 @@ html[data-skin='deadcells'] {
     color: #ffd360;
     background: #13263d;
     border: 1px solid #b77350;
-    border-radius: 2px;
+    border-radius: 0;
     box-shadow: 0 0 15px #dc874426;
   }
   .offer-card,
@@ -680,7 +680,7 @@ html[data-skin='deadcells'] {
     background: linear-gradient(135deg, #152944, #0b1729);
     color: #f1f2ed;
     border: 1px solid #59718d;
-    border-radius: 2px;
+    border-radius: 0;
     box-shadow: inset 0 1px #cbe7f512;
   }
   .offer-card:hover:not(:disabled),
@@ -752,7 +752,7 @@ html[data-skin='deadcells'] {
   .trial-target {
     background: #10213aeb;
     border: 1px solid #70ddf5;
-    border-radius: 2px;
+    border-radius: 0;
     padding: 12px;
     color: #c7e8ed;
     bottom: 80px;
@@ -766,7 +766,7 @@ html[data-skin='deadcells'] {
     background: #132940;
     color: #effaff;
     border: 2px solid #b77350;
-    border-radius: 2px;
+    border-radius: 0;
     box-shadow: 0 0 16px #5cc7ef30;
   }
   .discovery-list > div {
@@ -801,13 +801,13 @@ html[data-skin='deadcells'] {
     background: #0a1525;
     color: #effaff;
     border-color: #59718d;
-    border-radius: 2px;
+    border-radius: 0;
   }
   [data-slot='tooltip-content'] {
     color: #e6f5f8;
     background: #12283f;
     border: 1px solid #70ddf5;
-    border-radius: 2px;
+    border-radius: 0;
     font-size: 14px;
   }
   [data-slot='tooltip-arrow'] {
@@ -1045,5 +1045,11 @@ html[data-skin='deadcells'] {
     .count-2 .fighter-caption strong {
       font-size: 12px;
     }
+  }
+}
+@media (min-width: 641px) {
+  html[data-skin='deadcells'] .enemies:not(.count-2) .enemy-intent {
+    top: -48px;
+    left: calc(50% - 26px);
   }
 }

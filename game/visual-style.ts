@@ -62,7 +62,7 @@ export const VISUAL_STYLES = [
     id: 'deadcells',
     name: 'Мёртвые клетки',
     description: 'В духе Dead Cells',
-    arena: '/art/dead-cells/arena.png',
+    arena: '/art/dead-cells/arena-pixel.png',
     arenaAlt:
       'Пиксельная крепость над морем: туманный замок, каменные арки и огни тюремного двора',
   },

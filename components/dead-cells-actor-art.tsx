@@ -1,5 +1,6 @@
 'use client';
 import { useId } from 'react';
+import { DeadCellsCutout } from '@/components/dead-cells-cutout';
 import type { Pose } from '@/game/motion';
 
 type Rect = [number, number, number, number];
@@ -8,28 +9,28 @@ type Frame = { crop: Rect; feet: [number, number]; polygon?: string };
 // the body stable while long weapons and their effects extend past the body.
 const FRAMES: Record<'hero' | 'rival', Record<Pose, Frame>> = {
   hero: {
-    idle: { crop: [35, 59, 225, 296], feet: [141.36, 354] },
-    windup: { crop: [374, 38, 216, 317], feet: [463.91, 354] },
-    strike: { crop: [649, 82, 358, 273], feet: [752.36, 354] },
-    guard: { crop: [42, 410, 230, 294], feet: [137.29, 703] },
-    hurt: { crop: [349, 446, 263, 258], feet: [480.59, 703] },
-    death: { crop: [658, 609, 343, 108], feet: [790.5, 706] },
+    idle: { crop: [30, 80, 234, 310], feet: [150, 385] },
+    windup: { crop: [367, 72, 225, 318], feet: [466, 385] },
+    strike: { crop: [638, 114, 370, 276], feet: [750, 385] },
+    guard: { crop: [28, 448, 256, 298], feet: [148, 740] },
+    hurt: { crop: [354, 480, 255, 266], feet: [478, 740] },
+    death: { crop: [642, 627, 345, 131], feet: [813, 744] },
   },
   rival: {
-    idle: { crop: [10, 773, 314, 317], feet: [187.31, 1090] },
+    idle: { crop: [9, 810, 323, 333], feet: [188, 1137] },
     windup: {
-      crop: [366, 744, 298, 342],
-      feet: [464.63, 1085],
-      polygon: '366,744 645,744 664,835 636.5,836 617,932 645,1086 366,1086',
+      crop: [354, 783, 299, 360],
+      feet: [464, 1137],
+      polygon: '354,783 653,783 653,942 621,942 621,1143 354,1143',
     },
     strike: {
-      crop: [623, 786, 385, 298],
-      feet: [892, 1081],
-      polygon: '645,744 664,835 636.5,836 617,932 645,1085 1008,1085 1008,744',
+      crop: [618, 845, 385, 298],
+      feet: [883, 1137],
+      polygon: '653,845 1003,845 1003,1143 618,1143 618,942 653,942',
     },
-    guard: { crop: [48, 1145, 267, 307], feet: [179.34, 1449] },
-    hurt: { crop: [348, 1156, 282, 297], feet: [473.06, 1451] },
-    death: { crop: [642, 1278, 363, 204], feet: [860.5, 1432] },
+    guard: { crop: [49, 1161, 270, 294], feet: [180, 1450] },
+    hurt: { crop: [340, 1168, 284, 288], feet: [470, 1450] },
+    death: { crop: [626, 1285, 373, 197], feet: [823, 1440] },
   },
 };
 
@@ -51,6 +52,7 @@ export function DeadCellsActorArt({
       className={`sprite-art deadcells-actor pose-${pose}`}
       viewBox={`${ax - 192} ${ay - 364} 384 384`}
       overflow="visible"
+      shapeRendering="crispEdges"
       aria-hidden="true"
     >
       <defs>
@@ -62,24 +64,14 @@ export function DeadCellsActorArt({
             <polygon points={polygon} />
           </clipPath>
         )}
-        <filter
+        <DeadCellsCutout
           id={`deadcells-alpha-${id}`}
-          filterUnits="userSpaceOnUse"
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          colorInterpolationFilters="sRGB"
-        >
-          {/* Remove faint export residue and keep the original bright pixel edges. */}
-          <feComponentTransfer>
-            <feFuncA type="discrete" tableValues="0 1 1 1 1 1 1 1" />
-          </feComponentTransfer>
-        </filter>
+          bounds={[x, y, width, height]}
+        />
       </defs>
       <g clipPath={`url(#deadcells-frame-${id})`}>
         <image
-          href="/art/dead-cells/actors.png"
+          href="/art/dead-cells/actors-pixel.png"
           width={1024}
           height={1536}
           clipPath={polygon ? `url(#deadcells-separate-${id})` : undefined}
