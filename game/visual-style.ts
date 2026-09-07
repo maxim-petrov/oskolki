@@ -66,6 +66,13 @@ export const VISUAL_STYLES = [
     arenaAlt:
       'Пиксельная крепость над морем: туманный замок, каменные арки и огни тюремного двора',
   },
+  {
+    id: 'basement',
+    name: 'Подвал',
+    description: 'В духе The Binding of Isaac: Rebirth',
+    arena: '/art/basement/arena.png',
+    arenaAlt: 'Тёмный пиксельный подвал с коричневыми стенами и тремя дверями',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {
