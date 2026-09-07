@@ -5,6 +5,7 @@ import './pixel.css';
 import './paper.css';
 import './cartoon.css';
 import './dark-tale.css';
+import './midnight.css';
 import { VisualStyleProvider } from '@/components/visual-style';
 export const metadata: Metadata = {
   title: 'Осколки — в глубину крипты',

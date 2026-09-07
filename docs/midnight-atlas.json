@@ -1,0 +1,707 @@
+{
+  "actors": {
+    "path": "/private/tmp/midnight-assets-20260907/actors.png",
+    "source": "/Users/max/.codex/generated_images/01a07cbd-9bfd-7363-93ea-e835bf49c560/exec-a195dabc-495d-4ddf-b495-ede41f99e64d.png",
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      254
+    ],
+    "transparent_pixels": 986629,
+    "partial_alpha_pixels": 586235,
+    "opaque_pixels": 0,
+    "total_pixels": 1572864,
+    "alpha_bbox": [
+      0,
+      19,
+      1018,
+      1536
+    ],
+    "sha256": "48ed798f865ce2e41da48f2ed01a8999ae644686b4444ca5a47de53aab236943",
+    "copy_identical": true,
+    "poses": {
+      "hero_idle": {
+        "bbox": [
+          17,
+          72,
+          238,
+          344
+        ],
+        "crop": [
+          15,
+          70,
+          225,
+          276
+        ],
+        "groundAnchor": [
+          142,
+          330
+        ],
+        "cropGroundAnchor": [
+          127,
+          260
+        ],
+        "facing": "right",
+        "component_id": 1
+      },
+      "hero_windup": {
+        "bbox": [
+          339,
+          83,
+          589,
+          330
+        ],
+        "crop": [
+          337,
+          81,
+          254,
+          251
+        ],
+        "groundAnchor": [
+          461,
+          330
+        ],
+        "cropGroundAnchor": [
+          124,
+          249
+        ],
+        "facing": "right",
+        "component_id": 2
+      },
+      "hero_strike": {
+        "bbox": [
+          616,
+          124,
+          1007,
+          331
+        ],
+        "crop": [
+          614,
+          122,
+          395,
+          211
+        ],
+        "groundAnchor": [
+          728,
+          331
+        ],
+        "cropGroundAnchor": [
+          114,
+          209
+        ],
+        "facing": "right",
+        "component_id": 3
+      },
+      "hero_guard": {
+        "bbox": [
+          22,
+          450,
+          287,
+          708
+        ],
+        "crop": [
+          20,
+          448,
+          269,
+          262
+        ],
+        "groundAnchor": [
+          145,
+          696
+        ],
+        "cropGroundAnchor": [
+          125,
+          248
+        ],
+        "facing": "right",
+        "component_id": 6
+      },
+      "hero_hurt": {
+        "bbox": [
+          345,
+          445,
+          627,
+          700
+        ],
+        "crop": [
+          343,
+          443,
+          286,
+          259
+        ],
+        "groundAnchor": [
+          519,
+          696
+        ],
+        "cropGroundAnchor": [
+          176,
+          253
+        ],
+        "facing": "right",
+        "component_id": 5
+      },
+      "hero_death": {
+        "bbox": [
+          687,
+          553,
+          1000,
+          720
+        ],
+        "crop": [
+          685,
+          551,
+          317,
+          171
+        ],
+        "groundAnchor": [
+          850,
+          708
+        ],
+        "cropGroundAnchor": [
+          165,
+          157
+        ],
+        "facing": "right",
+        "component_id": 7
+      },
+      "rival_idle": {
+        "bbox": [
+          17,
+          809,
+          271,
+          1081
+        ],
+        "crop": [
+          15,
+          807,
+          258,
+          276
+        ],
+        "groundAnchor": [
+          171,
+          1079
+        ],
+        "cropGroundAnchor": [
+          156,
+          272
+        ],
+        "facing": "left",
+        "component_id": 9
+      },
+      "rival_windup": {
+        "bbox": [
+          346,
+          755,
+          647,
+          1078
+        ],
+        "crop": [
+          344,
+          753,
+          305,
+          327
+        ],
+        "groundAnchor": [
+          497,
+          1078
+        ],
+        "cropGroundAnchor": [
+          153,
+          325
+        ],
+        "facing": "left",
+        "component_id": 8,
+        "excludeSourceRects": [
+          [
+            628,
+            940,
+            24,
+            111
+          ]
+        ],
+        "exclusionReason": "Its rectangular crop also catches a 15-pixel-wide strip of the next pose hooked blade at source x632..646 y959..1039. Exclude indicated rectangle when drawing; no desired windup silhouette is inside it."
+      },
+      "rival_strike": {
+        "bbox": [
+          632,
+          851,
+          1007,
+          1079
+        ],
+        "crop": [
+          630,
+          849,
+          379,
+          232
+        ],
+        "groundAnchor": [
+          909,
+          1079
+        ],
+        "cropGroundAnchor": [
+          279,
+          230
+        ],
+        "facing": "left",
+        "component_id": 10,
+        "excludeSourceRects": [
+          [
+            628,
+            845,
+            24,
+            47
+          ]
+        ],
+        "exclusionReason": "Its rectangular crop also catches 340 significant-alpha pixels from the windup blade at source x632..646 y851..880. Exclude indicated rectangle when drawing; no desired strike silhouette is inside it."
+      },
+      "rival_guard": {
+        "bbox": [
+          37,
+          1144,
+          271,
+          1430
+        ],
+        "crop": [
+          35,
+          1142,
+          238,
+          290
+        ],
+        "groundAnchor": [
+          156,
+          1430
+        ],
+        "cropGroundAnchor": [
+          121,
+          288
+        ],
+        "facing": "left",
+        "component_id": 11
+      },
+      "rival_hurt": {
+        "bbox": [
+          339,
+          1146,
+          634,
+          1430
+        ],
+        "crop": [
+          337,
+          1144,
+          299,
+          288
+        ],
+        "groundAnchor": [
+          426,
+          1430
+        ],
+        "cropGroundAnchor": [
+          89,
+          286
+        ],
+        "facing": "left",
+        "component_id": 12,
+        "additional_components": [
+          {
+            "bbox": [
+              394,
+              1155,
+              421,
+              1184
+            ],
+            "meaning": "detached hurt marks"
+          },
+          {
+            "bbox": [
+              364,
+              1191,
+              389,
+              1218
+            ],
+            "meaning": "detached hurt marks"
+          },
+          {
+            "bbox": [
+              386,
+              1229,
+              414,
+              1253
+            ],
+            "meaning": "detached hurt marks"
+          }
+        ]
+      },
+      "rival_death": {
+        "bbox": [
+          688,
+          1290,
+          1000,
+          1478
+        ],
+        "crop": [
+          686,
+          1288,
+          316,
+          192
+        ],
+        "groundAnchor": [
+          850,
+          1441
+        ],
+        "cropGroundAnchor": [
+          164,
+          153
+        ],
+        "facing": "left",
+        "component_id": 16
+      }
+    },
+    "limitations": [
+      "No pixel has alpha 255; most interior alpha is 251..253 (visually nearly opaque).",
+      "Small low-alpha residue exists beyond significant silhouettes; native source was preserved.",
+      "Two adjacent rival weapon bounding boxes overlap, requiring the documented crop exclusions at draw time.",
+      "Native output did not obey exact cell baselines; use measured ground pivots instead of uniform 3x4 slicing."
+    ]
+  },
+  "arena": {
+    "path": "/private/tmp/midnight-assets-20260907/arena.png",
+    "source": "/Users/max/.codex/generated_images/01a07cbd-9bfd-7363-93ea-e835bf49c560/exec-2ab3e87e-0f42-45d5-b067-dfbe5afb3816.png",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "mode": "RGB",
+    "alpha_extrema": [
+      255,
+      255
+    ],
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "opaque_pixels": 1573352,
+    "total_pixels": 1573352,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "sha256": "2241dd4bc89e4492c88024ee7fa1f4f182485284483daef5156a6fa25907f532",
+    "copy_identical": true,
+    "groundBandY": [
+      649,
+      829
+    ],
+    "suggestedFighterBaselineY": 780
+  },
+  "icons": {
+    "path": "/private/tmp/midnight-assets-20260907/icons.png",
+    "source": "/Users/max/.codex/generated_images/01a07cbd-9bfd-7363-93ea-e835bf49c560/exec-166d2536-2923-4669-9e64-596b6333ac23.png",
+    "dimensions": [
+      1448,
+      1086
+    ],
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "transparent_pixels": 1068574,
+    "partial_alpha_pixels": 500696,
+    "opaque_pixels": 3258,
+    "total_pixels": 1572528,
+    "alpha_bbox": [
+      0,
+      15,
+      1432,
+      1086
+    ],
+    "sha256": "66c474fbc77a61b870f3260f2adff14343b1672f766d1e96246a2192c1ee2837",
+    "copy_identical": true,
+    "icons": {
+      "rapier": {
+        "bbox": [
+          57,
+          48,
+          353,
+          353
+        ],
+        "crop": [
+          55,
+          46,
+          300,
+          309
+        ],
+        "bboxCenter": [
+          205.0,
+          200.5
+        ],
+        "alphaCentroid": [
+          172.36,
+          229.98
+        ]
+      },
+      "shield": {
+        "bbox": [
+          432,
+          55,
+          655,
+          347
+        ],
+        "crop": [
+          430,
+          53,
+          227,
+          296
+        ],
+        "bboxCenter": [
+          543.5,
+          201.0
+        ],
+        "alphaCentroid": [
+          543.47,
+          193.44
+        ]
+      },
+      "spark_flask": {
+        "bbox": [
+          809,
+          48,
+          1001,
+          346
+        ],
+        "crop": [
+          807,
+          46,
+          196,
+          302
+        ],
+        "bboxCenter": [
+          905.0,
+          197.0
+        ],
+        "alphaCentroid": [
+          905.07,
+          218.78
+        ]
+      },
+      "focus_talisman": {
+        "bbox": [
+          1136,
+          48,
+          1390,
+          353
+        ],
+        "crop": [
+          1134,
+          46,
+          258,
+          309
+        ],
+        "bboxCenter": [
+          1263.0,
+          200.5
+        ],
+        "alphaCentroid": [
+          1262.03,
+          212.5
+        ]
+      },
+      "poison_vial": {
+        "bbox": [
+          95,
+          390,
+          267,
+          677
+        ],
+        "crop": [
+          93,
+          388,
+          176,
+          291
+        ],
+        "bboxCenter": [
+          181.0,
+          533.5
+        ],
+        "alphaCentroid": [
+          180.73,
+          546.8
+        ]
+      },
+      "bomb": {
+        "bbox": [
+          440,
+          391,
+          684,
+          677
+        ],
+        "crop": [
+          438,
+          389,
+          248,
+          290
+        ],
+        "bboxCenter": [
+          562.0,
+          534.0
+        ],
+        "alphaCentroid": [
+          549.16,
+          549.71
+        ]
+      },
+      "heart": {
+        "bbox": [
+          796,
+          439,
+          1005,
+          644
+        ],
+        "crop": [
+          794,
+          437,
+          213,
+          209
+        ],
+        "bboxCenter": [
+          900.5,
+          541.5
+        ],
+        "alphaCentroid": [
+          899.86,
+          525.22
+        ]
+      },
+      "coin": {
+        "bbox": [
+          1153,
+          420,
+          1371,
+          651
+        ],
+        "crop": [
+          1151,
+          418,
+          222,
+          235
+        ],
+        "bboxCenter": [
+          1262.0,
+          535.5
+        ],
+        "alphaCentroid": [
+          1261.71,
+          535.4
+        ]
+      },
+      "potion": {
+        "bbox": [
+          73,
+          722,
+          288,
+          1004
+        ],
+        "crop": [
+          71,
+          720,
+          219,
+          286
+        ],
+        "bboxCenter": [
+          180.5,
+          863.0
+        ],
+        "alphaCentroid": [
+          180.21,
+          881.09
+        ]
+      },
+      "amulet": {
+        "bbox": [
+          423,
+          710,
+          664,
+          1022
+        ],
+        "crop": [
+          421,
+          708,
+          245,
+          316
+        ],
+        "bboxCenter": [
+          543.5,
+          866.0
+        ],
+        "alphaCentroid": [
+          542.94,
+          874.41
+        ]
+      },
+      "crown": {
+        "bbox": [
+          754,
+          742,
+          1057,
+          976
+        ],
+        "crop": [
+          752,
+          740,
+          307,
+          238
+        ],
+        "bboxCenter": [
+          905.5,
+          859.0
+        ],
+        "alphaCentroid": [
+          904.22,
+          880.53
+        ]
+      },
+      "star": {
+        "bbox": [
+          1134,
+          715,
+          1394,
+          1008
+        ],
+        "crop": [
+          1132,
+          713,
+          264,
+          297
+        ],
+        "bboxCenter": [
+          1264.0,
+          861.5
+        ],
+        "alphaCentroid": [
+          1262.78,
+          860.25
+        ]
+      }
+    },
+    "limitations": [
+      "Requested 1024x768; native generated dimensions are 1448x1086, same 4:3 aspect.",
+      "Most interior alpha is 251..253; native source was preserved.",
+      "Some low-alpha residue exists outside meaningful icon silhouettes.",
+      "Native icons have more than 2-4 colors and finer detailing than requested; no retries/edits performed."
+    ]
+  },
+  "metadata": {
+    "generation": "built-in image_gen; exactly 3 requests in one parallel batch; no retries or variants",
+    "native_pngs_unchanged": true,
+    "prompts_file": "/private/tmp/midnight-assets-20260907/prompts.json",
+    "bbox_convention": "[left, top, right, bottom], right/bottom exclusive",
+    "crop_convention": "[sourceX, sourceY, width, height]",
+    "measurement_alpha_threshold": 32,
+    "ground_anchors": "Visual estimates of foot/body-ground contact in original source pixels; deliberately exclude hanging weapon tips and tail tips. Coordinates should be used as the sprite draw pivot.",
+    "rendering_note": "Use one common source-pixel scale across all poses; do not normalize each bounding box independently, as that changes actor size. Crops are measured rectangles only; no derivative/cropped image files were created."
+  }
+}

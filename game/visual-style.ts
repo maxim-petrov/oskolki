@@ -39,7 +39,16 @@ export const VISUAL_STYLES = [
     name: 'Тёмная сказка',
     description: 'В духе Deltarune',
     arena: '/art/dark-tale/arena.png',
-    arenaAlt: 'Тёмная пиксельная арена с фиолетовой сеткой, алыми ивами и голубой аркой',
+    arenaAlt:
+      'Тёмная пиксельная арена с фиолетовой сеткой, алыми ивами и голубой аркой',
+  },
+  {
+    id: 'midnight',
+    name: 'Полночь',
+    description: 'В духе Mina the Hollower',
+    arena: '/art/midnight/arena.png',
+    arenaAlt:
+      'Ночной готический двор с мощёной площадью, бирюзовыми крышами и медными окнами',
   },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
