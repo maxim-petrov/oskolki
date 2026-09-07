@@ -3,6 +3,7 @@ import { useId } from 'react';
 import { useVisualStyle } from '@/components/visual-style';
 import { PaperIcon } from '@/components/paper-icon';
 import { CartoonIcon } from '@/components/cartoon-icon';
+import { DarkTaleIcon } from '@/components/dark-tale-icon';
 import {
   RoyalIcon,
   ROYAL_ICONS,
@@ -62,6 +63,7 @@ function PixelIcon({ name, size = 30, className = '' }: IconProps) {
 }
 export function SkinIcon(props: IconProps) {
   const style = useVisualStyle();
+  if (style === 'darktale') return <DarkTaleIcon {...props} />;
   if (style === 'cartoon') return <CartoonIcon {...props} />;
   if (style === 'paper') return <PaperIcon {...props} />;
   return style === 'pixel' ? (

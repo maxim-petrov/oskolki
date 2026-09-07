@@ -1,0 +1,1757 @@
+{
+  "coordinateConvention": "Source-image pixels. Bounds are [left,top,right,bottom], right/bottom exclusive. Anchor points are global source coordinates unless named anchorInCrop. PNG files are byte-for-byte native copies; all analysis is read-only.",
+  "renderingNotes": [
+    "Actors contain tiny-alpha color haze. Seven background sample regions have max alpha 1 or 2 out of 255. Alpha-test at 32/255 isolates bodies and weapons. Alpha >=255 removes all actors because their maximum alpha is 254.",
+    "Actors are not regular 3-column cuts: strike weapons extend into nominal neighboring cells. Use measured per-pose crops and anchors.",
+    "Rival hurt rectangular crop includes part of rival death weapon near its lower right. Apply the supplied isolation polygon before/while drawing this pose.",
+    "Ground anchors for standing poses use midpoint of feet projected to ground; hurt anchors include lifted foot. Death anchors use resting body ground, excluding lower detached/held weapon tips. Semantic anchor estimates are visually verified, not whole-bbox centers.",
+    "Keep identical source-pixel scale across actor poses. Idle body heights: hero about 275 source px; rival about 324 source px. Do not normalize every full sprite bbox to the same height because raised weapons alter those bounds."
+  ],
+  "assets": {
+    "actors.png": {
+      "path": "/private/tmp/dark-tale-assets-20260907/actors.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "mode": "RGBA",
+      "sha256": "6dc5a0a9ebc73d15f5a6c54bcfe9249118c27f7b61ad026813152d5c7a6561ff",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "zeroAlphaPixels": 1002563,
+      "fullAlphaPixels": 0,
+      "boundsByAlphaThreshold": {
+        "1": [
+          0,
+          7,
+          1024,
+          1536
+        ],
+        "32": [
+          30,
+          26,
+          1009,
+          1514
+        ],
+        "64": [
+          30,
+          26,
+          1009,
+          1514
+        ],
+        "128": [
+          30,
+          26,
+          1009,
+          1513
+        ],
+        "200": [
+          31,
+          26,
+          1009,
+          1513
+        ],
+        "250": [
+          33,
+          27,
+          1008,
+          1511
+        ],
+        "255": null
+      }
+    },
+    "arena.png": {
+      "path": "/private/tmp/dark-tale-assets-20260907/arena.png",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "mode": "RGB",
+      "sha256": "785a18dc14621aaf180df6320d3a8bdf90989eaf6c33e18255d040d451f89399"
+    },
+    "icons.png": {
+      "path": "/private/tmp/dark-tale-assets-20260907/icons.png",
+      "dimensions": [
+        1448,
+        1086
+      ],
+      "mode": "RGBA",
+      "sha256": "8c3e9e1c64176b42544d9c39d504acbbe9fee394b7a805e8baeaf8f239bc1bc8",
+      "alphaRange": [
+        0,
+        255
+      ],
+      "zeroAlphaPixels": 1111898,
+      "fullAlphaPixels": 4589,
+      "boundsByAlphaThreshold": {
+        "1": [
+          27,
+          21,
+          1434,
+          1086
+        ],
+        "32": [
+          63,
+          49,
+          1384,
+          1028
+        ],
+        "64": [
+          63,
+          49,
+          1384,
+          1027
+        ],
+        "128": [
+          63,
+          50,
+          1384,
+          1027
+        ],
+        "200": [
+          64,
+          50,
+          1383,
+          1026
+        ],
+        "250": [
+          64,
+          51,
+          1383,
+          1024
+        ],
+        "255": [
+          64,
+          51,
+          1383,
+          1018
+        ]
+      }
+    }
+  },
+  "actors": {
+    "hero_idle": {
+      "componentPixelsAlpha32": 35482,
+      "alphaBounds": {
+        "32": [
+          30,
+          94,
+          291,
+          369
+        ],
+        "64": [
+          30,
+          94,
+          291,
+          369
+        ],
+        "128": [
+          31,
+          94,
+          291,
+          369
+        ],
+        "200": [
+          31,
+          95,
+          291,
+          369
+        ],
+        "250": [
+          33,
+          97,
+          290,
+          368
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        26,
+        90,
+        295,
+        373
+      ],
+      "bodyGroundAnchor": [
+        136,
+        369
+      ],
+      "anchorInCrop": [
+        110,
+        279
+      ],
+      "alpha1MeasurementRegion": [
+        0,
+        50,
+        320,
+        400
+      ],
+      "alpha1BoundsWithinRegion": [
+        0,
+        50,
+        320,
+        400
+      ]
+    },
+    "hero_windup": {
+      "componentPixelsAlpha32": 37137,
+      "alphaBounds": {
+        "32": [
+          376,
+          26,
+          590,
+          369
+        ],
+        "64": [
+          376,
+          26,
+          590,
+          369
+        ],
+        "128": [
+          377,
+          26,
+          590,
+          369
+        ],
+        "200": [
+          377,
+          26,
+          589,
+          369
+        ],
+        "250": [
+          380,
+          27,
+          589,
+          368
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        372,
+        22,
+        594,
+        373
+      ],
+      "bodyGroundAnchor": [
+        492,
+        369
+      ],
+      "anchorInCrop": [
+        120,
+        347
+      ],
+      "alpha1MeasurementRegion": [
+        330,
+        0,
+        620,
+        400
+      ],
+      "alpha1BoundsWithinRegion": [
+        330,
+        7,
+        620,
+        400
+      ]
+    },
+    "hero_strike": {
+      "componentPixelsAlpha32": 33467,
+      "alphaBounds": {
+        "32": [
+          653,
+          136,
+          1009,
+          369
+        ],
+        "64": [
+          653,
+          136,
+          1009,
+          369
+        ],
+        "128": [
+          653,
+          137,
+          1009,
+          369
+        ],
+        "200": [
+          654,
+          137,
+          1009,
+          369
+        ],
+        "250": [
+          657,
+          139,
+          1008,
+          368
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        649,
+        132,
+        1013,
+        373
+      ],
+      "bodyGroundAnchor": [
+        743,
+        369
+      ],
+      "anchorInCrop": [
+        94,
+        237
+      ],
+      "alpha1MeasurementRegion": [
+        625,
+        100,
+        1024,
+        400
+      ],
+      "alpha1BoundsWithinRegion": [
+        625,
+        100,
+        1012,
+        400
+      ]
+    },
+    "hero_guard": {
+      "componentPixelsAlpha32": 33267,
+      "alphaBounds": {
+        "32": [
+          30,
+          458,
+          231,
+          722
+        ],
+        "64": [
+          30,
+          458,
+          231,
+          722
+        ],
+        "128": [
+          30,
+          459,
+          230,
+          722
+        ],
+        "200": [
+          31,
+          459,
+          230,
+          721
+        ],
+        "250": [
+          33,
+          459,
+          230,
+          719
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        26,
+        454,
+        235,
+        726
+      ],
+      "bodyGroundAnchor": [
+        135,
+        722
+      ],
+      "anchorInCrop": [
+        109,
+        268
+      ],
+      "alpha1MeasurementRegion": [
+        0,
+        425,
+        320,
+        750
+      ],
+      "alpha1BoundsWithinRegion": [
+        21,
+        425,
+        320,
+        748
+      ]
+    },
+    "hero_hurt": {
+      "componentPixelsAlpha32": 32779,
+      "alphaBounds": {
+        "32": [
+          369,
+          476,
+          593,
+          728
+        ],
+        "64": [
+          370,
+          477,
+          592,
+          727
+        ],
+        "128": [
+          370,
+          477,
+          592,
+          727
+        ],
+        "200": [
+          370,
+          477,
+          592,
+          727
+        ],
+        "250": [
+          371,
+          480,
+          591,
+          721
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        365,
+        472,
+        597,
+        732
+      ],
+      "bodyGroundAnchor": [
+        516,
+        722
+      ],
+      "anchorInCrop": [
+        151,
+        250
+      ],
+      "alpha1MeasurementRegion": [
+        325,
+        425,
+        620,
+        750
+      ],
+      "alpha1BoundsWithinRegion": [
+        327,
+        425,
+        620,
+        750
+      ]
+    },
+    "hero_death": {
+      "componentPixelsAlpha32": 24934,
+      "alphaBounds": {
+        "32": [
+          662,
+          623,
+          1006,
+          740
+        ],
+        "64": [
+          662,
+          623,
+          1005,
+          739
+        ],
+        "128": [
+          662,
+          623,
+          1005,
+          739
+        ],
+        "200": [
+          663,
+          624,
+          1005,
+          739
+        ],
+        "250": [
+          670,
+          624,
+          993,
+          737
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        658,
+        619,
+        1010,
+        744
+      ],
+      "bodyGroundAnchor": [
+        820,
+        726
+      ],
+      "anchorInCrop": [
+        162,
+        107
+      ],
+      "alpha1MeasurementRegion": [
+        625,
+        550,
+        1024,
+        750
+      ],
+      "alpha1BoundsWithinRegion": [
+        625,
+        551,
+        1018,
+        750
+      ]
+    },
+    "rival_idle": {
+      "componentPixelsAlpha32": 38387,
+      "alphaBounds": {
+        "32": [
+          30,
+          789,
+          285,
+          1113
+        ],
+        "64": [
+          30,
+          789,
+          284,
+          1113
+        ],
+        "128": [
+          30,
+          790,
+          284,
+          1113
+        ],
+        "200": [
+          31,
+          790,
+          284,
+          1113
+        ],
+        "250": [
+          33,
+          794,
+          278,
+          1112
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        26,
+        785,
+        289,
+        1117
+      ],
+      "bodyGroundAnchor": [
+        204,
+        1113
+      ],
+      "anchorInCrop": [
+        178,
+        328
+      ],
+      "alpha1MeasurementRegion": [
+        0,
+        755,
+        320,
+        1130
+      ],
+      "alpha1BoundsWithinRegion": [
+        0,
+        755,
+        310,
+        1122
+      ]
+    },
+    "rival_windup": {
+      "componentPixelsAlpha32": 32857,
+      "alphaBounds": {
+        "32": [
+          365,
+          761,
+          597,
+          1115
+        ],
+        "64": [
+          365,
+          761,
+          596,
+          1115
+        ],
+        "128": [
+          365,
+          762,
+          596,
+          1114
+        ],
+        "200": [
+          366,
+          762,
+          596,
+          1114
+        ],
+        "250": [
+          371,
+          767,
+          595,
+          1111
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        361,
+        757,
+        601,
+        1119
+      ],
+      "bodyGroundAnchor": [
+        512,
+        1114
+      ],
+      "anchorInCrop": [
+        151,
+        357
+      ],
+      "alpha1MeasurementRegion": [
+        325,
+        750,
+        620,
+        1130
+      ],
+      "alpha1BoundsWithinRegion": [
+        325,
+        753,
+        620,
+        1130
+      ]
+    },
+    "rival_strike": {
+      "componentPixelsAlpha32": 37381,
+      "alphaBounds": {
+        "32": [
+          625,
+          857,
+          994,
+          1117
+        ],
+        "64": [
+          626,
+          857,
+          994,
+          1117
+        ],
+        "128": [
+          626,
+          857,
+          994,
+          1116
+        ],
+        "200": [
+          626,
+          858,
+          994,
+          1116
+        ],
+        "250": [
+          633,
+          860,
+          993,
+          1115
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        621,
+        853,
+        998,
+        1121
+      ],
+      "bodyGroundAnchor": [
+        898,
+        1116
+      ],
+      "anchorInCrop": [
+        277,
+        263
+      ],
+      "alpha1MeasurementRegion": [
+        620,
+        810,
+        1024,
+        1130
+      ],
+      "alpha1BoundsWithinRegion": [
+        620,
+        810,
+        1012,
+        1130
+      ]
+    },
+    "rival_guard": {
+      "componentPixelsAlpha32": 36162,
+      "alphaBounds": {
+        "32": [
+          60,
+          1146,
+          285,
+          1494
+        ],
+        "64": [
+          61,
+          1146,
+          285,
+          1494
+        ],
+        "128": [
+          61,
+          1146,
+          284,
+          1494
+        ],
+        "200": [
+          61,
+          1146,
+          284,
+          1493
+        ],
+        "250": [
+          64,
+          1149,
+          284,
+          1493
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        56,
+        1142,
+        289,
+        1498
+      ],
+      "bodyGroundAnchor": [
+        197,
+        1494
+      ],
+      "anchorInCrop": [
+        141,
+        352
+      ],
+      "alpha1MeasurementRegion": [
+        0,
+        1135,
+        320,
+        1520
+      ],
+      "alpha1BoundsWithinRegion": [
+        49,
+        1139,
+        320,
+        1512
+      ]
+    },
+    "rival_hurt": {
+      "componentPixelsAlpha32": 35785,
+      "alphaBounds": {
+        "32": [
+          337,
+          1186,
+          661,
+          1494
+        ],
+        "64": [
+          337,
+          1186,
+          660,
+          1494
+        ],
+        "128": [
+          337,
+          1186,
+          660,
+          1494
+        ],
+        "200": [
+          337,
+          1187,
+          660,
+          1494
+        ],
+        "250": [
+          340,
+          1200,
+          657,
+          1493
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        333,
+        1182,
+        665,
+        1498
+      ],
+      "bodyGroundAnchor": [
+        499,
+        1494
+      ],
+      "anchorInCrop": [
+        166,
+        312
+      ],
+      "alpha1MeasurementRegion": [
+        325,
+        1170,
+        670,
+        1520
+      ],
+      "alpha1BoundsWithinRegion": [
+        325,
+        1171,
+        670,
+        1520
+      ],
+      "isolationPolygonSource": [
+        [
+          333,
+          1182
+        ],
+        [
+          665,
+          1182
+        ],
+        [
+          665,
+          1365
+        ],
+        [
+          615,
+          1365
+        ],
+        [
+          615,
+          1498
+        ],
+        [
+          333,
+          1498
+        ]
+      ],
+      "isolationPolygonInCrop": [
+        [
+          0,
+          0
+        ],
+        [
+          332,
+          0
+        ],
+        [
+          332,
+          183
+        ],
+        [
+          282,
+          183
+        ],
+        [
+          282,
+          316
+        ],
+        [
+          0,
+          316
+        ]
+      ]
+    },
+    "rival_death": {
+      "componentPixelsAlpha32": 24714,
+      "alphaBounds": {
+        "32": [
+          637,
+          1376,
+          994,
+          1514
+        ],
+        "64": [
+          637,
+          1376,
+          994,
+          1514
+        ],
+        "128": [
+          638,
+          1376,
+          994,
+          1513
+        ],
+        "200": [
+          638,
+          1377,
+          993,
+          1513
+        ],
+        "250": [
+          641,
+          1379,
+          993,
+          1511
+        ],
+        "255": null
+      },
+      "recommendedCrop": [
+        633,
+        1372,
+        998,
+        1518
+      ],
+      "bodyGroundAnchor": [
+        855,
+        1499
+      ],
+      "anchorInCrop": [
+        222,
+        127
+      ],
+      "alpha1MeasurementRegion": [
+        625,
+        1365,
+        1024,
+        1536
+      ],
+      "alpha1BoundsWithinRegion": [
+        625,
+        1365,
+        1012,
+        1520
+      ]
+    }
+  },
+  "actorHaloSamples": [
+    {
+      "rect": [
+        0,
+        0,
+        350,
+        70
+      ],
+      "maxAlpha": 1,
+      "p99Alpha": 1.0,
+      "medianAlpha": 0.0
+    },
+    {
+      "rect": [
+        300,
+        200,
+        360,
+        350
+      ],
+      "maxAlpha": 1,
+      "p99Alpha": 1.0,
+      "medianAlpha": 0.0
+    },
+    {
+      "rect": [
+        10,
+        390,
+        330,
+        430
+      ],
+      "maxAlpha": 1,
+      "p99Alpha": 1.0,
+      "medianAlpha": 0.0
+    },
+    {
+      "rect": [
+        630,
+        380,
+        1000,
+        550
+      ],
+      "maxAlpha": 1,
+      "p99Alpha": 1.0,
+      "medianAlpha": 0.0
+    },
+    {
+      "rect": [
+        20,
+        735,
+        320,
+        775
+      ],
+      "maxAlpha": 1,
+      "p99Alpha": 0.0,
+      "medianAlpha": 0.0
+    },
+    {
+      "rect": [
+        700,
+        1200,
+        1000,
+        1340
+      ],
+      "maxAlpha": 2,
+      "p99Alpha": 1.0,
+      "medianAlpha": 0.0
+    },
+    {
+      "rect": [
+        300,
+        900,
+        345,
+        1100
+      ],
+      "maxAlpha": 1,
+      "p99Alpha": 0.0,
+      "medianAlpha": 0.0
+    }
+  ],
+  "icons": {
+    "sword": {
+      "cell": [
+        0,
+        0,
+        362,
+        362
+      ],
+      "alphaBounds": {
+        "1": [
+          60,
+          39,
+          362,
+          362
+        ],
+        "32": [
+          63,
+          52,
+          321,
+          325
+        ],
+        "64": [
+          63,
+          52,
+          321,
+          325
+        ],
+        "128": [
+          63,
+          53,
+          321,
+          325
+        ],
+        "200": [
+          64,
+          53,
+          320,
+          324
+        ],
+        "250": [
+          64,
+          53,
+          320,
+          324
+        ],
+        "255": [
+          64,
+          53,
+          320,
+          324
+        ]
+      },
+      "recommendedCrop": [
+        59,
+        48,
+        325,
+        329
+      ],
+      "center": [
+        192.0,
+        188.5
+      ]
+    },
+    "shield": {
+      "cell": [
+        362,
+        0,
+        724,
+        362
+      ],
+      "alphaBounds": {
+        "1": [
+          369,
+          46,
+          724,
+          337
+        ],
+        "32": [
+          433,
+          49,
+          655,
+          330
+        ],
+        "64": [
+          433,
+          49,
+          654,
+          329
+        ],
+        "128": [
+          434,
+          50,
+          654,
+          329
+        ],
+        "200": [
+          434,
+          50,
+          654,
+          329
+        ],
+        "250": [
+          435,
+          51,
+          653,
+          327
+        ],
+        "255": [
+          435,
+          51,
+          653,
+          326
+        ]
+      },
+      "recommendedCrop": [
+        429,
+        45,
+        659,
+        334
+      ],
+      "center": [
+        544.0,
+        189.5
+      ]
+    },
+    "lightning": {
+      "cell": [
+        724,
+        0,
+        1086,
+        362
+      ],
+      "alphaBounds": {
+        "1": [
+          725,
+          21,
+          1086,
+          357
+        ],
+        "32": [
+          803,
+          67,
+          1012,
+          331
+        ],
+        "64": [
+          804,
+          67,
+          1011,
+          331
+        ],
+        "128": [
+          804,
+          68,
+          1011,
+          331
+        ],
+        "200": [
+          804,
+          68,
+          1011,
+          330
+        ],
+        "250": [
+          805,
+          68,
+          1010,
+          330
+        ],
+        "255": [
+          805,
+          68,
+          1010,
+          330
+        ]
+      },
+      "recommendedCrop": [
+        799,
+        63,
+        1016,
+        335
+      ],
+      "center": [
+        907.5,
+        199.0
+      ]
+    },
+    "focus": {
+      "cell": [
+        1086,
+        0,
+        1448,
+        362
+      ],
+      "alphaBounds": {
+        "1": [
+          1086,
+          39,
+          1428,
+          362
+        ],
+        "32": [
+          1135,
+          60,
+          1381,
+          325
+        ],
+        "64": [
+          1135,
+          60,
+          1381,
+          325
+        ],
+        "128": [
+          1136,
+          60,
+          1381,
+          324
+        ],
+        "200": [
+          1136,
+          61,
+          1380,
+          324
+        ],
+        "250": [
+          1137,
+          68,
+          1380,
+          315
+        ],
+        "255": [
+          1141,
+          141,
+          1380,
+          293
+        ]
+      },
+      "recommendedCrop": [
+        1131,
+        56,
+        1385,
+        329
+      ],
+      "center": [
+        1258.0,
+        192.5
+      ]
+    },
+    "venom": {
+      "cell": [
+        0,
+        362,
+        362,
+        724
+      ],
+      "alphaBounds": {
+        "1": [
+          27,
+          362,
+          360,
+          721
+        ],
+        "32": [
+          80,
+          404,
+          283,
+          678
+        ],
+        "64": [
+          80,
+          404,
+          282,
+          678
+        ],
+        "128": [
+          80,
+          404,
+          282,
+          678
+        ],
+        "200": [
+          81,
+          405,
+          282,
+          677
+        ],
+        "250": [
+          81,
+          405,
+          281,
+          677
+        ],
+        "255": [
+          81,
+          405,
+          281,
+          669
+        ]
+      },
+      "recommendedCrop": [
+        76,
+        400,
+        287,
+        682
+      ],
+      "center": [
+        181.5,
+        541.0
+      ]
+    },
+    "bomb": {
+      "cell": [
+        362,
+        362,
+        724,
+        724
+      ],
+      "alphaBounds": {
+        "1": [
+          369,
+          385,
+          724,
+          723
+        ],
+        "32": [
+          420,
+          388,
+          673,
+          666
+        ],
+        "64": [
+          420,
+          388,
+          673,
+          666
+        ],
+        "128": [
+          421,
+          388,
+          672,
+          666
+        ],
+        "200": [
+          421,
+          388,
+          672,
+          665
+        ],
+        "250": [
+          422,
+          389,
+          671,
+          665
+        ],
+        "255": [
+          422,
+          389,
+          671,
+          665
+        ]
+      },
+      "recommendedCrop": [
+        416,
+        384,
+        677,
+        670
+      ],
+      "center": [
+        546.5,
+        527.0
+      ]
+    },
+    "heart": {
+      "cell": [
+        724,
+        362,
+        1086,
+        724
+      ],
+      "alphaBounds": {
+        "1": [
+          724,
+          374,
+          1086,
+          724
+        ],
+        "32": [
+          777,
+          427,
+          1033,
+          649
+        ],
+        "64": [
+          777,
+          427,
+          1032,
+          649
+        ],
+        "128": [
+          778,
+          427,
+          1032,
+          648
+        ],
+        "200": [
+          778,
+          428,
+          1031,
+          648
+        ],
+        "250": [
+          779,
+          428,
+          1031,
+          648
+        ],
+        "255": [
+          779,
+          428,
+          1031,
+          648
+        ]
+      },
+      "recommendedCrop": [
+        773,
+        423,
+        1037,
+        653
+      ],
+      "center": [
+        905.0,
+        538.0
+      ]
+    },
+    "coin": {
+      "cell": [
+        1086,
+        362,
+        1448,
+        724
+      ],
+      "alphaBounds": {
+        "1": [
+          1087,
+          362,
+          1434,
+          724
+        ],
+        "32": [
+          1156,
+          423,
+          1368,
+          652
+        ],
+        "64": [
+          1156,
+          424,
+          1367,
+          652
+        ],
+        "128": [
+          1156,
+          424,
+          1367,
+          651
+        ],
+        "200": [
+          1157,
+          424,
+          1366,
+          651
+        ],
+        "250": [
+          1157,
+          425,
+          1366,
+          651
+        ],
+        "255": [
+          1157,
+          425,
+          1366,
+          651
+        ]
+      },
+      "recommendedCrop": [
+        1152,
+        419,
+        1372,
+        656
+      ],
+      "center": [
+        1262.0,
+        537.5
+      ]
+    },
+    "potion": {
+      "cell": [
+        0,
+        724,
+        362,
+        1086
+      ],
+      "alphaBounds": {
+        "1": [
+          75,
+          728,
+          362,
+          1031
+        ],
+        "32": [
+          78,
+          749,
+          283,
+          1024
+        ],
+        "64": [
+          78,
+          749,
+          283,
+          1024
+        ],
+        "128": [
+          79,
+          749,
+          282,
+          1023
+        ],
+        "200": [
+          79,
+          750,
+          282,
+          1023
+        ],
+        "250": [
+          80,
+          750,
+          281,
+          1023
+        ],
+        "255": [
+          80,
+          750,
+          281,
+          1018
+        ]
+      },
+      "recommendedCrop": [
+        74,
+        745,
+        287,
+        1028
+      ],
+      "center": [
+        180.5,
+        886.5
+      ]
+    },
+    "amulet": {
+      "cell": [
+        362,
+        724,
+        724,
+        1086
+      ],
+      "alphaBounds": {
+        "1": [
+          363,
+          728,
+          724,
+          1062
+        ],
+        "32": [
+          448,
+          745,
+          645,
+          1028
+        ],
+        "64": [
+          448,
+          745,
+          644,
+          1027
+        ],
+        "128": [
+          449,
+          746,
+          644,
+          1027
+        ],
+        "200": [
+          449,
+          746,
+          643,
+          1026
+        ],
+        "250": [
+          449,
+          746,
+          643,
+          1024
+        ],
+        "255": [
+          454,
+          746,
+          643,
+          1012
+        ]
+      },
+      "recommendedCrop": [
+        444,
+        741,
+        649,
+        1032
+      ],
+      "center": [
+        546.5,
+        886.5
+      ]
+    },
+    "crown": {
+      "cell": [
+        724,
+        724,
+        1086,
+        1086
+      ],
+      "alphaBounds": {
+        "1": [
+          725,
+          724,
+          1084,
+          1086
+        ],
+        "32": [
+          772,
+          764,
+          1040,
+          1018
+        ],
+        "64": [
+          772,
+          765,
+          1040,
+          1018
+        ],
+        "128": [
+          772,
+          765,
+          1040,
+          1018
+        ],
+        "200": [
+          773,
+          765,
+          1039,
+          1017
+        ],
+        "250": [
+          773,
+          768,
+          1039,
+          1017
+        ],
+        "255": [
+          773,
+          783,
+          1039,
+          1017
+        ]
+      },
+      "recommendedCrop": [
+        768,
+        760,
+        1044,
+        1022
+      ],
+      "center": [
+        906.0,
+        891.0
+      ]
+    },
+    "reward": {
+      "cell": [
+        1086,
+        724,
+        1448,
+        1086
+      ],
+      "alphaBounds": {
+        "1": [
+          1089,
+          724,
+          1412,
+          1086
+        ],
+        "32": [
+          1135,
+          750,
+          1384,
+          1026
+        ],
+        "64": [
+          1136,
+          750,
+          1384,
+          1025
+        ],
+        "128": [
+          1136,
+          750,
+          1384,
+          1025
+        ],
+        "200": [
+          1137,
+          751,
+          1383,
+          1025
+        ],
+        "250": [
+          1144,
+          751,
+          1383,
+          1022
+        ],
+        "255": [
+          1170,
+          751,
+          1383,
+          987
+        ]
+      },
+      "recommendedCrop": [
+        1131,
+        746,
+        1388,
+        1030
+      ],
+      "center": [
+        1259.5,
+        888.0
+      ]
+    }
+  }
+}

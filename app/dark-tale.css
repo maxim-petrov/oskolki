@@ -1,0 +1,222 @@
+/* The dark tale uses the shared layout and game state, with its own art and palette. */
+html[data-skin='darktale'] {
+  --background: #000;
+  --foreground: #fff;
+  --card: #050309;
+  --popover: #050309;
+  --primary: #ffe23a;
+  --primary-foreground: #000;
+  --secondary: #181024;
+  --muted: #181024;
+  --muted-foreground: #b2a6c9;
+  --accent: #292037;
+  --destructive: #fa3862;
+  --border: #eeeaf7;
+  --input: #a99bbf;
+  --ring: #ffe23a;
+  --red: #ff5572;
+  --blue: #37e9ef;
+  --gold: #ffe23a;
+  --violet: #de48ff;
+  --radius: 0px;
+  color-scheme: dark;
+
+  body { background: #000; font: 19px/1.3 'Tiny5', monospace; }
+  button, input, select, output { font-family: inherit; }
+  button { border-radius: 0; }
+  .game-shell { max-width: 1512px; }
+  .topbar { height: 80px; border-bottom: 3px solid #fff; }
+  .brand { color: #ff3868; gap: 10px; }
+  .brand .dark-tale-icon { width: 32px; height: 32px; }
+  .brand h1 { color: #fff; font: 40px/1 'Tiny5', monospace; letter-spacing: .025em; text-shadow: none; }
+  .build-tag { background: #000; color: #b2a6c9; border-color: #71607d; border-radius: 0; font-size: 13px; }
+  .header-run { color: #d0c5e3; font-size: 18px; }
+  .header-run svg, .gold { color: #ffe23a; }
+  .gold { font-size: 25px; }
+  .divider { color: #73617c; }
+  .header-actions button { color: #ddd2f1; background: #000; border: 2px solid #766782; }
+  .header-actions button:hover { color: #ffe23a; border-color: #ffe23a; }
+  .appearance-control { gap: 12px; }
+  .appearance-label { color: #b2a6c9; font-size: 16px; }
+  .style-picker[data-slot='radio-group'] { background: #000; border: 1px solid #574161; border-radius: 0; gap: 3px; padding: 4px; }
+  .style-option { border-radius: 0; color: #b2a6c9; font-size: 17px; padding: 6px 9px; }
+  .style-option.chosen { background: #000; border-color: #ffe23a; color: #ffe23a; box-shadow: none; }
+  .game-layout { gap: 24px; padding-top: 22px; }
+  .journey, .loadout { min-width: 0; align-self: start; }
+  .journey h2 { color: #fff; font: 30px/1.05 'Tiny5', monospace; }
+  .eyebrow { color: #b697d1; font-size: 14px; letter-spacing: .06em; font-weight: 400; }
+  .journey-copy { color: #aea0bd; font-size: 17px; line-height: 1.4; }
+  .path-list li { color: #9c8da9; font-size: 17px; }
+  .path-list li.current { color: #ffe23a; }
+  .path-list li:after { background: #543361; }
+  .path-dot { border: 2px solid #614e71; background: #000; color: #bca4cc; border-radius: 0; }
+  .current .path-dot { color: #ffe23a; background: #000; border-color: #ffe23a; box-shadow: none; }
+  .complete .path-dot { color: #69ed9c; background: #000; border-color: #376342; }
+  .journey-bottom { border-color: #493453; color: #b2a6c9; }
+  .journey-bottom p, .streak-line { color: #ddc2ef; }
+  .streak-line small { color: #9c8da9; }
+  .arena { height: 310px; background: #000; border: 3px solid #fff; border-radius: 0; box-shadow: none; }
+  .arena-bg { opacity: 1; image-rendering: pixelated; object-position: center 55%; }
+  .arena-shade { background: none; }
+  .arena-dust, .sprite-ground { display: none; }
+  .fighter { bottom: 12px; width: 160px; height: 245px; }
+  .hero { left: 8%; }
+  .sprite-root { top: auto; bottom: 74px; width: 192px; height: 192px; }
+  .dark-tale-actor { background: none; image-rendering: pixelated; filter: none; animation: none; }
+  .dark-tale-actor.pose-idle { animation: dark-tale-idle 1.6s steps(2, end) infinite; }
+  .enemies { right: 8%; height: 270px; width: 160px; }
+  .enemy { bottom: 12px; }
+  .enemies.count-2 { width: 238px; right: 2%; }
+  .count-2 .enemy { width: 116px; }
+  .count-2 .enemy:last-child { left: 120px; }
+  .count-2 .sprite-root { width: 156px; height: 156px; }
+  .fighter-caption { left: 0; right: 0; bottom: 0; background: #000; border: 2px solid #b8b1c2; border-radius: 0; padding: 5px 6px; box-shadow: none; }
+  .fighter-caption strong { color: #fff; font: 20px/1 'Tiny5', monospace; text-shadow: none; }
+  .health-number { color: #36ebef; font-size: 17px; }
+  .enemy .health-number { color: #ef67ef; }
+  .health-bar { height: 7px; }
+  .health-bar [data-slot='progress-track'] { background: #331124; border-radius: 0; }
+  .health-bar [data-slot='progress-indicator'] { background: #32e4ed; box-shadow: none; border-radius: 0; }
+  .enemy .health-bar [data-slot='progress-indicator'] { background: #ec3ee9; }
+  .enemy.targeted .fighter-caption { border-color: #ffe23a; }
+  .enemy.targeted .fighter-caption strong { color: #ffe23a; }
+  .enemy-intent { top: 6px; background: #000; color: #ef8fe6; border: 1px solid #be61b4; border-radius: 0; font-size: 16px; box-shadow: none; }
+  .count-2 .fighter-caption strong { font-size: 16px; overflow-wrap: anywhere; }
+  .arena-caption .eyebrow { color: #c5a0e1; background: #000; font-size: 13px; padding: 2px 5px; }
+  .turn-badge { color: #ffe23a; background: #000; border: 1px solid #ffe23a; border-radius: 0; font-size: 15px; }
+  .block-orb { color: #37e9ef; background: #000; border: 2px solid #37e9ef; border-radius: 0; box-shadow: none; }
+  .poison-number { color: #7bff64; }
+  .board-heading { color: #c8b7df; font-size: 16px; }
+  .board-section { background: #000; border: 3px solid #fff; border-radius: 0; box-shadow: none; }
+  .board-frame { background: #000; border: 1px solid #6b417b; border-radius: 0; box-shadow: none; }
+  .board { background: #0c0612; border: 1px solid #533563; border-radius: 0; gap: 3px; padding: 4px; }
+  .tile { --tile-fill: #1c1004; --tile-line: #7f5820; background: var(--tile-fill); border: 1px solid var(--tile-line); border-radius: 0; box-shadow: none; }
+  .tile-shield { --tile-fill: #051519; --tile-line: #215b67; }
+  .tile-spark { --tile-fill: #1b0727; --tile-line: #653274; }
+  .tile-focus { --tile-fill: #1d1a05; --tile-line: #74661e; }
+  .tile .dark-tale-icon { width: 74%; height: 74%; }
+  .tile:before, .tile:after { display: none; }
+  .tile.selected { outline: 3px solid #fff; outline-offset: -3px; }
+  .arrow-row button, .side-arrows button { color: #bba0cd; background: #000; border-color: #46314e; border-radius: 0; }
+  .arrow-row button:hover, .side-arrows button:hover { color: #ffe23a; background: #201829; border-color: #ffe23a; }
+  .board-legend, .board-legend span { color: #c8b7df; font-size: 15px; }
+  .hint-button { color: #d7a3e6; font-size: 15px; }
+  .phase-dot { background: #7bff64; box-shadow: none; border-radius: 0; }
+  .move-message { color: #fff; font-size: 19px; line-height: 1.2; }
+  .end-turn, .panel-main-action { background: #000; color: #ffe23a; border: 3px solid #ffe23a; border-radius: 0; font: 23px/1.1 'Tiny5', monospace; box-shadow: none; }
+  .end-turn:hover:not(:disabled), .panel-main-action:hover:not(:disabled) { background: #ffe23a; color: #000; }
+  .end-turn:disabled { opacity: .45; }
+  .combat-hint, .turn-help { color: #aa96bd; font-size: 16px; }
+  .loadout { padding: 15px 12px; border: 3px solid #fff; background: #000; }
+  .resource-row { background: #000; border-color: #644275; }
+  .resource { grid-template-columns: 28px minmax(0, 1fr); gap: 4px; }
+  .resource > .dark-tale-icon { width: 28px; height: 32px; }
+  .resource strong { color: #ed67ff; font: 32px/1 'Tiny5', monospace; }
+  .resource.focus strong { color: #ffe23a; }
+  .resource small, .resource > span, .section-label > span:last-child { color: #b2a6c9; font-size: 15px; }
+  .loadout h2, .loadout h3 { color: #fff; font-family: 'Tiny5', monospace; }
+  .skill-card, .edit-skill, .potion { background: #000; border: 2px solid #9b8ba8; border-radius: 0; color: #fff; box-shadow: none; }
+  .skill-card:hover:not(:disabled), .edit-skill:hover:not(:disabled), .potion:hover:not(:disabled) { background: #14091d; border-color: #ffe23a; }
+  .skill-card strong, .edit-trigger strong, .potion strong { color: #fff; font: 23px/1.1 'Tiny5', monospace; }
+  .skill-card p, .skill-card small, .edit-trigger small, .potion small { color: #bdb1ca; font-size: 16px; }
+  .skill-card:disabled, .edit-trigger:disabled, .potion:disabled { opacity: .55; }
+  .edit-trigger, .potion b { color: #d5b1eb; }
+  .empty-relics { border: 1px dashed #765784; background: #000; border-radius: 0; }
+  .empty-relics p { color: #a890b8; font-size: 16px; }
+  .battle-log { border-color: #634170; }
+  .battle-log p { color: #8f7f9d; font-size: 16px; }
+  .battle-log p.latest { color: #f0ddff; }
+  .game-footer { color: #9f8bab; border-color: #493155; font-size: 15px; }
+  .cost, .skill-cost { color: #e56afa; }
+  .relic-list > button, .modifier-list > button, .upgrade-pips span { background: #000; color: #ceabe5; border: 1px solid #735183; border-radius: 0; }
+  .family-choices button { background: #000; color: #ddd1eb; border-color: #735183; }
+  .family-choices button.chosen { color: #ffe23a; background: #181221; outline: 2px solid #ffe23a; }
+  .dark-tale-icon { flex-shrink: 0; overflow: hidden; image-rendering: pixelated; }
+
+  .game-dialog, .run-dialog { background: #000; color: #fff; border: 3px solid #fff; border-radius: 0; box-shadow: 0 0 0 5px #000; }
+  .game-dialog [data-slot='dialog-title'], .game-dialog [data-slot='alert-dialog-title'] { color: #fff; font: 32px/1.1 'Tiny5', monospace; }
+  .run-dialog [data-slot='dialog-title'] { font-size: 38px; }
+  .game-dialog [data-slot='dialog-description'], .help-copy p { color: #bfb0cc; font-size: 18px; }
+  .game-dialog [data-slot='dialog-close'] { color: #fff; opacity: 1; }
+  .panel-emblem { color: #ffe23a; background: #000; border: 2px solid #ffe23a; border-radius: 0; box-shadow: none; }
+  .offer-card, .route-card, .rest-heal, .upgrade-grid button, .replace-card { background: #000; color: #fff; border: 2px solid #9b8ba8; border-radius: 0; box-shadow: none; }
+  .offer-card:hover:not(:disabled), .route-card:hover:not(:disabled), .rest-heal:hover:not(:disabled), .upgrade-grid button:hover:not(:disabled), .replace-card:hover:not(:disabled) { background: #180c23; border-color: #ffe23a; }
+  .offer-card > strong, .route-card strong, .rest-heal strong, .upgrade-grid strong, .replace-card strong { color: #fff; font-family: 'Tiny5', monospace; font-size: 24px; }
+  .offer-card p, .route-card p, .rest-heal small, .upgrade-grid small, .replace-card small { color: #bfb0cc; font-size: 17px; }
+  .offer-kind, .choice-divider { color: #ac92bf; font-size: 15px; }
+  .offer-icon, .route-symbol, .route-card > svg { color: #da8eff; }
+  .offer-tag { color: #ffe23a; }
+  .modifier-offer { background: #11051b; }
+  .route-elite { border-color: #c350a5; }
+  .panel-note { color: #b2a6c9; font-size: 17px; }
+  .trial-brief strong, .end-stats strong { color: #ffe23a; font-family: 'Tiny5', monospace; }
+  .trial-brief span, .end-stats span { color: #b2a6c9; font-size: 16px; }
+  .trial-brief > div { color: #da8eff; }
+  .trial-target { background: #000; border: 2px solid #fff; border-radius: 0; padding: 12px; color: #d9c5ed; bottom: 80px; }
+  .trial-target > strong { font: 24px/1.1 'Tiny5', monospace; }
+  .discovery-toast { background: #000; color: #ffe23a; border: 3px solid #fff; border-radius: 0; box-shadow: 0 0 0 4px #000; }
+  .discovery-list > div { color: #9f8cae; border-color: #4b325b; }
+  .discovery-list strong { color: #b89acf; font-family: 'Tiny5', monospace; }
+  .discovery-list p { color: #a496af; }
+  .discovery-list .unlocked, .discovery-list .unlocked strong { color: #79f3b3; }
+  .setting-row > span, .seed-control { color: #c9b5db; font-size: 17px; }
+  .setting-row b { color: #ffe23a; }
+  .preset-options [aria-pressed='true'] { background: #ffe23a; color: #000; border-color: #ffe23a; }
+  .seed-control input { background: #000; color: #fff; border-color: #a99bbf; border-radius: 0; }
+  [data-slot='tooltip-content'] { color: #fff; background: #1f112b; border: 1px solid #b09ec2; border-radius: 0; font-size: 17px; }
+  [data-slot='tooltip-arrow'] { fill: #1f112b; }
+}
+@media (max-width: 1150px) {
+  html[data-skin='darktale'] {
+    .game-layout { gap: 18px; }
+    .journey h2 { font-size: 26px; }
+    .hero { left: 4%; }
+    .fighter { width: 142px; }
+    .enemies { width: 142px; right: 4%; }
+    .enemies.count-2 { width: 214px; right: 1%; }
+    .count-2 .enemy { width: 105px; }
+    .count-2 .enemy:last-child { left: 108px; }
+    .count-2 .sprite-root { width: 144px; height: 144px; }
+  }
+}
+@media (max-width: 640px) {
+  html[data-skin='darktale'] {
+    .game-shell { padding: 0 12px; }
+    .topbar { height: 66px; gap: 8px; }
+    .brand h1 { font-size: 30px; }
+    .brand .dark-tale-icon { width: 24px; height: 24px; }
+    .header-actions { gap: 6px; }
+    .header-actions button { width: 28px; height: 28px; }
+    .header-run { font-size: 16px; }
+    .style-picker[data-slot='radio-group'] { justify-content: center; gap: 2px; }
+    .style-option { font-size: 15px; padding: 6px; gap: 4px; }
+    .style-option > svg { width: 14px; height: 14px; }
+    .arena { height: 285px; }
+    .fighter { width: 124px; height: 225px; }
+    .sprite-root { width: 156px; height: 156px; bottom: 78px; }
+    .hero { left: 3%; }
+    .enemies { width: 124px; right: 3%; }
+    .fighter-caption strong { font-size: 17px; }
+    .health-number { font-size: 15px; }
+    .enemy-intent { top: 0; font-size: 14px; }
+    .enemies.count-2 { width: 176px; right: 1%; }
+    .count-2 .enemy { width: 87px; }
+    .count-2 .enemy:last-child { left: 89px; }
+    .count-2 .sprite-root { width: 120px; height: 120px; bottom: 90px; }
+    .count-2 .fighter-caption strong { font-size: 12px; line-height: 1.1; }
+    .count-2 .enemy-intent { max-width: 95px; white-space: normal; font-size: 13px; }
+    .arena-caption .eyebrow { font-size: 12px; max-width: 66%; }
+    .board-section { padding: 5px 3px 9px; }
+    .tile .dark-tale-icon { width: 80%; height: 80%; }
+    .board-legend { gap: 8px; flex-wrap: wrap; }
+    .move-message { font-size: 17px; }
+    .loadout { padding: 12px; }
+    .skill-card { min-height: 93px; padding: 10px 8px; }
+    .skill-card strong { font-size: 21px; }
+    .game-dialog { padding: 20px; max-height: 90dvh; overflow-y: auto; }
+    .run-dialog [data-slot='dialog-title'] { font-size: 30px; }
+    .offer-card { padding: 14px; }
+    .trial-target { width: 146px; right: 3%; bottom: 80px; }
+  }
+}
+@keyframes dark-tale-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }

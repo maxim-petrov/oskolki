@@ -34,6 +34,13 @@ export const VISUAL_STYLES = [
     arena: '/art/cartoon/arena.png',
     arenaAlt: 'Рисованная лесная крепость с кривыми башнями и частоколом',
   },
+  {
+    id: 'darktale',
+    name: 'Тёмная сказка',
+    description: 'В духе Deltarune',
+    arena: '/art/dark-tale/arena.png',
+    arenaAlt: 'Тёмная пиксельная арена с фиолетовой сеткой, алыми ивами и голубой аркой',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {
