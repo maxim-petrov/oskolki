@@ -244,7 +244,7 @@ export function registerGameTools(
       name: 'set_visual_style',
       title: 'Сменить оформление игры',
       description:
-        'Switch only the appearance of the current game between crypt (dark fantasy), royal (bright kingdom), pixel (retro pixel adventure) and paper (flat paper-cut cartoon). Updates characters, board and all panels; saves the choice in this browser. Does not reset or advance the run. Returns after the interface updates. Read read_game to inspect the style and unchanged run.',
+        'Switch only the appearance of the current game between crypt (dark fantasy), royal (bright kingdom), pixel (retro pixel adventure), paper (flat paper-cut cartoon), and cartoon (bold inked comic knights). Updates characters, board and all panels; saves the choice in this browser. Does not reset or advance the run. Returns after the interface updates. Read read_game to inspect the style and unchanged run.',
       inputSchema: {
         type: 'object',
         required: ['style'],

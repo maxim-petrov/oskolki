@@ -27,6 +27,13 @@ export const VISUAL_STYLES = [
     arena: '/art/paper/arena.png',
     arenaAlt: 'Заснеженный двор с самодельной крепостью из картона',
   },
+  {
+    id: 'cartoon',
+    name: 'Мультрыцари',
+    description: 'В духе Castle Crashers',
+    arena: '/art/cartoon/arena.png',
+    arenaAlt: 'Рисованная лесная крепость с кривыми башнями и частоколом',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {

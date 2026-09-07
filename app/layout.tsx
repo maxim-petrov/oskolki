@@ -3,6 +3,7 @@ import './globals.css';
 import './royal.css';
 import './pixel.css';
 import './paper.css';
+import './cartoon.css';
 import { VisualStyleProvider } from '@/components/visual-style';
 export const metadata: Metadata = {
   title: 'Осколки — в глубину крипты',

@@ -4,6 +4,7 @@ import { useVisualStyle } from '@/components/visual-style';
 import { PixelActorArt } from '@/components/pixel-actor-art';
 import { RoyalActorArt } from '@/components/royal-actor-art';
 import { PaperActorArt } from '@/components/paper-actor-art';
+import { CartoonActorArt } from '@/components/cartoon-actor-art';
 import type { Pose } from '@/game/motion';
 // Atlas coordinates measured from the generated source. Keep the texture intact:
 // the renderer uses a light-background color key, like a sprite material.
@@ -31,6 +32,7 @@ const ENEMY: Record<Pose, Region> = {
 export function ActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
   const id = useId().replace(/:/g, '');
   const style = useVisualStyle();
+  if (style === 'cartoon') return <CartoonActorArt hero={hero} pose={pose} />;
   if (style === 'paper') return <PaperActorArt hero={hero} pose={pose} />;
   if (style === 'pixel') return <PixelActorArt hero={hero} pose={pose} />;
   if (style === 'royal') return <RoyalActorArt hero={hero} pose={pose} />;
