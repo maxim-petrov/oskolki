@@ -6,7 +6,7 @@ import {
   useSyncExternalStore,
   useId,
 } from 'react';
-import { Crown, Moon, Check, Gamepad2 } from 'lucide-react';
+import { Crown, Moon, Check, Gamepad2, Scissors } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   isVisualStyle,
@@ -104,8 +104,10 @@ export function StylePicker({
               <Moon size={16} />
             ) : option.id === 'royal' ? (
               <Crown size={18} />
-            ) : (
+            ) : option.id === 'pixel' ? (
               <Gamepad2 size={18} />
+            ) : (
+              <Scissors size={18} />
             )}
             <span className="style-option-label">{option.name}</span>
             {style === option.id && <Check className="style-check" size={14} />}

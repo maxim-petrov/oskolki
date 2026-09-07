@@ -20,6 +20,13 @@ export const VISUAL_STYLES = [
     arena: '/art/pixel/arena.png',
     arenaAlt: 'Пиксельное подземелье с голубым камнем и лианами',
   },
+  {
+    id: 'paper',
+    name: 'Бумажный мир',
+    description: 'В духе The Stick of Truth',
+    arena: '/art/paper/arena.png',
+    arenaAlt: 'Заснеженный двор с самодельной крепостью из картона',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {

@@ -244,7 +244,7 @@ export function registerGameTools(
       name: 'set_visual_style',
       title: 'Сменить оформление игры',
       description:
-        'Switch only the appearance of the current game between crypt (dark fantasy), royal (bright kingdom) and pixel (retro pixel adventure). Updates characters, board and all panels; saves the choice in this browser. Does not reset or advance the run. Returns after the interface updates. Read read_game to inspect the style and unchanged run.',
+        'Switch only the appearance of the current game between crypt (dark fantasy), royal (bright kingdom), pixel (retro pixel adventure) and paper (flat paper-cut cartoon). Updates characters, board and all panels; saves the choice in this browser. Does not reset or advance the run. Returns after the interface updates. Read read_game to inspect the style and unchanged run.',
       inputSchema: {
         type: 'object',
         required: ['style'],
@@ -265,7 +265,7 @@ export function registerGameTools(
           Object.keys(p).some((k) => k !== 'style') ||
           !isVisualStyle(p.style)
         )
-          throw Error('Ожидается только style: crypt, royal или pixel.');
+          throw Error(`Ожидается только style: ${VISUAL_STYLES.map((style) => style.id).join(', ')}.`);
         appearance.select(p.style);
         await new Promise<void>((resolve) =>
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
