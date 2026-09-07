@@ -1,0 +1,461 @@
+{
+  "png_files_modified": false,
+  "coordinate_system": "Absolute source-image pixels, bbox x/y/width/height; polygon edges are half-open as ordinary crop boundaries. crop_relative polygons subtract the supplied visible_bbox origin.",
+  "poses": [
+    {
+      "id": "rival_windup",
+      "visible_bbox": [
+        338,
+        738,
+        283,
+        347
+      ],
+      "foreign_bbox": [
+        593,
+        905,
+        28,
+        21
+      ],
+      "foreign_pixels_alpha_at_least_16": 328,
+      "polygon_source": [
+        [
+          338,
+          738
+        ],
+        [
+          621,
+          738
+        ],
+        [
+          621,
+          898
+        ],
+        [
+          584,
+          898
+        ],
+        [
+          584,
+          934
+        ],
+        [
+          621,
+          934
+        ],
+        [
+          621,
+          1085
+        ],
+        [
+          338,
+          1085
+        ]
+      ],
+      "polygon_crop_relative": [
+        [
+          0,
+          0
+        ],
+        [
+          283,
+          0
+        ],
+        [
+          283,
+          160
+        ],
+        [
+          246,
+          160
+        ],
+        [
+          246,
+          196
+        ],
+        [
+          283,
+          196
+        ],
+        [
+          283,
+          347
+        ],
+        [
+          0,
+          347
+        ]
+      ],
+      "validation": {
+        "8": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "16": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "32": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "128": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        }
+      }
+    },
+    {
+      "id": "rival_strike",
+      "visible_bbox": [
+        593,
+        834,
+        419,
+        246
+      ],
+      "foreign_bbox": [
+        593,
+        948,
+        28,
+        132
+      ],
+      "foreign_pixels_alpha_at_least_16": 1053,
+      "polygon_source": [
+        [
+          593,
+          834
+        ],
+        [
+          1012,
+          834
+        ],
+        [
+          1012,
+          1080
+        ],
+        [
+          630,
+          1080
+        ],
+        [
+          630,
+          940
+        ],
+        [
+          593,
+          940
+        ]
+      ],
+      "polygon_crop_relative": [
+        [
+          0,
+          0
+        ],
+        [
+          419,
+          0
+        ],
+        [
+          419,
+          246
+        ],
+        [
+          37,
+          246
+        ],
+        [
+          37,
+          106
+        ],
+        [
+          0,
+          106
+        ]
+      ],
+      "validation": {
+        "8": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "16": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "32": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "128": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        }
+      }
+    },
+    {
+      "id": "rival_hurt",
+      "visible_bbox": [
+        356,
+        1129,
+        316,
+        337
+      ],
+      "foreign_bbox": [
+        633,
+        1434,
+        39,
+        24
+      ],
+      "foreign_pixels_alpha_at_least_16": 591,
+      "polygon_source": [
+        [
+          356,
+          1129
+        ],
+        [
+          672,
+          1129
+        ],
+        [
+          672,
+          1428
+        ],
+        [
+          628,
+          1428
+        ],
+        [
+          628,
+          1466
+        ],
+        [
+          356,
+          1466
+        ]
+      ],
+      "polygon_crop_relative": [
+        [
+          0,
+          0
+        ],
+        [
+          316,
+          0
+        ],
+        [
+          316,
+          299
+        ],
+        [
+          272,
+          299
+        ],
+        [
+          272,
+          337
+        ],
+        [
+          0,
+          337
+        ]
+      ],
+      "validation": {
+        "8": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "16": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "32": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        },
+        "128": {
+          "own_pixels_removed": 0,
+          "foreign_pixels_remaining": 0
+        }
+      }
+    }
+  ],
+  "background_alpha": {
+    "actors": [
+      {
+        "margin_pixels_outside_alpha_128_core": 3,
+        "pixel_count": 1107634,
+        "nonzero_count": 184133,
+        "maximum": 123,
+        "nonzero_percentiles": {
+          "50": 1.0,
+          "75": 3.0,
+          "90": 6.0,
+          "95": 12.0,
+          "99": 46.0,
+          "99.9": 95.0
+        },
+        "histogram_ranges": {
+          "0-0": 923501,
+          "1-2": 134135,
+          "3-4": 24810,
+          "5-7": 10699,
+          "8-15": 7394,
+          "16-31": 3930,
+          "32-63": 2228,
+          "64-127": 937
+        },
+        "nonzero_removed_at_threshold_8_percent": 93.049,
+        "nonzero_removed_at_threshold_12_percent": 95.3
+      },
+      {
+        "margin_pixels_outside_alpha_128_core": 8,
+        "pixel_count": 991592,
+        "nonzero_count": 87170,
+        "maximum": 123,
+        "nonzero_percentiles": {
+          "50": 1.0,
+          "75": 1.0,
+          "90": 3.0,
+          "95": 5.0,
+          "99": 34.0,
+          "99.9": 87.0
+        },
+        "histogram_ranges": {
+          "0-0": 904422,
+          "1-2": 76338,
+          "3-4": 5765,
+          "5-7": 1816,
+          "8-15": 1346,
+          "16-31": 959,
+          "32-63": 685,
+          "64-127": 261
+        },
+        "nonzero_removed_at_threshold_8_percent": 96.6,
+        "nonzero_removed_at_threshold_12_percent": 97.475
+      },
+      {
+        "margin_pixels_outside_alpha_128_core": 16,
+        "pixel_count": 837621,
+        "nonzero_count": 27143,
+        "maximum": 114,
+        "nonzero_percentiles": {
+          "50": 1.0,
+          "75": 1.0,
+          "90": 2.0,
+          "95": 6.0,
+          "99": 44.0,
+          "99.9": 93.86
+        },
+        "histogram_ranges": {
+          "0-0": 810478,
+          "1-2": 24629,
+          "3-4": 948,
+          "5-7": 384,
+          "8-15": 358,
+          "16-31": 404,
+          "32-63": 297,
+          "64-127": 123
+        },
+        "nonzero_removed_at_threshold_8_percent": 95.881,
+        "nonzero_removed_at_threshold_12_percent": 96.599
+      }
+    ],
+    "icons": [
+      {
+        "margin_pixels_outside_alpha_128_core": 3,
+        "pixel_count": 951703,
+        "nonzero_count": 95640,
+        "maximum": 126,
+        "nonzero_percentiles": {
+          "50": 2.0,
+          "75": 4.0,
+          "90": 10.0,
+          "95": 18.0,
+          "99": 42.0,
+          "99.9": 87.0
+        },
+        "histogram_ranges": {
+          "0-0": 856063,
+          "1-2": 58787,
+          "3-4": 15058,
+          "5-7": 8201,
+          "8-15": 7743,
+          "16-31": 3995,
+          "32-63": 1560,
+          "64-127": 296
+        },
+        "nonzero_removed_at_threshold_8_percent": 87.514,
+        "nonzero_removed_at_threshold_12_percent": 91.971
+      },
+      {
+        "margin_pixels_outside_alpha_128_core": 8,
+        "pixel_count": 855397,
+        "nonzero_count": 31065,
+        "maximum": 120,
+        "nonzero_percentiles": {
+          "50": 1.0,
+          "75": 2.0,
+          "90": 4.0,
+          "95": 8.0,
+          "99": 35.0,
+          "99.9": 88.94
+        },
+        "histogram_ranges": {
+          "0-0": 824332,
+          "1-2": 25007,
+          "3-4": 3127,
+          "5-7": 1324,
+          "8-15": 835,
+          "16-31": 413,
+          "32-63": 261,
+          "64-127": 98
+        },
+        "nonzero_removed_at_threshold_8_percent": 95.432,
+        "nonzero_removed_at_threshold_12_percent": 96.935
+      },
+      {
+        "margin_pixels_outside_alpha_128_core": 16,
+        "pixel_count": 728396,
+        "nonzero_count": 2872,
+        "maximum": 65,
+        "nonzero_percentiles": {
+          "50": 1.0,
+          "75": 1.0,
+          "90": 2.0,
+          "95": 2.0,
+          "99": 9.29,
+          "99.9": 39.13
+        },
+        "histogram_ranges": {
+          "0-0": 725524,
+          "1-2": 2738,
+          "3-4": 86,
+          "5-7": 14,
+          "8-15": 15,
+          "16-31": 12,
+          "32-63": 6,
+          "64-127": 1
+        },
+        "nonzero_removed_at_threshold_8_percent": 98.921,
+        "nonzero_removed_at_threshold_12_percent": 99.269
+      }
+    ]
+  },
+  "filter_recommendation": {
+    "default": {
+      "low_alpha_byte": 8,
+      "opaque_alpha_byte": 252,
+      "slope": 1.0450819672131149,
+      "intercept": -0.03278688524590164,
+      "svg": "<feFuncA type=\"linear\" slope=\"1.0450819672\" intercept=\"-0.0327868852\" />"
+    },
+    "stronger_optional": {
+      "low_alpha_byte": 12,
+      "opaque_alpha_byte": 252,
+      "slope": 1.0625,
+      "intercept": -0.05,
+      "svg": "<feFuncA type=\"linear\" slope=\"1.0625\" intercept=\"-0.05\" />"
+    },
+    "formula": "Aout = clamp((255*Ain - low)/(opaque - low),0,1), where Ain is normalized 0..1. Only alpha channel is changed at render time; RGB remains identity. Use color-interpolation-filters=\"sRGB\" for the parent SVG filter.",
+    "rationale": "Default threshold 8 removes 96.600% of nonzero actor residuals and 95.432% of icon residuals measured more than 8px outside alpha>=128 core; raises common interior alpha=252 to fully opaque. Higher remaining tails can be actual fire/magic glow. Start with 8, since 12 suppresses more faint glow."
+  },
+  "background_method": "Residual background proxy: pixels whose Euclidean distance from any alpha >=128 pixel exceeds the stated 3/8/16px margin. This includes legitimate soft magic glow as well as residual background, so high-alpha tails must not be called noise with certainty."
+}

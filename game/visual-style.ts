@@ -50,6 +50,14 @@ export const VISUAL_STYLES = [
     arenaAlt:
       'Ночной готический двор с мощёной площадью, бирюзовыми крышами и медными окнами',
   },
+  {
+    id: 'underworld',
+    name: 'Подземный мир',
+    description: 'В духе Hades',
+    arena: '/art/underworld/arena.png',
+    arenaAlt:
+      'Античный подземный зал с золотой резьбой, зелёным огнём и алыми трещинами',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {

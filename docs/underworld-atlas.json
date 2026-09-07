@@ -1,0 +1,731 @@
+{
+  "generation_mode": "built-in image_gen",
+  "batch": {
+    "calls": 3,
+    "concurrent": true,
+    "retries": 0,
+    "variants": 0
+  },
+  "image_edits": false,
+  "bbox_format": "x,y,width,height; source pixels; origin top left",
+  "measurement_method": "Visible bounds measured from connected components of alpha >= 16/255, with smaller detached effect components assigned to nearest principal component. Core bounds measured from the principal component at alpha >=128/255. Full nonzero alpha bounds include faint residual pixels and are reported separately. Ground pivots are visual estimates, not skeletal joint detections; estimated uncertainty \u00b18 pixels.",
+  "assets": {
+    "actors": {
+      "path": "/private/tmp/underworld-assets-20260907/actors.png",
+      "native_dimensions": {
+        "width": 1024,
+        "height": 1536
+      },
+      "mode": "RGBA",
+      "sha256": "5ed5ca4acf7718d1f4f3a28f150cfc78ad579de351b5b2fa59c4796b9536d958",
+      "alpha": {
+        "min": 0,
+        "max": 254,
+        "zero_pixels": 924511,
+        "partial_pixels": 648353,
+        "opaque_pixels": 0,
+        "zero_percent": 58.7788,
+        "partial_percent": 41.2212,
+        "opaque_percent": 0.0,
+        "at_least_240_pixels": 340266,
+        "nonzero_bbox": [
+          0,
+          1,
+          1024,
+          1535
+        ]
+      },
+      "nominal_grid": {
+        "columns": 3,
+        "rows": 4,
+        "cell_width": 341.3333333333333,
+        "cell_height": 384.0,
+        "strict_grid_compliance": false
+      },
+      "sprites": [
+        {
+          "id": "hero_idle",
+          "row": 0,
+          "column": 0,
+          "visible_bbox": [
+            19,
+            53,
+            254,
+            308
+          ],
+          "core_bbox": [
+            20,
+            55,
+            252,
+            305
+          ],
+          "visible_pixels": 36721,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "right",
+          "ground_pivot_source": {
+            "x": 150,
+            "y": 358
+          },
+          "ground_pivot_crop": {
+            "x": 131,
+            "y": 305
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.51575,
+            "y": 0.99026
+          }
+        },
+        {
+          "id": "hero_windup",
+          "row": 0,
+          "column": 1,
+          "visible_bbox": [
+            354,
+            17,
+            255,
+            346
+          ],
+          "core_bbox": [
+            355,
+            20,
+            254,
+            342
+          ],
+          "visible_pixels": 38706,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "right",
+          "ground_pivot_source": {
+            "x": 485,
+            "y": 360
+          },
+          "ground_pivot_crop": {
+            "x": 131,
+            "y": 343
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.51373,
+            "y": 0.99133
+          }
+        },
+        {
+          "id": "hero_strike",
+          "row": 0,
+          "column": 2,
+          "visible_bbox": [
+            630,
+            117,
+            387,
+            244
+          ],
+          "core_bbox": [
+            631,
+            123,
+            383,
+            237
+          ],
+          "visible_pixels": 34328,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "right",
+          "ground_pivot_source": {
+            "x": 751,
+            "y": 358
+          },
+          "ground_pivot_crop": {
+            "x": 121,
+            "y": 241
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.31266,
+            "y": 0.9877
+          }
+        },
+        {
+          "id": "hero_guard",
+          "row": 1,
+          "column": 0,
+          "visible_bbox": [
+            18,
+            419,
+            269,
+            283
+          ],
+          "core_bbox": [
+            18,
+            421,
+            269,
+            280
+          ],
+          "visible_pixels": 35485,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "right",
+          "ground_pivot_source": {
+            "x": 154,
+            "y": 699
+          },
+          "ground_pivot_crop": {
+            "x": 136,
+            "y": 280
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.50558,
+            "y": 0.9894
+          }
+        },
+        {
+          "id": "hero_hurt",
+          "row": 1,
+          "column": 1,
+          "visible_bbox": [
+            368,
+            412,
+            259,
+            288
+          ],
+          "core_bbox": [
+            369,
+            414,
+            257,
+            285
+          ],
+          "visible_pixels": 36955,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "right",
+          "ground_pivot_source": {
+            "x": 525,
+            "y": 698
+          },
+          "ground_pivot_crop": {
+            "x": 157,
+            "y": 286
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.60618,
+            "y": 0.99306
+          }
+        },
+        {
+          "id": "hero_death",
+          "row": 1,
+          "column": 2,
+          "visible_bbox": [
+            655,
+            583,
+            363,
+            136
+          ],
+          "core_bbox": [
+            656,
+            584,
+            359,
+            134
+          ],
+          "visible_pixels": 25329,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "right",
+          "ground_pivot_source": {
+            "x": 835,
+            "y": 697
+          },
+          "ground_pivot_crop": {
+            "x": 180,
+            "y": 114
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.49587,
+            "y": 0.83824
+          }
+        },
+        {
+          "id": "rival_idle",
+          "row": 2,
+          "column": 0,
+          "visible_bbox": [
+            18,
+            732,
+            299,
+            363
+          ],
+          "core_bbox": [
+            21,
+            735,
+            295,
+            360
+          ],
+          "visible_pixels": 42747,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "left",
+          "ground_pivot_source": {
+            "x": 154,
+            "y": 1093
+          },
+          "ground_pivot_crop": {
+            "x": 136,
+            "y": 361
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.45485,
+            "y": 0.99449
+          }
+        },
+        {
+          "id": "rival_windup",
+          "row": 2,
+          "column": 1,
+          "visible_bbox": [
+            338,
+            738,
+            283,
+            347
+          ],
+          "core_bbox": [
+            339,
+            742,
+            282,
+            342
+          ],
+          "visible_pixels": 37743,
+          "foreign_visible_pixels_in_rectangular_crop": 328,
+          "facing": "left",
+          "ground_pivot_source": {
+            "x": 506,
+            "y": 1083
+          },
+          "ground_pivot_crop": {
+            "x": 168,
+            "y": 345
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.59364,
+            "y": 0.99424
+          }
+        },
+        {
+          "id": "rival_strike",
+          "row": 2,
+          "column": 2,
+          "visible_bbox": [
+            593,
+            834,
+            419,
+            246
+          ],
+          "core_bbox": [
+            597,
+            835,
+            414,
+            244
+          ],
+          "visible_pixels": 36897,
+          "foreign_visible_pixels_in_rectangular_crop": 1053,
+          "facing": "left",
+          "ground_pivot_source": {
+            "x": 890,
+            "y": 1078
+          },
+          "ground_pivot_crop": {
+            "x": 297,
+            "y": 244
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.70883,
+            "y": 0.99187
+          }
+        },
+        {
+          "id": "rival_guard",
+          "row": 3,
+          "column": 0,
+          "visible_bbox": [
+            19,
+            1122,
+            311,
+            349
+          ],
+          "core_bbox": [
+            22,
+            1125,
+            307,
+            345
+          ],
+          "visible_pixels": 42216,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "left",
+          "ground_pivot_source": {
+            "x": 156,
+            "y": 1468
+          },
+          "ground_pivot_crop": {
+            "x": 137,
+            "y": 346
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.44051,
+            "y": 0.9914
+          }
+        },
+        {
+          "id": "rival_hurt",
+          "row": 3,
+          "column": 1,
+          "visible_bbox": [
+            356,
+            1129,
+            316,
+            337
+          ],
+          "core_bbox": [
+            357,
+            1132,
+            311,
+            334
+          ],
+          "visible_pixels": 40679,
+          "foreign_visible_pixels_in_rectangular_crop": 591,
+          "facing": "left",
+          "ground_pivot_source": {
+            "x": 509,
+            "y": 1464
+          },
+          "ground_pivot_crop": {
+            "x": 153,
+            "y": 335
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.48418,
+            "y": 0.99407
+          }
+        },
+        {
+          "id": "rival_death",
+          "row": 3,
+          "column": 2,
+          "visible_bbox": [
+            633,
+            1365,
+            379,
+            110
+          ],
+          "core_bbox": [
+            636,
+            1366,
+            375,
+            106
+          ],
+          "visible_pixels": 24191,
+          "foreign_visible_pixels_in_rectangular_crop": 0,
+          "facing": "left",
+          "ground_pivot_source": {
+            "x": 860,
+            "y": 1459
+          },
+          "ground_pivot_crop": {
+            "x": 227,
+            "y": 94
+          },
+          "ground_pivot_normalized_to_crop": {
+            "x": 0.59894,
+            "y": 0.85455
+          }
+        }
+      ]
+    },
+    "arena": {
+      "path": "/private/tmp/underworld-assets-20260907/arena.png",
+      "native_dimensions": {
+        "width": 1672,
+        "height": 941
+      },
+      "mode": "RGB",
+      "sha256": "5a8461f32ece7175fff5deef09ff4cd7a1da9862fb5a0302d9b5fefdf16fc94e",
+      "alpha": {
+        "min": 255,
+        "max": 255,
+        "zero_pixels": 0,
+        "partial_pixels": 0,
+        "opaque_pixels": 1573352,
+        "zero_percent": 0.0,
+        "partial_percent": 0.0,
+        "opaque_percent": 100.0,
+        "at_least_240_pixels": 1573352,
+        "nonzero_bbox": [
+          0,
+          0,
+          1672,
+          941
+        ]
+      }
+    },
+    "icons": {
+      "path": "/private/tmp/underworld-assets-20260907/icons.png",
+      "native_dimensions": {
+        "width": 1448,
+        "height": 1086
+      },
+      "mode": "RGBA",
+      "sha256": "b4480eda055ac992dac07ffe7760785458a8da32b374e6ce0491760ce46d5448",
+      "alpha": {
+        "min": 0,
+        "max": 255,
+        "zero_pixels": 861259,
+        "partial_pixels": 710475,
+        "opaque_pixels": 794,
+        "zero_percent": 54.7691,
+        "partial_percent": 45.1804,
+        "opaque_percent": 0.0505,
+        "at_least_240_pixels": 523352,
+        "nonzero_bbox": [
+          25,
+          11,
+          1403,
+          1051
+        ]
+      },
+      "nominal_grid": {
+        "columns": 4,
+        "rows": 3,
+        "cell_width": 362.0,
+        "cell_height": 362.0,
+        "strict_grid_compliance": false
+      },
+      "sprites": [
+        {
+          "id": "crimson_sword",
+          "row": 0,
+          "column": 0,
+          "visible_bbox": [
+            45,
+            13,
+            294,
+            350
+          ],
+          "core_bbox": [
+            46,
+            14,
+            293,
+            348
+          ],
+          "visible_pixels": 36700,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "blue_aegis_shield",
+          "row": 0,
+          "column": 1,
+          "visible_bbox": [
+            403,
+            35,
+            302,
+            308
+          ],
+          "core_bbox": [
+            405,
+            47,
+            298,
+            292
+          ],
+          "visible_pixels": 74098,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "violet_lightning_crystal",
+          "row": 0,
+          "column": 2,
+          "visible_bbox": [
+            802,
+            23,
+            228,
+            338
+          ],
+          "core_bbox": [
+            803,
+            27,
+            215,
+            333
+          ],
+          "visible_pixels": 47840,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "gold_laurel_medallion",
+          "row": 0,
+          "column": 3,
+          "visible_bbox": [
+            1127,
+            24,
+            284,
+            326
+          ],
+          "core_bbox": [
+            1128,
+            25,
+            282,
+            324
+          ],
+          "visible_pixels": 60898,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "green_poison_flask",
+          "row": 1,
+          "column": 0,
+          "visible_bbox": [
+            44,
+            378,
+            284,
+            309
+          ],
+          "core_bbox": [
+            47,
+            379,
+            280,
+            307
+          ],
+          "visible_pixels": 56537,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "black_fire_bomb",
+          "row": 1,
+          "column": 1,
+          "visible_bbox": [
+            428,
+            357,
+            292,
+            326
+          ],
+          "core_bbox": [
+            429,
+            359,
+            289,
+            323
+          ],
+          "visible_pixels": 50312,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "red_heart",
+          "row": 1,
+          "column": 2,
+          "visible_bbox": [
+            762,
+            387,
+            305,
+            292
+          ],
+          "core_bbox": [
+            764,
+            398,
+            300,
+            280
+          ],
+          "visible_pixels": 52397,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "gold_obol_coin",
+          "row": 1,
+          "column": 3,
+          "visible_bbox": [
+            1146,
+            408,
+            252,
+            258
+          ],
+          "core_bbox": [
+            1147,
+            409,
+            250,
+            256
+          ],
+          "visible_pixels": 49968,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "red_nectar_vial",
+          "row": 2,
+          "column": 0,
+          "visible_bbox": [
+            78,
+            697,
+            210,
+            357
+          ],
+          "core_bbox": [
+            79,
+            698,
+            206,
+            355
+          ],
+          "visible_pixels": 35976,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "teal_relic_amulet",
+          "row": 2,
+          "column": 1,
+          "visible_bbox": [
+            403,
+            700,
+            286,
+            357
+          ],
+          "core_bbox": [
+            404,
+            700,
+            284,
+            356
+          ],
+          "visible_pixels": 53428,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "gold_laurel_crown",
+          "row": 2,
+          "column": 2,
+          "visible_bbox": [
+            749,
+            726,
+            318,
+            317
+          ],
+          "core_bbox": [
+            750,
+            727,
+            316,
+            315
+          ],
+          "visible_pixels": 47403,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        },
+        {
+          "id": "white_gold_fourpoint_star",
+          "row": 2,
+          "column": 3,
+          "visible_bbox": [
+            1119,
+            703,
+            294,
+            339
+          ],
+          "core_bbox": [
+            1120,
+            706,
+            292,
+            332
+          ],
+          "visible_pixels": 32043,
+          "foreign_visible_pixels_in_rectangular_crop": 0
+        }
+      ]
+    }
+  },
+  "inspection_notes": [
+    "Original PNG files were copied byte for byte; no background removal, recoloring, resizing, cleanup, regeneration or variants.",
+    "Both atlases have actual alpha transparency. The preview can appear to show colored backgrounds; pixel inspection confirms extensive alpha=0 areas. The actors atlas has no fully opaque pixels (maximum alpha 254), with the solid character interiors mostly around alpha 250\u2013253. Very faint low-alpha residual pixels reach canvas edges.",
+    "All twelve actor poses and all twelve requested icons are present in the requested order. Hero poses face right; rival poses face left. Complete weapons are present. Some weapons and feet cross nominal equal-cell boundaries. Use measured per-sprite bounds, not strict grid slicing.",
+    "Actor bounding rectangles can include a few neighboring sprite pixels because adjacent silhouettes share some x/y ranges; foreign_visible_pixels_in_rectangular_crop quantifies this. In particular rival windup and strike crops need shape-aware clipping if using their full measured bounds.",
+    "The requested 25 percent icon gutters were not achieved consistently; several icon effects and shapes extend beyond the central 75 percent of the nominal cells. Individual measured bounds are supplied.",
+    "Ground baselines and body scales vary slightly across poses; supplied estimated ground pivots allow placement compensation. Death pivots refer to the resting body, excluding low weapon tips.",
+    "Arena is an opaque side-view-compatible courtyard with a clear lower fighting floor. Native size 1672x941 is approximately 16:9; it was not resized."
+  ]
+}
