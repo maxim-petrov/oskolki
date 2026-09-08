@@ -1,6 +1,6 @@
 /* Palace geometry with the existing Basement palette. All art and pose anchors are reused. */
 html[data-skin='palace-cellar'] {
-  --background: #17120f;
+  --background: #211914;
   --foreground: #302723;
   --card: #ded3bd;
   --popover: #e5dac6;
@@ -21,7 +21,7 @@ html[data-skin='palace-cellar'] {
   --note-shadow: 4px 5px 0 #080605, inset 0 -4px #b8ab95;
   color-scheme: light;
   body {
-    background: #17120f;
+    background: #211914;
     color: #ddd1b9;
   }
   .topbar {
@@ -132,12 +132,12 @@ html[data-skin='palace-cellar'] {
     color: #76624f;
   }
   .arena {
-    background: #211812;
+    background: #2c2018;
     border-color: #080605;
     box-shadow: 0 0 0 1px #5b4536;
   }
   .arena-shade {
-    background: linear-gradient(transparent 60%, #150c0870);
+    background: linear-gradient(transparent 60%, #150c0845);
   }
   .palace-actor {
     background: none;
@@ -208,22 +208,22 @@ html[data-skin='palace-cellar'] {
     color: #cbb99f;
   }
   .board-section {
-    background: #30231c;
+    background: #3b2b22;
     border-color: #100a07;
     box-shadow: 0 0 0 1px #614a37;
   }
   .board-frame {
-    background: #221912;
+    background: #2d2119;
     border-color: #66503c;
     box-shadow: none;
   }
   .board {
-    background: #110c09;
+    background: #1d140f;
     border-color: #130d09;
   }
   .tile {
-    --tile-fill: #906452;
-    --tile-line: #bb8b70;
+    --tile-fill: #9f705b;
+    --tile-line: #cd9d7f;
     background: var(--tile-fill);
     border-color: #33221c;
     box-shadow:
@@ -231,24 +231,24 @@ html[data-skin='palace-cellar'] {
       inset -2px -3px #0004;
   }
   .tile-shield {
-    --tile-fill: #5c7278;
-    --tile-line: #92a7a2;
+    --tile-fill: #69868d;
+    --tile-line: #a4bdb7;
   }
   .tile-spark {
-    --tile-fill: #685b7c;
-    --tile-line: #9887a1;
+    --tile-fill: #796890;
+    --tile-line: #b09abc;
   }
   .tile-focus {
-    --tile-fill: #8a7a4e;
-    --tile-line: #bbae7d;
+    --tile-fill: #9d8b59;
+    --tile-line: #cdbf8a;
   }
   .tile-venom {
-    --tile-fill: #627048;
-    --tile-line: #93a16b;
+    --tile-fill: #718253;
+    --tile-line: #a8b77b;
   }
   .tile-bomb {
-    --tile-fill: #7d6853;
-    --tile-line: #b3966e;
+    --tile-fill: #8e765e;
+    --tile-line: #c6a77d;
   }
   .tile.selected {
     outline-color: #f6dec1;
@@ -548,16 +548,16 @@ html[data-skin='palace-cellar'] {
     fill: #37251a;
   }
 }
-/* Preserve crisp silhouettes; apply only a muted warm color grade. */
+/* Keep warm cellar shadows while retaining more light and color in the art. */
 html[data-skin='palace-cellar'] {
   .arena-bg {
-    filter: sepia(0.8) saturate(0.65) brightness(0.64);
+    filter: sepia(0.65) saturate(0.85) brightness(0.78);
   }
   .palace-actor {
-    filter: sepia(0.2) saturate(0.7) brightness(0.94);
+    filter: sepia(0.12) saturate(0.9) brightness(1.03);
   }
   .palace-icon {
-    filter: saturate(0.8);
+    filter: saturate(1.03) brightness(1.05);
   }
   .enemy.targeted .fighter-caption {
     background: #291b14;
