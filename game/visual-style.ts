@@ -81,6 +81,14 @@ export const VISUAL_STYLES = [
     arenaAlt: 'Серая городская улица с пустыми домами под пыльно-розовым небом',
   },
   {
+    id: 'palace-pop',
+    name: 'Дворец слов — яркий',
+    description: 'Персонажи Pronoun Palace и яркие краски в духе Scott Pilgrim',
+    arena: '/art/pronoun-palace/arena-bright.png',
+    arenaAlt:
+      'Яркая пиксельная улица с бирюзовыми и коралловыми домами под розовым небом',
+  },
+  {
     id: 'summit',
     name: 'Вершина',
     description: 'В духе Celeste',

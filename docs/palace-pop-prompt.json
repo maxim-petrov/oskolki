@@ -1,0 +1,11 @@
+{
+  "mode": "built-in",
+  "operation": "edit",
+  "use_case": "style-transfer",
+  "calls": 1,
+  "prompt": "Use case: style-transfer.\nAsset type: one 16:9 landscape side-on pixel-art arena background for the game skin Pronoun Palace / Дворец слов. Background only.\nInput images: Image 1 is the EDIT TARGET arena.png. Image 2 is a STYLE REFERENCE ONLY for coarse pixel clusters, thick dark ink outlines and bold arcade comic color. Do not copy its characters, HUD, signs, writing, exact buildings or composition.\nPrimary request: Restyle and recolor image 1 as a much brighter, more colorful comic arcade street with clearly coarse pixel art. Preserve the wide flat side-on street layout, crooked suburban/office architecture, background skyline, and an unobstructed empty ground plane across the entire lower third for gameplay.\nColor palette: rich cobalt and teal buildings alternating with warm coral facades; bright yellow lit windows; vivid violet roofs; warm peach/coral sky with flat blocky clouds; cyan sidewalk accents; street in lively muted blue-violet so game characters will read clearly.\nStyle/medium: genuine low-resolution sprite-game background aesthetics, like Scott Pilgrim vs The World GAME in the coarse-pixel outline and flat-color vocabulary. Render with a clear consistent coarse pixel grid, big square pixel clusters, hard stair-stepped edges, thick near-black/deep-navy ink pixel outlines, only 3–4 flat tones per material. Buildings remain recognizable in their original broad arrangement but become colorful comic architecture instead of bleak gray ruins.\nComposition/framing: 16:9 horizontal, straight-on street-stage camera, continuous open foreground. Keep the lower third simple and clear, very sparse broad cracks only.\nConstraints: background scenery only; zero people, zero characters, zero sprites, zero HUD, zero UI, zero icons, zero lettering, zero text, zero logos. No new foreground objects. No painterly gradients, no blur, no smooth vector surfaces, no antialiasing look, no fine noisy textures, no photorealism. Deliver exactly one finished background image.",
+  "referenced_image_paths": [
+    "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/arena.png",
+    "/var/folders/0m/cjdd9gqx5tx6glwj5rf99_jm0000gn/T/codex-clipboard-28a65c12-a2ec-44cd-9a37-92481586d401.png"
+  ]
+}

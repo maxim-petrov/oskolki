@@ -12,6 +12,7 @@ import './basement.css';
 import './palace.css';
 import './summit.css';
 import './arcade.css';
+import './palace-pop.css';
 import { VisualStyleProvider } from '@/components/visual-style';
 export const metadata: Metadata = {
   title: 'Осколки — в глубину крипты',

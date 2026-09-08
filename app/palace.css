@@ -1,5 +1,5 @@
 /* Palace: quiet gray streets, blunt black contours and pink stationery. */
-html[data-skin='palace'] {
+html:is([data-skin='palace'], [data-skin='palace-pop']) {
   --background: #92938f;
   --foreground: #161714;
   --card: #d0ceca;
@@ -858,7 +858,7 @@ html[data-skin='palace'] {
   }
 }
 @media (max-width: 1150px) {
-  html[data-skin='palace'] {
+  html:is([data-skin='palace'], [data-skin='palace-pop']) {
     .game-layout {
       gap: 18px;
     }
@@ -892,7 +892,7 @@ html[data-skin='palace'] {
   }
 }
 @media (max-width: 640px) {
-  html[data-skin='palace'] {
+  html:is([data-skin='palace'], [data-skin='palace-pop']) {
     .game-shell {
       padding: 0 12px;
     }
@@ -1051,7 +1051,7 @@ html[data-skin='palace'] {
   }
 }
 @media (max-width: 360px) {
-  html[data-skin='palace'] {
+  html:is([data-skin='palace'], [data-skin='palace-pop']) {
     .topbar {
       flex-wrap: wrap;
       height: auto;
@@ -1102,7 +1102,7 @@ html[data-skin='palace'] {
   }
 }
 @media (max-width: 420px) {
-  html[data-skin='palace'] .skills {
+  html:is([data-skin='palace'], [data-skin='palace-pop']) .skills {
     grid-template-columns: minmax(0, 1fr);
   }
 }

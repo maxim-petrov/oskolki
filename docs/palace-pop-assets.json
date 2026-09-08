@@ -1,0 +1,23 @@
+{
+  "native_generated_path": "/Users/max/.codex/generated_images/01a0823b-3c21-7a21-b3e5-674072250cb3/exec-ecdb5e44-ab6d-4a79-bc9d-44b8beaa150d.png",
+  "artifact_path": "/private/tmp/palace-pop-20260908/arena-pop-native.png",
+  "dimensions": {
+    "width": 1672,
+    "height": 941
+  },
+  "sha256": "ef32709c65e6d39957eaa9a2ae8b95598b3231ec90cab1c1810f754a735a7d78",
+  "bytes": 1421972,
+  "mode": "built-in image_gen edit",
+  "calls": 1,
+  "processed": false,
+  "byte_copy_matches": true,
+  "visual_review": {
+    "accepted": "Saturated coral, cobalt, teal and violet; lit yellow windows; strong pixel outlines; open lower third; no characters, UI or text.",
+    "limitations": "Native output is 1672×941, approximately 16:9. Some soft tonal variation and fine surface detail remain despite requesting a fully flat coarse pixel grid; no postprocessing or second generation was performed."
+  },
+  "project_path": "public/art/pronoun-palace/arena-bright.png",
+  "unchanged_assets": [
+    "public/art/pronoun-palace/actors.png",
+    "public/art/pronoun-palace/icons.png"
+  ]
+}

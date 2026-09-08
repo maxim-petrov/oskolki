@@ -21,6 +21,7 @@ import {
   BookOpen,
   Mountain,
   Joystick,
+  Palette,
 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -137,6 +138,8 @@ export function StylePicker({
               <Droplet size={18} />
             ) : option.id === 'palace' ? (
               <BookOpen size={18} />
+            ) : option.id === 'palace-pop' ? (
+              <Palette size={18} />
             ) : option.id === 'summit' ? (
               <Mountain size={18} />
             ) : (
