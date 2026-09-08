@@ -88,6 +88,14 @@ export const VISUAL_STYLES = [
     arenaAlt:
       'Ночная горная тропа: снежные скалы, синие ели и заброшенные башни',
   },
+  {
+    id: 'arcade',
+    name: 'Аркада',
+    description: 'В духе Scott Pilgrim vs. The World',
+    arena: '/art/arcade/arena-pixel.png',
+    arenaAlt:
+      'Пиксельная городская улица: магазин пластинок, синие дома и розовый фонарь',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {

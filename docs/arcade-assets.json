@@ -1,0 +1,206 @@
+{
+  "generator": "built-in image_gen",
+  "mode": "edit",
+  "calls": 3,
+  "parallel_batch": true,
+  "retries": 0,
+  "assets": {
+    "actors": {
+      "source_path": "/Users/max/.codex/generated_images/01a081f9-6d86-7201-aad2-89b65a5117b1/exec-1fc85f67-5c6e-4876-b746-cabb75def49d.png",
+      "path": "/private/tmp/arcade-pixel-20260908/actors.png",
+      "edit_target_path": "/private/tmp/arcade-assets-20260908/actors.png",
+      "edit_target_sha256": "1318b00e50a0c70872eecff76b1bdb5b41dbea9d37745346cfb482d5aa409b27",
+      "dimensions": [1024, 1536],
+      "mode": "RGB",
+      "sha256": "f273d9a967d43e2d4676ae1c7ef2fbc2ee642f649fcfad3305df93d194f39cc2",
+      "source_sha256": "f273d9a967d43e2d4676ae1c7ef2fbc2ee642f649fcfad3305df93d194f39cc2",
+      "byte_identical": true,
+      "sample_pixels": {
+        "(0, 0)": [250, 252, 252],
+        "(10, 10)": [254, 254, 254],
+        "(30, 30)": [228, 227, 227],
+        "(512, 20)": [254, 254, 254]
+      },
+      "pixel_analysis": {
+        "unique_native_rgb_colors": 184584,
+        "exact_uniform_8x8_blocks": 0,
+        "total_8x8_blocks": 24576,
+        "exact_uniform_8x8_blocks_pct": 0.0,
+        "exact_8x_nearest_neighbor_grid": false
+      },
+      "validation": {
+        "real_rgba_transparency": false,
+        "baked_checkerboard": true,
+        "usable_as_transparent_atlas": false,
+        "alpha128_sprite_measurement_available": false,
+        "notes": "The edit returned RGB with a visible checkerboard background despite explicit RGBA instructions. Dark-contour visual estimates are included separately in regions.json. Native image remains unmodified; no retry was performed. Coarser outlines still have fine texture and subpixel shading."
+      },
+      "project_path": "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/arcade/actors-pixel.png"
+    },
+    "icons": {
+      "source_path": "/Users/max/.codex/generated_images/01a081f9-6d86-7201-aad2-89b65a5117b1/exec-982ecdd3-edee-4a2f-b087-bcc4f22a0e6b.png",
+      "path": "/private/tmp/arcade-pixel-20260908/icons.png",
+      "edit_target_path": "/private/tmp/arcade-assets-20260908/icons.png",
+      "edit_target_sha256": "4d083e048fa76bf271e52b075a1ce0d69f03531621bbe6b3017f267ed3dee1ae",
+      "dimensions": [1536, 1024],
+      "mode": "RGB",
+      "sha256": "9f43c09dbb65d4805a171546e0415e2a58a146eee2d0a2d145caa0f9e345075c",
+      "source_sha256": "9f43c09dbb65d4805a171546e0415e2a58a146eee2d0a2d145caa0f9e345075c",
+      "byte_identical": true,
+      "sample_pixels": {
+        "(0, 0)": [219, 217, 216],
+        "(10, 10)": [217, 216, 215],
+        "(30, 30)": [221, 221, 220],
+        "(512, 20)": [170, 169, 170]
+      },
+      "pixel_analysis": {
+        "unique_native_rgb_colors": 94937,
+        "exact_uniform_8x8_blocks": 0,
+        "total_8x8_blocks": 24576,
+        "exact_uniform_8x8_blocks_pct": 0.0,
+        "exact_8x_nearest_neighbor_grid": false
+      },
+      "validation": {
+        "real_rgba_transparency": false,
+        "baked_checkerboard": true,
+        "usable_as_transparent_atlas": false,
+        "alpha128_sprite_measurement_available": false,
+        "notes": "The edit returned RGB with a visible checkerboard background despite explicit RGBA instructions. Dark-contour visual estimates are included separately in regions.json. Native image remains unmodified; no retry was performed. Coarser outlines still have fine texture and subpixel shading."
+      },
+      "project_path": "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/arcade/icons-pixel.png"
+    },
+    "arena": {
+      "source_path": "/Users/max/.codex/generated_images/01a081f9-6d86-7201-aad2-89b65a5117b1/exec-bfa815bc-eb89-48a8-8195-45d9781e70a5.png",
+      "path": "/private/tmp/arcade-pixel-20260908/arena.png",
+      "edit_target_path": "/private/tmp/arcade-assets-20260908/arena.png",
+      "edit_target_sha256": "0ac1b85b04cf59972cd071795db75adf7c58e01dbd923d22368ca154deab65b3",
+      "dimensions": [1536, 1024],
+      "mode": "RGB",
+      "sha256": "e188f8d69d0571628d7486bd30e4226440ec8fd2d9199b20d3d64ab178b06444",
+      "source_sha256": "e188f8d69d0571628d7486bd30e4226440ec8fd2d9199b20d3d64ab178b06444",
+      "byte_identical": true,
+      "sample_pixels": {
+        "(0, 0)": [68, 40, 80],
+        "(10, 10)": [70, 37, 84],
+        "(30, 30)": [74, 36, 83],
+        "(512, 20)": [0, 46, 121]
+      },
+      "pixel_analysis": {
+        "unique_native_rgb_colors": 161148,
+        "exact_uniform_8x8_blocks": 0,
+        "total_8x8_blocks": 24576,
+        "exact_uniform_8x8_blocks_pct": 0.0,
+        "exact_8x_nearest_neighbor_grid": false
+      },
+      "validation": {
+        "requested_rgb_mode": true,
+        "composition_preserved": true,
+        "open_lower_combat_area": true,
+        "notes": "Coarser contours and cleaner pavement, but the image still contains texture and gradients; it is not an exact 8x nearest-neighbor render with 16-24 colors."
+      },
+      "project_path": "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/arcade/arena-pixel.png"
+    }
+  },
+  "style_references": [
+    {
+      "path": "/var/folders/0m/cjdd9gqx5tx6glwj5rf99_jm0000gn/T/codex-clipboard-28a65c12-a2ec-44cd-9a37-92481586d401.png",
+      "sha256": "cd0fdded223e9d85a516d31750ea6cdbc5bed92ff913817c1a0e20ebb1c2d7ae"
+    },
+    {
+      "path": "/var/folders/0m/cjdd9gqx5tx6glwj5rf99_jm0000gn/T/codex-clipboard-18845ef5-0dfd-44c6-897f-f6170fd02753.png",
+      "sha256": "482202259f089694ab1864ec2ebd5dd47bad4a77a4706ac6554c1daee1391759"
+    }
+  ],
+  "outcome": "Targeted revision generated all three requested native PNGs; actors/icons failed transparency and cannot directly replace transparent atlases. Exact coarse pixel-grid constraints were not achieved.",
+  "initial_generation": {
+    "generator": "built-in image_gen",
+    "calls": 3,
+    "parallel_batch": true,
+    "assets": {
+      "actors": {
+        "source_path": "/Users/max/.codex/generated_images/01a081f9-6d86-7201-aad2-89b65a5117b1/exec-ef3f84a5-63e1-4f06-a48e-879f0566bf96.png",
+        "path": "/private/tmp/arcade-assets-20260908/actors.png",
+        "dimensions": [1024, 1536],
+        "mode": "RGBA",
+        "sha256": "1318b00e50a0c70872eecff76b1bdb5b41dbea9d37745346cfb482d5aa409b27",
+        "source_sha256": "1318b00e50a0c70872eecff76b1bdb5b41dbea9d37745346cfb482d5aa409b27",
+        "byte_identical": true,
+        "alpha": {
+          "min": 0,
+          "max": 254,
+          "zero": 938751,
+          "opaque": 0,
+          "partial": 634113,
+          "ge128": 490673,
+          "total": 1572864,
+          "zero_pct": 59.684,
+          "opaque_pct": 0.0
+        },
+        "validation": {
+          "real_rgba_transparency": true,
+          "exactly_12_alpha128_components": true,
+          "hard_opaque_interiors": false,
+          "pixel_art_spec_fully_met": false,
+          "notes": "Native alpha max is 254, with soft low-alpha fringes/halos. Pixel artwork contains more detail and texture than a strict nearest-neighbor logical grid. Retained unmodified per no-edit/no-retry instruction."
+        }
+      },
+      "icons": {
+        "source_path": "/Users/max/.codex/generated_images/01a081f9-6d86-7201-aad2-89b65a5117b1/exec-25e84a13-b749-45bd-a02d-db72f7094171.png",
+        "path": "/private/tmp/arcade-assets-20260908/icons.png",
+        "dimensions": [1536, 1024],
+        "mode": "RGBA",
+        "sha256": "4d083e048fa76bf271e52b075a1ce0d69f03531621bbe6b3017f267ed3dee1ae",
+        "source_sha256": "4d083e048fa76bf271e52b075a1ce0d69f03531621bbe6b3017f267ed3dee1ae",
+        "byte_identical": true,
+        "alpha": {
+          "min": 0,
+          "max": 254,
+          "zero": 1086782,
+          "opaque": 0,
+          "partial": 486082,
+          "ge128": 411937,
+          "total": 1572864,
+          "zero_pct": 69.096,
+          "opaque_pct": 0.0
+        },
+        "validation": {
+          "real_rgba_transparency": true,
+          "exactly_12_alpha128_components": true,
+          "hard_opaque_interiors": false,
+          "pixel_art_spec_fully_met": false,
+          "notes": "Native alpha max is 254, with soft low-alpha fringes/halos. Pixel artwork contains more detail and texture than a strict nearest-neighbor logical grid. Retained unmodified per no-edit/no-retry instruction."
+        }
+      },
+      "arena": {
+        "source_path": "/Users/max/.codex/generated_images/01a081f9-6d86-7201-aad2-89b65a5117b1/exec-7fb1bd07-548c-4994-8921-d135d9beb743.png",
+        "path": "/private/tmp/arcade-assets-20260908/arena.png",
+        "dimensions": [1536, 1024],
+        "mode": "RGB",
+        "sha256": "0ac1b85b04cf59972cd071795db75adf7c58e01dbd923d22368ca154deab65b3",
+        "source_sha256": "0ac1b85b04cf59972cd071795db75adf7c58e01dbd923d22368ca154deab65b3",
+        "byte_identical": true,
+        "validation": {
+          "requested_rgb_mode": true,
+          "open_lower_combat_area": true,
+          "notes": "Original blank-sign urban record-shop composition; fine texture exceeds strict 320x213 nearest-neighbor scene."
+        }
+      }
+    }
+  },
+  "rendering": {
+    "actors_backing_grid": [64, 48],
+    "source_window": [512, 384],
+    "icons_backing_grid": [32, 32],
+    "sampling": "nearest neighbor, enlarged with CSS image-rendering: pixelated",
+    "transparency": "neutral gray connected to image border removed at runtime; enclosed whites preserved",
+    "native_png_modified": false
+  },
+  "integration_validation": {
+    "all_12_poses_visible": true,
+    "all_12_icons_visible": true,
+    "background_mask_visually_checked": true,
+    "mobile_widths": [390, 320],
+    "desktop_width": 1280,
+    "native_texture_limitations_handled_by_runtime_renderer": true
+  }
+}
