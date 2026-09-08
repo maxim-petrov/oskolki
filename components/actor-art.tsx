@@ -1,4 +1,5 @@
 'use client';
+import { SummitActorArt } from '@/components/summit-actor-art';
 import { useId } from 'react';
 import { useVisualStyle } from '@/components/visual-style';
 import { PixelActorArt } from '@/components/pixel-actor-art';
@@ -38,6 +39,7 @@ const ENEMY: Record<Pose, Region> = {
 export function ActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
   const id = useId().replace(/:/g, '');
   const style = useVisualStyle();
+  if (style === 'summit') return <SummitActorArt hero={hero} pose={pose} />;
   if (style === 'palace') return <PalaceActorArt hero={hero} pose={pose} />;
   if (style === 'basement') return <BasementActorArt hero={hero} pose={pose} />;
   if (style === 'deadcells')

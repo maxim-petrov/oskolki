@@ -1,4 +1,5 @@
 'use client';
+import { SummitIcon } from '@/components/summit-icon';
 import { useId } from 'react';
 import { useVisualStyle } from '@/components/visual-style';
 import { PaperIcon } from '@/components/paper-icon';
@@ -68,6 +69,7 @@ function PixelIcon({ name, size = 30, className = '' }: IconProps) {
 }
 export function SkinIcon(props: IconProps) {
   const style = useVisualStyle();
+  if (style === 'summit') return <SummitIcon {...props} />;
   if (style === 'palace') return <PalaceIcon {...props} />;
   if (style === 'basement') return <BasementIcon {...props} />;
   if (style === 'deadcells') return <DeadCellsIcon {...props} />;

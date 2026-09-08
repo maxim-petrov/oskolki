@@ -80,6 +80,14 @@ export const VISUAL_STYLES = [
     arena: '/art/pronoun-palace/arena.png',
     arenaAlt: 'Серая городская улица с пустыми домами под пыльно-розовым небом',
   },
+  {
+    id: 'summit',
+    name: 'Вершина',
+    description: 'В духе Celeste',
+    arena: '/art/summit/arena.png',
+    arenaAlt:
+      'Ночная горная тропа: снежные скалы, синие ели и заброшенные башни',
+  },
 ] as const;
 export type VisualStyle = (typeof VISUAL_STYLES)[number]['id'];
 export function isVisualStyle(value: unknown): value is VisualStyle {

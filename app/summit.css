@@ -1,0 +1,1124 @@
+/* Summit: crisp winter pixels, open night skies and simple white dialogue frames. */
+html[data-skin='summit'] {
+  --background: #080b19;
+  --foreground: #f8f9ff;
+  --card: #0e162b;
+  --popover: #070b17;
+  --primary: #8290ff;
+  --primary-foreground: #080b19;
+  --secondary: #1d2949;
+  --muted: #17223b;
+  --muted-foreground: #a5b4d6;
+  --accent: #7584ea;
+  --destructive: #ff787f;
+  --border: #52628b;
+  --input: #334465;
+  --ring: #b8f5ff;
+  --red: #ff797f;
+  --blue: #7bdeff;
+  --gold: #f5d786;
+  --violet: #b5a0ff;
+  --radius: 5px;
+  color-scheme: dark;
+  body {
+    background: #080b19;
+    color: #f8f9ff;
+    font:
+      16px/1.45 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  button,
+  input,
+  select,
+  output {
+    font-family: inherit;
+  }
+  button {
+    border-radius: 4px;
+  }
+  .game-shell {
+    max-width: 1512px;
+  }
+  .topbar {
+    height: 80px;
+    border-bottom: 1px solid #344365;
+    box-shadow: none;
+  }
+  .brand {
+    color: #f8f9ff;
+    gap: 10px;
+  }
+  .brand h1 {
+    color: #f8f9ff;
+    font:
+      900 34px/1 'Nunito',
+      Arial,
+      sans-serif;
+    letter-spacing: 0.04em;
+    text-shadow: none;
+  }
+  .brand .summit-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .build-tag {
+    color: #b6c4e5;
+    background: #18213d;
+    border: 1px solid #54628c;
+    font-size: 12px;
+    border-radius: 3px;
+  }
+  .header-run {
+    color: #aab8d6;
+    font-size: 14px;
+  }
+  .header-run svg,
+  .gold {
+    color: #f5d786;
+  }
+  .gold {
+    font:
+      900 25px/1 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  .divider {
+    color: #536286;
+  }
+  .header-actions button {
+    color: #e5ebff;
+    background: #121c33;
+    border: 2px solid #7b89ad;
+    box-shadow: none;
+  }
+  .header-actions button:hover {
+    color: #fff;
+    background: #293769;
+    border-color: #fff;
+  }
+  .appearance-control {
+    gap: 12px;
+  }
+  .appearance-label {
+    color: #a5b4d6;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+  }
+  .style-picker[data-slot='radio-group'] {
+    background: #0e162a;
+    border: 1px solid #344569;
+    border-radius: 5px;
+    gap: 3px;
+    padding: 4px;
+  }
+  .style-option {
+    color: #a8b9dc;
+    font-size: 14px;
+    padding: 7px 9px;
+    border-radius: 3px;
+  }
+  .style-option.chosen {
+    background: #7886e5;
+    color: #fff;
+    border: 2px solid #f3f6ff;
+    box-shadow: none;
+  }
+  .game-layout {
+    gap: 24px;
+    padding-top: 22px;
+  }
+  .journey,
+  .loadout {
+    min-width: 0;
+    align-self: start;
+    background: #0d1427;
+    color: #e4eaff;
+    padding: 18px 14px;
+    border: 2px solid #7989b0;
+    border-radius: 5px;
+    box-shadow: 0 4px #020612;
+  }
+  .journey h2,
+  .loadout h2,
+  .loadout h3 {
+    color: #fff;
+    font:
+      900 24px/1.15 'Nunito',
+      Arial,
+      sans-serif;
+    letter-spacing: -0.02em;
+  }
+  .eyebrow {
+    color: #9fb3df;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    font-weight: 800;
+  }
+  .journey-copy {
+    color: #9eafd0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .path-list li {
+    color: #8b9dbf;
+    font-size: 14px;
+  }
+  .path-list li.current {
+    color: #ff9698;
+  }
+  .path-list li:after {
+    background: #344466;
+    width: 2px;
+  }
+  .path-dot {
+    color: #a9bfdd;
+    background: #15233b;
+    border: 2px solid #4a628b;
+    border-radius: 3px;
+  }
+  .current .path-dot {
+    background: #7c435a;
+    color: #fff;
+    border-color: #ffc7c8;
+    box-shadow: none;
+  }
+  .complete .path-dot {
+    background: #264956;
+    color: #b0f2e4;
+    border-color: #74b4b4;
+  }
+  .journey-bottom {
+    border-color: #334267;
+    color: #d7e3ff;
+  }
+  .journey-bottom p,
+  .streak-line {
+    color: #f3d187;
+  }
+  .journey-bottom small,
+  .streak-line small {
+    color: #8fa4c5;
+    font-size: 12px;
+  }
+
+  .arena {
+    height: 330px;
+    background: #080e1c;
+    border: 3px solid #dceaff;
+    border-radius: 5px;
+    box-shadow: 0 5px #25395b;
+  }
+  .arena-bg {
+    opacity: 1;
+    image-rendering: pixelated;
+    object-fit: cover;
+    object-position: center bottom;
+  }
+  .arena-shade {
+    background: none;
+  }
+  .arena-dust {
+    display: none;
+  }
+  .fighter {
+    bottom: 12px;
+    width: 160px;
+    height: 238px;
+  }
+  .hero {
+    left: 8%;
+  }
+  .sprite-root {
+    top: auto;
+    bottom: 76px;
+    width: 174px;
+    height: 174px;
+  }
+  .summit-actor {
+    background: none;
+    image-rendering: pixelated;
+    filter: none;
+    animation: none;
+  }
+  .summit-actor.pose-idle {
+    animation: summit-idle 2s steps(2, end) infinite;
+  }
+  .sprite-ground {
+    display: none;
+  }
+  .enemies:not(.count-2) .sprite-root {
+    width: 174px;
+    height: 174px;
+  }
+  .enemies {
+    right: 8%;
+    height: 260px;
+    width: 160px;
+  }
+  .enemy {
+    bottom: 12px;
+  }
+  .enemies.count-2 {
+    width: 238px;
+    right: 2%;
+  }
+  .count-2 .enemy {
+    width: 116px;
+  }
+  .count-2 .enemy:last-child {
+    left: 120px;
+  }
+  .count-2 .sprite-root {
+    width: 148px;
+    height: 148px;
+  }
+  .fighter-caption {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 5px 6px;
+    background: #091226ed;
+    border: 2px solid #869dc4;
+    border-radius: 3px;
+    box-shadow: 0 3px #050a17;
+  }
+  .fighter-caption strong {
+    color: #f7fbff;
+    font:
+      900 17px/1.12 'Nunito',
+      Arial,
+      sans-serif;
+    text-shadow: none;
+  }
+  .health-number,
+  .enemy .health-number {
+    color: #fff;
+    font:
+      800 17px/1 'Nunito',
+      Arial,
+      sans-serif;
+    text-shadow: 1px 2px #050918;
+  }
+  .health-bar [data-slot='progress-track'] {
+    height: 7px;
+    background: #1e2e4a;
+    border: 1px solid #6a819d;
+    border-radius: 0;
+  }
+  .health-bar [data-slot='progress-indicator'] {
+    background: linear-gradient(#d0ffff 0 25%, #65d9ec 25% 75%, #3993c5 75%);
+    border-radius: 0;
+  }
+  .enemy .health-bar [data-slot='progress-indicator'] {
+    background: linear-gradient(#ffc2bd 0 25%, #fa818d 25% 75%, #bd4f78 75%);
+  }
+  .enemy.targeted .fighter-caption {
+    border-color: #ffbebf;
+    background: #251729ed;
+    box-shadow: 0 3px #050a17;
+  }
+  .enemy.targeted .fighter-caption strong {
+    color: #fff;
+  }
+  .enemy-intent {
+    top: -24px;
+    background: #070d1e;
+    color: #ffa3a9;
+    border: 2px solid #eef2ff;
+    border-radius: 4px;
+    font-size: 14px;
+    box-shadow: 0 3px #050a17;
+  }
+  .count-2 .enemy-intent {
+    top: 0;
+  }
+  .count-2 .fighter-caption strong {
+    font-size: 15px;
+    overflow-wrap: anywhere;
+  }
+  .arena-caption .eyebrow {
+    color: #fff;
+    background: #050b19e8;
+    padding: 5px 8px;
+    border: 1px solid #afc1e2;
+    border-radius: 3px;
+    font:
+      900 14px/1.15 'Nunito',
+      Arial,
+      sans-serif;
+    letter-spacing: 0.04em;
+  }
+  .turn-badge {
+    color: #fff;
+    background: #050b19e8;
+    border: 1px solid #afc1e2;
+    border-radius: 3px;
+    font:
+      800 14px/1.15 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  .block-orb {
+    right: -10px;
+    bottom: 82px;
+    color: #071728;
+    background: #a2eaff;
+    border: 2px solid #f0ffff;
+    border-radius: 3px;
+    box-shadow: 0 3px #29436a;
+  }
+  .poison-number {
+    color: #bbe67b;
+  }
+  .ward {
+    border-color: #a8e8ff;
+    color: #c9f5ff;
+    background: #9adeff22;
+  }
+  .sword-trail {
+    color: #c7f3ff;
+  }
+
+  .board-heading {
+    color: #a1b5d6;
+    font-size: 14px;
+  }
+  .board-heading strong {
+    font:
+      900 21px/1.1 'Nunito',
+      Arial,
+      sans-serif;
+    color: #f9fbff;
+  }
+  .board-section {
+    border-radius: 5px;
+    background: #0c1428;
+    padding: 12px 6px;
+    border: 2px solid #91a6d2;
+    box-shadow: 0 4px #020612;
+  }
+  .board-frame {
+    background: #142843;
+    border: 2px solid #b5d5f2;
+    border-radius: 3px;
+    box-shadow:
+      inset 0 3px #e5f6ff,
+      inset 0 -4px #273f6d;
+  }
+  .board {
+    background: #0a142b;
+    border: 2px solid #536b9d;
+    border-radius: 2px;
+    gap: 4px;
+    padding: 5px;
+  }
+  .tile {
+    --tile-fill: #3a4f7c;
+    --tile-line: #91b6e9;
+    background: var(--tile-fill);
+    border: 2px solid #142644;
+    border-radius: 2px;
+    box-shadow:
+      inset 2px 2px var(--tile-line),
+      inset -2px -3px #0004;
+  }
+  .tile-shield {
+    --tile-fill: #2c627b;
+    --tile-line: #a2edfa;
+  }
+  .tile-spark {
+    --tile-fill: #705381;
+    --tile-line: #edb9f3;
+  }
+  .tile-focus {
+    --tile-fill: #71684b;
+    --tile-line: #f1d997;
+  }
+  .tile-venom {
+    --tile-fill: #486c55;
+    --tile-line: #b4df9c;
+  }
+  .tile-bomb {
+    --tile-fill: #50577b;
+    --tile-line: #b4a2ed;
+  }
+  .tile .summit-icon {
+    width: 72%;
+    height: 72%;
+  }
+  .tile:before,
+  .tile:after {
+    display: none;
+  }
+  .tile.selected {
+    outline: 3px solid #fff;
+    outline-offset: -3px;
+    box-shadow: inset 0 0 0 6px #92d9ff;
+  }
+  .arrow-row button,
+  .side-arrows button {
+    color: #c5e5ff;
+    background: #182b48;
+    border: 1px solid #738fb9;
+    border-radius: 3px;
+  }
+  .arrow-row button:hover,
+  .side-arrows button:hover {
+    background: #657ad0;
+    color: #fff;
+    border-color: #fff;
+  }
+  .board-legend,
+  .board-legend span {
+    color: #a6bedc;
+    font-size: 14px;
+  }
+  .hint-button {
+    color: #afd5f3;
+    font-size: 14px;
+  }
+  .phase-dot {
+    background: #ff898f;
+    box-shadow: none;
+    border-radius: 1px;
+  }
+  .move-message {
+    color: #d3e3fc;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .end-turn,
+  .panel-main-action {
+    color: #fff;
+    background: #6474ce;
+    border: 2px solid #f2f4ff;
+    border-radius: 4px;
+    font:
+      900 22px/1.1 'Nunito',
+      Arial,
+      sans-serif;
+    box-shadow:
+      inset 0 -3px #435399,
+      0 4px #050918;
+  }
+  .end-turn:hover:not(:disabled),
+  .panel-main-action:hover:not(:disabled) {
+    color: #fff;
+    background: #8294ec;
+    border-color: #fff;
+  }
+  .end-turn:disabled {
+    opacity: 0.5;
+  }
+  .combat-hint,
+  .turn-help {
+    color: #98afd3;
+    font-size: 14px;
+  }
+
+  .resource-row {
+    background: #132340;
+    border: 1px solid #55729e;
+  }
+  .resource {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+  .resource .summit-icon {
+    width: 28px;
+    height: 32px;
+  }
+  .resource strong {
+    color: #e7f2ff;
+    font:
+      900 28px/1 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  .resource small,
+  .resource > span,
+  .section-label > span:last-child {
+    color: #a3b9d9;
+    font-size: 14px;
+  }
+  .skill-card,
+  .edit-skill,
+  .potion {
+    background: #121f37;
+    color: #e8f2ff;
+    border: 1px solid #617da6;
+    border-radius: 4px;
+    box-shadow: 0 3px #070c18;
+  }
+  .skill-icon {
+    min-width: 34px;
+  }
+  .skill-icon .summit-icon {
+    width: 34px;
+    height: 38px;
+  }
+  .edit-trigger > .summit-icon,
+  .potion > .summit-icon {
+    width: 30px;
+    height: 34px;
+  }
+  .skill-card:hover:not(:disabled),
+  .edit-skill:hover:not(:disabled),
+  .potion:hover:not(:disabled) {
+    background: #283b63;
+    border-color: #d9e9ff;
+    box-shadow: 0 3px #070c18;
+  }
+  .skill-card strong,
+  .edit-trigger strong,
+  .potion strong {
+    color: #e6f3ff;
+    font:
+      900 18px/1.1 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  .skill-card p,
+  .skill-card small,
+  .edit-trigger small,
+  .potion small {
+    color: #a2b6d6;
+    font-size: 14px;
+  }
+  .skill-card:disabled,
+  .edit-trigger:disabled,
+  .potion:disabled {
+    opacity: 0.65;
+  }
+  .edit-trigger,
+  .potion b,
+  .cost,
+  .skill-cost {
+    color: #b8b0ff;
+  }
+  .potion {
+    border-left-color: #a6cffa;
+  }
+  .empty-relics {
+    background: #0c172a;
+    border: 1px dashed #537196;
+    border-radius: 4px;
+  }
+  .empty-relics p {
+    color: #95b0cd;
+    font-size: 14px;
+  }
+  .battle-log {
+    border-color: #31466a;
+  }
+  .battle-log p {
+    color: #7f96b9;
+    font-size: 13px;
+  }
+  .battle-log p.latest {
+    color: #c5d8f5;
+  }
+  .game-footer {
+    color: #8ba0c2;
+    border-color: #344365;
+    font-size: 12px;
+  }
+  .relic-list > button,
+  .modifier-list > button,
+  .upgrade-pips span {
+    color: #d1e4ff;
+    background: #1b3050;
+    border: 1px solid #5e7da7;
+    border-radius: 3px;
+  }
+  .relic-list > button,
+  .modifier-list > button {
+    font-size: 14px;
+  }
+  .family-choices button {
+    background: #18304a;
+    color: #c6deff;
+    border-color: #668db6;
+  }
+  .family-choices button.chosen {
+    background: #66568b;
+    color: #fff;
+    outline: 2px solid #efe7ff;
+  }
+  .summit-icon {
+    flex-shrink: 0;
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-overlay'] {
+    background: #02040cca !important;
+    backdrop-filter: none;
+  }
+  .game-dialog,
+  .run-dialog {
+    grid-template-columns: minmax(0, 1fr);
+    background: #050810;
+    color: #eef3ff;
+    border: 3px solid #f2f6ff;
+    border-radius: 6px;
+    box-shadow: 0 8px #02040c;
+  }
+  .game-dialog > .offer-tag {
+    grid-column: 1/-1;
+  }
+  .game-dialog [data-slot='dialog-title'],
+  .game-dialog [data-slot='alert-dialog-title'] {
+    overflow-wrap: anywhere;
+    color: #fff;
+    font:
+      900 30px/1.1 'Nunito',
+      Arial,
+      sans-serif;
+    text-shadow: none;
+  }
+  .run-dialog [data-slot='dialog-title'] {
+    font-size: 36px;
+  }
+  .game-dialog [data-slot='dialog-description'],
+  .help-copy p {
+    color: #a9b8d9;
+    font-size: 16px;
+  }
+  .game-dialog [data-slot='dialog-close'] {
+    color: #fff;
+    opacity: 1;
+  }
+  .game-dialog .appearance-label {
+    color: #9cb3db;
+  }
+  .game-dialog .style-picker[data-slot='radio-group'] {
+    background: #101a2e;
+    border-color: #526789;
+  }
+  .game-dialog .style-option {
+    color: #b3c7e4;
+  }
+  .game-dialog .style-option.chosen {
+    color: #fff;
+    background: #7283db;
+    border-color: #fff;
+    box-shadow: none;
+  }
+  .panel-emblem {
+    color: #d3f1ff;
+    background: #17283c;
+    border: 2px solid #adc9e4;
+    border-radius: 4px;
+    box-shadow: 0 3px #020612;
+  }
+  .offer-card,
+  .route-card,
+  .rest-heal,
+  .upgrade-grid button,
+  .replace-card {
+    color: #e5eeff;
+    background: #101b30;
+    border: 2px solid #5e749c;
+    border-radius: 4px;
+    box-shadow: 0 3px #020612;
+  }
+  .offer-card:hover:not(:disabled),
+  .route-card:hover:not(:disabled),
+  .rest-heal:hover:not(:disabled),
+  .upgrade-grid button:hover:not(:disabled),
+  .replace-card:hover:not(:disabled) {
+    color: #fff;
+    background: #2c3b66;
+    border-color: #fff;
+    box-shadow: 0 3px #020612;
+    transform: none;
+  }
+  .offer-card > strong,
+  .route-card strong,
+  .rest-heal strong,
+  .upgrade-grid strong,
+  .replace-card strong {
+    color: #f1f5ff;
+    font:
+      900 23px/1.1 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  .offer-card p,
+  .route-card p,
+  .rest-heal small,
+  .upgrade-grid small,
+  .replace-card small {
+    color: #a9bedf;
+    font-size: 16px;
+  }
+  .offer-kind,
+  .choice-divider {
+    color: #92a5c4;
+    font-size: 12px;
+  }
+  .offer-icon,
+  .route-symbol,
+  .route-card > svg {
+    color: #a7e4ff;
+  }
+  .offer-tag {
+    color: #f2d080;
+    font-size: 14px;
+  }
+  .modifier-offer {
+    background: #192c35;
+    border-color: #609a9b;
+  }
+  .route-elite {
+    border-color: #e69bab;
+  }
+  .panel-note {
+    color: #95add0;
+    font-size: 14px;
+  }
+  .trial-brief strong,
+  .end-stats strong {
+    color: #ffa5ab;
+    font-family: 'Nunito', Arial, sans-serif;
+  }
+  .trial-brief span,
+  .end-stats span {
+    color: #a0b9d8;
+    font-size: 14px;
+  }
+  .trial-brief > div {
+    color: #a5c9dd;
+  }
+  .trial-target {
+    color: #e6f6ff;
+    background: #0b1729f0;
+    border: 2px solid #d9edff;
+    border-radius: 4px;
+    padding: 12px;
+    bottom: 80px;
+  }
+  .trial-target > strong {
+    font:
+      900 23px/1.1 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  .discovery-toast {
+    color: #fff;
+    background: #0a1228;
+    border: 2px solid #ecf5ff;
+    border-radius: 4px;
+    box-shadow: 0 5px #020612;
+  }
+  .discovery-list > div {
+    color: #8198b6;
+    border-color: #344766;
+  }
+  .discovery-list strong {
+    color: #9cb3d6;
+    font:
+      900 21px/1.1 'Nunito',
+      Arial,
+      sans-serif;
+  }
+  .discovery-list p {
+    color: #98aac9;
+  }
+  .discovery-list .unlocked,
+  .discovery-list .unlocked strong {
+    color: #d8eaff;
+  }
+  .setting-row > span,
+  .seed-control {
+    color: #b1c6e5;
+    font-size: 16px;
+  }
+  .setting-row b {
+    color: #ffb0b6;
+  }
+  .preset-options [aria-pressed='true'] {
+    color: #fff;
+    background: #5268ad;
+    border-color: #d0e9ff;
+  }
+  .seed-control input {
+    background: #0d1c32;
+    color: #dcefff;
+    border-color: #6585b3;
+    border-radius: 4px;
+  }
+  [data-slot='tooltip-content'] {
+    color: #eef6ff;
+    background: #080e1c;
+    border: 2px solid #deebff;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  [data-slot='tooltip-arrow'] {
+    fill: #deebff;
+  }
+}
+@media (max-width: 1150px) {
+  html[data-skin='summit'] {
+    .game-layout {
+      gap: 18px;
+    }
+    .journey h2 {
+      font-size: 23px;
+    }
+    .hero {
+      left: 4%;
+    }
+    .fighter {
+      width: 142px;
+    }
+    .enemies {
+      width: 142px;
+      right: 4%;
+    }
+    .enemies.count-2 {
+      width: 214px;
+      right: 1%;
+    }
+    .count-2 .enemy {
+      width: 105px;
+    }
+    .count-2 .enemy:last-child {
+      left: 108px;
+    }
+    .count-2 .sprite-root {
+      width: 142px;
+      height: 142px;
+    }
+  }
+}
+@media (max-width: 640px) {
+  html[data-skin='summit'] {
+    .game-shell {
+      padding: 0 12px;
+    }
+    .topbar {
+      height: 66px;
+      gap: 8px;
+    }
+    .brand h1 {
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+    .brand .summit-icon {
+      width: 24px;
+      height: 24px;
+    }
+    .header-actions {
+      gap: 6px;
+    }
+    .header-actions button {
+      width: 28px;
+      height: 28px;
+    }
+    .header-run {
+      font-size: 14px;
+    }
+    .style-picker[data-slot='radio-group'] {
+      justify-content: center;
+      gap: 2px;
+    }
+    .style-option {
+      font-size: 13px;
+      padding: 6px;
+      gap: 4px;
+    }
+    .style-option > svg {
+      width: 14px;
+      height: 14px;
+    }
+    .arena {
+      height: 320px;
+    }
+    .arena-bg {
+      height: calc(100% - 64px);
+    }
+    .fighter {
+      width: 124px;
+      height: 223px;
+    }
+    .sprite-root {
+      width: 156px;
+      height: 156px;
+      bottom: 84px;
+    }
+    .hero {
+      left: 3%;
+    }
+    .gold {
+      font-size: 22px;
+    }
+    .enemies:not(.count-2) .sprite-root {
+      width: 156px;
+      height: 156px;
+    }
+    .enemies {
+      width: 124px;
+      right: 3%;
+    }
+    .fighter-caption strong {
+      font-size: 16px;
+    }
+    .health-number {
+      font-size: 16px;
+    }
+    .enemy-intent {
+      top: -24px;
+      font-size: 13px;
+    }
+    .enemies.count-2 {
+      width: 176px;
+      right: 1%;
+    }
+    .count-2 .enemy {
+      width: 87px;
+    }
+    .count-2 .enemy:last-child {
+      left: 89px;
+    }
+    .count-2 .sprite-root {
+      width: 128px;
+      height: 128px;
+      bottom: 94px;
+    }
+    .count-2 .fighter-caption {
+      padding: 4px 2px;
+    }
+    .count-2 .fighter-caption strong {
+      font-family: Arial, sans-serif;
+      letter-spacing: -0.025em;
+      overflow-wrap: normal;
+      font-size: 14px;
+      line-height: 1.05;
+    }
+    .count-2 .enemy-intent {
+      top: -20px;
+      max-width: 95px;
+      white-space: normal;
+      font-size: 13px;
+    }
+    .arena-caption .eyebrow {
+      font-size: 13px;
+      max-width: 66%;
+    }
+    .board-section {
+      padding: 7px 3px 9px;
+    }
+    .tile {
+      border-width: 2px;
+    }
+    .tile .summit-icon {
+      width: 78%;
+      height: 78%;
+    }
+    .board-legend {
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .journey,
+    .loadout {
+      padding: 14px;
+    }
+    .loadout {
+      align-self: stretch;
+      width: 100%;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .skills {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .skill-card {
+      min-height: 93px;
+      padding: 10px 8px;
+    }
+    .game-dialog {
+      padding: 22px;
+      max-height: 90dvh;
+      overflow-y: auto;
+    }
+    .run-dialog [data-slot='dialog-title'] {
+      font-size: 28px;
+    }
+    .offer-card {
+      padding: 14px;
+    }
+    .trial-target {
+      width: 146px;
+      right: 3%;
+      bottom: 80px;
+    }
+  }
+}
+@media (max-width: 360px) {
+  html[data-skin='summit'] {
+    .topbar {
+      flex-wrap: wrap;
+      height: auto;
+      min-height: 94px;
+      padding: 12px 0;
+      gap: 10px;
+    }
+    .brand,
+    .header-actions {
+      justify-content: center;
+      width: 100%;
+    }
+    .hero {
+      width: 96px;
+      left: 2%;
+    }
+    .hero .sprite-root {
+      width: 134px;
+      height: 134px;
+    }
+    .hero .fighter-caption strong {
+      font-size: 16px;
+    }
+    .hero .block-orb {
+      right: 0;
+      bottom: 92px;
+    }
+    .enemies.count-2 {
+      width: 164px;
+    }
+    .count-2 .enemy {
+      width: 81px;
+    }
+    .count-2 .enemy:last-child {
+      left: 83px;
+    }
+    .count-2 .sprite-root {
+      width: 118px;
+      height: 118px;
+    }
+    .count-2 .fighter-caption {
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .count-2 .fighter-caption strong {
+      font-size: 14px;
+    }
+  }
+}
+@media (max-width: 420px) {
+  html[data-skin='summit'] .skills {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@keyframes summit-idle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}

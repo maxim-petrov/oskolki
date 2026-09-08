@@ -1,0 +1,251 @@
+{
+  "coordinate_system": "Source pixels. Rectangles [left, top, right, bottom], right/bottom exclusive. Points [x,y].",
+  "visible_threshold": 128,
+  "actors": {
+    "hero_idle": {
+      "bounds": [
+        64,
+        153,
+        296,
+        376
+      ],
+      "ground_anchor": [
+        194,
+        376
+      ]
+    },
+    "hero_windup": {
+      "bounds": [
+        407,
+        120,
+        607,
+        377
+      ],
+      "ground_anchor": [
+        522,
+        377
+      ]
+    },
+    "hero_strike": {
+      "bounds": [
+        699,
+        171,
+        990,
+        377
+      ],
+      "ground_anchor": [
+        812,
+        377
+      ]
+    },
+    "hero_guard": {
+      "bounds": [
+        63,
+        500,
+        307,
+        720
+      ],
+      "ground_anchor": [
+        188,
+        720
+      ]
+    },
+    "hero_hurt": {
+      "bounds": [
+        398,
+        502,
+        629,
+        719
+      ],
+      "ground_anchor": [
+        557,
+        719
+      ]
+    },
+    "hero_death": {
+      "bounds": [
+        704,
+        589,
+        1002,
+        725
+      ],
+      "ground_anchor": [
+        813,
+        725
+      ]
+    },
+    "guardian_idle": {
+      "bounds": [
+        56,
+        878,
+        260,
+        1113
+      ],
+      "ground_anchor": [
+        176,
+        1113
+      ]
+    },
+    "guardian_windup": {
+      "bounds": [
+        412,
+        830,
+        602,
+        1117
+      ],
+      "ground_anchor": [
+        507,
+        1117
+      ]
+    },
+    "guardian_strike": {
+      "bounds": [
+        680,
+        884,
+        967,
+        1111
+      ],
+      "ground_anchor": [
+        870,
+        1111
+      ]
+    },
+    "guardian_guard": {
+      "bounds": [
+        64,
+        1218,
+        259,
+        1456
+      ],
+      "ground_anchor": [
+        172,
+        1456
+      ]
+    },
+    "guardian_hurt": {
+      "bounds": [
+        399,
+        1233,
+        617,
+        1453
+      ],
+      "ground_anchor": [
+        501,
+        1453
+      ]
+    },
+    "guardian_death": {
+      "bounds": [
+        718,
+        1325,
+        1000,
+        1462
+      ],
+      "ground_anchor": [
+        824,
+        1453
+      ]
+    }
+  },
+  "icons": {
+    "ice_axe": {
+      "bounds": [
+        96,
+        73,
+        324,
+        312
+      ]
+    },
+    "shield": {
+      "bounds": [
+        474,
+        61,
+        681,
+        321
+      ]
+    },
+    "lightning": {
+      "bounds": [
+        890,
+        59,
+        1055,
+        321
+      ]
+    },
+    "focus_feather": {
+      "bounds": [
+        1251,
+        71,
+        1443,
+        321
+      ]
+    },
+    "venom": {
+      "bounds": [
+        95,
+        393,
+        290,
+        645
+      ]
+    },
+    "bomb": {
+      "bounds": [
+        474,
+        380,
+        674,
+        646
+      ]
+    },
+    "heart": {
+      "bounds": [
+        843,
+        418,
+        1078,
+        632
+      ]
+    },
+    "coin": {
+      "bounds": [
+        1238,
+        409,
+        1448,
+        628
+      ]
+    },
+    "potion": {
+      "bounds": [
+        95,
+        702,
+        290,
+        964
+      ]
+    },
+    "cassette": {
+      "bounds": [
+        442,
+        749,
+        714,
+        935
+      ]
+    },
+    "crown": {
+      "bounds": [
+        826,
+        713,
+        1094,
+        945
+      ]
+    },
+    "star": {
+      "bounds": [
+        1216,
+        705,
+        1470,
+        961
+      ]
+    }
+  },
+  "notes": [
+    "Native PNGs preserved. Individual actor bounds include the three-pixel guardian strike extension beyond the nominal grid. Runtime alpha cutoff at 1/2 removes faint export haze without changing the source files."
+  ]
+}
