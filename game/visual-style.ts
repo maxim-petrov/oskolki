@@ -97,6 +97,13 @@ export const VISUAL_STYLES = [
       'Яркая пиксельная улица с бирюзовыми и коралловыми домами под розовым небом',
   },
   {
+    id: 'palace-cellar',
+    name: 'Дворец слов — подвал',
+    description: 'Дворец слов в палитре The Binding of Isaac',
+    arena: '/art/pronoun-palace/arena.png',
+    arenaAlt: 'Городская улица Дворца слов в тёмных коричневых оттенках сепии',
+  },
+  {
     id: 'summit',
     name: 'Вершина',
     description: 'В духе Celeste',

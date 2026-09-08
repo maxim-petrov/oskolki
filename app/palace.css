@@ -2,7 +2,8 @@
 html:is(
   [data-skin='palace'],
   [data-skin='palace-pop'],
-  [data-skin='palace-vivid']
+  [data-skin='palace-vivid'],
+  [data-skin='palace-cellar']
 ) {
   --background: #92938f;
   --foreground: #161714;
@@ -865,7 +866,8 @@ html:is(
   html:is(
     [data-skin='palace'],
     [data-skin='palace-pop'],
-    [data-skin='palace-vivid']
+    [data-skin='palace-vivid'],
+    [data-skin='palace-cellar']
   ) {
     .game-layout {
       gap: 18px;
@@ -903,7 +905,8 @@ html:is(
   html:is(
     [data-skin='palace'],
     [data-skin='palace-pop'],
-    [data-skin='palace-vivid']
+    [data-skin='palace-vivid'],
+    [data-skin='palace-cellar']
   ) {
     .game-shell {
       padding: 0 12px;
@@ -1066,7 +1069,8 @@ html:is(
   html:is(
     [data-skin='palace'],
     [data-skin='palace-pop'],
-    [data-skin='palace-vivid']
+    [data-skin='palace-vivid'],
+    [data-skin='palace-cellar']
   ) {
     .topbar {
       flex-wrap: wrap;
@@ -1121,7 +1125,8 @@ html:is(
   html:is(
       [data-skin='palace'],
       [data-skin='palace-pop'],
-      [data-skin='palace-vivid']
+      [data-skin='palace-vivid'],
+      [data-skin='palace-cellar']
     )
     .skills {
     grid-template-columns: minmax(0, 1fr);

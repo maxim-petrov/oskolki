@@ -1,0 +1,583 @@
+/* Palace geometry with the existing Basement palette. All art and pose anchors are reused. */
+html[data-skin='palace-cellar'] {
+  --background: #17120f;
+  --foreground: #302723;
+  --card: #ded3bd;
+  --popover: #e5dac6;
+  --primary: #8f2e29;
+  --primary-foreground: #f7e8d2;
+  --secondary: #c8bca5;
+  --muted: #c8bca5;
+  --muted-foreground: #67584d;
+  --accent: #f0dfbc;
+  --destructive: #a53029;
+  --border: #827363;
+  --input: #827363;
+  --ring: #984137;
+  --red: #b43d35;
+  --blue: #4487a0;
+  --gold: #88601c;
+  --violet: #705576;
+  --note-shadow: 4px 5px 0 #080605, inset 0 -4px #b8ab95;
+  color-scheme: light;
+  body {
+    background: #17120f;
+    color: #ddd1b9;
+  }
+  .topbar {
+    box-shadow: 0 2px #080605;
+  }
+  .brand {
+    color: #d85443;
+  }
+  .brand h1 {
+    color: #e3614c;
+    text-shadow: 3px 3px #070504;
+  }
+  .build-tag {
+    background: #30241c;
+    color: #c0ac8e;
+    border-color: #5c4738;
+  }
+  .header-run {
+    color: #c8bba2;
+  }
+  .header-run svg,
+  .gold {
+    color: #e0ba59;
+  }
+  .divider {
+    color: #705b47;
+  }
+  .header-actions button {
+    color: #dfd3bb;
+    background: #302720;
+    border-color: #71614e;
+    box-shadow: 2px 2px #080605;
+  }
+  .header-actions button:hover {
+    color: #f2e9d9;
+    border-color: #cead7e;
+    background: #4b3429;
+  }
+  .appearance-label {
+    color: #bfae94;
+  }
+  .style-picker[data-slot='radio-group'] {
+    background: #241d18;
+    border-color: #534236;
+  }
+  .style-option {
+    color: #c4b397;
+  }
+  .style-option.chosen {
+    background: #dfd2b9;
+    color: #632920;
+    border-color: #ad8063;
+    box-shadow: 2px 2px #080605;
+  }
+  .journey,
+  .loadout {
+    background: #d8cdb7;
+    color: #382d26;
+    border-color: #302723;
+    box-shadow: var(--note-shadow);
+  }
+  .journey h2,
+  .loadout h2,
+  .loadout h3 {
+    color: #3e3029;
+  }
+  .eyebrow {
+    color: #75624f;
+  }
+  .journey-copy {
+    color: #67594b;
+  }
+  .path-list li {
+    color: #6a5b4c;
+  }
+  .path-list li.current {
+    color: #832e27;
+  }
+  .path-list li:after {
+    background: #94816a;
+  }
+  .path-dot {
+    color: #75624f;
+    background: #c5b9a0;
+    border-color: #8f7d64;
+  }
+  .current .path-dot {
+    background: #eee2c9;
+    color: #842f29;
+    border-color: #63372b;
+    box-shadow: 2px 2px #9d856b;
+  }
+  .complete .path-dot {
+    background: #736852;
+    color: #f0e4cb;
+    border-color: #514733;
+  }
+  .journey-bottom {
+    border-color: #a39178;
+    color: #63513e;
+  }
+  .journey-bottom p,
+  .streak-line {
+    color: #783b2b;
+  }
+  .journey-bottom small,
+  .streak-line small {
+    color: #76624f;
+  }
+  .arena {
+    background: #211812;
+    border-color: #080605;
+    box-shadow: 0 0 0 1px #5b4536;
+  }
+  .arena-shade {
+    background: linear-gradient(transparent 60%, #150c0870);
+  }
+  .palace-actor {
+    background: none;
+  }
+  .sprite-ground {
+    background: #160e09;
+  }
+  .fighter-caption {
+    background: #1d120dee;
+    border-color: #604a36;
+    box-shadow: 2px 2px #070504;
+  }
+  .fighter-caption strong {
+    color: #e6d9bf;
+    text-shadow: 1px 1px #080605;
+  }
+  .health-number,
+  .enemy .health-number {
+    color: #dfc8b1;
+  }
+  .health-bar [data-slot='progress-track'] {
+    background: #33201c;
+    border-color: #090605;
+  }
+  .health-bar [data-slot='progress-indicator'] {
+    background: linear-gradient(#ee6651 0 25%, #c23029 25% 75%, #93261f 75%);
+  }
+  .enemy.targeted .fighter-caption {
+    border-color: #d2a56c;
+    box-shadow: 2px 2px #070504;
+  }
+  .enemy.targeted .fighter-caption strong {
+    color: #f0ddb6;
+  }
+  .enemy-intent {
+    background: #ded0b5;
+    color: #862b24;
+    border-color: #33231c;
+    box-shadow: 2px 2px #100904;
+  }
+  .arena-caption .eyebrow {
+    color: #ecdfc7;
+    background: #100a07ed;
+  }
+  .turn-badge {
+    color: #d8c5a3;
+    background: #100a07ed;
+    border-color: #5b4536;
+  }
+  .block-orb {
+    color: #d7edf1;
+    background: #3d6574;
+    border-color: #172b34;
+    box-shadow: 2px 2px #0b0806;
+  }
+  .poison-number {
+    color: #a6b965;
+  }
+  .ward {
+    border-color: #95c3cd;
+    color: #b9e8e7;
+    background: #6eafb922;
+  }
+  .sword-trail {
+    color: #d65240;
+  }
+  .board-heading {
+    color: #cbb99f;
+  }
+  .board-section {
+    background: #30231c;
+    border-color: #100a07;
+    box-shadow: 0 0 0 1px #614a37;
+  }
+  .board-frame {
+    background: #221912;
+    border-color: #66503c;
+    box-shadow: none;
+  }
+  .board {
+    background: #110c09;
+    border-color: #130d09;
+  }
+  .tile {
+    --tile-fill: #906452;
+    --tile-line: #bb8b70;
+    background: var(--tile-fill);
+    border-color: #33221c;
+    box-shadow:
+      inset 2px 2px var(--tile-line),
+      inset -2px -3px #0004;
+  }
+  .tile-shield {
+    --tile-fill: #5c7278;
+    --tile-line: #92a7a2;
+  }
+  .tile-spark {
+    --tile-fill: #685b7c;
+    --tile-line: #9887a1;
+  }
+  .tile-focus {
+    --tile-fill: #8a7a4e;
+    --tile-line: #bbae7d;
+  }
+  .tile-venom {
+    --tile-fill: #627048;
+    --tile-line: #93a16b;
+  }
+  .tile-bomb {
+    --tile-fill: #7d6853;
+    --tile-line: #b3966e;
+  }
+  .tile.selected {
+    outline-color: #f6dec1;
+    box-shadow: inset 0 0 0 5px #8d3329;
+  }
+  .arrow-row button,
+  .side-arrows button {
+    color: #e2d2b5;
+    background: #3b2b22;
+    border-color: #80644b;
+  }
+  .arrow-row button:hover,
+  .side-arrows button:hover {
+    background: #d9c7a8;
+    color: #33241b;
+    border-color: #efe0c1;
+  }
+  .board-legend,
+  .board-legend span {
+    color: #b8a68c;
+  }
+  .hint-button {
+    color: #bdcbd0;
+  }
+  .phase-dot {
+    background: #c9513c;
+    box-shadow: none;
+  }
+  .move-message {
+    color: #dccab1;
+  }
+  .end-turn,
+  .panel-main-action {
+    color: #f7e4c8;
+    background: #8a3328;
+    border-color: #351c16;
+    box-shadow:
+      inset 0 -3px #62221e,
+      3px 3px #0a0705;
+  }
+  .end-turn:hover:not(:disabled),
+  .panel-main-action:hover:not(:disabled) {
+    color: #fff0d9;
+    background: #ac4434;
+    border-color: #dba67c;
+  }
+  .combat-hint,
+  .turn-help {
+    color: #b8a58a;
+  }
+  .resource-row {
+    background: #bdb097;
+    border-color: #9f8e75;
+  }
+  .resource strong {
+    color: #332b26;
+  }
+  .resource small,
+  .resource > span,
+  .section-label > span:last-child {
+    color: #65513e;
+  }
+  .skill-card,
+  .edit-skill,
+  .potion {
+    background: #e7dbc4;
+    color: #392e24;
+    border-color: #877661;
+    box-shadow: 2px 3px #b6a68b;
+  }
+  .skill-card:hover:not(:disabled),
+  .edit-skill:hover:not(:disabled),
+  .potion:hover:not(:disabled) {
+    background: #f0e3c9;
+    border-color: #784535;
+    box-shadow: 2px 3px #99816a;
+  }
+  .skill-card strong,
+  .edit-trigger strong,
+  .potion strong {
+    color: #4c3029;
+  }
+  .skill-card p,
+  .skill-card small,
+  .edit-trigger small,
+  .potion small {
+    color: #695747;
+  }
+  .edit-trigger,
+  .potion b,
+  .cost,
+  .skill-cost {
+    color: #685075;
+  }
+  .potion {
+    border-left-color: #ad6159;
+  }
+  .empty-relics {
+    background: #ccbea3;
+    border-color: #97846d;
+  }
+  .empty-relics p {
+    color: #77654f;
+  }
+  .battle-log {
+    border-color: #a18d73;
+  }
+  .battle-log p {
+    color: #86735b;
+  }
+  .battle-log p.latest {
+    color: #52412f;
+  }
+  .game-footer {
+    color: #9e8b70;
+    border-color: #4d3c2f;
+  }
+  .relic-list > button,
+  .modifier-list > button,
+  .upgrade-pips span {
+    color: #604b3c;
+    background: #c4b699;
+    border-color: #998269;
+  }
+  .family-choices button {
+    background: #c9bba1;
+    color: #65503b;
+    border-color: #8c7960;
+  }
+  .family-choices button.chosen {
+    background: #efe0c1;
+    color: #802f24;
+    outline-color: #802f24;
+  }
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-overlay'] {
+    background: #080503c9 !important;
+  }
+  .game-dialog,
+  .run-dialog {
+    background: #ded3bd;
+    color: #302723;
+    border-color: #352a23;
+    box-shadow:
+      7px 8px #080605,
+      inset 0 -5px #bcae96;
+  }
+  .game-dialog [data-slot='dialog-title'],
+  .game-dialog [data-slot='alert-dialog-title'] {
+    color: #493329;
+    text-shadow: none;
+  }
+  .game-dialog [data-slot='dialog-description'],
+  .help-copy p {
+    color: #6b5845;
+  }
+  .game-dialog [data-slot='dialog-close'] {
+    color: #6e382c;
+  }
+  .game-dialog .appearance-label {
+    color: #6e5b48;
+  }
+  .game-dialog .style-picker[data-slot='radio-group'] {
+    background: #c7b99f;
+    border-color: #a18b70;
+  }
+  .game-dialog .style-option {
+    color: #69533f;
+  }
+  .game-dialog .style-option.chosen {
+    color: #872e24;
+    background: #efe1c5;
+    border-color: #8d4a36;
+    box-shadow: 2px 2px #a18b70;
+  }
+  .panel-emblem {
+    color: #8a3e2b;
+    background: #c5b698;
+    border-color: #695340;
+    box-shadow: 3px 3px #b3a180;
+  }
+  .offer-card,
+  .route-card,
+  .rest-heal,
+  .upgrade-grid button,
+  .replace-card {
+    color: #42342b;
+    background: #eadfc9;
+    border-color: #a28d73;
+    box-shadow: 2px 2px #bead91;
+  }
+  .offer-card:hover:not(:disabled),
+  .route-card:hover:not(:disabled),
+  .rest-heal:hover:not(:disabled),
+  .upgrade-grid button:hover:not(:disabled),
+  .replace-card:hover:not(:disabled) {
+    color: #503229;
+    background: #f1e2c4;
+    border-color: #8a3e2b;
+    box-shadow: 2px 2px #96775a;
+  }
+  .offer-card > strong,
+  .route-card strong,
+  .rest-heal strong,
+  .upgrade-grid strong,
+  .replace-card strong {
+    color: #503229;
+  }
+  .offer-card p,
+  .route-card p,
+  .rest-heal small,
+  .upgrade-grid small,
+  .replace-card small {
+    color: #6b5845;
+  }
+  .offer-kind,
+  .choice-divider {
+    color: #856e52;
+  }
+  .offer-icon,
+  .route-symbol,
+  .route-card > svg {
+    color: #7c4332;
+  }
+  .offer-tag {
+    color: #875724;
+  }
+  .modifier-offer {
+    background: #d8c8bd;
+    border-color: #9e8180;
+  }
+  .route-elite {
+    border-color: #a3654b;
+  }
+  .panel-note {
+    color: #75624d;
+  }
+  .trial-brief strong,
+  .end-stats strong {
+    color: #8c3629;
+  }
+  .trial-brief span,
+  .end-stats span {
+    color: #75624d;
+  }
+  .trial-brief > div {
+    color: #7c6243;
+  }
+  .trial-target {
+    color: #dbcfb5;
+    background: #251912ee;
+    border-color: #b2946c;
+  }
+  .discovery-toast {
+    color: #533325;
+    background: #e5d2b0;
+    border-color: #5d3d2e;
+    box-shadow: 4px 5px #080605;
+  }
+  .discovery-list > div {
+    color: #9a866b;
+    border-color: #b6a285;
+  }
+  .discovery-list strong {
+    color: #795f47;
+  }
+  .discovery-list p {
+    color: #75624f;
+  }
+  .discovery-list .unlocked,
+  .discovery-list .unlocked strong {
+    color: #7c3b2b;
+  }
+  .setting-row > span,
+  .seed-control {
+    color: #67503d;
+  }
+  .setting-row b {
+    color: #8c3629;
+  }
+  .preset-options [aria-pressed='true'] {
+    color: #843025;
+    background: #efdfbf;
+    border-color: #8d4a36;
+  }
+  .seed-control input {
+    background: #eee1c7;
+    color: #583e2b;
+    border-color: #a88b6a;
+  }
+  [data-slot='tooltip-content'] {
+    color: #efe0c7;
+    background: #37251a;
+    border-color: #aa8b68;
+  }
+  [data-slot='tooltip-arrow'] {
+    fill: #37251a;
+  }
+}
+/* Preserve crisp silhouettes; apply only a muted warm color grade. */
+html[data-skin='palace-cellar'] {
+  .arena-bg {
+    filter: sepia(0.8) saturate(0.65) brightness(0.64);
+  }
+  .palace-actor {
+    filter: sepia(0.2) saturate(0.7) brightness(0.94);
+  }
+  .palace-icon {
+    filter: saturate(0.8);
+  }
+  .enemy.targeted .fighter-caption {
+    background: #291b14;
+  }
+  .board-heading strong {
+    color: #e4d4b9;
+  }
+  .health-number,
+  .enemy .health-number {
+    -webkit-text-stroke: 0;
+    text-shadow: 1px 1px #080605;
+    white-space: nowrap;
+  }
+  .brand h1 {
+    text-shadow: 2px 2px #080605;
+  }
+  .arena-caption .eyebrow {
+    border-color: #604a36;
+  }
+  .hint-button {
+    border-color: #786754;
+  }
+}

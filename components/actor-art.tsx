@@ -42,7 +42,12 @@ export function ActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
   const style = useVisualStyle();
   if (style === 'arcade') return <ArcadeActorArt hero={hero} pose={pose} />;
   if (style === 'summit') return <SummitActorArt hero={hero} pose={pose} />;
-  if (style === 'palace' || style === 'palace-pop' || style === 'palace-vivid')
+  if (
+    style === 'palace' ||
+    style === 'palace-pop' ||
+    style === 'palace-vivid' ||
+    style === 'palace-cellar'
+  )
     return <PalaceActorArt hero={hero} pose={pose} />;
   if (style === 'basement') return <BasementActorArt hero={hero} pose={pose} />;
   if (style === 'deadcells')

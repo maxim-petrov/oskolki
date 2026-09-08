@@ -134,7 +134,7 @@ export function StylePicker({
               <Flame size={18} />
             ) : option.id === 'deadcells' ? (
               <Skull size={18} />
-            ) : option.id === 'basement' ? (
+            ) : option.id === 'basement' || option.id === 'palace-cellar' ? (
               <Droplet size={18} />
             ) : option.id === 'palace' ? (
               <BookOpen size={18} />
