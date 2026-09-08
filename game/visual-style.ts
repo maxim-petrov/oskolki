@@ -104,6 +104,13 @@ export const VISUAL_STYLES = [
     arenaAlt: 'Городская улица Дворца слов в тёмных коричневых оттенках сепии',
   },
   {
+    id: 'palace-summit',
+    name: 'Дворец слов — Селеста',
+    description: 'Дворец слов в цветовой палитре Celeste',
+    arena: '/art/pronoun-palace/arena.png',
+    arenaAlt: 'Улица Дворца слов в холодных ночных синих оттенках',
+  },
+  {
     id: 'summit',
     name: 'Вершина',
     description: 'В духе Celeste',

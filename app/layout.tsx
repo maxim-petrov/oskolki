@@ -14,6 +14,7 @@ import './summit.css';
 import './arcade.css';
 import './palace-pop.css';
 import './palace-cellar.css';
+import './palace-summit.css';
 import { VisualStyleProvider } from '@/components/visual-style';
 export const metadata: Metadata = {
   title: 'Осколки — в глубину крипты',

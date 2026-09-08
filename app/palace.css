@@ -3,7 +3,8 @@ html:is(
   [data-skin='palace'],
   [data-skin='palace-pop'],
   [data-skin='palace-vivid'],
-  [data-skin='palace-cellar']
+  [data-skin='palace-cellar'],
+  [data-skin='palace-summit']
 ) {
   --background: #92938f;
   --foreground: #161714;
@@ -867,7 +868,8 @@ html:is(
     [data-skin='palace'],
     [data-skin='palace-pop'],
     [data-skin='palace-vivid'],
-    [data-skin='palace-cellar']
+    [data-skin='palace-cellar'],
+    [data-skin='palace-summit']
   ) {
     .game-layout {
       gap: 18px;
@@ -906,7 +908,8 @@ html:is(
     [data-skin='palace'],
     [data-skin='palace-pop'],
     [data-skin='palace-vivid'],
-    [data-skin='palace-cellar']
+    [data-skin='palace-cellar'],
+    [data-skin='palace-summit']
   ) {
     .game-shell {
       padding: 0 12px;
@@ -1070,7 +1073,8 @@ html:is(
     [data-skin='palace'],
     [data-skin='palace-pop'],
     [data-skin='palace-vivid'],
-    [data-skin='palace-cellar']
+    [data-skin='palace-cellar'],
+    [data-skin='palace-summit']
   ) {
     .topbar {
       flex-wrap: wrap;
@@ -1126,7 +1130,8 @@ html:is(
       [data-skin='palace'],
       [data-skin='palace-pop'],
       [data-skin='palace-vivid'],
-      [data-skin='palace-cellar']
+      [data-skin='palace-cellar'],
+      [data-skin='palace-summit']
     )
     .skills {
     grid-template-columns: minmax(0, 1fr);

@@ -46,7 +46,8 @@ export function ActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
     style === 'palace' ||
     style === 'palace-pop' ||
     style === 'palace-vivid' ||
-    style === 'palace-cellar'
+    style === 'palace-cellar' ||
+    style === 'palace-summit'
   )
     return <PalaceActorArt hero={hero} pose={pose} />;
   if (style === 'basement') return <BasementActorArt hero={hero} pose={pose} />;

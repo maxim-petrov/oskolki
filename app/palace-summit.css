@@ -1,0 +1,605 @@
+/* Palace drawings and geometry with the winter palette from Summit. */
+html[data-skin='palace-summit'] {
+  --background: #080b19;
+  --foreground: #f8f9ff;
+  --card: #0e162b;
+  --popover: #070b17;
+  --primary: #8290ff;
+  --primary-foreground: #080b19;
+  --secondary: #1d2949;
+  --muted: #17223b;
+  --muted-foreground: #a5b4d6;
+  --accent: #7584ea;
+  --destructive: #ff787f;
+  --border: #52628b;
+  --input: #334465;
+  --ring: #b8f5ff;
+  --red: #ff797f;
+  --blue: #7bdeff;
+  --gold: #f5d786;
+  --violet: #b5a0ff;
+  color-scheme: dark;
+  body {
+    background: #080b19;
+    color: #f8f9ff;
+  }
+  .topbar {
+    border-bottom-color: #344365;
+    box-shadow: none;
+  }
+  .brand {
+    color: #f8f9ff;
+  }
+  .brand h1 {
+    color: #f8f9ff;
+    text-shadow: none;
+  }
+  .build-tag {
+    color: #b6c4e5;
+    background: #18213d;
+    border-color: #54628c;
+  }
+  .header-run {
+    color: #aab8d6;
+  }
+  .header-run svg,
+  .gold {
+    color: #f5d786;
+  }
+  .divider {
+    color: #536286;
+  }
+  .header-actions button {
+    color: #e5ebff;
+    background: #121c33;
+    border-color: #7b89ad;
+    box-shadow: none;
+  }
+  .header-actions button:hover {
+    color: #fff;
+    background: #293769;
+    border-color: #fff;
+  }
+  .appearance-label {
+    color: #a5b4d6;
+  }
+  .style-picker[data-slot='radio-group'] {
+    background: #0e162a;
+    border-color: #344569;
+  }
+  .style-option {
+    color: #a8b9dc;
+  }
+  .style-option.chosen {
+    background: #7886e5;
+    color: #fff;
+    border-color: #f3f6ff;
+    box-shadow: none;
+  }
+  .journey,
+  .loadout {
+    background: #0d1427;
+    color: #e4eaff;
+    border-color: #7989b0;
+    box-shadow: 0 4px #020612;
+  }
+  .journey h2,
+  .loadout h2,
+  .loadout h3 {
+    color: #fff;
+  }
+  .eyebrow {
+    color: #9fb3df;
+  }
+  .journey-copy {
+    color: #9eafd0;
+  }
+  .path-list li {
+    color: #8b9dbf;
+  }
+  .path-list li.current {
+    color: #ff9698;
+  }
+  .path-list li:after {
+    background: #344466;
+  }
+  .path-dot {
+    color: #a9bfdd;
+    background: #15233b;
+    border-color: #4a628b;
+  }
+  .current .path-dot {
+    background: #7c435a;
+    color: #fff;
+    border-color: #ffc7c8;
+    box-shadow: none;
+  }
+  .complete .path-dot {
+    background: #264956;
+    color: #b0f2e4;
+    border-color: #74b4b4;
+  }
+  .journey-bottom {
+    border-color: #334267;
+    color: #d7e3ff;
+  }
+  .journey-bottom p,
+  .streak-line {
+    color: #f3d187;
+  }
+  .journey-bottom small,
+  .streak-line small {
+    color: #8fa4c5;
+  }
+  .arena {
+    background: #080e1c;
+    border-color: #dceaff;
+    box-shadow: 0 5px #25395b;
+  }
+  .arena-shade {
+    background: none;
+  }
+  .palace-actor {
+    background: none;
+  }
+  .fighter-caption {
+    background: #091226ed;
+    border-color: #869dc4;
+    box-shadow: 0 3px #050a17;
+  }
+  .fighter-caption strong {
+    color: #f7fbff;
+    text-shadow: none;
+  }
+  .health-number,
+  .enemy .health-number {
+    color: #fff;
+    text-shadow: 1px 2px #050918;
+  }
+  .health-bar [data-slot='progress-track'] {
+    background: #1e2e4a;
+    border-color: #6a819d;
+  }
+  .health-bar [data-slot='progress-indicator'] {
+    background: linear-gradient(#d0ffff 0 25%, #65d9ec 25% 75%, #3993c5 75%);
+  }
+  .enemy .health-bar [data-slot='progress-indicator'] {
+    background: linear-gradient(#ffc2bd 0 25%, #fa818d 25% 75%, #bd4f78 75%);
+  }
+  .enemy.targeted .fighter-caption {
+    border-color: #ffbebf;
+    background: #251729ed;
+    box-shadow: 0 3px #050a17;
+  }
+  .enemy.targeted .fighter-caption strong {
+    color: #fff;
+  }
+  .enemy-intent {
+    background: #070d1e;
+    color: #ffa3a9;
+    border-color: #eef2ff;
+    box-shadow: 0 3px #050a17;
+  }
+  .arena-caption .eyebrow {
+    color: #fff;
+    background: #050b19e8;
+    border-color: #afc1e2;
+  }
+  .turn-badge {
+    color: #fff;
+    background: #050b19e8;
+    border-color: #afc1e2;
+  }
+  .block-orb {
+    color: #071728;
+    background: #a2eaff;
+    border-color: #f0ffff;
+    box-shadow: 0 3px #29436a;
+  }
+  .poison-number {
+    color: #bbe67b;
+  }
+  .ward {
+    border-color: #a8e8ff;
+    color: #c9f5ff;
+    background: #9adeff22;
+  }
+  .sword-trail {
+    color: #c7f3ff;
+  }
+  .board-heading {
+    color: #a1b5d6;
+  }
+  .board-heading strong {
+    color: #f9fbff;
+  }
+  .board-section {
+    background: #0c1428;
+    border-color: #91a6d2;
+    box-shadow: 0 4px #020612;
+  }
+  .board-frame {
+    background: #142843;
+    border-color: #b5d5f2;
+    box-shadow:
+      inset 0 3px #e5f6ff,
+      inset 0 -4px #273f6d;
+  }
+  .board {
+    background: #0a142b;
+    border-color: #536b9d;
+  }
+  .tile {
+    --tile-fill: #3a4f7c;
+    --tile-line: #91b6e9;
+    background: var(--tile-fill);
+    border-color: #142644;
+    box-shadow:
+      inset 2px 2px var(--tile-line),
+      inset -2px -3px #0004;
+  }
+  .tile-shield {
+    --tile-fill: #2c627b;
+    --tile-line: #a2edfa;
+  }
+  .tile-spark {
+    --tile-fill: #705381;
+    --tile-line: #edb9f3;
+  }
+  .tile-focus {
+    --tile-fill: #71684b;
+    --tile-line: #f1d997;
+  }
+  .tile-venom {
+    --tile-fill: #486c55;
+    --tile-line: #b4df9c;
+  }
+  .tile-bomb {
+    --tile-fill: #50577b;
+    --tile-line: #b4a2ed;
+  }
+  .tile.selected {
+    outline-color: #fff;
+    box-shadow: inset 0 0 0 6px #92d9ff;
+  }
+  .arrow-row button,
+  .side-arrows button {
+    color: #c5e5ff;
+    background: #182b48;
+    border-color: #738fb9;
+  }
+  .arrow-row button:hover,
+  .side-arrows button:hover {
+    background: #657ad0;
+    color: #fff;
+    border-color: #fff;
+  }
+  .board-legend,
+  .board-legend span {
+    color: #a6bedc;
+  }
+  .hint-button {
+    color: #afd5f3;
+  }
+  .phase-dot {
+    background: #ff898f;
+    box-shadow: none;
+  }
+  .move-message {
+    color: #d3e3fc;
+  }
+  .end-turn,
+  .panel-main-action {
+    color: #fff;
+    background: #6474ce;
+    border-color: #f2f4ff;
+    box-shadow:
+      inset 0 -3px #435399,
+      0 4px #050918;
+  }
+  .end-turn:hover:not(:disabled),
+  .panel-main-action:hover:not(:disabled) {
+    color: #fff;
+    background: #8294ec;
+    border-color: #fff;
+  }
+  .combat-hint,
+  .turn-help {
+    color: #98afd3;
+  }
+  .resource-row {
+    background: #132340;
+    border-color: #55729e;
+  }
+  .resource strong {
+    color: #e7f2ff;
+  }
+  .resource small,
+  .resource > span,
+  .section-label > span:last-child {
+    color: #a3b9d9;
+  }
+  .skill-card,
+  .edit-skill,
+  .potion {
+    background: #121f37;
+    color: #e8f2ff;
+    border-color: #617da6;
+    box-shadow: 0 3px #070c18;
+  }
+  .skill-card:hover:not(:disabled),
+  .edit-skill:hover:not(:disabled),
+  .potion:hover:not(:disabled) {
+    background: #283b63;
+    border-color: #d9e9ff;
+    box-shadow: 0 3px #070c18;
+  }
+  .skill-card strong,
+  .edit-trigger strong,
+  .potion strong {
+    color: #e6f3ff;
+  }
+  .skill-card p,
+  .skill-card small,
+  .edit-trigger small,
+  .potion small {
+    color: #a2b6d6;
+  }
+  .edit-trigger,
+  .potion b,
+  .cost,
+  .skill-cost {
+    color: #b8b0ff;
+  }
+  .potion {
+    border-left-color: #a6cffa;
+  }
+  .empty-relics {
+    background: #0c172a;
+    border-color: #537196;
+  }
+  .empty-relics p {
+    color: #95b0cd;
+  }
+  .battle-log {
+    border-color: #31466a;
+  }
+  .battle-log p {
+    color: #7f96b9;
+  }
+  .battle-log p.latest {
+    color: #c5d8f5;
+  }
+  .game-footer {
+    color: #8ba0c2;
+    border-color: #344365;
+  }
+  .relic-list > button,
+  .modifier-list > button,
+  .upgrade-pips span {
+    color: #d1e4ff;
+    background: #1b3050;
+    border-color: #5e7da7;
+  }
+  .family-choices button {
+    background: #18304a;
+    color: #c6deff;
+    border-color: #668db6;
+  }
+  .family-choices button.chosen {
+    background: #66568b;
+    color: #fff;
+    outline-color: #efe7ff;
+  }
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-overlay'] {
+    background: #02040cca !important;
+  }
+  .game-dialog,
+  .run-dialog {
+    background: #050810;
+    color: #eef3ff;
+    border-color: #f2f6ff;
+    box-shadow: 0 8px #02040c;
+  }
+  .game-dialog [data-slot='dialog-title'],
+  .game-dialog [data-slot='alert-dialog-title'] {
+    color: #fff;
+    text-shadow: none;
+  }
+  .game-dialog [data-slot='dialog-description'],
+  .help-copy p {
+    color: #a9b8d9;
+  }
+  .game-dialog [data-slot='dialog-close'] {
+    color: #fff;
+  }
+  .game-dialog .appearance-label {
+    color: #9cb3db;
+  }
+  .game-dialog .style-picker[data-slot='radio-group'] {
+    background: #101a2e;
+    border-color: #526789;
+  }
+  .game-dialog .style-option {
+    color: #b3c7e4;
+  }
+  .game-dialog .style-option.chosen {
+    color: #fff;
+    background: #7283db;
+    border-color: #fff;
+    box-shadow: none;
+  }
+  .panel-emblem {
+    color: #d3f1ff;
+    background: #17283c;
+    border-color: #adc9e4;
+    box-shadow: 0 3px #020612;
+  }
+  .offer-card,
+  .route-card,
+  .rest-heal,
+  .upgrade-grid button,
+  .replace-card {
+    color: #e5eeff;
+    background: #101b30;
+    border-color: #5e749c;
+    box-shadow: 0 3px #020612;
+  }
+  .offer-card:hover:not(:disabled),
+  .route-card:hover:not(:disabled),
+  .rest-heal:hover:not(:disabled),
+  .upgrade-grid button:hover:not(:disabled),
+  .replace-card:hover:not(:disabled) {
+    color: #fff;
+    background: #2c3b66;
+    border-color: #fff;
+    box-shadow: 0 3px #020612;
+  }
+  .offer-card > strong,
+  .route-card strong,
+  .rest-heal strong,
+  .upgrade-grid strong,
+  .replace-card strong {
+    color: #f1f5ff;
+  }
+  .offer-card p,
+  .route-card p,
+  .rest-heal small,
+  .upgrade-grid small,
+  .replace-card small {
+    color: #a9bedf;
+  }
+  .offer-kind,
+  .choice-divider {
+    color: #92a5c4;
+  }
+  .offer-icon,
+  .route-symbol,
+  .route-card > svg {
+    color: #a7e4ff;
+  }
+  .offer-tag {
+    color: #f2d080;
+  }
+  .modifier-offer {
+    background: #192c35;
+    border-color: #609a9b;
+  }
+  .route-elite {
+    border-color: #e69bab;
+  }
+  .panel-note {
+    color: #95add0;
+  }
+  .trial-brief strong,
+  .end-stats strong {
+    color: #ffa5ab;
+  }
+  .trial-brief span,
+  .end-stats span {
+    color: #a0b9d8;
+  }
+  .trial-brief > div {
+    color: #a5c9dd;
+  }
+  .trial-target {
+    color: #e6f6ff;
+    background: #0b1729f0;
+    border-color: #d9edff;
+  }
+  .discovery-toast {
+    color: #fff;
+    background: #0a1228;
+    border-color: #ecf5ff;
+    box-shadow: 0 5px #020612;
+  }
+  .discovery-list > div {
+    color: #8198b6;
+    border-color: #344766;
+  }
+  .discovery-list strong {
+    color: #9cb3d6;
+  }
+  .discovery-list p {
+    color: #98aac9;
+  }
+  .discovery-list .unlocked,
+  .discovery-list .unlocked strong {
+    color: #d8eaff;
+  }
+  .setting-row > span,
+  .seed-control {
+    color: #b1c6e5;
+  }
+  .setting-row b {
+    color: #ffb0b6;
+  }
+  .preset-options [aria-pressed='true'] {
+    color: #fff;
+    background: #5268ad;
+    border-color: #d0e9ff;
+  }
+  .seed-control input {
+    background: #0d1c32;
+    color: #dcefff;
+    border-color: #6585b3;
+  }
+  [data-slot='tooltip-content'] {
+    color: #eef6ff;
+    background: #080e1c;
+    border-color: #deebff;
+  }
+  [data-slot='tooltip-arrow'] {
+    fill: #deebff;
+  }
+}
+/* Color grading leaves source pixels, cutouts and animation anchors intact. */
+html[data-skin='palace-summit'] {
+  --note-shadow: 4px 5px #020612, inset 0 -4px #263c65;
+  .arena-bg {
+    filter: sepia(1) hue-rotate(175deg) saturate(1.7) brightness(0.62);
+  }
+  .arena-shade {
+    background: linear-gradient(transparent 55%, #080b1966);
+  }
+  .palace-actor {
+    filter: saturate(1.25) brightness(1.08);
+  }
+  .palace-icon {
+    filter: saturate(1.15) brightness(1.06);
+  }
+  .sprite-ground {
+    background: #050918;
+  }
+  .health-number,
+  .enemy .health-number {
+    -webkit-text-stroke: 0;
+    text-shadow: 1px 1px #050918;
+    white-space: nowrap;
+  }
+  .hint-button {
+    border-color: #738fb9;
+  }
+  .style-option.chosen,
+  .game-dialog .style-option.chosen {
+    color: #080b19;
+    background: #a8b5ff;
+    border-color: #f3f6ff;
+  }
+  .end-turn,
+  .panel-main-action {
+    color: #080b19;
+    background: #ff9698;
+    border-color: #fff1ec;
+    box-shadow:
+      inset 0 -3px #d76884,
+      3px 3px #050918;
+  }
+  .end-turn:hover:not(:disabled),
+  .panel-main-action:hover:not(:disabled) {
+    color: #080b19;
+    background: #ffb6b0;
+    border-color: #fff;
+  }
+}

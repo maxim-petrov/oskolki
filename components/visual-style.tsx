@@ -140,7 +140,7 @@ export function StylePicker({
               <BookOpen size={18} />
             ) : option.id === 'palace-pop' || option.id === 'palace-vivid' ? (
               <Palette size={18} />
-            ) : option.id === 'summit' ? (
+            ) : option.id === 'summit' || option.id === 'palace-summit' ? (
               <Mountain size={18} />
             ) : (
               <Joystick size={18} />

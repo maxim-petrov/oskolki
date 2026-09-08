@@ -76,7 +76,8 @@ export function SkinIcon(props: IconProps) {
     style === 'palace' ||
     style === 'palace-pop' ||
     style === 'palace-vivid' ||
-    style === 'palace-cellar'
+    style === 'palace-cellar' ||
+    style === 'palace-summit'
   )
     return <PalaceIcon {...props} />;
   if (style === 'basement') return <BasementIcon {...props} />;
