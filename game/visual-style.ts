@@ -89,6 +89,14 @@ export const VISUAL_STYLES = [
       'Яркая пиксельная улица с бирюзовыми и коралловыми домами под розовым небом',
   },
   {
+    id: 'palace-vivid',
+    name: 'Дворец слов — яркий+',
+    description: 'Яркий дворец с более насыщенными цветами персонажей',
+    arena: '/art/pronoun-palace/arena-bright.png',
+    arenaAlt:
+      'Яркая пиксельная улица с бирюзовыми и коралловыми домами под розовым небом',
+  },
+  {
     id: 'summit',
     name: 'Вершина',
     description: 'В духе Celeste',

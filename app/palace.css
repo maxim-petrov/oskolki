@@ -1,5 +1,9 @@
 /* Palace: quiet gray streets, blunt black contours and pink stationery. */
-html:is([data-skin='palace'], [data-skin='palace-pop']) {
+html:is(
+  [data-skin='palace'],
+  [data-skin='palace-pop'],
+  [data-skin='palace-vivid']
+) {
   --background: #92938f;
   --foreground: #161714;
   --card: #d0ceca;
@@ -858,7 +862,11 @@ html:is([data-skin='palace'], [data-skin='palace-pop']) {
   }
 }
 @media (max-width: 1150px) {
-  html:is([data-skin='palace'], [data-skin='palace-pop']) {
+  html:is(
+    [data-skin='palace'],
+    [data-skin='palace-pop'],
+    [data-skin='palace-vivid']
+  ) {
     .game-layout {
       gap: 18px;
     }
@@ -892,7 +900,11 @@ html:is([data-skin='palace'], [data-skin='palace-pop']) {
   }
 }
 @media (max-width: 640px) {
-  html:is([data-skin='palace'], [data-skin='palace-pop']) {
+  html:is(
+    [data-skin='palace'],
+    [data-skin='palace-pop'],
+    [data-skin='palace-vivid']
+  ) {
     .game-shell {
       padding: 0 12px;
     }
@@ -1051,7 +1063,11 @@ html:is([data-skin='palace'], [data-skin='palace-pop']) {
   }
 }
 @media (max-width: 360px) {
-  html:is([data-skin='palace'], [data-skin='palace-pop']) {
+  html:is(
+    [data-skin='palace'],
+    [data-skin='palace-pop'],
+    [data-skin='palace-vivid']
+  ) {
     .topbar {
       flex-wrap: wrap;
       height: auto;
@@ -1102,7 +1118,12 @@ html:is([data-skin='palace'], [data-skin='palace-pop']) {
   }
 }
 @media (max-width: 420px) {
-  html:is([data-skin='palace'], [data-skin='palace-pop']) .skills {
+  html:is(
+      [data-skin='palace'],
+      [data-skin='palace-pop'],
+      [data-skin='palace-vivid']
+    )
+    .skills {
     grid-template-columns: minmax(0, 1fr);
   }
 }

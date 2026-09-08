@@ -138,7 +138,7 @@ export function StylePicker({
               <Droplet size={18} />
             ) : option.id === 'palace' ? (
               <BookOpen size={18} />
-            ) : option.id === 'palace-pop' ? (
+            ) : option.id === 'palace-pop' || option.id === 'palace-vivid' ? (
               <Palette size={18} />
             ) : option.id === 'summit' ? (
               <Mountain size={18} />

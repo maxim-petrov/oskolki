@@ -72,7 +72,7 @@ export function SkinIcon(props: IconProps) {
   const style = useVisualStyle();
   if (style === 'arcade') return <ArcadeIcon {...props} />;
   if (style === 'summit') return <SummitIcon {...props} />;
-  if (style === 'palace' || style === 'palace-pop')
+  if (style === 'palace' || style === 'palace-pop' || style === 'palace-vivid')
     return <PalaceIcon {...props} />;
   if (style === 'basement') return <BasementIcon {...props} />;
   if (style === 'deadcells') return <DeadCellsIcon {...props} />;
