@@ -2,6 +2,7 @@
 import { useId } from 'react';
 import { weaponArtById } from '@/game/weapon-art';
 import { PalaceCutout } from '@/components/palace-cutout';
+import equipmentArt from '@/game/equipment-art.json';
 import {
   WEAPONS,
   EQUIPMENT_SLOTS,
@@ -11,21 +12,6 @@ import {
   equipmentSummary,
   type State,
 } from '@/game/engine';
-
-const REGIONS = [
-  [51, 183, 250, 251],
-  [346, 194, 271, 251],
-  [646, 167, 288, 281],
-  [991, 165, 200, 280],
-  [51, 494, 279, 266],
-  [363, 500, 245, 268],
-  [640, 492, 300, 264],
-  [987, 489, 206, 277],
-  [44, 799, 286, 310],
-  [364, 793, 244, 316],
-  [638, 800, 302, 302],
-  [977, 810, 226, 295],
-];
 
 export function EquipmentIcon({
   id,
@@ -39,7 +25,7 @@ export function EquipmentIcon({
   if (!item) return null;
   // Each weapon uses its own PNG; other gear uses measured atlas regions.
   const art = item.slot === 'weapon' ? weaponArtById(id) : null;
-  const [x, y, width, height] = art?.bounds ?? REGIONS[item.icon];
+  const [x, y, width, height] = art?.bounds ?? equipmentArt.regions[item.icon];
   const extent = art
     ? Math.ceil(Math.max(width, height) * 1.08)
     : Math.max(width, height) + 16;
@@ -59,9 +45,9 @@ export function EquipmentIcon({
         <PalaceCutout id={`gear-alpha-${uid}`} bounds={[x, y, width, height]} />
       </defs>
       <image
-        href={art?.src ?? '/art/pronoun-palace/equipment.png'}
-        width={art?.width ?? 1254}
-        height={art?.height ?? 1254}
+        href={art?.src ?? equipmentArt.src}
+        width={art?.width ?? equipmentArt.width}
+        height={art?.height ?? equipmentArt.height}
         clipPath={`url(#gear-${uid})`}
         filter={`url(#gear-alpha-${uid})`}
       />

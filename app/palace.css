@@ -1,5 +1,24 @@
 /* Palace: quiet gray streets, blunt black contours and pink stationery. */
 html[data-skin='palace-cellar'] {
+  /* Canonical Pronoun Palace palette; see docs/visual-style.md. */
+  --palace-ink: #171916;
+  --palace-quiet: #4e534c;
+  --palace-paper: #cececa;
+  --palace-paper-light: #e4e0d9;
+  --palace-paper-pink: #e3c9ce;
+  --palace-paper-dim: #b5b7b0;
+  --palace-shadow: #858980;
+  --palace-line-quiet: #a0a298;
+  --palace-red: #a52e2a;
+  --palace-white: #fff6ee;
+  --palace-blue: #32696d;
+  --palace-paper-blue: #bdceca;
+  --palace-green: #405937;
+  --palace-paper-green: #bfc8a4;
+  --palace-violet: #675078;
+  --palace-paper-violet: #e0cee8;
+  --palace-weapon-tile: #dbc295;
+  --palace-water: #72bec8;
   --background: #92938f;
   --foreground: #161714;
   --card: #d0ceca;
@@ -23,8 +42,8 @@ html[data-skin='palace-cellar'] {
   color-scheme: light;
 
   body {
-    background: #92938f;
-    color: #20231f;
+    background: var(--background);
+    color: var(--palace-ink);
     font:
       16px/1.45 Georgia,
       'Times New Roman',

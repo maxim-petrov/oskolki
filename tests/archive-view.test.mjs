@@ -108,7 +108,7 @@ test('archive map exposes both bosses but enables only the immediate destination
     });
     assert.ok(html.includes('Зал Главного цензора'));
     assert.ok(html.includes('Сердце затопленного архива'));
-    assert.ok(html.includes('height:1680px'));
+    assert.ok(html.includes('height:2560px'));
     assert.ok(html.includes('Затопленный архив'));
     const tags = [...html.matchAll(/<button\b[^>]*>/g)].map((m) => m[0]);
     assert.equal(

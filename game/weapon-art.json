@@ -3,45 +3,45 @@
     "src": "/art/pronoun-palace/weapons/gear-cutter.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [64, 76, 1158, 1110],
-    "grip": [390, 850],
-    "tip": [1090, 190],
+    "bounds": [234, 189, 930, 903],
+    "grip": [393, 920],
+    "tip": [1134, 222],
     "heldLength": 65
   },
   "gear-rusty-dagger": {
     "src": "/art/pronoun-palace/weapons/gear-rusty-dagger.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [51, 79, 1151, 1126],
-    "grip": [310, 935],
-    "tip": [1170, 110],
+    "bounds": [239, 238, 808, 824],
+    "grip": [421, 863],
+    "tip": [1025, 265],
     "heldLength": 90
   },
   "gear-cleaver": {
     "src": "/art/pronoun-palace/weapons/gear-cleaver.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [30, 80, 1198, 1104],
-    "grip": [255, 963],
-    "tip": [1070, 240],
+    "bounds": [163, 136, 989, 983],
+    "grip": [363, 918],
+    "tip": [987, 282],
     "heldLength": 105
   },
   "gear-axe": {
     "src": "/art/pronoun-palace/weapons/gear-axe.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [186, 40, 1039, 1193],
-    "grip": [435, 965],
-    "tip": [1035, 310],
+    "bounds": [157, 117, 1058, 1059],
+    "grip": [383, 909],
+    "tip": [1148, 402],
     "heldLength": 136
   },
   "gear-rune-sword": {
     "src": "/art/pronoun-palace/weapons/gear-rune-sword.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [77, 52, 1132, 1153],
-    "grip": [247, 1015],
-    "tip": [1180, 78],
+    "bounds": [156, 118, 965, 1017],
+    "grip": [397, 901],
+    "tip": [1095, 141],
     "heldLength": 145
   }
 }

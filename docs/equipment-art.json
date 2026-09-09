@@ -1,22 +1,147 @@
 {
-  "tool": "native image_gen",
-  "asset": "public/art/pronoun-palace/equipment.png",
-  "size": [1254, 1254],
-  "regions_xywh": [
-    [51, 183, 250, 251],
-    [346, 194, 271, 251],
-    [646, 167, 288, 281],
-    [991, 165, 200, 280],
-    [51, 494, 279, 266],
-    [363, 500, 245, 268],
-    [640, 492, 300, 264],
-    [987, 489, 206, 277],
-    [44, 799, 286, 310],
-    [364, 793, 244, 316],
-    [638, 800, 302, 302],
-    [977, 810, 226, 295]
+  "version": 2,
+  "style_contract": "visual-style.md",
+  "date": "2026-09-09",
+  "generator": "native image_gen",
+  "programmatic_bitmap_edits": false,
+  "notes": [
+    "Pronoun Palace visual repair; original hero, purple cabinet, icon atlas and arena preserved.",
+    "Native output bytes retained. RGBA alpha and native crop bounds verified. Legacy source versions remain in Git history."
   ],
-  "source_unmodified": true,
-  "prompt": "Use case: stylized-concept.\nAsset type: one production-ready pixel-art equipment icon sprite atlas for the Russian roguelike “Дворец слов — подвал”.\nPrimary request: Generate one original 1024×1024 PNG image with genuine alpha transparency. Exactly 12 separate equipment objects, arranged as four columns by three rows. No other objects.\nComposition and exact grid: the grid consists of 256×256 pixel square cells. Column centers are x=128,384,640,896. Row centers are y=256,512,768. Thus the grid runs from y=128 to y=896, with transparent 128px margins above and below. Every icon is centered in its own cell and remains within a centered 192×192 box, leaving at least 32px clear margin inside its cell. Similar visual area across all icons; unmistakable silhouettes legible when reduced to 48px. No touching or overlap.\nExact contents, left to right:\nRow 1: a simple red handheld paper cutter utility knife with a small exposed metal blade; a dented brown tin helmet; a plain gray short-sleeved office shirt; worn brown trousers.\nRow 2: a broad iron cleaver with dark brown handle; a reinforced iron helmet; a dark leather jacket; olive reinforced trousers.\nRow 3: an ornate copper rune sword; a bronze crested helmet; a burgundy brigandine coat; dark blue trousers with bronze knee guards.\nStyle/medium: crisp deliberately chunky game pixel art, clean hard square pixels, bold very dark brown near-black stepped outlines, 4–6 discrete shading tones per material, readable forms and sparse detail. Warm sepia, dirty parchment highlights, rusty copper and brown, with restrained teal and muted red highlights. Slightly grim, Isaac-like basement roguelike atmosphere, original designs. Weapons diagonal rising right, clothing and trousers front view, helmets slight three-quarter view. Items should feel solid and modestly worn. Avoid photorealism and smooth painterly shading.\nBackground: completely transparent alpha=0 everywhere outside the objects, including all padding and the gaps between icons. No rendered checkerboard, no colored canvas, no texture behind objects, no floor, no halo, no glow, no cast shadow or shadow outside an icon.\nConstraints: exactly 1024×1024 pixels, one atlas, exactly 12 isolated items, 4 columns × 3 rows in the specified ordering. No text, no letters or readable glyphs, no labels, no cell outlines or borders, no UI, no watermark. Copper sword rune ornament must be abstract pixel marks, not lettering. Preserve genuine transparency in the PNG output.",
-  "note": "Generator returned 1254×1254 instead of requested size. Source pixels retained; measured crops used at render time."
+  "assets": [
+    {
+      "id": "equipment",
+      "category": "equipment",
+      "kind": "sprite",
+      "type": "sprite",
+      "saved_path": "public/art/pronoun-palace/equipment.png",
+      "native_path": "/Users/max/.codex/generated_images/01a085f3-02a3-79a3-8a07-0e5451d11854/exec-7122a6c9-269e-44cd-b1a2-07438d09e1fd.png",
+      "width": 1254,
+      "height": 1254,
+      "dimensions": [1254, 1254],
+      "mode": "RGBA",
+      "sha256": "9d26ea5df898abf8103a17912833e2acac7085ef1c4d929b2bf3add36ba23820",
+      "prompt": "Generate a transparent PNG sprite atlas (RGBA, real alpha channel). Square canvas, exactly 4 EQUAL COLUMNS by 3 EQUAL ROWS in a regular grid. 12 separate simple cartoon equipment icons, one centered in every cell. No visible grid, no boxes, no text. Every icon entirely INSIDE its own cell with at least 16% padding from all four cell edges. Icons must not overlap or touch. Background of every cell and gaps alpha=0.\nImage1 actors.png is the canonical original simple flat pixel cartoon style; image2 icons.png is the canonical thick black pixel contour and readable icon style. Each new equipment icon has a thick BLACK stair-step pixel outline, funny slightly crooked silhouette and ONLY TWO LARGE SOLID COLORED REGIONS PER MATERIAL. Draw every icon like a coarse32x32pixel game icon, flatter and simpler than the icon reference. No detailed painted rendering.\nEXACT GRID, left-to-right:\nTop row: (1) red office paper utility knife tilted grip lowerleft/tip upperright, one black slider and gray blade; (2) dented palegray tin bowl helmet; (3) palegray short-sleeve starter shirt with simple black collar and two buttons; (4) plain olive worn trousers, two legs and ONE dark knee patch.\nMiddle row: (1) gray butcher cleaver with brown handle tilted lowerleft/upperright; (2) simple darkgray iron helmet with black horizontal eye slit and gray nose guard; (3) simple olive jacket with black opening and two pockets; (4) olive reinforced trousers with two simple darkgray square knee pads.\nBottom row: (1) simple lavender violet runic sword with single darkviolet zigzag rune, grip lowerleft/tip upperright; (2) simple bronze guard helmet with small darkred crest and black eye opening; (3) simple brickred brigandine vest with brown front and just SIX large square gray rivets; (4) darkblue guard trousers with two plain bronze square knee pads.\nFlat color only. No fabric folds, texture, grain, mottling, scratches, dither, realistic shading, gradients, gloss, glow, shadows, scene or other objects. Transparent empty space. Strictly12 separate complete icons in the specified4x3grid.\n\nAtlas padding and background correction prompt:\nEdit image1, the12-icon equipment atlas. Preserve ALL12 same equipment identities, same simple pixel cartoon style, same flat colors, same thick black outlines and same4-column3-row order. Make EVERY icon 25 percent smaller around the center of its own regular grid cell, so each object has a generous transparent gap on ALL sides and no object crosses any cell boundary. Keep square canvas. Also remove the entire background completely, including spaces inside the icons. The result MUST be a transparent PNG with a real alpha channel, not an RGB image. Every background pixel must have alpha=0. Opaque objects only, no drop shadows. Images2and3 are canonical style references only. No visible grid or text.\n\nBackground correction prompt:\nUse case: background-extraction. Edit image 1: keep the twelve equipment icons, all their pixelated silhouettes, positions, sizes, proportions, flat colors and black outlines exactly unchanged. Remove the entire background around and between the twelve icons completely, including all background gaps inside objects. The result MUST be a transparent PNG with a real alpha channel, not an RGB image. Every background pixel must have alpha=0. Opaque objects only, no drop shadows. Image 2 and image 3 are canonical style references only. Produce a single square image.",
+      "display_alpha_threshold": 128,
+      "alpha_128_bounds_ltrb": [86, 183, 1166, 1089],
+      "native_unchanged": true,
+      "display_bounds": [86, 183, 1080, 906],
+      "grid": {
+        "columns": 4,
+        "rows": 3,
+        "cell_width": 313.5,
+        "cell_height": 418.0,
+        "cells": [
+          {
+            "id": "cutter",
+            "row": 0,
+            "column": 0,
+            "cell_bounds": [0, 0, 314, 418],
+            "alpha_gte128_bounds": [88, 183, 268, 374],
+            "local_bounds": [88, 183, 268, 374],
+            "clear_padding_ltrb": [88, 183, 46, 44]
+          },
+          {
+            "id": "tin-helmet",
+            "row": 0,
+            "column": 1,
+            "cell_bounds": [314, 0, 627, 418],
+            "alpha_gte128_bounds": [383, 225, 582, 362],
+            "local_bounds": [69, 225, 268, 362],
+            "clear_padding_ltrb": [69, 225, 45, 56]
+          },
+          {
+            "id": "starter-shirt",
+            "row": 0,
+            "column": 2,
+            "cell_bounds": [627, 0, 940, 418],
+            "alpha_gte128_bounds": [663, 212, 868, 374],
+            "local_bounds": [36, 212, 241, 374],
+            "clear_padding_ltrb": [36, 212, 72, 44]
+          },
+          {
+            "id": "worn-trousers",
+            "row": 0,
+            "column": 3,
+            "cell_bounds": [940, 0, 1254, 418],
+            "alpha_gte128_bounds": [974, 188, 1165, 374],
+            "local_bounds": [34, 188, 225, 374],
+            "clear_padding_ltrb": [34, 188, 89, 44]
+          },
+          {
+            "id": "cleaver",
+            "row": 1,
+            "column": 0,
+            "cell_bounds": [0, 418, 314, 836],
+            "alpha_gte128_bounds": [86, 533, 278, 719],
+            "local_bounds": [86, 115, 278, 301],
+            "clear_padding_ltrb": [86, 115, 36, 117]
+          },
+          {
+            "id": "iron-helmet",
+            "row": 1,
+            "column": 1,
+            "cell_bounds": [314, 418, 627, 836],
+            "alpha_gte128_bounds": [392, 542, 565, 719],
+            "local_bounds": [78, 124, 251, 301],
+            "clear_padding_ltrb": [78, 124, 62, 117]
+          },
+          {
+            "id": "olive-jacket",
+            "row": 1,
+            "column": 2,
+            "cell_bounds": [627, 418, 940, 836],
+            "alpha_gte128_bounds": [653, 538, 878, 713],
+            "local_bounds": [26, 120, 251, 295],
+            "clear_padding_ltrb": [26, 120, 62, 123]
+          },
+          {
+            "id": "reinforced-trousers",
+            "row": 1,
+            "column": 3,
+            "cell_bounds": [940, 418, 1254, 836],
+            "alpha_gte128_bounds": [974, 538, 1166, 720],
+            "local_bounds": [34, 120, 226, 302],
+            "clear_padding_ltrb": [34, 120, 88, 116]
+          },
+          {
+            "id": "rune-sword",
+            "row": 2,
+            "column": 0,
+            "cell_bounds": [0, 836, 314, 1254],
+            "alpha_gte128_bounds": [86, 885, 263, 1088],
+            "local_bounds": [86, 49, 263, 252],
+            "clear_padding_ltrb": [86, 49, 51, 166]
+          },
+          {
+            "id": "bronze-helmet",
+            "row": 2,
+            "column": 1,
+            "cell_bounds": [314, 836, 627, 1254],
+            "alpha_gte128_bounds": [410, 878, 558, 1089],
+            "local_bounds": [96, 42, 244, 253],
+            "clear_padding_ltrb": [96, 42, 69, 165]
+          },
+          {
+            "id": "brigandine",
+            "row": 2,
+            "column": 2,
+            "cell_bounds": [627, 836, 940, 1254],
+            "alpha_gte128_bounds": [672, 903, 861, 1075],
+            "local_bounds": [45, 67, 234, 239],
+            "clear_padding_ltrb": [45, 67, 79, 179]
+          },
+          {
+            "id": "guard-trousers",
+            "row": 2,
+            "column": 3,
+            "cell_bounds": [940, 836, 1254, 1254],
+            "alpha_gte128_bounds": [974, 895, 1166, 1083],
+            "local_bounds": [34, 59, 226, 247],
+            "clear_padding_ltrb": [34, 59, 88, 171]
+          }
+        ]
+      }
+    }
+  ]
 }

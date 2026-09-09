@@ -3,108 +3,108 @@
     "src": "/art/pronoun-palace/enemies/paper-rat.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [51, 266, 1183, 747]
+    "bounds": [81, 211, 1124, 879]
   },
   "stapler": {
     "src": "/art/pronoun-palace/enemies/stapler.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [113, 199, 1059, 894]
+    "bounds": [101, 129, 1040, 1016]
   },
   "ink-slime": {
     "src": "/art/pronoun-palace/enemies/ink-slime.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [117, 229, 1023, 836]
+    "bounds": [98, 154, 1049, 990]
   },
   "eraser": {
     "src": "/art/pronoun-palace/enemies/eraser.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [228, 169, 795, 921]
+    "bounds": [302, 314, 611, 689]
   },
   "bell": {
     "src": "/art/pronoun-palace/enemies/bell.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [174, 86, 911, 1095]
+    "bounds": [324, 232, 607, 816]
   },
   "moth": {
     "src": "/art/pronoun-palace/enemies/moth.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [134, 93, 1016, 1028]
+    "bounds": [238, 237, 785, 814]
   },
   "librarian": {
     "src": "/art/pronoun-palace/enemies/librarian.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [311, 164, 687, 978]
+    "bounds": [288, 157, 615, 995]
   },
   "candle": {
     "src": "/art/pronoun-palace/enemies/candle.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [188, 126, 880, 1015]
+    "bounds": [245, 131, 807, 988]
   },
   "safe": {
     "src": "/art/pronoun-palace/enemies/safe.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [47, 213, 1160, 906]
+    "bounds": [185, 399, 883, 604]
   },
   "censor": {
     "src": "/art/pronoun-palace/enemies/censor.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [48, 115, 1162, 1029]
+    "bounds": [46, 241, 1158, 808]
   },
   "mirror": {
     "src": "/art/pronoun-palace/enemies/mirror.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [225, 72, 814, 1104]
+    "bounds": [185, 173, 939, 944]
   },
   "reed-crab": {
     "src": "/art/pronoun-palace/enemies/reed-crab.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [21, 172, 1212, 920]
+    "bounds": [37, 399, 1193, 576]
   },
   "ink-eel": {
     "src": "/art/pronoun-palace/enemies/ink-eel.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [122, 34, 1014, 1191]
+    "bounds": [125, 453, 1050, 519]
   },
   "leech": {
     "src": "/art/pronoun-palace/enemies/leech.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [74, 234, 1151, 837]
+    "bounds": [79, 379, 1088, 606]
   },
   "ink-scribe": {
     "src": "/art/pronoun-palace/enemies/ink-scribe.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [32, 229, 1162, 833]
+    "bounds": [237, 119, 768, 1063]
   },
   "anchor": {
     "src": "/art/pronoun-palace/enemies/anchor.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [21, 15, 1212, 1190]
+    "bounds": [303, 173, 711, 948]
   },
   "lantern-fish": {
     "src": "/art/pronoun-palace/enemies/lantern-fish.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [34, 149, 1192, 972]
+    "bounds": [105, 205, 1042, 828]
   },
   "tide-keeper": {
     "src": "/art/pronoun-palace/enemies/tide-keeper.png",
     "width": 1254,
     "height": 1254,
-    "bounds": [7, 16, 1242, 1225]
+    "bounds": [83, 243, 995, 824]
   }
 }

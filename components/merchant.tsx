@@ -1,21 +1,32 @@
 /* eslint-disable jsx-a11y/prefer-tag-over-role -- SVG is a cropped native sprite with an accessible image label. */
 'use client';
+import { useId } from 'react';
+import { PalaceCutout } from '@/components/palace-cutout';
+import merchantArt from '@/game/merchant-art.json';
 import { SkinIcon } from '@/components/skin-icon';
 import { MERCHANT_TOPICS } from '@/game/merchant';
 import type { Offer } from '@/game/engine';
 
 export function MerchantArt() {
+  const id = useId().replace(/:/g, '');
   return (
     <svg
       className="merchant-art"
-      viewBox="185 38 896 1190"
+      viewBox={merchantArt.bounds.join(' ')}
       role="img"
       aria-label="Савва — усатый торговец в оливковом пальто с мешком товаров"
     >
+      <defs>
+        <PalaceCutout
+          id={`merchant-alpha-${id}`}
+          bounds={[0, 0, merchantArt.width, merchantArt.height]}
+        />
+      </defs>
       <image
-        href="/art/pronoun-palace/merchant.png"
-        width="1254"
-        height="1254"
+        filter={`url(#merchant-alpha-${id})`}
+        href={merchantArt.src}
+        width={merchantArt.width}
+        height={merchantArt.height}
       />
     </svg>
   );

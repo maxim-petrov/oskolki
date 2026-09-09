@@ -55,7 +55,12 @@ test('merchant renders his transparent sprite, dialogue and all conversation cho
     ).length,
     3,
   );
-  assert.match(render(MerchantArt), /viewBox="185 38 896 1190"/);
+  const sprite = JSON.parse(
+    readFileSync(new URL('../game/merchant-art.json', import.meta.url)),
+  );
+  assert.ok(
+    render(MerchantArt).includes(`viewBox="${sprite.bounds.join(' ')}"`),
+  );
 });
 
 test('sale price renders the base price crossed out and exactly the amount buy charges', () => {

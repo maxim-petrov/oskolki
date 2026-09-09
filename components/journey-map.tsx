@@ -20,9 +20,10 @@ const statusText = {
   future: 'Впереди',
   skipped: 'Другой путь',
 };
+const MAP_ROW_HEIGHT = 128;
 const position = (depth: number, index: number, count: number) => ({
   x: ((index + 0.5) / count) * 100,
-  y: (TOTAL_ROOMS - depth) * 84 + 12,
+  y: (TOTAL_ROOMS - depth) * MAP_ROW_HEIGHT + 12,
 });
 export function NextStops({ game }: { game: State }) {
   return (
@@ -58,7 +59,9 @@ export function JourneyMap({
     if (el)
       el.scrollTop = Math.max(
         0,
-        (TOTAL_ROOMS - 1 - game.room) * 84 - el.clientHeight / 2 + 48,
+        (TOTAL_ROOMS - 1 - game.room) * MAP_ROW_HEIGHT -
+          el.clientHeight / 2 +
+          48,
       );
   }, [game.room, game.runId]);
   return (
@@ -83,10 +86,13 @@ export function JourneyMap({
         tabIndex={0}
         aria-label="Карта двух биомов. Двадцать комнат, боссы в десятой и двадцатой. Прокрути, чтобы увидеть весь путь."
       >
-        <div className="map-paper" style={{ height: TOTAL_ROOMS * 84 }}>
+        <div
+          className="map-paper"
+          style={{ height: TOTAL_ROOMS * MAP_ROW_HEIGHT }}
+        >
           <svg
             className="map-paths"
-            viewBox={`0 0 1000 ${TOTAL_ROOMS * 84}`}
+            viewBox={`0 0 1000 ${TOTAL_ROOMS * MAP_ROW_HEIGHT}`}
             preserveAspectRatio="none"
             aria-hidden="true"
           >
@@ -104,7 +110,7 @@ export function JourneyMap({
                     <path
                       key={`${from.id}-${to.id}`}
                       className={taken ? 'taken' : available ? 'available' : ''}
-                      d={`M ${a.x * 10} ${a.y + 35} L ${b.x * 10} ${b.y + 35}`}
+                      d={`M ${a.x * 10} ${a.y + 56} L ${b.x * 10} ${b.y + 56}`}
                       vectorEffect="non-scaling-stroke"
                     />
                   );

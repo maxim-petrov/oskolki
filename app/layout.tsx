@@ -12,7 +12,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru" className="dark" data-skin={VISUAL_STYLE.id}>
+    <html lang="ru" data-skin={VISUAL_STYLE.id}>
       <body>{children}</body>
     </html>
   );
