@@ -6,6 +6,7 @@ import {
   move,
   endTurn,
   castSkill,
+  bindingPreview,
   consumePotion,
   chooseReward,
   rerollTreasure,
@@ -179,9 +180,11 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
             ? 'v0.2'
             : 'classic',
     hero: s.hero ?? 'wanderer',
+    challenge: s.challenge ?? null,
     difficulty: s.difficulty ?? 0,
     redaction: s.redaction ?? null,
     echo: s.echo ?? null,
+    bindingPreview: s.relics.includes('binding') ? bindingPreview(s) : null,
     seal: s.seal ?? null,
     rewardSource: s.rewardSource ?? null,
     canRerollTreasure: canRerollTreasure(s),
@@ -209,7 +212,12 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
     target: s.target,
     enemies: s.enemies.map((e) => ({ ...e, intent: intent(s, e) })),
     board: s.trial?.paused || hidden ? null : s.board,
-    skills: [...s.skills, ...((s.rulesVersion ?? 0) >= 4 && s.relics.includes('binding') ? ['binding'] : [])],
+    skills: [
+      ...s.skills,
+      ...((s.rulesVersion ?? 0) >= 4 && s.relics.includes('binding')
+        ? ['binding']
+        : []),
+    ],
     potions: s.potions,
     relics: s.relics,
     equipment: s.equipment,

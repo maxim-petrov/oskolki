@@ -5,6 +5,7 @@ import {
   itemForRun,
   ENEMY_CATALOG,
   HEROES,
+  CHALLENGES,
   RELICS,
   MODIFIERS,
   SKILLS,
@@ -82,6 +83,9 @@ export function RunJournal({ meta, game }: { meta: Meta; game: State }) {
                   : 'Прерван'}{' '}
               · комната {r.room} · seed {r.seed}
               {r.modified ? ' · проверка' : ''}
+              {r.challenge
+                ? ` · Испытание: ${CHALLENGES.find((c) => c.id === r.challenge)?.name}`
+                : ''}
               {' · '}
               {HEROES.find((h) => h.id === (r.hero ?? 'wanderer'))?.name}
               {r.difficulty === 1 ? ' · Напряжение I' : ''}

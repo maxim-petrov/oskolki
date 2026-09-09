@@ -92,6 +92,12 @@ test('binding trades actual available block for one action, respects target armo
   s.enemies[0].block = 5;
   s.enemies[0].poison = 1;
   assert.ok(g.canCast(s, 'binding'));
+  assert.deepEqual(g.bindingPreview(s), {
+    spent: 8,
+    power: 16,
+    remainingBlock: 4,
+    damage: 11,
+  });
   let r = g.castSkill(s, 'binding');
   assert.equal(r.state.block, 4);
   assert.equal(r.state.enemies[0].hp, 39);
@@ -125,4 +131,36 @@ test('hero/finale discoveries expand only future rule-4 loot pools; ordinary cor
   assert.ok(s.flags.includes('run:available:binding'));
   assert.equal(s.relics.length, 0);
   assert.ok(!g.startRun(42).flags.includes('run:available:tape'));
+});
+
+test('relic trade makes a real paid pivot: two different unowned options, one claim, no RNG reroll on loading or invalid clicks', () => {
+  const s = at(7, 'event');
+  s.relics = ['thorns', 'coil'];
+  const original = g.copy(s),
+    r = accept(g.eventChoice(s, 'trade:thorns'));
+  assert.deepEqual(s, original);
+  assert.ok(!r.relics.includes('thorns'));
+  assert.ok(r.relics.includes('coil'));
+  assert.equal(r.offers.length, 2);
+  assert.equal(new Set(r.offers.map((o) => o.id)).size, 2);
+  assert.ok(
+    r.offers.every(
+      (o) => o.kind === 'relic' && !original.relics.includes(o.id),
+    ),
+  );
+  assert.deepEqual(g.loadSave(r), r);
+  assert.deepEqual(
+    g.eventChoice(s, 'trade:thorns'),
+    g.eventChoice(g.loadSave(s), 'trade:thorns'),
+  );
+  assert.deepEqual(g.eventChoice(r, 'trade:coil').state, r);
+  const taken = accept(g.chooseReward(r, r.offers[0].id));
+  assert.equal(taken.relics.length, 2);
+  assert.equal(taken.phase, 'map');
+  assert.deepEqual(g.chooseReward(taken, r.offers[1].id).state, taken);
+  assert.equal(accept(g.chooseReward(r, null)).relics.length, 1);
+  assert.deepEqual(g.eventChoice(s, 'trade:unknown').state, s);
+  s.relics = g.CORE_RELIC_IDS.slice(0, 11);
+  assert.equal(g.canTradeRelic(s), false);
+  assert.deepEqual(g.eventChoice(s, `trade:${s.relics[0]}`).state, s);
 });

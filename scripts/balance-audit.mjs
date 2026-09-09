@@ -89,7 +89,16 @@ export function simulate(seed, style = 'balanced', options = {}) {
         if (m) take(g.move(s, m.axis, m.line, m.amount));
       }
       if (s.phase === 'battle' && !s.cast) {
-        if (g.canCast(s, 'pierce')) take(g.castSkill(s, 'pierce'));
+        if (
+          g.canCast(s, 'binding') &&
+          (threat() === 0 ||
+            (s.enemies.filter((e) => e.hp > 0).length === 1 &&
+              s.enemies.find((e) => e.hp > 0).hp +
+                s.enemies.find((e) => e.hp > 0).block <=
+                Math.min(s.block, 8) * 2))
+        )
+          take(g.castSkill(s, 'binding'));
+        else if (g.canCast(s, 'pierce')) take(g.castSkill(s, 'pierce'));
         else if (g.canCast(s, 'bolt')) take(g.castSkill(s, 'bolt'));
         else if (g.canCast(s, 'guard') && threat() > s.block)
           take(g.castSkill(s, 'guard'));
@@ -135,7 +144,16 @@ export function simulate(seed, style = 'balanced', options = {}) {
       take(g.chooseReward(s, o?.id ?? null, 0));
     } else if (s.phase === 'map') {
       const routes = g.nextRooms(s);
+      const goal =
+        options.forbidden && s.room < 17
+          ? s.journey.nodes.find((n) => n.depth === 17 && n.kind === 'event')
+              ?.id
+          : null;
+      const leadsTo = (id) =>
+        id === goal ||
+        s.journey.nodes.find((n) => n.id === id).next.some(leadsTo);
       const node =
+        (goal ? routes.find((n) => leadsTo(n.id)) : null) ??
         routes.find((n) => n.description.includes('событие → обычный')) ??
         routes.find((n) => n.description.includes('обычный бой → магазин')) ??
         routes[0];
@@ -163,7 +181,14 @@ export function simulate(seed, style = 'balanced', options = {}) {
       );
     else if (s.phase === 'event')
       take(
-        g.eventChoice(s, s.room > 10 && s.gold >= 30 ? 'repair' : 'supplies'),
+        g.eventChoice(
+          s,
+          options.forbidden && g.canEnterForbidden(s)
+            ? 'forbidden'
+            : s.room > 10 && s.gold >= 30
+              ? 'repair'
+              : 'supplies',
+        ),
       );
     else if (s.phase === 'trial')
       take(g.tickTrial(g.pauseTrial(s, false).state, 46));
@@ -185,12 +210,19 @@ export function simulate(seed, style = 'balanced', options = {}) {
     final: s,
   };
 }
-if (import.meta.url === new URL(process.argv[1], 'file:').href) {
+if (
+  process.argv[1] &&
+  import.meta.url === new URL(process.argv[1], 'file:').href
+) {
   const count = Number(process.argv[2] ?? 16),
     data = [];
   for (const style of ['balanced', 'poison', 'editor', 'runes'])
     for (let seed = 1; seed <= count; seed++) {
-      const { final: _final, decisions: _decisions, ...r } = simulate(seed, style);
+      const {
+        final: _final,
+        decisions: _decisions,
+        ...r
+      } = simulate(seed, style);
       data.push(r);
     }
   const report = {

@@ -2,6 +2,7 @@ import {
   FAMILY_NAMES,
   progressionRewards,
   HEROES,
+  CHALLENGES,
   type State,
   type Meta,
 } from '@/game/engine';
@@ -34,6 +35,15 @@ export function ProgressionGoals({ meta }: { meta: Meta }) {
         Редактор: открывает Копировальную ленту в будущих находках.
       </p>
       <details>
+        <summary>Испытания</summary>
+        {CHALLENGES.map((c) => (
+          <p key={c.id}>
+            {meta.challengeWins?.includes(c.id) ? '✓' : '○'}{' '}
+            <strong>{c.name}</strong> — {c.description}
+          </p>
+        ))}
+      </details>
+      <details>
         <summary>Напряжение I</summary>
         {HEROES.map((h) => (
           <p key={h.id}>
@@ -57,6 +67,17 @@ export function ProgressionGoals({ meta }: { meta: Meta }) {
 export function ActiveHeroRules({ game }: { game: State }) {
   return (
     <div className="active-hero-rules">
+      {game.challenge && (
+        <p>
+          <strong>
+            Испытание: {CHALLENGES.find((c) => c.id === game.challenge)?.name}
+          </strong>{' '}
+          ·{' '}
+          {game.challenge === 'precision'
+            ? 'Оружие срабатывает только от 4+ клинков.'
+            : 'Запас энергии: 6, после улучшения — 9. Переполнение вызывает Лампу раз за ход.'}
+        </p>
+      )}
       {game.hero === 'warden' && (
         <p>Страж · переносит до 4 блока, каждый бой начинает без энергии.</p>
       )}

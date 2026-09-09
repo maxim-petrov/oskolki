@@ -598,6 +598,21 @@ export type DamageEvent = {
   room: number;
   round: number;
 };
+export type ChallengeId = 'short-circuit' | 'precision';
+export const CHALLENGES = [
+  {
+    id: 'short-circuit' as const,
+    name: 'Короткое замыкание',
+    description:
+      'Странник с рунным мечом, Лампой и Катушкой. Запас энергии всего 6 (9 после улучшения). Цель — Хранитель. Частое переполнение помогает, но на приёмы трудно копить.',
+  },
+  {
+    id: 'precision' as const,
+    name: 'Точный удар',
+    description:
+      'Странник с топором, Копиркой, Лентой и Порядком. Группы ровно из 3 клинков не запускают оружие; нужны 4+. Остальные семейства и приёмы работают. Цель — Хранитель.',
+  },
+];
 export type HeroId = 'wanderer' | 'warden';
 export const HEROES = [
   {
@@ -620,6 +635,7 @@ export type RunRecord = {
   hero?: HeroId;
   ending?: string;
   difficulty?: 0 | 1;
+  challenge?: ChallengeId;
   modified: boolean;
   rules: number;
   room: number;
@@ -637,6 +653,7 @@ export type State = {
   rulesVersion?: 2 | 3 | 4;
   hero?: HeroId;
   difficulty?: 0 | 1;
+  challenge?: ChallengeId;
   redaction?: { family: Family; expires: number };
   echo?: Family;
   damageEvents?: DamageEvent[];
@@ -1127,7 +1144,10 @@ function newBoard(s: State) {
   throw Error('Не удалось создать поле');
 }
 export function energyMax(s: State) {
-  return s.upgrades.spark >= 1 ? 15 : 12;
+  return (
+    ((s.rulesVersion ?? 0) >= 4 && s.challenge === 'short-circuit' ? 6 : 12) +
+    (s.upgrades.spark >= 1 ? 3 : 0)
+  );
 }
 export function focusMax(s: State) {
   return (s.upgrades.focus >= 1 ? 9 : 6) + equipmentBonus(s, 'trousers');
@@ -1189,6 +1209,10 @@ function spreadPoison(s: State, dead: Enemy) {
   }
 }
 function weaponAttack(s: State, count: number, venom: number) {
+  if ((s.rulesVersion ?? 0) >= 4 && s.challenge === 'precision' && count < 4) {
+    note(s, 'Точный удар: для оружия нужно 4+ клинка.');
+    return;
+  }
   const id = s.equipment.weapon ?? 'gear-cutter';
   const base =
     count * s.balance.blade +
@@ -2248,10 +2272,10 @@ export function castSkill(
   const damage = (value: number) =>
     Math.max(0, value - (hasSeal(s, 'double-edit') ? 3 : 0));
   if (id === 'binding') {
-    const spent = Math.min(8, s.block);
+    const { spent, power } = bindingPreview(s);
     s.block -= spent;
-    hit(s, damage(spent * 2), false, false);
-    note(s, `Боевой переплёт: ${spent} блока → ${damage(spent * 2)} урона.`);
+    hit(s, power, false, false);
+    note(s, `Боевой переплёт: ${spent} блока → ${power} урона.`);
   }
   if (id === 'bolt') hit(s, damage(12 + rune));
   if (id === 'guard') s.block += 8;
@@ -2500,6 +2524,7 @@ export type Meta = {
   wins: number;
   finished: string[];
   marks?: string[];
+  challengeWins?: ChallengeId[];
   history?: RunRecord[];
   seen?: string[];
 };
@@ -2519,6 +2544,7 @@ function rememberRun(m: Meta, s: State, outcome: RunRecord['outcome']) {
     outcome,
     modified: s.modified,
     rules: s.rulesVersion ?? 0,
+    ...(s.challenge ? { challenge: s.challenge } : {}),
     hero: s.hero ?? 'wanderer',
     difficulty: s.difficulty ?? 0,
     ...(outcome === 'victory'
@@ -2586,7 +2612,7 @@ export function updateMeta(input: Meta, s: State): Meta {
     win: s.phase === 'victory',
   };
   // Lab settings never advance achievements or normal victory streaks.
-  if (!s.modified)
+  if (!s.modified && !s.challenge)
     for (const a of ACHIEVEMENTS)
       if (checks[a.id] && !m.unlocked.includes(a.id)) m.unlocked.push(a.id);
   if (
@@ -2595,7 +2621,9 @@ export function updateMeta(input: Meta, s: State): Meta {
   ) {
     m.finished.push(s.runId);
     rememberRun(m, s, s.phase as 'victory' | 'defeat');
-    if (!s.modified) {
+    if (!s.modified && s.challenge && s.phase === 'victory')
+      m.challengeWins = [...new Set([...(m.challengeWins ?? []), s.challenge])];
+    if (!s.modified && !s.challenge) {
       if (s.phase === 'victory') {
         m.streak++;
         m.wins++;
@@ -2621,10 +2649,10 @@ export function abandonMeta(input: Meta, s: State) {
   const m = copy(input);
   if (
     !['victory', 'defeat'].includes(s.phase) &&
-    !s.modified &&
+    (!s.modified || (s.rulesVersion ?? 0) >= 4) &&
     !m.finished.includes(s.runId)
   ) {
-    m.streak = 0;
+    if (!s.modified && !s.challenge) m.streak = 0;
     m.finished.push(s.runId);
     rememberRun(m, s, 'abandoned');
   }
@@ -2666,6 +2694,7 @@ export function withUnlocks(s: State, m: Meta) {
   if (
     (s.rulesVersion ?? 0) >= 4 &&
     m.wins > 0 &&
+    !s.challenge &&
     !s.flags.includes('run:alternate-access')
   ) {
     s.flags.push('run:alternate-access');
@@ -2684,14 +2713,35 @@ export function startAdventure(
   meta: Meta,
   hero: HeroId = 'wanderer',
   difficulty: 0 | 1 = 0,
+  challenge?: ChallengeId,
 ): State {
-  const s = withUnlocks(startRun(seed, balance), meta);
-  s.hero = meta.wins > 0 && hero === 'warden' ? 'warden' : 'wanderer';
-  s.difficulty = meta.wins > 0 && difficulty === 1 ? 1 : 0;
+  const s = startRun(seed, balance);
+  if (meta.wins > 0 && CHALLENGES.some((c) => c.id === challenge))
+    s.challenge = challenge;
+  withUnlocks(s, meta);
+  s.hero =
+    !s.challenge && meta.wins > 0 && hero === 'warden' ? 'warden' : 'wanderer';
+  s.difficulty = !s.challenge && meta.wins > 0 && difficulty === 1 ? 1 : 0;
   if (s.hero === 'warden') {
     s.maxHp += 8;
     s.hp += 8;
     s.energy = 0;
+  }
+  if (s.challenge) {
+    s.equipment.weapon =
+      s.challenge === 'precision' ? 'gear-axe' : 'gear-rune-sword';
+    s.relics =
+      s.challenge === 'precision'
+        ? ['carbon', 'tape', 'order']
+        : ['lamp', 'coil'];
+    for (const id of s.relics)
+      if (!s.flags.includes(`run:available:${id}`))
+        s.flags.push(`run:available:${id}`);
+    if (s.challenge === 'precision') s.focus = 3;
+    note(
+      s,
+      `Испытание: ${CHALLENGES.find((c) => c.id === s.challenge)!.description}`,
+    );
   }
   note(
     s,
@@ -2702,6 +2752,7 @@ export function startAdventure(
 export function canEnterForbidden(s: State) {
   return (
     (s.rulesVersion ?? 0) >= 4 &&
+    !s.challenge &&
     s.phase === 'event' &&
     s.room === 17 &&
     s.flags.includes('run:alternate-access') &&
@@ -2961,7 +3012,9 @@ function createJourney(s: State): NonNullable<State['journey']> {
             'Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.',
           event: archive
             ? 'Припасы бесплатно или ремонт насоса за 30 золота.'
-            : 'Припасы бесплатно или сильная находка за 5 здоровья.',
+            : (s.rulesVersion ?? 0) >= 4
+              ? 'Припасы, находка за 5 здоровья или обмен своей реликвии на одну из двух новых.'
+              : 'Припасы бесплатно или сильная находка за 5 здоровья.',
           trial:
             '45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.',
           shop: 'Ассортимент и скидки фиксированы. Здесь ветки соединяются.',
@@ -3678,8 +3731,37 @@ export function rest(input: State, choice: string): Result {
   s.phase = 'map';
   return result(s);
 }
+export function canTradeRelic(s: State): boolean {
+  return (
+    (s.rulesVersion ?? 0) >= 4 &&
+    s.phase === 'event' &&
+    s.room === 7 &&
+    s.relics.length > 0 &&
+    relicPoolFor(s).filter((o) => !s.relics.includes(o.id)).length >= 2
+  );
+}
 export function eventChoice(input: State, choice: string): Result {
   if (input.phase !== 'event') return result(input);
+  if (choice.startsWith('trade:')) {
+    const id = choice.slice(6);
+    if (!canTradeRelic(input) || !input.relics.includes(id))
+      return result(
+        input,
+        [],
+        'Для обмена нужна своя реликвия и две доступные замены.',
+      );
+    const s = copy(input);
+    const pool = relicPoolFor(s).filter((o) => !s.relics.includes(o.id));
+    s.relics = s.relics.filter((old) => old !== id);
+    s.offers = drawOffers(s, pool, 2);
+    s.phase = 'reward';
+    s.rewardSource = 'event';
+    note(
+      s,
+      `Обмен: отдана «${itemById(id)?.name}». Выбери одну из двух новых реликвий; отказ не возвращает старую.`,
+    );
+    return result(s);
+  }
   if (choice === 'forbidden') {
     if (!canEnterForbidden(input))
       return result(
@@ -3771,6 +3853,9 @@ export function isSave(value: unknown): value is State {
   const s = value as State;
   return (
     s.version === 2 &&
+    (s.challenge === undefined ||
+      ((s.rulesVersion ?? 0) >= 4 &&
+        CHALLENGES.some((c) => c.id === s.challenge))) &&
     (s.hero === undefined ||
       ((s.rulesVersion ?? 0) >= 4 && HEROES.some((h) => h.id === s.hero))) &&
     (s.difficulty === undefined ||
@@ -3913,6 +3998,9 @@ export function isMeta(value: unknown): value is Meta {
   const m = value as Meta;
   return (
     m.version === 1 &&
+    (m.challengeWins === undefined ||
+      (Array.isArray(m.challengeWins) &&
+        m.challengeWins.every((id) => CHALLENGES.some((c) => c.id === id)))) &&
     (m.marks === undefined ||
       (Array.isArray(m.marks) &&
         m.marks.every(
@@ -3940,6 +4028,8 @@ export function isMeta(value: unknown): value is Meta {
             Number.isInteger(r.seed) &&
             ['victory', 'defeat', 'abandoned'].includes(r.outcome) &&
             typeof r.modified === 'boolean' &&
+            (r.challenge === undefined ||
+              CHALLENGES.some((c) => c.id === r.challenge)) &&
             Number.isInteger(r.room) &&
             Array.isArray(r.path) &&
             r.path.every((x) => typeof x === 'string') &&
@@ -3953,6 +4043,23 @@ export function isMeta(value: unknown): value is Meta {
   );
 }
 
+export function bindingPreview(s: State) {
+  const spent = Math.min(8, s.block);
+  const power = Math.max(0, spent * 2 - (hasSeal(s, 'double-edit') ? 3 : 0));
+  const target =
+    s.enemies.find((e) => e.id === s.target && e.hp > 0) ??
+    s.enemies.find((e) => e.hp > 0);
+  return {
+    spent,
+    power,
+    remainingBlock: s.block - spent,
+    damage: s.trial
+      ? power
+      : target
+        ? Math.min(target.hp, Math.max(0, power - target.block))
+        : 0,
+  };
+}
 export function canCast(s: State, id: string): boolean {
   const c: Record<string, [number, number, number]> = {
     binding: [0, 0, 0],

@@ -36,7 +36,10 @@ import { Input } from '@/components/ui/input';
 import {
   ACHIEVEMENTS,
   HEROES,
+  CHALLENGES,
+  type ChallengeId,
   canEnterForbidden,
+  canTradeRelic,
   type HeroId,
   equipmentById,
   EQUIPMENT_SLOT_NAMES,
@@ -444,26 +447,56 @@ export function RunPanel({
             )}
             {s.phase === 'event' && (
               <div className="route-options">
-                {s.room === 17 && (s.rulesVersion ?? 0) >= 4 && (
-                  <button
-                    className="route-card"
-                    disabled={busy || !canEnterForbidden(s)}
-                    onClick={() => void act(eventChoice(s, 'forbidden'))}
-                  >
-                    <SkinIcon name="crown" size={44} />
-                    <div>
-                      <strong>
-                        Пропуск в Запретный отдел · −6 макс. здоровья
-                      </strong>
+                {s.room === 7 && (s.rulesVersion ?? 0) >= 4 && (
+                  <details className="run-journal">
+                    <summary>Сменить план: обмен реликвии</summary>
+                    <p>
+                      Сдай одну свою реликвию. Вместо неё появятся две
+                      неизвестные новые на выбор; забрать можно одну. При отказе
+                      старая вещь не возвращается. Припасы и тайник после обмена
+                      недоступны.
+                    </p>
+                    {s.relics.map((id) => (
+                      <Button
+                        key={id}
+                        variant="outline"
+                        disabled={busy || !canTradeRelic(s)}
+                        onClick={() => void act(eventChoice(s, `trade:${id}`))}
+                      >
+                        <ItemIcon id={id} /> Отдать «{itemById(id)?.name}» →
+                        выбор из двух
+                      </Button>
+                    ))}
+                    {!canTradeRelic(s) && (
                       <p>
-                        {s.flags.includes('run:alternate-access')
-                          ? 'Заменяет финального Хранителя на Редактора. Текущее здоровье уменьшится только до нового максимума. Насос останется непочиненным.'
-                          : 'Откроется после первой обычной победы. Этот спуск продолжится к Хранителю.'}
+                        Нужна своя реликвия и хотя бы две ещё не собранные в
+                        доступном пуле.
                       </p>
-                    </div>
-                    <ArrowRight />
-                  </button>
+                    )}
+                  </details>
                 )}
+                {s.room === 17 &&
+                  !s.challenge &&
+                  (s.rulesVersion ?? 0) >= 4 && (
+                    <button
+                      className="route-card"
+                      disabled={busy || !canEnterForbidden(s)}
+                      onClick={() => void act(eventChoice(s, 'forbidden'))}
+                    >
+                      <SkinIcon name="crown" size={44} />
+                      <div>
+                        <strong>
+                          Пропуск в Запретный отдел · −6 макс. здоровья
+                        </strong>
+                        <p>
+                          {s.flags.includes('run:alternate-access')
+                            ? 'Заменяет финального Хранителя на Редактора. Текущее здоровье уменьшится только до нового максимума. Насос останется непочиненным.'
+                            : 'Откроется после первой обычной победы. Этот спуск продолжится к Хранителю.'}
+                        </p>
+                      </div>
+                      <ArrowRight />
+                    </button>
+                  )}
                 <button
                   className="route-card"
                   disabled={busy || (s.room === 17 ? s.gold < 30 : s.hp <= 5)}
@@ -561,7 +594,9 @@ export function RunPanel({
                 <p className="panel-note">
                   {s.modified
                     ? 'Проверка баланса: серия и открытия не изменились.'
-                    : `Достижения: ${meta.unlocked.length}/${ACHIEVEMENTS.length}. Серия побед: ${meta.streak}. Лучшая: ${meta.best}.`}
+                    : s.challenge
+                      ? 'Испытание учитывается в собственной книге отметок. Обычная серия и открытия не изменились.'
+                      : `Достижения: ${meta.unlocked.length}/${ACHIEVEMENTS.length}. Серия побед: ${meta.streak}. Лучшая: ${meta.best}.`}
                 </p>
                 <Button className="panel-main-action" onClick={restart}>
                   Новый спуск <RotateCcw />
@@ -629,6 +664,7 @@ export function SettingsPanel({
   meta,
   currentHero = 'wanderer',
   currentDifficulty = 0,
+  currentChallenge,
   open,
   onClose,
   balance,
@@ -644,14 +680,19 @@ export function SettingsPanel({
   meta: Meta;
   currentHero?: HeroId;
   currentDifficulty?: 0 | 1;
+  currentChallenge?: ChallengeId;
   onStart: (
     b: Balance,
     p: Preset,
     seed?: number,
     hero?: HeroId,
     difficulty?: 0 | 1,
+    challenge?: ChallengeId,
   ) => void;
 }) {
+  const [challenge, setChallenge] = useState<ChallengeId | undefined>(
+    currentChallenge,
+  );
   const [hero, setHero] = useState<HeroId>(currentHero);
   const [difficulty, setDifficulty] = useState<0 | 1>(currentDifficulty);
   const [settings, setSettings] = useState(balance);
@@ -675,14 +716,46 @@ export function SettingsPanel({
           новом забеге.
         </DialogDescription>
         <fieldset className="run-journal">
-          <legend>Герой и сложность</legend>
+          <legend>Режим спуска</legend>
+          <label>
+            Испытание{' '}
+            <select
+              value={challenge ?? ''}
+              onChange={(e) => {
+                setChallenge(
+                  (e.target.value || undefined) as ChallengeId | undefined,
+                );
+                if (e.target.value) {
+                  setHero('wanderer');
+                  setDifficulty(0);
+                  setPreset('normal');
+                }
+              }}
+            >
+              <option value="">Обычный спуск</option>
+              {CHALLENGES.map((c) => (
+                <option key={c.id} value={c.id} disabled={!meta.wins}>
+                  {c.name}
+                  {meta.wins ? '' : ' · после победы'}
+                </option>
+              ))}
+            </select>
+          </label>
+          {challenge && (
+            <p>
+              {CHALLENGES.find((c) => c.id === challenge)?.description} Герой и
+              обычная сложность заданы условиями. Испытания имеют собственные
+              отметки, не меняют обычную серию и не открывают предметы.
+            </p>
+          )}
+
           {HEROES.map((h) => (
             <label key={h.id} style={{ display: 'block', marginBottom: 12 }}>
               <input
                 type="radio"
                 name="hero"
                 checked={hero === h.id}
-                disabled={h.id === 'warden' && !meta.wins}
+                disabled={!!challenge || (h.id === 'warden' && !meta.wins)}
                 onChange={() => setHero(h.id)}
               />{' '}
               <strong>{h.name}</strong> — {h.description}
@@ -693,7 +766,7 @@ export function SettingsPanel({
             <input
               type="checkbox"
               checked={difficulty === 1}
-              disabled={!meta.wins}
+              disabled={!!challenge || !meta.wins}
               onChange={(e) => setDifficulty(e.target.checked ? 1 : 0)}
             />{' '}
             Напряжение I: все удары врагов +2. Доступно после первой победы;
@@ -737,6 +810,7 @@ export function SettingsPanel({
             <Button
               variant="outline"
               key={p}
+              disabled={!!challenge}
               aria-pressed={preset === p}
               onClick={() => setPreset(p)}
             >
@@ -794,10 +868,11 @@ export function SettingsPanel({
               if (!seedValid) return;
               onStart(
                 settings,
-                preset,
+                challenge ? 'normal' : preset,
                 seed ? Number(seed) : undefined,
                 hero,
                 difficulty,
+                challenge,
               );
               onClose();
             }}

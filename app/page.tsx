@@ -58,6 +58,7 @@ import {
   startAdventure,
   HEROES,
   type HeroId,
+  type ChallengeId,
   loadSave,
   isMeta,
   updateMeta,
@@ -66,6 +67,7 @@ import {
   pauseTrial,
   tickTrial,
   canCast,
+  bindingPreview,
   configureRun,
   type Meta,
   type Balance,
@@ -203,6 +205,7 @@ export default function Game() {
     manualSeed?: number,
     hero: HeroId = gameRef.current.hero ?? 'wanderer',
     difficulty: 0 | 1 = gameRef.current.difficulty ?? 0,
+    challenge?: ChallengeId,
   ) => {
     const prev = gameRef.current;
     const nextMeta = abandonMeta(metaRef.current, prev);
@@ -214,6 +217,7 @@ export default function Game() {
       nextMeta,
       hero,
       difficulty,
+      challenge,
     );
     next = configureRun(next, preset);
     next.runId = crypto.randomUUID();
@@ -937,7 +941,11 @@ export default function Game() {
                 </span>
                 <span>
                   <strong>{itemById(id)?.name}</strong>
-                  <small>{itemForRun(s, id)?.description}</small>
+                  <small>
+                    {itemForRun(s, id)?.description}
+                    {id === 'binding' &&
+                      ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона с учётом защиты цели; останется ${bindingPreview(s).remainingBlock} блока.`}
+                  </small>
                 </span>
               </Button>
             ))}
@@ -1101,6 +1109,7 @@ export default function Game() {
         meta={meta}
         currentHero={game.hero}
         currentDifficulty={game.difficulty}
+        currentChallenge={game.challenge}
         key={settingsOpen ? 'open' : 'closed'}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
