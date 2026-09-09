@@ -101,7 +101,7 @@ import {
 import { EnemyIntentLabel } from '@/components/enemy-intent';
 import { CombatSprite } from '@/components/combat-sprite';
 import { BoardTileArt } from '@/components/board-tile-art';
-import { motionFor, type Motion } from '@/game/motion';
+import { bossShakeFor, motionFor, type Motion } from '@/game/motion';
 import { Progress } from '@/components/ui/progress';
 import {
   startRun,
@@ -131,6 +131,7 @@ const pause = (ms: number) =>
 export default function Game() {
   const [game, setGame] = useState(() => startRun());
   const [motion, setMotion] = useState<Motion | null>(null);
+  const [screenShake, setScreenShake] = useState(100);
   const motionSerial = useRef(0);
   const [frame, setFrame] = useState<Frame | null>(null);
   const [busy, setBusy] = useState(false);
@@ -176,6 +177,15 @@ export default function Game() {
     : s.board;
   const marked =
     frame?.cells ?? (preview ? groups(board, minimumMatch(s)).flat() : []);
+  const shake = screenShake > 0 && !modalOpen ? bossShakeFor(motion) : null;
+  const changeScreenShake = (value: number) => {
+    setScreenShake(value);
+    try {
+      localStorage.setItem('oskolki.screen-shake.v1', String(value));
+    } catch {
+      // The setting still applies to this tab when browser storage is disabled.
+    }
+  };
   const play = async (transition: Result) => {
     if (busyRef.current) return;
     if (transition.error) {
@@ -254,6 +264,16 @@ export default function Game() {
     setRestartConfirm(false);
     setMessage('Новый путь. Первая находка ждёт после боя.');
   };
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('oskolki.screen-shake.v1');
+      const value = Number(raw);
+      if (raw !== null && Number.isFinite(value) && value >= 0 && value <= 100)
+        setScreenShake(value);
+    } catch {
+      // Visual preferences must not prevent loading the run.
+    }
+  }, []);
   useEffect(() => {
     try {
       const rawMeta = localStorage.getItem('oskolki.meta.v1');
@@ -504,7 +524,16 @@ export default function Game() {
   }, [ready]);
   return (
     <main
-      className={`game-shell biome-${biomeAt(s.room).id}${active ? ' battle-active' : ''}`}
+      className={`game-shell biome-${biomeAt(s.room).id}${active ? ' battle-active' : ''}${shake ? ' boss-impact' : ''}`}
+      data-screen-shake={screenShake > 0 ? 'on' : 'off'}
+      style={
+        shake
+          ? ({
+              '--shake-distance': `${Math.round((shake.pixels * screenShake) / 100)}px`,
+              '--shake-duration': `${shake.duration}ms`,
+            } as CSSProperties)
+          : undefined
+      }
     >
       <header className="topbar">
         <div className="brand">
@@ -1176,6 +1205,8 @@ export default function Game() {
         onClose={() => setSettingsOpen(false)}
         balance={game.balance}
         currentSeed={game.seed}
+        screenShake={screenShake}
+        onScreenShake={changeScreenShake}
         onAnimation={(animation) =>
           setGame((g) => ({ ...g, balance: { ...g.balance, animation } }))
         }

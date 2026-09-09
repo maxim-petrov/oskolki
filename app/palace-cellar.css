@@ -1,4 +1,53 @@
 /* Extension layouts. All surfaces follow docs/visual-style.md and palace.css. */
+/* Move the visible surfaces in sync, not the shell: a transformed ancestor
+   would unpin the fixed End Turn bar from the viewport. */
+html[data-skin='palace-cellar'] {
+  .boss-impact > :is(.topbar, .game-layout, .game-footer),
+  .boss-impact > .battle-actions > .battle-actions-inner {
+    animation: bossScreenImpact var(--shake-duration) steps(1, end);
+  }
+  .boss-impact .arena-bg,
+  .game-shell[data-screen-shake='off'] .arena-bg {
+    animation: none;
+  }
+}
+@keyframes bossScreenImpact {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  8% {
+    translate: calc(var(--shake-distance) * -1)
+      calc(var(--shake-distance) * 0.5);
+  }
+  22% {
+    translate: var(--shake-distance) calc(var(--shake-distance) * -0.5);
+  }
+  38% {
+    translate: calc(var(--shake-distance) * -0.75) 0;
+  }
+  54% {
+    translate: calc(var(--shake-distance) * 0.5)
+      calc(var(--shake-distance) * 0.25);
+  }
+  70% {
+    translate: calc(var(--shake-distance) * -0.25) 0;
+  }
+  86% {
+    translate: calc(var(--shake-distance) * 0.125) 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin='palace-cellar'] {
+    .boss-impact > :is(.topbar, .game-layout, .game-footer),
+    .boss-impact > .battle-actions > .battle-actions-inner,
+    .game-shell .arena-bg {
+      animation: none !important;
+      translate: none;
+    }
+  }
+}
+
 /* Keep the primary combat action in the viewport, below dialogs. */
 html[data-skin='palace-cellar'] {
   --battle-actions-clearance: calc(96px + env(safe-area-inset-bottom, 0px));

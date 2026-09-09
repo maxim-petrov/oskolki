@@ -26,6 +26,31 @@ export function impactFor(m: Motion | null, actor: Actor) {
     blocked: Math.max(0, a.block - b.block),
   };
 }
+// Camera feedback follows the actual strike, including damage absorbed by block.
+// It stays outside saved combat rules and never advances the seeded simulation.
+export function bossShakeFor(m: Motion | null) {
+  if (
+    !m ||
+    m.stage === 'windup' ||
+    m.cue.type !== 'attack' ||
+    m.cue.target !== 'hero' ||
+    typeof m.cue.actor !== 'number'
+  )
+    return null;
+  const attacker = m.before.enemies.find((e) => e.id === m.cue.actor);
+  if (
+    !attacker ||
+    !['boss', 'censor', 'tide-keeper', 'redactor'].includes(attacker.kind)
+  )
+    return null;
+  const hit = impactFor(m, 'hero');
+  const force = m.cue.strength ?? hit.damage + hit.blocked;
+  if (force < 10) return null;
+  return {
+    pixels: force >= 18 ? 12 : 8,
+    duration: Math.min(320, Math.floor(m.duration * 0.65)),
+  };
+}
 export function poseFor(s: State, m: Motion | null, actor: Actor): Pose {
   if (actorStats(s, actor).hp <= 0) return 'death';
   const effect = impactFor(m, actor);

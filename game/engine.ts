@@ -742,6 +742,8 @@ export type CombatCue = {
   actor: 'hero' | 'status' | number;
   type: 'attack' | 'cast' | 'guard' | 'heal' | 'poison' | 'roots' | 'prepare';
   target?: 'hero' | number;
+  /** Visual impact before block/health clamping; never stored in the run. */
+  strength?: number;
 };
 export type Frame = {
   state: State;
@@ -2518,6 +2520,9 @@ export function endTurn(input: State): Result {
         : action.text,
       cue: {
         actor: e.id,
+        ...(tactical(s) && ['attack', 'pierce'].includes(action.type)
+          ? { strength: action.value }
+          : {}),
         type:
           action.type === 'block'
             ? 'guard'

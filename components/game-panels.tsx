@@ -680,6 +680,8 @@ export function SettingsPanel({
   balance,
   currentSeed,
   onAnimation,
+  screenShake = 100,
+  onScreenShake,
   onStart,
 }: {
   open: boolean;
@@ -687,6 +689,8 @@ export function SettingsPanel({
   balance: Balance;
   currentSeed: number;
   onAnimation: (ms: number) => void;
+  screenShake?: number;
+  onScreenShake?: (value: number) => void;
   meta: Meta;
   currentHero?: HeroId;
   currentDifficulty?: 0 | 1;
@@ -722,8 +726,8 @@ export function SettingsPanel({
       <DialogContent className="game-dialog settings-dialog">
         <DialogTitle>Настройки</DialogTitle>
         <DialogDescription>
-          Скорость анимации меняется сразу. Остальные параметры применяются в
-          новом забеге.
+          Скорость анимации и сила тряски меняются сразу. Остальные параметры
+          применяются в новом забеге.
         </DialogDescription>
         <fieldset className="run-journal">
           <legend>Режим спуска</legend>
@@ -784,6 +788,24 @@ export function SettingsPanel({
           </label>
         </fieldset>
         <div className="settings-controls">
+          <div className="setting-row">
+            <span>
+              Тряска экрана
+              <b>{screenShake === 0 ? 'Выключена' : `${screenShake}%`}</b>
+            </span>
+            <Slider
+              aria-label="Сила тряски экрана"
+              value={[screenShake]}
+              min={0}
+              max={100}
+              step={25}
+              onValueChange={(v) => onScreenShake?.((v as number[])[0])}
+            />
+            <small>
+              Сильные удары босса встряхивают экран вместе с доской. Уменьшение
+              движения в системе отключает эффект.
+            </small>
+          </div>
           {sliders.map(([key, label, min, max, step]) => (
             <div key={key} className="setting-row">
               <span>
@@ -896,6 +918,7 @@ export function SettingsPanel({
               setPreset('normal');
               setSeed('');
               onAnimation(DEFAULT_BALANCE.animation);
+              onScreenShake?.(100);
             }}
           >
             Сбросить
