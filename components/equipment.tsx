@@ -166,7 +166,7 @@ export function WeaponGallery({
           <button
             type="button"
             key={weapon.id}
-            className={`weapon-preview gear-tier-${game?.rulesVersion === 2 ? (weapon.id === equippedId ? game.weaponQuality : 0) : weapon.tier}`}
+            className={`weapon-preview gear-tier-${(game?.rulesVersion ?? 0) >= 2 ? (weapon.id === equippedId ? game?.weaponQuality : 0) : weapon.tier}`}
             aria-pressed={selectedId === weapon.id}
             onClick={() => onSelect(weapon.id)}
           >
@@ -175,7 +175,7 @@ export function WeaponGallery({
             <small>
               {weapon.id === equippedId
                 ? 'Надето'
-                : game?.rulesVersion === 2
+                : (game?.rulesVersion ?? 0) >= 2
                   ? WEAPON_RULES[weapon.id].short
                   : `+${weapon.bonus} к урону`}
             </small>

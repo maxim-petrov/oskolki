@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as g from '../game/engine.ts';
+import * as g from './helpers/stage1-engine.mjs';
 // Pre-v0.2 saves deliberately retain their original rules and reward sequence.
 function classic(s = g.startRun()) {
   delete s.rulesVersion;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as g from '../game/engine.ts';
+import * as g from './helpers/stage1-engine.mjs';
 const save = (s) => g.loadSave(JSON.parse(JSON.stringify(s)));
 const enter = (depth = 11, id = g.roomsAtDepth(depth)[0].id, seed = 42) => {
   const s = g.startRun(seed);

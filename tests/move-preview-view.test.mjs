@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import * as g from '../game/engine.ts';
+import * as g from './helpers/stage1-engine.mjs';
 const { MovePreview } = await import('../components/move-preview.tsx');
 const { EquipmentComparison, EquipmentPanel } =
   await import('../components/equipment.tsx');

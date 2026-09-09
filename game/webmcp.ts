@@ -8,6 +8,9 @@ import {
   castSkill,
   consumePotion,
   chooseReward,
+  rerollTreasure,
+  canRerollTreasure,
+  routeMap,
   enterRoom,
   buy,
   leaveRoom,
@@ -20,6 +23,7 @@ import {
   FAMILIES,
   equipmentBonus,
   equipmentForRun,
+  offerForRun,
   previewMove,
   restOptions,
   type State,
@@ -34,6 +38,7 @@ const actions = [
   'potion',
   'select_target',
   'choose_reward',
+  'reroll_treasure',
   'enter_room',
   'buy',
   'leave_shop',
@@ -53,6 +58,7 @@ export const actionSchema = {
     id: { type: ['string', 'null'] },
     slot: { type: 'integer', minimum: 0, maximum: 1 },
     index: { type: 'integer', minimum: 0, maximum: 35 },
+    secondIndex: { type: 'integer', minimum: 0, maximum: 35 },
     family: { type: 'string', enum: FAMILIES },
     target: { type: 'integer' },
     paused: { type: 'boolean' },
@@ -60,11 +66,12 @@ export const actionSchema = {
 };
 const fields: Record<string, string[]> = {
   shift: ['axis', 'line', 'amount'],
-  cast: ['id', 'index', 'family'],
+  cast: ['id', 'index', 'family', 'secondIndex'],
   end_turn: [],
   potion: [],
   select_target: ['target'],
   choose_reward: ['id', 'slot'],
+  reroll_treasure: [],
   enter_room: ['id'],
   buy: ['id', 'slot'],
   leave_shop: [],
@@ -112,7 +119,13 @@ export function gameAction(s: State, input: unknown): Result {
       const family = p.family ?? 'blade';
       if (!FAMILIES.includes(family as Family))
         throw Error('Неизвестное семейство.');
-      return castSkill(s, id(), index, family as Family);
+      return castSkill(
+        s,
+        id(),
+        index,
+        family as Family,
+        p.secondIndex === undefined ? undefined : integer('secondIndex', 0, 35),
+      );
     }
     case 'end_turn':
       need('battle');
@@ -126,6 +139,8 @@ export function gameAction(s: State, input: unknown): Result {
         throw Error('Цель недоступна.');
       return { state: { ...s, target }, frames: [] };
     }
+    case 'reroll_treasure':
+      return rerollTreasure(s);
     case 'choose_reward':
       if (p.id !== null) id();
       return chooseReward(s, p.id as string | null, slot);
@@ -155,7 +170,16 @@ export function gameAction(s: State, input: unknown): Result {
 export function gameSnapshot(s: State, busy: boolean, hidden = false) {
   return {
     phase: s.phase,
-    rulesVersion: s.rulesVersion === 2 ? 'v0.2' : 'classic',
+    rulesVersion:
+      s.rulesVersion === 3
+        ? 'v0.2-stage2'
+        : s.rulesVersion === 2
+          ? 'v0.2'
+          : 'classic',
+    seal: s.seal ?? null,
+    rewardSource: s.rewardSource ?? null,
+    canRerollTreasure: canRerollTreasure(s),
+    map: routeMap(s),
     weapon: equipmentForRun(s, s.equipment.weapon),
     runeReady: s.flags.includes('turn:rune-armed'),
     restOptions: s.phase === 'rest' ? restOptions(s) : [],
@@ -190,7 +214,7 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
       focusCapacity: equipmentBonus(s, 'trousers'),
     },
     modifiers: s.modifiers,
-    offers: s.offers,
+    offers: s.offers.map((o) => offerForRun(s, o)),
     routes: s.phase === 'map' ? nextRooms(s) : [],
     trial: s.trial,
     validMoves:
@@ -257,7 +281,7 @@ export function registerGameTools(
       name: 'perform_game_action',
       title: 'Выполнить действие в игре',
       description:
-        'Execute one action in the current local game and update the visible interface. Read read_game first. shift needs axis/line/amount; cast needs equipped skill id (or edit), optionally index/family; select_target needs enemy target; choose_reward needs offer id or null to skip, and slot 0/1 when replacing; enter_room/buy/rest/event need id; rest id is heal or a current restOptions id (including sharpen in v0.2); event id is relic or supplies; in room 17 use repair (30 gold, reduces tides by 2) or supplies; pause_trial needs paused. end_turn, potion and leave_shop take no other parameters. Does not start or reset runs.',
+        'Execute one action in the current local game and update the visible interface. Read read_game first. shift needs axis/line/amount; cast needs equipped skill id (or edit), optionally index/family; Double Edit requires two distinct index/secondIndex cells and one family; select_target needs enemy target; reroll_treasure costs 20 gold once per treasure; choose_reward needs offer id or null to skip (normal fight: +8 gold, seal: decline and heal), and slot 0/1 when replacing; enter_room/buy/rest/event need id; rest id is heal or a current restOptions id (including sharpen in v0.2); event id is relic or supplies; in room 17 use repair (30 gold, reduces tides by 2) or supplies; pause_trial needs paused. end_turn, potion and leave_shop take no other parameters. Does not start or reset runs.',
       inputSchema: actionSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: act,

@@ -5,6 +5,7 @@ export const RoomIcon = ({ kind }: { kind: string }) => {
       name={
         (
           {
+            treasure: 'relic',
             battle: 'blade',
             elite: 'crown',
             event: 'relic',

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as g from '../game/engine.ts';
+import * as g from './helpers/stage1-engine.mjs';
 
 const cache = new Map();
 function fixture(family = 'blade', count = 3) {
@@ -250,7 +250,7 @@ test('invalid qualities, unknown rule versions and malformed weapon offers are r
     assert.equal(g.loadSave(bad), null);
   }
   const bad = g.copy(s);
-  bad.rulesVersion = 3;
+  bad.rulesVersion = 99;
   assert.equal(g.loadSave(bad), null);
   const legacy = g.copy(s);
   delete legacy.rulesVersion;

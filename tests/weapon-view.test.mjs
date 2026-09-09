@@ -11,7 +11,7 @@ const { BoardTileArt } = await import('../components/board-tile-art.tsx');
 const { WeaponGallery } = await import('../components/equipment.tsx');
 const { weaponArtById, heldWeaponTransform } =
   await import('../game/weapon-art.ts');
-const g = await import('../game/engine.ts');
+const g = await import('./helpers/stage1-engine.mjs');
 const rig = JSON.parse(
   readFileSync(new URL('../game/hero-art.json', import.meta.url)),
 );

@@ -1,6 +1,7 @@
 /* eslint-disable nextjs/no-img-element -- Room artwork keeps its original native pixels. */
 'use client';
 import { useState } from 'react';
+import { RewardActions, SealConfirmation } from '@/components/journey-rewards';
 import { ArchiveEntrance } from '@/components/archive-mechanics';
 import { biomeAt, TOTAL_ROOMS } from '@/game/engine';
 import { RoomIcon } from '@/components/room-icon';
@@ -34,6 +35,8 @@ import {
   equipmentById,
   EQUIPMENT_SLOT_NAMES,
   itemById,
+  itemForRun,
+  offerForRun,
   chooseReward,
   enterRoom,
   buy,
@@ -56,6 +59,9 @@ export const ItemIcon = ({ id }: { id: string }) => {
       name={
         (
           {
+            'red-line': 'blade',
+            'enduring-record': 'shield',
+            'double-edit': 'focus',
             thorns: 'shield',
             coil: 'spark',
             return: 'shield',
@@ -120,6 +126,7 @@ export function RunPanel({
     (s.phase === 'trial' && !!s.trial?.paused);
   const select = (o: Offer) => {
     if (
+      o.kind === 'seal' ||
       o.kind === 'equipment' ||
       (o.kind === 'skill' && s.skills.length >= 2) ||
       (o.kind === 'modifier' && s.modifiers.length >= 2)
@@ -137,12 +144,19 @@ export function RunPanel({
     setPending(null);
   };
   const heading = pending
-    ? pending.kind === 'equipment'
-      ? 'Надеть находку?'
-      : 'Что заменить?'
+    ? pending.kind === 'seal'
+      ? 'Принять цену печати?'
+      : pending.kind === 'equipment'
+        ? 'Надеть находку?'
+        : 'Что заменить?'
     : (
         {
-          reward: s.room === 10 ? 'Цензор повержен' : 'Выбери находку',
+          reward:
+            s.rewardSource === 'treasure'
+              ? 'Находка в кладовой'
+              : s.room === 10
+                ? 'Цензор повержен'
+                : 'Выбери находку',
           map: 'Куда дальше?',
           shop: s.room > 10 ? 'Плавучая лавка Саввы' : 'Торговец у переправы',
           rest: s.room > 10 ? 'Сухой причал' : 'У тлеющего костра',
@@ -169,11 +183,18 @@ export function RunPanel({
       : `${pending.name}. ${pending.description}`
     : (
         {
-          reward: 'Одна вещь останется с тобой до конца забега.',
+          reward:
+            s.rewardSource === 'treasure'
+              ? `Одна случайная реликвия бесплатно. У тебя ${s.gold} золота.`
+              : s.rewardSource === 'seal'
+                ? 'Одна мощная печать с ценой. Можно отказаться без потерь.'
+                : s.rewardSource === 'elite'
+                  ? 'Выбери одну из сильных находок. Золото за бой уже получено.'
+                  : 'Одна вещь останется с тобой до конца забега.',
           map: `Комната ${s.room + 1} из ${TOTAL_ROOMS}. Выбирай риск, который готов принять.`,
           shop: `У тебя ${s.gold} золота. Ассортимент не обновляется.`,
           rest:
-            s.rulesVersion === 2
+            (s.rulesVersion ?? 0) >= 2
               ? 'Выбери лечение, усиление поля или заточку оружия.'
               : 'Выбери лечение или усиление поля.',
           event:
@@ -248,7 +269,17 @@ export function RunPanel({
         )}
         {pending ? (
           <>
-            {pending.kind === 'equipment' ? (
+            {pending.kind === 'seal' ? (
+              <SealConfirmation
+                game={s}
+                offer={pending}
+                busy={busy}
+                confirm={() => {
+                  void act(chooseReward(s, pending.id));
+                  setPending(null);
+                }}
+              />
+            ) : pending.kind === 'equipment' ? (
               <>
                 <EquipmentComparison game={s} id={pending.id} />
                 {s.phase === 'shop' && <ShopPrice offer={pending} />}
@@ -279,7 +310,7 @@ export function RunPanel({
                       <ItemIcon id={id} />
                       <span>
                         <strong>{itemById(id)?.name}</strong>
-                        <small>{itemById(id)?.description}</small>
+                        <small>{itemForRun(s, id)?.description}</small>
                       </span>
                       <ArrowRight />
                     </Button>
@@ -298,58 +329,57 @@ export function RunPanel({
               <div
                 className={`offer-grid ${s.phase === 'shop' ? 'shop-grid' : s.offers.length === 4 ? 'four-offers' : ''}`}
               >
-                {s.offers.map((o) => (
-                  <button
-                    key={o.id}
-                    className={`offer-card ${o.kind === 'modifier' ? 'modifier-offer' : ''} ${o.kind === 'equipment' ? `equipment-offer gear-tier-${o.quality ?? equipmentById(o.id)?.tier}` : ''}`}
-                    onClick={() => select(o)}
-                    disabled={
-                      busy ||
-                      (s.phase === 'shop' && s.gold < (o.cost ?? 0)) ||
-                      (o.kind === 'potion' && s.potions >= 2)
-                    }
-                  >
-                    <span className="offer-icon">
-                      <ItemIcon id={o.id} />
-                    </span>
-                    <span className="offer-kind">
-                      {o.kind === 'equipment'
-                        ? EQUIPMENT_SLOT_NAMES[
-                            equipmentById(o.id)!.slot
-                          ].toUpperCase()
-                        : o.kind === 'relic'
-                          ? 'РЕЛИКВИЯ'
-                          : o.kind === 'modifier'
-                            ? 'ФИШКИ'
-                            : o.kind === 'skill'
-                              ? 'ПРИЁМ'
-                              : o.kind === 'upgrade'
-                                ? 'УЛУЧШЕНИЕ'
-                                : 'ЗЕЛЬЕ'}
-                    </span>
-                    <strong>{o.name}</strong>
-                    <p>{o.description}</p>
-                    {o.kind === 'equipment' && (
-                      <span className="equipment-replaces">
-                        {s.equipment[equipmentById(o.id)!.slot]
-                          ? `Вместо: ${equipmentById(s.equipment[equipmentById(o.id)!.slot])?.name}`
-                          : 'Свободный слот шлема'}
+                {s.offers
+                  .map((o) => offerForRun(s, o))
+                  .map((o) => (
+                    <button
+                      key={o.id}
+                      className={`offer-card ${o.kind === 'modifier' ? 'modifier-offer' : ''} ${o.kind === 'equipment' ? `equipment-offer gear-tier-${o.quality ?? equipmentById(o.id)?.tier}` : ''}`}
+                      onClick={() => select(o)}
+                      disabled={
+                        busy ||
+                        (s.phase === 'shop' && s.gold < (o.cost ?? 0)) ||
+                        (o.kind === 'potion' && s.potions >= 2)
+                      }
+                    >
+                      <span className="offer-icon">
+                        <ItemIcon id={o.id} />
                       </span>
-                    )}
-                    <span className="offer-tag">
-                      {o.cost ? <ShopPrice offer={o} /> : o.tag}
-                    </span>
-                  </button>
-                ))}
+                      <span className="offer-kind">
+                        {o.kind === 'seal'
+                          ? 'ПЕЧАТЬ ЦЕНЗОРА'
+                          : o.kind === 'equipment'
+                            ? EQUIPMENT_SLOT_NAMES[
+                                equipmentById(o.id)!.slot
+                              ].toUpperCase()
+                            : o.kind === 'relic'
+                              ? 'РЕЛИКВИЯ'
+                              : o.kind === 'modifier'
+                                ? 'ФИШКИ'
+                                : o.kind === 'skill'
+                                  ? 'ПРИЁМ'
+                                  : o.kind === 'upgrade'
+                                    ? 'УЛУЧШЕНИЕ'
+                                    : 'ЗЕЛЬЕ'}
+                      </span>
+                      <strong>{o.name}</strong>
+                      <p>{o.description}</p>
+                      {o.kind === 'equipment' && (
+                        <span className="equipment-replaces">
+                          {s.equipment[equipmentById(o.id)!.slot]
+                            ? `Вместо: ${equipmentById(s.equipment[equipmentById(o.id)!.slot])?.name}`
+                            : 'Свободный слот шлема'}
+                        </span>
+                      )}
+                      <span className="offer-tag">
+                        {o.cost ? <ShopPrice offer={o} /> : o.tag}
+                      </span>
+                    </button>
+                  ))}
               </div>
             )}
             {s.phase === 'reward' && (
-              <Button
-                variant="ghost"
-                onClick={() => void act(chooseReward(s, null))}
-              >
-                Пропустить находку и открыть карту <ArrowRight />
-              </Button>
+              <RewardActions game={s} busy={busy} act={act} />
             )}
             {s.phase === 'reward' && <NextStops game={s} />}
             {s.phase === 'shop' && (
@@ -384,7 +414,7 @@ export function RunPanel({
                   </span>
                 </Button>
                 <span className="choice-divider">
-                  {s.rulesVersion === 2
+                  {(s.rulesVersion ?? 0) >= 2
                     ? 'ИЛИ ВЫБРАТЬ УСИЛЕНИЕ'
                     : 'ИЛИ УЛУЧШИТЬ ПОЛЕ'}
                 </span>

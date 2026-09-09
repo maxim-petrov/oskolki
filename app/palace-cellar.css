@@ -1030,3 +1030,35 @@ html[data-skin='palace-cellar'] {
     margin: 0 0 10px;
   }
 }
+
+/* Stage-2 extensions use the same paper, ink and hard outlines. */
+.reward-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.reward-actions p,
+.seal-confirmation p {
+  color: var(--palace-quiet);
+  font-size: 14px;
+}
+.seal-confirmation {
+  display: grid;
+  gap: 16px;
+  text-align: left;
+}
+.active-seal {
+  width: 100%;
+  margin: 12px 0;
+  text-align: left;
+  background: var(--palace-paper-pink);
+  border: 3px solid var(--palace-ink);
+}
+.active-seal strong,
+.active-seal small {
+  display: block;
+}
+.tile.edit-first {
+  outline: 4px dashed var(--palace-ink);
+  outline-offset: -6px;
+}

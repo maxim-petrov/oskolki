@@ -9,7 +9,7 @@ const { Merchant, MerchantArt, ShopPrice } =
   await import('../components/merchant.tsx');
 const { JourneyMap, NextStops } = await import('../components/journey-map.tsx');
 const { RunSeed } = await import('../components/run-seed.tsx');
-const g = await import('../game/engine.ts');
+const g = await import('./helpers/stage1-engine.mjs');
 const { gameSnapshot } = await import('../game/webmcp.ts');
 const { merchantGreeting } = await import('../game/merchant.ts');
 const render = (component, props) =>

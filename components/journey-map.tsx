@@ -99,6 +99,7 @@ export function JourneyMap({
             {rows.slice(0, -1).flatMap((row, ri) =>
               row.flatMap((from, fi) =>
                 rows[ri + 1].map((to, ti) => {
+                  if (from.next && !from.next.includes(to.id)) return null;
                   const a = position(from.depth, fi, row.length),
                     b = position(to.depth, ti, rows[ri + 1].length);
                   const taken =
@@ -109,6 +110,8 @@ export function JourneyMap({
                   return (
                     <path
                       key={`${from.id}-${to.id}`}
+                      data-from={from.id}
+                      data-to={to.id}
                       className={taken ? 'taken' : available ? 'available' : ''}
                       d={`M ${a.x * 10} ${a.y + 56} L ${b.x * 10} ${b.y + 56}`}
                       vectorEffect="non-scaling-stroke"
@@ -133,6 +136,7 @@ export function JourneyMap({
                   }}
                   disabled={!active || busy}
                   aria-pressed={active ? selected?.id === node.id : undefined}
+                  title={node.description}
                   aria-label={`Комната ${node.depth}: ${node.name}. ${statusText[node.status]}`}
                   onClick={() => setSelectedId(node.id)}
                 >

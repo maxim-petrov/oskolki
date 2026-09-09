@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const { EnemyArt } = await import('../components/enemy-art.tsx');
 const { CombatSprite } = await import('../components/combat-sprite.tsx');
 const { EnemyIntentLabel } = await import('../components/enemy-intent.tsx');
-const g = await import('../game/engine.ts');
+const g = await import('./helpers/stage1-engine.mjs');
 const art = JSON.parse(
   readFileSync(new URL('../game/enemy-art.json', import.meta.url)),
 );

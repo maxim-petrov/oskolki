@@ -68,6 +68,7 @@ import {
   type Balance,
 } from '@/game/engine';
 import { registerGameTools, gameAction, gameSnapshot } from '@/game/webmcp';
+import { ActiveSeal } from '@/components/journey-rewards';
 import { SkinIcon } from '@/components/skin-icon';
 import {
   EquipmentPanel,
@@ -81,6 +82,7 @@ import { motionFor, type Motion } from '@/game/motion';
 import { Progress } from '@/components/ui/progress';
 import {
   startRun,
+  hasSeal,
   move,
   endTurn,
   castSkill,
@@ -115,6 +117,7 @@ export default function Game() {
   );
   const [selected, setSelected] = useState(14);
   const [editing, setEditing] = useState<Family | null>(null);
+  const [editFirst, setEditFirst] = useState<number | null>(null);
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false),
     [discoveries, setDiscoveries] = useState(false),
@@ -157,6 +160,7 @@ export default function Game() {
     busyRef.current = true;
     setBusy(true);
     setEditing(null);
+    setEditFirst(null);
     let previous = gameRef.current;
     const reduced = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
@@ -208,6 +212,7 @@ export default function Game() {
     gameRef.current = next;
     setGame(next);
     setEditing(null);
+    setEditFirst(null);
     setFrame(null);
     setPreview(null);
     setRestartConfirm(false);
@@ -246,7 +251,7 @@ export default function Game() {
     const fresh = updated.unlocked.filter((x) => !old.unlocked.includes(x));
     if (fresh.length)
       setNewDiscovery(
-        game.rulesVersion === 2
+        (game.rulesVersion ?? 0) >= 2
           ? 'Новое достижение! Отмечено в справочнике.'
           : 'Новое открытие! Реликвии станут доступны в следующем забеге.',
       );
@@ -292,16 +297,28 @@ export default function Game() {
   }, []);
   const doMove = (axis: 'row' | 'col', line: number, amount: number) => {
     if (busyRef.current || !active || game.moved || game.trial?.paused) return;
-    if (game.rulesVersion === 2) {
+    if ((game.rulesVersion ?? 0) >= 2) {
       setEditing(null);
+      setEditFirst(null);
       setPreview({ axis, line, amount });
     } else void play(move(game, axis, line, amount));
+  };
+  const selectEditCell = (index: number) => {
+    if (!editing || busyRef.current) return;
+    if (hasSeal(game, 'double-edit')) {
+      if (editFirst === null) {
+        setEditFirst(index);
+        return;
+      }
+      if (editFirst === index) return;
+      void play(castSkill(game, 'edit', editFirst, editing, index));
+    } else void play(castSkill(game, 'edit', index, editing));
   };
   const pointerDown = (e: PointerEvent<HTMLButtonElement>, i: number) => {
     if (busy || !active || game.trial?.paused) return;
     setSelected(i);
     if (editing) {
-      void play(castSkill(game, 'edit', i, editing));
+      selectEditCell(i);
       return;
     }
     if (game.moved) return;
@@ -337,7 +354,7 @@ export default function Game() {
   };
   const dragEnd = () => {
     gesture.current = null;
-    if (preview && game.rulesVersion !== 2) {
+    if (preview && (game.rulesVersion ?? 0) < 2) {
       doMove(preview.axis, preview.line, preview.amount);
       setPreview(null);
     }
@@ -359,6 +376,7 @@ export default function Game() {
       if (e.key === 'Escape') {
         e.preventDefault();
         setEditing(null);
+        setEditFirst(null);
         setPreview(null);
         gesture.current = null;
         return;
@@ -723,7 +741,7 @@ export default function Game() {
                     return (
                       <button
                         key={i}
-                        className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? 'tide-row' : ''}`}
+                        className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${editing && editFirst === i ? 'edit-first' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? 'tide-row' : ''}`}
                         aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
                         aria-pressed={selected === i}
                         onPointerDown={(e) => pointerDown(e, i)}
@@ -736,8 +754,7 @@ export default function Game() {
                         onClick={(e) => {
                           if (e.detail === 0) {
                             setSelected(i);
-                            if (editing)
-                              void play(castSkill(game, 'edit', i, editing));
+                            if (editing) selectEditCell(i);
                           }
                         }}
                       >
@@ -813,13 +830,13 @@ export default function Game() {
               })}
             </div>
           </div>
-          {game.rulesVersion !== 2 && (
+          {game.rulesVersion !== 3 && (
             <p className="rules-notice">
-              Этот забег идёт по прежним правилам. Пять поведений оружия
-              доступны в новом спуске.
+              Этот забег идёт по прежним правилам. Связанные ветки, кладовые и
+              печати Цензора доступны в новом спуске.
             </p>
           )}
-          {game.rulesVersion === 2 &&
+          {(game.rulesVersion ?? 0) >= 2 &&
             !busy &&
             active &&
             !modalOpen &&
@@ -838,7 +855,9 @@ export default function Game() {
             )}
           <div className="turn-controls">
             <output className="move-message">
-              {editing ? `Выбери фишку → ${FAMILY_NAMES[editing]}` : message}
+              {editing
+                ? `${hasSeal(game, 'double-edit') ? (editFirst === null ? 'Выбери первую из двух фишек' : 'Выбери вторую фишку; Esc — отмена') : 'Выбери фишку'} → ${FAMILY_NAMES[editing]}`
+                : message}
             </output>
             <Button
               className="end-turn"
@@ -880,6 +899,9 @@ export default function Game() {
             </div>
           </div>
           <EquipmentPanel game={s} onDetail={setDetail} />
+          {s.seal && (
+            <ActiveSeal seal={itemById(s.seal)!} onDetail={setDetail} />
+          )}
           <div className="section-label">
             <span className="eyebrow">ПРИЁМЫ</span>
             <span>{s.cast ? 'Использован' : '1 за ход'}</span>
@@ -911,12 +933,17 @@ export default function Game() {
                   setPreview(null);
                   gesture.current = null;
                   setEditing(editing ? null : 'blade');
+                  setEditFirst(null);
                 }}
               >
                 <SkinIcon name="focus" size={32} />
                 <span>
                   <strong>Правка поля</strong>
-                  <small>3 фокуса · замени одну фишку</small>
+                  <small>
+                    {hasSeal(game, 'double-edit')
+                      ? '3 фокуса · замени две разные фишки вместе'
+                      : '3 фокуса · замени одну фишку'}
+                  </small>
                 </span>
               </Button>
               {editing && (
@@ -1020,7 +1047,7 @@ export default function Game() {
         </span>
         <span>
           Выбери фишку + ← ↑ ↓ →
-          {game.rulesVersion === 2
+          {(game.rulesVersion ?? 0) >= 2
             ? ' · Enter — подтвердить · Esc — отменить'
             : ''}{' '}
           · Пробел — завершить ход
@@ -1116,7 +1143,7 @@ export default function Game() {
               Перетащи фишку вдоль строки или столбца. Двигается вся линия;
               вышедшие за край фишки возвращаются с другой стороны.
             </p>
-            {game.rulesVersion === 2 && (
+            {(game.rulesVersion ?? 0) >= 2 && (
               <p>
                 После выбора сдвига проверь результат под полем. «Сделать сдвиг»
                 или Enter подтверждает его, «Отмена» или Esc возвращает поле.

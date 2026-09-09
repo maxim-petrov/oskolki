@@ -246,13 +246,30 @@ export type Phase =
   | 'defeat';
 export type Room = {
   id: string;
-  kind: 'battle' | 'elite' | 'event' | 'trial' | 'shop' | 'rest' | 'boss';
+  kind:
+    | 'battle'
+    | 'elite'
+    | 'event'
+    | 'trial'
+    | 'shop'
+    | 'rest'
+    | 'boss'
+    | 'treasure';
   name: string;
   description: string;
+  roster?: EnemyKind[];
+  next?: string[];
 };
 export type Offer = {
   id: string;
-  kind: 'relic' | 'modifier' | 'skill' | 'upgrade' | 'potion' | 'equipment';
+  kind:
+    | 'relic'
+    | 'modifier'
+    | 'skill'
+    | 'upgrade'
+    | 'potion'
+    | 'equipment'
+    | 'seal';
   name: string;
   description: string;
   tag: string;
@@ -334,7 +351,8 @@ export const startingEquipment = (): Equipment => ({
   trousers: 'gear-worn-trousers',
 });
 export function equipmentBonus(s: State, slot: EquipmentSlot) {
-  if (slot === 'weapon' && s.rulesVersion === 2) return s.weaponQuality ?? 0;
+  if (slot === 'weapon' && (s.rulesVersion ?? 0) >= 2)
+    return s.weaponQuality ?? 0;
   return equipmentById(s.equipment[slot])?.bonus ?? 0;
 }
 export function equipmentSummary(item: EquipmentItem | undefined) {
@@ -397,18 +415,71 @@ export function equipmentForRun(
   quality?: 0 | 1 | 2,
 ) {
   const item = equipmentById(id);
-  if (item?.slot !== 'weapon' || s.rulesVersion !== 2) return item;
+  if (item?.slot !== 'weapon' || (s.rulesVersion ?? 0) < 2) return item;
   return weaponOffer(
     item.id,
     quality ?? (id === s.equipment.weapon ? (s.weaponQuality ?? 0) : 0),
   );
 }
+export function itemRequirement(s: State, id: string): string | undefined {
+  if (s.rulesVersion !== 3) return;
+  if (
+    ['lens', 'vessel'].includes(id) &&
+    !s.skills.some((id) => ['blood', 'seal'].includes(id))
+  )
+    return 'Нужен приём с ценой в здоровье.';
+  if (
+    ['toxin', 'heart'].includes(id) &&
+    s.equipment.weapon !== 'gear-rusty-dagger' &&
+    !s.modifiers.includes('venom')
+  )
+    return 'Нужен источник яда: ржавый кинжал или ядовитые клинки.';
+  if (id === 'conductor' && !s.modifiers.includes('bomb'))
+    return 'Нужна пороховая искра — модификатор с бомбами.';
+  if (id === 'return' && !s.skills.includes('bolt'))
+    return 'Нужен приём за 6 энергии: Разряд.';
+}
+export function offerForRun(s: State, offer: Offer): Offer {
+  if (s.rulesVersion !== 3 || !['skill', 'relic'].includes(offer.kind))
+    return offer;
+  // Temporary battle charges do not carry into the next room; permanent seal
+  // costs and the current equipment/relic dependencies do affect this choice.
+  const item = itemForRun({ ...s, flags: [] }, offer.id);
+  return item ? { ...offer, description: item.description } : offer;
+}
 export function itemForRun(s: State, id: string): Offer | undefined {
   const gear = equipmentForRun(s, id);
   if (gear) return gear;
   const item = itemById(id);
+  const requirement = itemRequirement(s, id);
+  if (item && requirement)
+    return { ...item, description: `${item.description} ${requirement}` };
   if (
-    s.rulesVersion === 2 &&
+    s.rulesVersion === 3 &&
+    item &&
+    ['bolt', 'pierce', 'blood', 'seal'].includes(id)
+  ) {
+    const base = { bolt: 12, pierce: 8, blood: 8, seal: 16 }[id]!;
+    const lens =
+      ['blood', 'seal'].includes(id) && s.relics.includes('lens') ? 4 : 0;
+    const rune =
+      ['bolt', 'seal'].includes(id) && s.flags.includes('turn:rune-armed')
+        ? 2
+        : 0;
+    const penalty = hasSeal(s, 'double-edit') ? 3 : 0;
+    const cost = {
+      bolt: '6 энергии',
+      pierce: '3 фокуса',
+      blood: '2 здоровья',
+      seal: '2 здоровья + 3 энергии',
+    }[id];
+    return {
+      ...item,
+      description: `${cost} · ${Math.max(0, base + lens + rune - penalty)} урона${id === 'pierce' ? ' сквозь блок' : ''}.${rune ? ' Рунный заряд +2 учтён.' : ''}${lens ? ' Линза +4 учтена.' : ''}${penalty ? ' Цена Двойной правки −3 учтена.' : ''}`,
+    };
+  }
+  if (
+    (s.rulesVersion ?? 0) >= 2 &&
     s.flags.includes('turn:rune-armed') &&
     ['bolt', 'seal'].includes(id) &&
     item
@@ -423,7 +494,7 @@ export function itemForRun(s: State, id: string): Offer | undefined {
   return item;
 }
 export function sharpeningOffer(s: State): Offer | undefined {
-  if (s.rulesVersion !== 2 || (s.weaponQuality ?? 0) >= 2) return;
+  if ((s.rulesVersion ?? 0) < 2 || (s.weaponQuality ?? 0) >= 2) return;
   return {
     id: 'sharpen',
     kind: 'upgrade',
@@ -438,7 +509,7 @@ export function restOptions(s: State) {
 }
 export function equipmentOptions(s: State): EquipmentItem[] {
   const maxTier = s.room >= 6 ? 2 : 1;
-  if (s.rulesVersion === 2) {
+  if ((s.rulesVersion ?? 0) >= 2) {
     const quality: 0 | 1 | 2 = s.room >= 11 ? 2 : s.room >= 5 ? 1 : 0;
     const weapons = WEAPONS.filter(
       (w) => w.id !== s.equipment.weapon || quality > (s.weaponQuality ?? 0),
@@ -493,8 +564,17 @@ export type Stats = {
 };
 export type State = {
   version: 2;
-  rulesVersion?: 2;
+  rulesVersion?: 2 | 3;
   weaponQuality?: 0 | 1 | 2;
+  streams?: Record<'map' | 'encounters' | 'loot', number>;
+  journey?: {
+    nodes: (Room & { depth: number; next: string[] })[];
+    current: string;
+    visited: string[];
+  };
+  seal?: SealId;
+  rewardSource?: 'battle' | 'elite' | 'treasure' | 'seal' | 'event' | 'trial';
+  treasureRerolled?: boolean;
   equipment: Equipment;
   seed: number;
   rng: number;
@@ -719,12 +799,68 @@ export const SKILLS: Offer[] = [
     tag: '6 фокуса',
   },
 ];
+export const SEALS: Offer[] = [
+  {
+    id: 'red-line',
+    kind: 'seal',
+    name: 'Красная строка',
+    tag: 'Сила за здоровье',
+    description:
+      '+4 урона каждой группе клинков. Цена: −8 максимального здоровья до конца спуска.',
+  },
+  {
+    id: 'enduring-record',
+    kind: 'seal',
+    name: 'Несгораемая запись',
+    tag: 'Запас защиты',
+    description:
+      'До 6 неиспользованного блока переносится в следующий ход. Цена: каждая группа щитов даёт на 2 блока меньше (минимум 0).',
+  },
+  {
+    id: 'double-edit',
+    kind: 'seal',
+    name: 'Двойная правка',
+    tag: 'Две клетки за 3 фокуса',
+    description:
+      'Правка меняет две разные клетки на одно выбранное семейство за 3 фокуса. Цена: атакующие приёмы наносят на 3 урона меньше (минимум 0).',
+  },
+];
+export type SealId = 'red-line' | 'enduring-record' | 'double-edit';
+export const hasSeal = (s: State, id: SealId) =>
+  s.rulesVersion === 3 && s.seal === id;
+export function sealConsequences(s: State, id: string) {
+  if (id === 'red-line') {
+    const max = s.maxHp - 8;
+    return max > 0
+      ? `Здоровье после печати и передышки: ${Math.min(max, Math.min(s.hp, max) + Math.ceil(max / 2))}/${max}. Каждая группа клинков: +4 урона, включая каскады.`
+      : 'Нужно больше 8 максимального здоровья. Эту печать принять нельзя.';
+  }
+  if (id === 'enduring-record')
+    return `Тройка щитов без временных бонусов: ${Math.max(0, 3 * s.balance.shield + 2 * s.upgrades.shield + equipmentBonus(s, 'clothing') - 2)} блока. Остаток после ответа врагов: до 6 на следующий ход; между комнатами не сохраняется.`;
+  const changed = { ...s, seal: 'double-edit' as const };
+  const skills = s.skills
+    .filter((id) => ['bolt', 'pierce', 'blood', 'seal'].includes(id))
+    .map(
+      (id) => `${itemById(id)?.name}: ${itemForRun(changed, id)?.description}`,
+    )
+    .join(' ');
+  return `Выбери семейство и две разные клетки. Замены и совпадения сработают вместе, только после второго выбора. Один приём за ход. Твои атакующие приёмы после печати: ${skills || 'пока не экипированы'}`;
+}
 export const itemById = (id: string) =>
-  [...RELICS, ...MODIFIERS, ...SKILLS, ...EQUIPMENT].find((x) => x.id === id);
+  [...RELICS, ...MODIFIERS, ...SKILLS, ...EQUIPMENT, ...SEALS].find(
+    (x) => x.id === id,
+  );
 export const copy = <T>(s: T): T => JSON.parse(JSON.stringify(s));
 // Mulberry32, adapted from Max's match3-engine/src/engine/rng.ts.
-export function random(s: State): number {
-  let t = (s.rng = (s.rng + 0x6d2b79f5) >>> 0);
+export function random(
+  s: State,
+  stream: 'board' | 'map' | 'encounters' | 'loot' = 'board',
+): number {
+  // Legacy runs retain their single sequence byte for byte.
+  let t =
+    s.rulesVersion === 3 && stream !== 'board'
+      ? (s.streams![stream] = (s.streams![stream] + 0x6d2b79f5) >>> 0)
+      : (s.rng = (s.rng + 0x6d2b79f5) >>> 0);
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -903,6 +1039,7 @@ function weaponAttack(s: State, count: number, venom: number) {
   if (['gear-rusty-dagger', 'gear-rune-sword'].includes(id))
     value = Math.max(0, base - 2);
   if (id === 'gear-axe') value = Math.max(0, base + (count >= 4 ? 4 : -2));
+  if (hasSeal(s, 'red-line')) value += 4;
   const splash = id === 'gear-cleaver' && second ? Math.floor(value / 3) : 0;
   const strikes = [
     { target: first, value: value - splash },
@@ -969,7 +1106,7 @@ function startTide(s: State) {
     ),
   ].sort((a, b) => a - b);
   s.tide = {
-    row: rows[Math.floor(random(s) * rows.length)] ?? 0,
+    row: rows[Math.floor(random(s, 'encounters') * rows.length)] ?? 0,
     turns: 3,
     cleared: false,
   };
@@ -1038,7 +1175,7 @@ function resolve(
         const venom = indices.filter(
           (i) => s.board[i].variant === 'venom',
         ).length;
-        if (s.rulesVersion === 2) weaponAttack(s, count, venom);
+        if ((s.rulesVersion ?? 0) >= 2) weaponAttack(s, count, venom);
         else {
           poison(s, venom);
           const value =
@@ -1062,6 +1199,7 @@ function resolve(
           block += 3;
           s.flags = s.flags.filter((x) => x !== 'return:armed');
         }
+        if (hasSeal(s, 'enduring-record')) block = Math.max(0, block - 2);
         s.block += block;
         if (s.trial) s.trial.protection += block;
         note(s, `Щиты: +${block} блока`);
@@ -1282,15 +1420,37 @@ function checkFinish(s: State) {
     delete s.tide;
     note(s, 'Странник пал. Следующий путь будет другим.');
   } else if (s.phase === 'battle' && s.enemies.every((e) => e.hp <= 0)) {
-    s.gold += s.roomKind === 'boss' ? 40 : s.roomKind === 'elite' ? 30 : 15;
+    s.gold +=
+      s.rulesVersion === 3
+        ? s.roomKind === 'boss'
+          ? s.room === TOTAL_ROOMS
+            ? 0
+            : 40
+          : s.roomKind === 'elite'
+            ? 25 + Math.floor(random(s, 'loot') * 11)
+            : 12 + Math.floor(random(s, 'loot') * 7)
+        : s.roomKind === 'boss'
+          ? 40
+          : s.roomKind === 'elite'
+            ? 30
+            : 15;
     if (s.roomKind === 'elite' && !s.flags.includes('run:elite'))
       s.flags.push('run:elite');
     s.phase =
       s.roomKind === 'boss' && s.room === TOTAL_ROOMS ? 'victory' : 'reward';
-    s.offers = rewardOffers(s);
+    if (s.rulesVersion === 3)
+      s.rewardSource =
+        s.roomKind === 'boss'
+          ? 'seal'
+          : s.roomKind === 'elite'
+            ? 'elite'
+            : 'battle';
+    s.offers =
+      s.rulesVersion === 3 && s.phase === 'victory' ? [] : rewardOffers(s);
+    if (s.rulesVersion === 3 && s.phase === 'victory') delete s.rewardSource;
     delete s.tide;
     s.board.forEach((t) => delete t.ink);
-    if (s.roomKind === 'boss' && s.room === 10) {
+    if (s.roomKind === 'boss' && s.room === 10 && s.rulesVersion !== 3) {
       heal(s, Math.ceil(s.maxHp / 2));
       s.potions = Math.min(2, s.potions + 1);
       s.heroPoison = 0;
@@ -1313,6 +1473,7 @@ function checkFinish(s: State) {
   ) {
     s.stats.trials++;
     s.phase = 'reward';
+    if (s.rulesVersion === 3) s.rewardSource = 'trial';
     s.offers = rewardOffers(s, true);
     note(s, 'Шлюз открыт! Испытание пройдено.');
     s.trial = null;
@@ -1321,11 +1482,12 @@ function checkFinish(s: State) {
 export function startRun(
   seed = 19062026,
   balance: Balance = DEFAULT_BALANCE,
+  rulesVersion: 2 | 3 = 3,
 ): State {
   seed = seed >>> 0;
   const s: State = {
     version: 2,
-    rulesVersion: 2,
+    rulesVersion,
     weaponQuality: 0,
     equipment: startingEquipment(),
     seed,
@@ -1377,6 +1539,14 @@ export function startRun(
     },
     trial: null,
   };
+  if (rulesVersion === 3) {
+    s.streams = {
+      map: (seed ^ 0x91e10da5) >>> 0,
+      encounters: (seed ^ 0x7f4a7c15) >>> 0,
+      loot: (seed ^ 0xbf58476d) >>> 0,
+    };
+    s.journey = createJourney(s);
+  }
   s.enemies = [makeEnemy(s, 'raider', 18)];
   s.target = s.enemies[0].id;
   newBoard(s);
@@ -1591,7 +1761,7 @@ export function endTurn(input: State): Result {
       const candidates = s.board.filter((t) => !t.root);
       for (let n = 0; n < action.value && candidates.length; n++) {
         const t = candidates.splice(
-          Math.floor(random(s) * candidates.length),
+          Math.floor(random(s, 'encounters') * candidates.length),
           1,
         )[0];
         t.root = { owner: e.id, expires: s.round + 1 };
@@ -1620,7 +1790,7 @@ export function endTurn(input: State): Result {
     if (action.type === 'ink') {
       const choices = s.board.filter((t) => !t.ink);
       for (let i = 0; i < action.value; i++) {
-        const index = Math.floor(random(s) * choices.length);
+        const index = Math.floor(random(s, 'encounters') * choices.length);
         choices.splice(index, 1)[0].ink = true;
       }
       note(s, `${e.name}: ${action.value} клякс. Матч фокуса смоет их все.`);
@@ -1659,7 +1829,7 @@ export function endTurn(input: State): Result {
   if (s.phase === 'battle') {
     s.round++;
     if (s.tide?.turns === 0) startTide(s);
-    s.block = 0;
+    s.block = hasSeal(s, 'enduring-record') ? Math.min(6, s.block) : 0;
     s.moved = false;
     s.cast = false;
     s.consumed = false;
@@ -1675,6 +1845,7 @@ export function castSkill(
   id: string,
   index = 0,
   family: Family = 'blade',
+  secondIndex?: number,
 ): Result {
   if (
     !['battle', 'trial'].includes(input.phase) ||
@@ -1699,6 +1870,17 @@ export function castSkill(
     return result(input, [], 'Недостаточно ресурсов.');
   if (index < 0 || index >= 36 || !FAMILIES.includes(family))
     return result(input, [], 'Выбери фишку на поле.');
+  const double = id === 'edit' && hasSeal(input, 'double-edit');
+  if (
+    input.rulesVersion === 3 &&
+    (!Number.isInteger(index) ||
+      (double &&
+        (!Number.isInteger(secondIndex) ||
+          secondIndex! < 0 ||
+          secondIndex! >= 36 ||
+          secondIndex === index)))
+  )
+    return result(input, [], 'Выбери две разные клетки для правки.');
   const s = copy(input);
   s.cast = true;
   s.stats.skills++;
@@ -1713,7 +1895,7 @@ export function castSkill(
   if (cost[0] >= 6 && s.relics.includes('return')) s.flags.push('return:armed');
   const bonus = cost[2] && s.relics.includes('lens') ? 4 : 0;
   const rune =
-    s.rulesVersion === 2 &&
+    (s.rulesVersion ?? 0) >= 2 &&
     cost[0] > 0 &&
     ['bolt', 'seal'].includes(id) &&
     s.flags.includes('turn:rune-armed')
@@ -1723,14 +1905,18 @@ export function castSkill(
     s.flags = s.flags.filter((f) => f !== 'turn:rune-armed');
     note(s, 'Рунный заряд: +2 урона приёму.');
   }
-  if (id === 'bolt') hit(s, 12 + rune);
+  const damage = (value: number) =>
+    Math.max(0, value - (hasSeal(s, 'double-edit') ? 3 : 0));
+  if (id === 'bolt') hit(s, damage(12 + rune));
   if (id === 'guard') s.block += 8;
-  if (id === 'pierce') hit(s, 8, true);
-  if (id === 'blood') hit(s, 8 + bonus);
-  if (id === 'seal') hit(s, 16 + bonus + rune);
+  if (id === 'pierce') hit(s, damage(8), true);
+  if (id === 'blood') hit(s, damage(8 + bonus));
+  if (id === 'seal') hit(s, damage(16 + bonus + rune));
   if (id === 'edit') {
-    s.board[index] = tile(s, family);
-    s.board[index].variant = null;
+    for (const cell of double ? [index, secondIndex!] : [index]) {
+      s.board[cell] = tile(s, family);
+      s.board[cell].variant = null;
+    }
     if (s.relics.includes('order')) s.block += 3;
   }
   if (id === 'reshape') {
@@ -1742,14 +1928,20 @@ export function castSkill(
   }
   note(
     s,
-    id === 'edit' ? 'Правка: фишка заменена' : `Приём: ${itemById(id)?.name}`,
+    id === 'edit'
+      ? double
+        ? 'Правка: две фишки заменены вместе'
+        : 'Правка: фишка заменена'
+      : `Приём: ${itemById(id)?.name}`,
   );
   const frames: Frame[] = [
     {
       state: copy(s),
       cells:
         id === 'edit'
-          ? [index]
+          ? double
+            ? [index, secondIndex!]
+            : [index]
           : id === 'reshape'
             ? [
                 Math.floor(index / 6) * 6,
@@ -1797,8 +1989,9 @@ export function consumePotion(input: State): Result {
   ]);
 }
 export function rewardOffers(s: State, strong = false): Offer[] {
+  if (s.rulesVersion === 3) return journeyRewardOffers(s, strong);
   const gearPool = equipmentOptions(s);
-  if (s.room === 1 && s.rulesVersion === 2) {
+  if (s.room === 1 && (s.rulesVersion ?? 0) >= 2) {
     const weapons = gearPool.filter((o) => o.slot === 'weapon');
     const mods = MODIFIERS.filter((o) => !s.modifiers.includes(o.id));
     const useful = RELICS.filter(
@@ -1807,11 +2000,11 @@ export function rewardOffers(s: State, strong = false): Offer[] {
         !s.relics.includes(r.id),
     );
     return [weapons, mods, useful].flatMap((pool) =>
-      pool.length ? [pool[Math.floor(random(s) * pool.length)]] : [],
+      pool.length ? [pool[Math.floor(random(s, 'loot') * pool.length)]] : [],
     );
   }
   const equipment = gearPool.length
-    ? [gearPool[Math.floor(random(s) * gearPool.length)]]
+    ? [gearPool[Math.floor(random(s, 'loot') * gearPool.length)]]
     : [];
   if (s.room === 1)
     return [
@@ -1824,7 +2017,7 @@ export function rewardOffers(s: State, strong = false): Offer[] {
     ...RELICS.filter(
       (x) =>
         !s.relics.includes(x.id) &&
-        (s.rulesVersion === 2 ||
+        ((s.rulesVersion ?? 0) >= 2 ||
           BASE_RELICS.includes(x.id) ||
           s.flags.includes(`run:available:${x.id}`)),
     ),
@@ -1845,10 +2038,10 @@ export function rewardOffers(s: State, strong = false): Offer[] {
         ? 'prism'
         : null;
   const candidate = pool.findIndex((x) => x.id === synergy);
-  if (s.rulesVersion !== 2 && candidate >= 0)
+  if ((s.rulesVersion ?? 0) < 2 && candidate >= 0)
     offers.push(pool.splice(candidate, 1)[0]);
   while (offers.length < 3 && pool.length)
-    offers.push(pool.splice(Math.floor(random(s) * pool.length), 1)[0]);
+    offers.push(pool.splice(Math.floor(random(s, 'loot') * pool.length), 1)[0]);
   return [...equipment, ...offers];
 }
 
@@ -1976,8 +2169,8 @@ export function abandonMeta(input: Meta, s: State) {
   }
   return m;
 }
-export function availableRelics(m: Meta, rulesVersion?: 2) {
-  if (rulesVersion === 2) return RELICS.map((r) => r.id);
+export function availableRelics(m: Meta, rulesVersion?: 2 | 3) {
+  if ((rulesVersion ?? 0) >= 2) return RELICS.map((r) => r.id);
   return [
     ...BASE_RELICS,
     ...ACHIEVEMENTS.filter((a) => m.unlocked.includes(a.id)).map(
@@ -1993,6 +2186,11 @@ export function withUnlocks(s: State, m: Meta) {
   return s;
 }
 export function nextRooms(s: State): Room[] {
+  if (s.rulesVersion === 3 && s.journey) {
+    const ids =
+      s.journey.nodes.find((n) => n.id === s.journey!.current)?.next ?? [];
+    return s.journey.nodes.filter((n) => ids.includes(n.id));
+  }
   return roomsAtDepth(s.room + 1);
 }
 // The map and room-entry validation share the same route definitions.
@@ -2142,11 +2340,421 @@ export function roomsAtDepth(n: number): Room[] {
     encounter('2-armored', 'battle', 'Скреплённый проход'),
   ];
 }
+// Stage 2: each choice owns its lane until the next shared stop.
+function createJourney(s: State): NonNullable<State['journey']> {
+  const nodes: NonNullable<State['journey']>['nodes'] = [];
+  for (const offset of [0, 10]) {
+    const archive = offset > 0;
+    const riskLane = Math.floor(random(s, 'map') * 2);
+    const trialLane = Math.floor(random(s, 'map') * 2);
+    const firstPool: EnemyKind[] = archive
+      ? ['ink-scribe', 'ink-eel', 'lantern-fish']
+      : ['paper-rat', 'stapler', 'moth'];
+    const secondPool: EnemyKind[] = archive
+      ? ['leech', 'librarian', 'lantern-fish']
+      : ['ink-slime', 'librarian', 'candle'];
+    for (let local = 1; local <= 10; local++) {
+      const depth = offset + local;
+      const forked = [2, 3, 4, 6, 7, 8].includes(local);
+      for (let lane = 0; lane < (forked ? 2 : 1); lane++) {
+        let kind: Room['kind'] = 'battle';
+        let roster: EnemyKind[] | undefined;
+        let name = '';
+        if (local === 1) {
+          roster = archive ? ['reed-crab'] : ['raider'];
+          name = archive ? 'Вход в затопленный архив' : 'Вход в крипту';
+        }
+        if ([2, 6].includes(local)) {
+          const pool = local === 2 ? firstPool : secondPool;
+          roster = [
+            pool.splice(
+              Math.floor(random(s, 'encounters') * pool.length),
+              1,
+            )[0],
+          ];
+        }
+        if (local === 3) {
+          kind = 'treasure';
+          name = lane ? 'Забытая кладовая' : 'Запечатанный запасник';
+        }
+        if (local === 4) {
+          kind = lane === riskLane ? 'elite' : 'battle';
+          roster = archive
+            ? kind === 'elite'
+              ? ['ink-scribe', 'stapler']
+              : ['anchor']
+            : kind === 'elite'
+              ? ['bell', 'paper-rat']
+              : ['eraser'];
+        }
+        if (local === 5) {
+          kind = 'shop';
+          name = archive ? 'Плавучая лавка Саввы' : 'Торговец у переправы';
+        }
+        if (local === 7) {
+          kind = lane === trialLane ? 'trial' : 'event';
+          name =
+            kind === 'trial'
+              ? 'Закрывающийся шлюз'
+              : archive
+                ? 'Сердце насосной'
+                : 'Тайник странника';
+        }
+        if (local === 8) {
+          kind = lane === trialLane ? 'elite' : 'battle';
+          roster = archive
+            ? kind === 'elite'
+              ? ['mirror', 'anchor']
+              : ['ink-scribe', 'ink-slime']
+            : kind === 'elite'
+              ? ['safe', 'mirror']
+              : ['candle'];
+        }
+        if (local === 9) {
+          kind = 'rest';
+          name = archive ? 'Сухой причал' : 'Тлеющий костёр';
+        }
+        if (local === 10) {
+          kind = 'boss';
+          name = archive ? 'Хранитель прилива' : 'Цензор';
+          roster = archive ? ['tide-keeper'] : ['censor'];
+        }
+        if (!name)
+          name = `${kind === 'elite' ? 'Элита: ' : ''}${roster!.map((e) => ENEMY_CATALOG[e].name).join(' и ')}`;
+        const reward = {
+          battle: 'Бой: 12–18 золота и одна из двух находок.',
+          elite:
+            'Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.',
+          treasure:
+            'Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.',
+          event: archive
+            ? 'Припасы бесплатно или ремонт насоса за 30 золота.'
+            : 'Припасы бесплатно или сильная находка за 5 здоровья.',
+          trial:
+            '45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.',
+          shop: 'Ассортимент и скидки фиксированы. Здесь ветки соединяются.',
+          rest: 'Лечение или усиление. Здесь ветки соединяются.',
+          boss: archive
+            ? 'Последний бой спуска.'
+            : '40 золота, выбор печати с ценой или отказ. Затем передышка и архив.',
+        }[kind];
+        let next: string[] = [];
+        if (depth < TOTAL_ROOMS) {
+          next = [1, 5].includes(local)
+            ? [`${depth + 1}-0`, `${depth + 1}-1`]
+            : [2, 3, 6, 7].includes(local)
+              ? [`${depth + 1}-${lane}`]
+              : [`${depth + 1}-0`];
+        }
+        const continuation =
+          local === 2
+            ? ` Затем кладовая → ${lane === riskLane ? 'элита' : 'обычный бой'} → магазин.`
+            : local === 6
+              ? ` Затем ${lane === trialLane ? 'испытание → элита' : 'событие → обычный бой'} → привал.`
+              : '';
+        nodes.push({
+          id: `${depth}-${lane}`,
+          depth,
+          kind,
+          name,
+          description: reward + continuation,
+          ...(roster ? { roster } : {}),
+          next,
+        });
+      }
+    }
+  }
+  return { nodes, current: '1-0', visited: ['1-0'] };
+}
+function drawOffers(s: State, pool: Offer[], count: number): Offer[] {
+  const remaining = [...pool],
+    result: Offer[] = [];
+  while (remaining.length && result.length < count)
+    result.push(
+      remaining.splice(Math.floor(random(s, 'loot') * remaining.length), 1)[0],
+    );
+  return result;
+}
+function treasureOffers(s: State, excluded: string[] = []) {
+  return drawOffers(
+    s,
+    RELICS.filter((o) => !s.relics.includes(o.id) && !excluded.includes(o.id)),
+    1,
+  );
+}
+export function canRerollTreasure(s: State) {
+  return (
+    s.rulesVersion === 3 &&
+    s.phase === 'reward' &&
+    s.rewardSource === 'treasure' &&
+    !s.treasureRerolled &&
+    s.gold >= 20 &&
+    RELICS.some(
+      (o) => !s.relics.includes(o.id) && !s.offers.some((a) => a.id === o.id),
+    )
+  );
+}
+export function rerollTreasure(input: State): Result {
+  if (!canRerollTreasure(input))
+    return result(
+      input,
+      [],
+      'Нужны 20 золота, другая доступная реликвия и неиспользованная смена находки.',
+    );
+  const s = copy(input);
+  s.offers = treasureOffers(
+    s,
+    s.offers.map((o) => o.id),
+  );
+  s.gold -= 20;
+  s.treasureRerolled = true;
+  note(s, 'Кладовая: новая находка за 20 золота. Повторная смена недоступна.');
+  return result(s);
+}
+function journeyRewardOffers(s: State, strong: boolean): Offer[] {
+  if (s.roomKind === 'boss' && s.room === TOTAL_ROOMS) return [];
+  if (s.rewardSource === 'seal') return copy(SEALS);
+  if (s.rewardSource === 'treasure') return treasureOffers(s);
+  const relics = RELICS.filter((o) => !s.relics.includes(o.id));
+  const modifiers = MODIFIERS.filter((o) => !s.modifiers.includes(o.id));
+  if (s.room === 1 && !strong) {
+    return [
+      ...drawOffers(
+        s,
+        equipmentOptions(s).filter((o) => o.slot === 'weapon'),
+        1,
+      ),
+      ...drawOffers(s, modifiers, 1),
+      ...drawOffers(
+        s,
+        relics.filter((o) =>
+          ['thorns', 'coil', 'prism', 'order', 'lamp', 'thread'].includes(o.id),
+        ),
+        1,
+      ),
+    ];
+  }
+  if (strong || s.rewardSource === 'elite') {
+    const guaranteed = drawOffers(s, relics, 1);
+    return [
+      ...guaranteed,
+      ...drawOffers(
+        s,
+        [...relics, ...modifiers].filter(
+          (o) => !guaranteed.some((a) => a.id === o.id),
+        ),
+        3 - guaranteed.length,
+      ),
+    ];
+  }
+  const sharpening = sharpeningOffer(s);
+  const equipment = [
+    ...equipmentOptions(s),
+    ...upgradeOptions(s),
+    ...(sharpening ? [sharpening] : []),
+  ];
+  const techniques = [
+    ...SKILLS.filter((o) => !s.skills.includes(o.id)),
+    ...modifiers,
+  ];
+  const offers = [
+    ...drawOffers(s, equipment, 1),
+    ...drawOffers(s, techniques, 1),
+  ];
+  const fallback = [...equipment, ...techniques, ...relics].filter(
+    (o) => !offers.some((a) => a.id === o.id),
+  );
+  return [...offers, ...drawOffers(s, fallback, 2 - offers.length)];
+}
+function validJourneySave(s: State): boolean {
+  const j = s.journey;
+  const uint = (n: unknown) =>
+    typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 0xffffffff;
+  if (
+    !Array.isArray(s.offers) ||
+    !s.offers.every((o) => o && typeof o.id === 'string') ||
+    !Array.isArray(s.relics)
+  )
+    return false;
+  if (
+    !j ||
+    !Array.isArray(j.nodes) ||
+    j.nodes.length !== 32 ||
+    !Array.isArray(j.visited) ||
+    !s.streams ||
+    !['map', 'encounters', 'loot'].every((k) =>
+      uint(s.streams![k as keyof typeof s.streams]),
+    ) ||
+    !uint(s.seed) ||
+    !uint(s.rng) ||
+    !Array.isArray(s.path) ||
+    s.path.length !== s.room ||
+    j.visited.length !== s.room
+  )
+    return false;
+  const ids = new Set(j.nodes.map((n) => n?.id));
+  if (ids.size !== 32) return false;
+  for (const n of j.nodes) {
+    if (
+      !n ||
+      !Number.isInteger(n.depth) ||
+      n.depth < 1 ||
+      n.depth > 20 ||
+      typeof n.name !== 'string' ||
+      typeof n.description !== 'string' ||
+      !Array.isArray(n.next)
+    )
+      return false;
+    const local = ((n.depth - 1) % 10) + 1;
+    const lane = n.id === `${n.depth}-0` ? 0 : n.id === `${n.depth}-1` ? 1 : -1;
+    if (lane < 0 || (lane === 1 && ![2, 3, 4, 6, 7, 8].includes(local)))
+      return false;
+    const legalKinds =
+      local === 3
+        ? ['treasure']
+        : local === 5
+          ? ['shop']
+          : local === 7
+            ? ['event', 'trial']
+            : local === 9
+              ? ['rest']
+              : local === 10
+                ? ['boss']
+                : [4, 8].includes(local)
+                  ? ['battle', 'elite']
+                  : ['battle'];
+    if (!legalKinds.includes(n.kind)) return false;
+    if (
+      ['battle', 'elite', 'boss'].includes(n.kind) &&
+      (!Array.isArray(n.roster) ||
+        !n.roster.length ||
+        n.roster.length > 2 ||
+        !n.roster.every((e) => Object.hasOwn(ENEMY_CATALOG, e)))
+    )
+      return false;
+    const expected =
+      n.depth === 20
+        ? []
+        : [1, 5].includes(local)
+          ? [`${n.depth + 1}-0`, `${n.depth + 1}-1`]
+          : [2, 3, 6, 7].includes(local)
+            ? [`${n.depth + 1}-${lane}`]
+            : [`${n.depth + 1}-0`];
+    if (
+      JSON.stringify(n.next) !== JSON.stringify(expected) ||
+      n.next.some((id) => !ids.has(id))
+    )
+      return false;
+  }
+  for (let i = 0; i < j.visited.length; i++) {
+    const node = j.nodes.find((n) => n.id === j.visited[i]);
+    if (
+      !node ||
+      node.depth !== i + 1 ||
+      node.name !== s.path[i] ||
+      (i &&
+        !j.nodes.find((n) => n.id === j.visited[i - 1])!.next.includes(node.id))
+    )
+      return false;
+  }
+  const current = j.nodes.find((n) => n.id === j.current);
+  if (
+    !current ||
+    j.current !== j.visited.at(-1) ||
+    current.depth !== s.room ||
+    current.kind !== s.roomKind
+  )
+    return false;
+  if (
+    s.seal !== undefined &&
+    (!SEALS.some((o) => o.id === s.seal) ||
+      s.room < 10 ||
+      (s.room === 10 && s.phase !== 'map'))
+  )
+    return false;
+  if (s.phase === 'reward') {
+    const source =
+      s.roomKind === 'boss'
+        ? 'seal'
+        : s.roomKind === 'treasure'
+          ? 'treasure'
+          : s.roomKind === 'elite'
+            ? 'elite'
+            : s.roomKind;
+    if (
+      s.rewardSource !== source ||
+      !Array.isArray(s.offers) ||
+      new Set(s.offers.map((o) => o?.id)).size !== s.offers.length
+    )
+      return false;
+    if (
+      source === 'seal' &&
+      (s.room !== 10 ||
+        s.offers.length !== 3 ||
+        !s.offers.every(
+          (o) => o.kind === 'seal' && SEALS.some((a) => a.id === o.id),
+        ))
+    )
+      return false;
+    if (
+      source === 'treasure' &&
+      (typeof s.treasureRerolled !== 'boolean' ||
+        s.offers.length > 1 ||
+        !s.offers.every(
+          (o) =>
+            o.kind === 'relic' &&
+            RELICS.some((r) => r.id === o.id) &&
+            !s.relics.includes(o.id),
+        ))
+    )
+      return false;
+  } else if (s.rewardSource !== undefined || s.treasureRerolled !== undefined)
+    return false;
+  if (
+    s.phase === 'victory' &&
+    (s.room !== 20 || s.roomKind !== 'boss' || s.offers.length)
+  )
+    return false;
+  return true;
+}
+
 export type RouteNode = Room & {
   depth: number;
   status: 'visited' | 'current' | 'available' | 'future' | 'skipped';
 };
 export function routeMap(s: State): RouteNode[][] {
+  if (s.rulesVersion === 3 && s.journey) {
+    const j = s.journey,
+      reachable = new Set<string>();
+    const visit = (id: string) => {
+      if (reachable.has(id)) return;
+      reachable.add(id);
+      j.nodes.find((n) => n.id === id)?.next.forEach(visit);
+    };
+    visit(j.current);
+    const available = new Set(
+      s.phase === 'map' ? nextRooms(s).map((n) => n.id) : [],
+    );
+    return Array.from({ length: TOTAL_ROOMS }, (_, i) =>
+      j.nodes
+        .filter((n) => n.depth === i + 1)
+        .map(
+          (n): RouteNode => ({
+            ...n,
+            status:
+              n.id === j.current && s.phase !== 'victory'
+                ? 'current'
+                : j.visited.includes(n.id)
+                  ? 'visited'
+                  : available.has(n.id)
+                    ? 'available'
+                    : reachable.has(n.id)
+                      ? 'future'
+                      : 'skipped',
+          }),
+        ),
+    );
+  }
   return Array.from({ length: TOTAL_ROOMS }, (_, index) => {
     const depth = index + 1;
     const rooms = roomsAtDepth(depth);
@@ -2214,6 +2822,12 @@ export function enterRoom(input: State, id: string): Result {
   if (!room) return result(input, [], 'Этот путь недоступен.');
   const s = copy(input);
   s.room++;
+  if (s.rulesVersion === 3) {
+    s.journey!.current = room.id;
+    s.journey!.visited.push(room.id);
+    delete s.rewardSource;
+    delete s.treasureRerolled;
+  }
   s.heroPoison = 0;
   delete s.tide;
   s.board.forEach((t) => {
@@ -2236,7 +2850,7 @@ export function enterRoom(input: State, id: string): Result {
   if (['battle', 'elite', 'boss'].includes(room.kind)) {
     s.phase = 'battle';
     const scale = Math.floor(s.room / 3) * 3;
-    s.enemies = ROOM_ENEMIES[id].map((kind) =>
+    s.enemies = (room.roster ?? ROOM_ENEMIES[id]).map((kind) =>
       makeEnemy(
         s,
         kind,
@@ -2247,6 +2861,11 @@ export function enterRoom(input: State, id: string): Result {
     newBoard(s);
     if (s.room > 10) startTide(s);
     note(s, `${room.name}. Враги показывают намерения.`);
+  } else if (room.kind === 'treasure') {
+    s.phase = 'reward';
+    s.rewardSource = 'treasure';
+    s.treasureRerolled = false;
+    s.offers = treasureOffers(s);
   } else if (room.kind === 'shop') {
     s.phase = 'shop';
     s.offers = shopOffers(s);
@@ -2285,11 +2904,28 @@ export function upgradeOptions(s: State) {
   return FAMILIES.filter((f) => s.upgrades[f] < 2).map(upgradeOffer);
 }
 function grant(s: State, offer: Offer, slot?: number): string | undefined {
+  if (offer.kind === 'seal') {
+    if (
+      s.rulesVersion !== 3 ||
+      s.rewardSource !== 'seal' ||
+      s.seal ||
+      !SEALS.some((o) => o.id === offer.id)
+    )
+      return 'Эта печать недоступна.';
+    if (offer.id === 'red-line') {
+      if (s.maxHp <= 8) return 'Нужно больше 8 максимального здоровья.';
+      s.maxHp -= 8;
+      s.hp = Math.min(s.hp, s.maxHp);
+    }
+    s.seal = offer.id as SealId;
+    note(s, `Принята печать: ${offer.name}. ${offer.description}`);
+    return;
+  }
   if (offer.kind === 'equipment') {
     const item = equipmentById(offer.id);
     if (!item) return 'Неизвестный предмет экипировки.';
     const previous = equipmentById(s.equipment[item.slot]);
-    if (s.rulesVersion === 2 && item.slot === 'weapon') {
+    if ((s.rulesVersion ?? 0) >= 2 && item.slot === 'weapon') {
       const quality = offer.quality;
       if (quality === undefined || ![0, 1, 2].includes(quality))
         return 'Неизвестное качество оружия.';
@@ -2369,6 +3005,23 @@ export function chooseReward(
     const error = grant(s, offer, slot);
     if (error) return result(input, [], error);
   }
+  if (s.rulesVersion === 3) {
+    if (!id && s.rewardSource === 'battle') {
+      s.gold += 8;
+      note(s, 'Вся награда обменяна на 8 золота.');
+    }
+    if (s.rewardSource === 'seal') {
+      heal(s, Math.ceil(s.maxHp / 2));
+      s.potions = Math.min(2, s.potions + 1);
+      s.heroPoison = 0;
+      note(
+        s,
+        'Передышка перед архивом: до 50% максимального здоровья и зелье (до 2).',
+      );
+    }
+    delete s.rewardSource;
+    delete s.treasureRerolled;
+  }
   s.offers = [];
   s.phase = 'map';
   return result(s);
@@ -2377,28 +3030,40 @@ function shopOffers(s: State): Offer[] {
   const relicPool = RELICS.filter(
     (r) =>
       !s.relics.includes(r.id) &&
-      (s.rulesVersion === 2 || s.flags.includes(`run:available:${r.id}`)),
+      ((s.rulesVersion ?? 0) >= 2 || s.flags.includes(`run:available:${r.id}`)),
   );
   const offers: Offer[] = [];
   const gearPool = equipmentOptions(s);
   for (let i = 0; i < 2 && gearPool.length; i++) {
-    const item = gearPool.splice(Math.floor(random(s) * gearPool.length), 1)[0];
-    if (s.rulesVersion === 2)
+    const item = gearPool.splice(
+      Math.floor(random(s, 'loot') * gearPool.length),
+      1,
+    )[0];
+    if ((s.rulesVersion ?? 0) >= 2)
       for (let j = gearPool.length - 1; j >= 0; j--)
         if (gearPool[j].slot === item.slot) gearPool.splice(j, 1);
     offers.push({ ...item, cost: [25, 40, 65][item.tier] });
   }
   for (let i = 0; i < 2 && relicPool.length; i++)
     offers.push({
-      ...relicPool.splice(Math.floor(random(s) * relicPool.length), 1)[0],
+      ...relicPool.splice(
+        Math.floor(random(s, 'loot') * relicPool.length),
+        1,
+      )[0],
       cost: 65,
     });
   const skills = SKILLS.filter((x) => !s.skills.includes(x.id));
   if (skills.length)
-    offers.push({ ...skills[Math.floor(random(s) * skills.length)], cost: 40 });
+    offers.push({
+      ...skills[Math.floor(random(s, 'loot') * skills.length)],
+      cost: 40,
+    });
   const mods = MODIFIERS.filter((x) => !s.modifiers.includes(x.id));
   if (mods.length)
-    offers.push({ ...mods[Math.floor(random(s) * mods.length)], cost: 55 });
+    offers.push({
+      ...mods[Math.floor(random(s, 'loot') * mods.length)],
+      cost: 55,
+    });
   offers.push({
     id: 'potion',
     kind: 'potion',
@@ -2411,17 +3076,20 @@ function shopOffers(s: State): Offer[] {
   const sharpening = sharpeningOffer(s);
   if (sharpening) offers.push({ ...sharpening, cost: 40 });
   if (ups.length)
-    offers.push({ ...ups[Math.floor(random(s) * ups.length)], cost: 35 });
+    offers.push({
+      ...ups[Math.floor(random(s, 'loot') * ups.length)],
+      cost: s.rulesVersion === 3 ? 40 : 35,
+    });
   // Roll once on entry, using the saved run RNG. Displaying or buying an offer
   // never re-rolls its price, including purchases that need a replacement slot.
   const salePool = offers.map((_, index) => index);
   for (let i = 0; i < Math.min(2, offers.length - 1); i++) {
     const index = salePool.splice(
-      Math.floor(random(s) * salePool.length),
+      Math.floor(random(s, 'loot') * salePool.length),
       1,
     )[0];
     const offer = offers[index];
-    const discount = [20, 30, 40][Math.floor(random(s) * 3)];
+    const discount = [20, 30, 40][Math.floor(random(s, 'loot') * 3)];
     const baseCost = offer.cost!;
     offers[index] = {
       ...offer,
@@ -2482,6 +3150,7 @@ export function eventChoice(input: State, choice: string): Result {
     if (s.hp <= 5) return result(input, [], 'Нужно больше 5 здоровья.');
     s.hp -= 5;
     s.phase = 'reward';
+    if (s.rulesVersion === 3) s.rewardSource = 'event';
     s.offers = rewardOffers(s, true);
   } else if (choice === 'supplies') {
     heal(s, 5);
@@ -2517,8 +3186,11 @@ export function isSave(value: unknown): value is State {
   return (
     s.version === 2 &&
     isEquipment(s.equipment) &&
-    (s.rulesVersion === undefined || s.rulesVersion === 2) &&
-    (s.rulesVersion !== 2 ||
+    (s.rulesVersion === undefined ||
+      s.rulesVersion === 2 ||
+      s.rulesVersion === 3) &&
+    (s.rulesVersion !== 3 || validJourneySave(s)) &&
+    ((s.rulesVersion ?? 0) < 2 ||
       (Number.isInteger(s.weaponQuality) &&
         [0, 1, 2].includes(s.weaponQuality!))) &&
     typeof s.runId === 'string' &&
@@ -2584,7 +3256,7 @@ export function isSave(value: unknown): value is State {
         offer &&
         (offer.kind !== 'equipment' ||
           (!!equipmentById(offer.id) &&
-            (s.rulesVersion !== 2 ||
+            ((s.rulesVersion ?? 0) < 2 ||
               equipmentById(offer.id)?.slot !== 'weapon' ||
               [0, 1, 2].includes(offer.quality!)))),
     ) &&
@@ -2676,7 +3348,7 @@ export function configureRun(
     s.relics = ['coil', 'lamp'];
   }
   if (preset === 'poison') {
-    if (s.rulesVersion === 2) s.equipment.weapon = 'gear-rusty-dagger';
+    if ((s.rulesVersion ?? 0) >= 2) s.equipment.weapon = 'gear-rusty-dagger';
     s.modifiers = ['venom'];
     s.relics = ['toxin', 'heart'];
   }

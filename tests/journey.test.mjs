@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as g from '../game/engine.ts';
+import * as g from './helpers/stage1-engine.mjs';
 import { isValidSeed } from '../game/seed.ts';
 import {
   MERCHANT_TOPICS,
