@@ -1,4 +1,10 @@
-import { HEROES, type State, type Meta } from '@/game/engine';
+import {
+  FAMILY_NAMES,
+  progressionRewards,
+  HEROES,
+  type State,
+  type Meta,
+} from '@/game/engine';
 export function ProgressionGoals({ meta }: { meta: Meta }) {
   return (
     <section className="run-journal" aria-label="Цели следующих забегов">
@@ -20,6 +26,28 @@ export function ProgressionGoals({ meta }: { meta: Meta }) {
         </p>
       ))}
       <p>
+        {progressionRewards(meta).includes('binding') ? '✓' : '○'} Страж →
+        Хранитель: открывает Боевой переплёт в будущих находках.
+      </p>
+      <p>
+        {progressionRewards(meta).includes('tape') ? '✓' : '○'} Любой герой →
+        Редактор: открывает Копировальную ленту в будущих находках.
+      </p>
+      <details>
+        <summary>Напряжение I</summary>
+        {HEROES.map((h) => (
+          <p key={h.id}>
+            {h.name}:{' '}
+            {['tide-keeper', 'redactor']
+              .map(
+                (b, i) =>
+                  `${meta.marks?.includes(`hard:${h.id}:${b}`) ? '✓' : '○'} ${i ? 'Редактор' : 'Хранитель'}`,
+              )
+              .join(' · ')}
+          </p>
+        ))}
+      </details>
+      <p>
         Победы отмечают разные прохождения. Постоянных прибавок к урону и
         здоровью за открытия нет.
       </p>
@@ -34,6 +62,15 @@ export function ActiveHeroRules({ game }: { game: State }) {
       )}
       {game.difficulty === 1 && (
         <p>Напряжение I · удары врагов +2; в намерениях уже учтено.</p>
+      )}
+      {game.echo && (
+        <p>
+          Лента хранит: {FAMILY_NAMES[game.echo]}. Другой матч после сдвига
+          вызовет эхо.
+        </p>
+      )}
+      {game.flags.includes('turn:carbon-armed') && (
+        <p>Копирка заряжена: следующая группа клинков в этом ходу +3 урона.</p>
       )}
       {game.redaction && (
         <output>

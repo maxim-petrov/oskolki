@@ -638,6 +638,7 @@ export type State = {
   hero?: HeroId;
   difficulty?: 0 | 1;
   redaction?: { family: Family; expires: number };
+  echo?: Family;
   damageEvents?: DamageEvent[];
   chronicle?: string[];
   weaponQuality?: 0 | 1 | 2;
@@ -828,6 +829,24 @@ RELICS.push(
     description:
       'Убитый отравленный враг передаёт следующему живому половину оставшегося яда (вниз). Переданный яд не срабатывает в тот же ответ врагов.',
     tag: 'Яд → новая цель',
+  },
+);
+RELICS.push(
+  {
+    id: 'tape',
+    kind: 'relic',
+    name: 'Копировальная лента',
+    description:
+      'Первый матч 4+ после сдвига записывает семейство. При следующем сдвиге с другим семейством даёт эхо: клинок — 4 урона, щит — 4 блока, искра — 2 энергии, фокус — 2 фокуса. Одно эхо; каскады и правки не записываются. Заряд исчезает между комнатами.',
+    tag: 'Чередование',
+  },
+  {
+    id: 'binding',
+    kind: 'relic',
+    name: 'Боевой переплёт',
+    description:
+      'Открывает приём: потратить до 8 накопленного блока, нанести вдвое больше урона выбранному врагу. Занимает единственный приём этого хода. Без затрат энергии.',
+    tag: 'Защита → удар',
   },
 );
 export const CORE_RELIC_IDS = RELICS.slice(0, 12).map((o) => o.id);
@@ -1325,6 +1344,13 @@ function resolve(
     }
     const inkDamage = [...removed].filter((i) => s.board[i].ink).length;
     const collateral = new Set<number>();
+    const tapeMove =
+      (s.rulesVersion ?? 0) >= 4 &&
+      manual &&
+      wave === 1 &&
+      s.relics.includes('tape');
+    const previousEcho = tapeMove ? s.echo : undefined;
+    let echoUsed = false;
     for (const indices of matches) {
       s.stats.matches++;
       const family = s.board[indices[0]].family;
@@ -1344,6 +1370,22 @@ function resolve(
             `Запрещённое семейство ${FAMILY_NAMES[family]}: Редактор получает 6 блока.`,
           );
         }
+      }
+      if (previousEcho && !echoUsed && family !== previousEcho) {
+        echoUsed = true;
+        delete s.echo;
+        if (previousEcho === 'blade') hit(s, 4, false, false);
+        if (previousEcho === 'shield') {
+          s.block += 4;
+          if (s.trial) s.trial.protection += 4;
+        }
+        if (previousEcho === 'spark') {
+          gainEnergy(s, 2);
+          if (s.trial) s.trial.energy += 2;
+        }
+        if (previousEcho === 'focus')
+          s.focus = Math.min(focusMax(s), s.focus + 2);
+        note(s, `Копировальная лента: эхо «${FAMILY_NAMES[previousEcho]}».`);
       }
       if (count >= 5) {
         s.stats.big++;
@@ -1430,6 +1472,16 @@ function resolve(
             ...(i % 6 < 5 ? [i + 1] : []),
           ])
             if (j >= 0 && j < 36 && !removed.has(j)) collateral.add(j);
+    }
+    if (tapeMove && !s.echo) {
+      const record = matches.find((indices) => indices.length >= 4);
+      if (record) {
+        s.echo = s.board[record[0]].family;
+        note(
+          s,
+          `Лента записала «${FAMILY_NAMES[s.echo]}»: собери другое семейство следующим сдвигом.`,
+        );
+      }
     }
     if ((s.rulesVersion ?? 0) >= 4) {
       const queue = [...removed].filter((i) => s.board[i].variant === 'bomb');
@@ -1651,8 +1703,12 @@ function checkFinish(s: State) {
     s.hp = 0;
     s.phase = 'defeat';
     delete s.redaction;
+    delete s.echo;
     delete s.tide;
-    note(s, 'Странник пал. Следующий путь будет другим.');
+    note(
+      s,
+      `${s.hero === 'warden' ? 'Страж' : 'Странник'} пал. Следующий путь будет другим.`,
+    );
   } else if (s.phase === 'battle' && s.enemies.every((e) => e.hp <= 0)) {
     s.gold +=
       (s.rulesVersion ?? 0) >= 3
@@ -1687,6 +1743,7 @@ function checkFinish(s: State) {
       delete s.rewardSource;
     delete s.tide;
     delete s.redaction;
+    delete s.echo;
     s.board.forEach((t) => delete t.ink);
     if (s.roomKind === 'boss' && s.room === 10 && (s.rulesVersion ?? 0) < 3) {
       heal(s, Math.ceil(s.maxHp / 2));
@@ -1715,6 +1772,7 @@ function checkFinish(s: State) {
     s.offers = rewardOffers(s, true);
     note(s, 'Шлюз открыт! Испытание пройдено.');
     s.trial = null;
+    delete s.echo;
   }
 }
 export function startRun(
@@ -2124,9 +2182,14 @@ export function castSkill(
     input.trial?.paused
   )
     return result(input, [], 'Одна способность за ход.');
-  if (id !== 'edit' && !input.skills.includes(id))
+  const binding =
+    id === 'binding' &&
+    (input.rulesVersion ?? 0) >= 4 &&
+    input.relics.includes('binding');
+  if (id !== 'edit' && !binding && !input.skills.includes(id))
     return result(input, [], 'Этот приём не экипирован.');
   const costs: Record<string, [number, number, number]> = {
+    binding: [0, 0, 0],
     bolt: [6, 0, 0],
     guard: [4, 0, 0],
     pierce: [0, 3, 0],
@@ -2137,6 +2200,8 @@ export function castSkill(
   };
   const cost = costs[id];
   if (!cost) return result(input, [], 'Неизвестный приём.');
+  if (id === 'binding' && (!binding || input.block < 1))
+    return result(input, [], 'Нужен Боевой переплёт и хотя бы 1 блок.');
   if (input.energy < cost[0] || input.focus < cost[1] || input.hp <= cost[2])
     return result(input, [], 'Недостаточно ресурсов.');
   if (index < 0 || index >= 36 || !FAMILIES.includes(family))
@@ -2182,6 +2247,12 @@ export function castSkill(
   }
   const damage = (value: number) =>
     Math.max(0, value - (hasSeal(s, 'double-edit') ? 3 : 0));
+  if (id === 'binding') {
+    const spent = Math.min(8, s.block);
+    s.block -= spent;
+    hit(s, damage(spent * 2), false, false);
+    note(s, `Боевой переплёт: ${spent} блока → ${damage(spent * 2)} урона.`);
+  }
   if (id === 'bolt') hit(s, damage(12 + rune));
   if (id === 'guard') s.block += 8;
   if (id === 'pierce') hit(s, damage(8), true);
@@ -2239,7 +2310,7 @@ export function castSkill(
         type:
           id === 'guard'
             ? 'guard'
-            : ['blood', 'pierce'].includes(id)
+            : ['blood', 'pierce', 'binding'].includes(id)
               ? 'attack'
               : 'cast',
         target: s.target,
@@ -2559,10 +2630,20 @@ export function abandonMeta(input: Meta, s: State) {
   }
   return m;
 }
+export function progressionRewards(m: Meta): string[] {
+  const marks = m.marks ?? [];
+  return [
+    ...(marks.includes('warden:tide-keeper') ? ['binding'] : []),
+    ...(marks.some((mark) => /^(wanderer|warden):redactor$/.test(mark))
+      ? ['tape']
+      : []),
+  ];
+}
 export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4) {
   if ((rulesVersion ?? 0) >= 2)
     return [
       ...CORE_RELIC_IDS,
+      ...((rulesVersion ?? 0) >= 4 ? progressionRewards(m) : []),
       ...((rulesVersion ?? 0) >= 4
         ? ACHIEVEMENTS.filter(
             (a) =>
@@ -3293,6 +3374,7 @@ export function enterRoom(input: State, id: string): Result {
   s.heroPoison = 0;
   delete s.tide;
   delete s.redaction;
+  delete s.echo;
   s.board.forEach((t) => {
     delete t.ink;
     delete t.root;
@@ -3307,6 +3389,7 @@ export function enterRoom(input: State, id: string): Result {
   s.moved = false;
   s.consumed = false;
   s.trial = null;
+  delete s.echo;
   s.flags = s.flags.filter((f) => f.startsWith('run:'));
   s.offers = [];
   s.enemies = [];
@@ -3663,6 +3746,7 @@ export function tickTrial(input: State, seconds: number): Result {
     recordDamage(s, 'Закрывшийся шлюз', Math.min(cost, s.hp - 1));
     s.hp = Math.max(1, s.hp - cost);
     s.trial = null;
+    delete s.echo;
     s.phase = 'map';
     note(s, `Шлюз закрылся. Потеряно ${cost} здоровья. Можно продолжить путь.`);
   }
@@ -3700,6 +3784,12 @@ export function isSave(value: unknown): value is State {
         s.phase === 'battle' &&
         Array.isArray(s.enemies) &&
         s.enemies.some((e) => e.kind === 'redactor' && e.hp > 0))) &&
+    (s.echo === undefined ||
+      ((s.rulesVersion ?? 0) >= 4 &&
+        FAMILIES.includes(s.echo) &&
+        ['battle', 'trial'].includes(s.phase) &&
+        Array.isArray(s.relics) &&
+        s.relics.includes('tape'))) &&
     (s.damageEvents === undefined || validDamageEvents(s.damageEvents)) &&
     (s.chronicle === undefined ||
       (Array.isArray(s.chronicle) &&
@@ -3865,6 +3955,7 @@ export function isMeta(value: unknown): value is Meta {
 
 export function canCast(s: State, id: string): boolean {
   const c: Record<string, [number, number, number]> = {
+    binding: [0, 0, 0],
     bolt: [6, 0, 0],
     guard: [4, 0, 0],
     pierce: [0, 3, 0],
@@ -3879,7 +3970,11 @@ export function canCast(s: State, id: string): boolean {
     ['battle', 'trial'].includes(s.phase) &&
     !s.trial?.paused &&
     !s.cast &&
-    (id === 'edit' || s.skills.includes(id)) &&
+    (id === 'binding'
+      ? (s.rulesVersion ?? 0) >= 4 &&
+        s.relics.includes('binding') &&
+        s.block > 0
+      : id === 'edit' || s.skills.includes(id)) &&
     s.energy >= cost[0] &&
     s.focus >= cost[1] &&
     s.hp > cost[2]

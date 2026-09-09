@@ -1,5 +1,6 @@
 /* eslint-disable nextjs/no-img-element -- Room artwork keeps its original native pixels. */
 'use client';
+import { ReplayRelicArt } from '@/components/replay-relic-art';
 import { ProgressionGoals } from '@/components/progression';
 import { RunRecap, RunJournal } from '@/components/run-journal';
 import { useState } from 'react';
@@ -58,6 +59,8 @@ import {
   type Balance,
 } from '@/game/engine';
 export const ItemIcon = ({ id }: { id: string }) => {
+  if (['tape', 'binding', 'carbon', 'bookmark'].includes(id))
+    return <ReplayRelicArt id={id} />;
   if (equipmentById(id)) return <EquipmentIcon id={id} size={40} />;
   return (
     <SkinIcon

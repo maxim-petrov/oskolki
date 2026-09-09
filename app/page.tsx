@@ -919,7 +919,12 @@ export default function Game() {
             <span>{s.cast ? 'Использован' : '1 за ход'}</span>
           </div>
           <div className="skills">
-            {s.skills.map((id) => (
+            {[
+              ...s.skills,
+              ...((s.rulesVersion ?? 0) >= 4 && s.relics.includes('binding')
+                ? ['binding']
+                : []),
+            ].map((id) => (
               <Button
                 key={id}
                 variant="outline"
