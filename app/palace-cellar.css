@@ -900,3 +900,462 @@ html[data-skin='palace-cellar'] {
     animation: none;
   }
 }
+
+/* The journey uses the same warm paper, ink and square pixels as combat. */
+html[data-skin='palace-cellar'] {
+  .arena-bg.room-background {
+    filter: none;
+    opacity: 1;
+    image-rendering: pixelated;
+    object-position: 50% 65%;
+  }
+  .run-seed {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #c9b28d;
+  }
+  .run-seed button {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 9px;
+    border: 1px solid #725b43;
+    background: #281b14;
+  }
+  .run-seed b {
+    font-family: monospace;
+    user-select: text;
+  }
+  .run-seed button:hover {
+    background: #423021;
+    color: #f5dfb2;
+  }
+  .seed-copy-error {
+    display: block;
+    max-width: 150px;
+    margin-top: 4px;
+  }
+  .seed-error {
+    color: #942d24;
+    font-size: 12px;
+  }
+  .seed-current {
+    display: grid;
+    gap: 7px;
+  }
+  .room-vignette {
+    width: 100%;
+    height: 135px;
+    object-fit: cover;
+    object-position: 50% 45%;
+    image-rendering: pixelated;
+    border: 3px solid #4b3528;
+  }
+  .shop-dialog {
+    max-width: min(860px, calc(100vw - 32px));
+  }
+  .shop-dialog > .panel-emblem,
+  .map-dialog > .panel-emblem {
+    display: none;
+  }
+  .merchant {
+    display: grid;
+    grid-template-columns: 142px 1fr;
+    gap: 17px;
+    text-align: left;
+    padding: 15px;
+    background: #ede0c7;
+    border: 3px solid #59402e;
+    box-shadow: 3px 3px #b39a75;
+  }
+  .merchant-portrait {
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    background: #6c543b url('/art/pronoun-palace/backgrounds/market.png') 43%
+      55% / cover;
+    border: 2px solid #5b4130;
+  }
+  .merchant-art {
+    width: 123px;
+    height: 166px;
+    image-rendering: pixelated;
+  }
+  .merchant-conversation {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .merchant-name {
+    color: #583829;
+    font:
+      bold 23px Georgia,
+      serif;
+  }
+  .merchant-name span {
+    font:
+      normal 12px 'Trebuchet MS',
+      sans-serif;
+    margin-left: 5px;
+    color: #775b43;
+  }
+  .merchant-speech {
+    color: #473829;
+    line-height: 1.5;
+    font-size: 14px;
+    min-height: 63px;
+  }
+  .merchant-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
+  }
+  .merchant-questions button {
+    font-size: 12px;
+    padding: 6px 9px;
+    background: #d7c8a6;
+    color: #513824;
+    border: 1px solid #9e825b;
+    box-shadow: 1px 2px #ae926b;
+  }
+  .merchant-questions button:hover {
+    background: #f8e9c7;
+  }
+  .shop-price {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    font-size: 16px;
+  }
+  .shop-price s {
+    color: #765c47;
+    font-size: 13px;
+  }
+  .current-price {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: #503721;
+  }
+  .sale-price .current-price {
+    color: #9b3326;
+  }
+  .sale-badge {
+    background: #982f24;
+    color: #fff0d0;
+    padding: 3px 5px;
+    font: bold 12px monospace;
+    box-shadow: 2px 2px #c8a886;
+  }
+  .next-stops {
+    border-top: 1px dashed #9b825f;
+    padding-top: 12px;
+    color: #766047;
+    font-size: 12px;
+  }
+  .next-stops > div {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: 6px;
+  }
+  .next-stops > div > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #574331;
+  }
+  .next-stops svg {
+    width: 22px;
+    height: 22px;
+  }
+  .journey-map {
+    text-align: left;
+    min-width: 0;
+  }
+  .map-legend {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 7px;
+    font-size: 11px;
+    color: #6a533d;
+    margin: 2px 0 9px;
+  }
+  .map-legend > span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .map-key {
+    width: 9px;
+    height: 9px;
+    border: 1px solid #7f7256;
+    background: #a4a180;
+  }
+  .map-key.available {
+    background: #f0d49c;
+    border: 2px solid #983c28;
+  }
+  .map-scroll {
+    height: clamp(220px, 39dvh, 380px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 2px solid #987c57;
+    background: #cfc09e;
+    box-shadow: inset 0 0 0 4px #e2d2af;
+    scrollbar-color: #997444 #ded0b1;
+  }
+  .map-scroll:focus-visible {
+    outline: 2px solid #9d4930;
+    outline-offset: 3px;
+  }
+  .map-paper {
+    height: 840px;
+    position: relative;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent 0 83px,
+      #ad916126 83px 84px
+    );
+  }
+  .map-paths {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .map-paths path {
+    fill: none;
+    stroke: #9f8868;
+    stroke-width: 2px;
+    stroke-dasharray: 4 7;
+  }
+  .map-paths .taken {
+    stroke: #6a7657;
+    stroke-width: 4px;
+    stroke-dasharray: none;
+  }
+  .map-paths .available {
+    stroke: #a64e2d;
+    stroke-width: 3px;
+    stroke-dasharray: 6 4;
+  }
+  .map-node {
+    position: absolute;
+    transform: translateX(-50%);
+    width: 178px;
+    height: 69px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px;
+    background: #dfcfad;
+    border: 2px solid #9d886a;
+    color: #685944;
+    box-shadow: 2px 3px #a59070;
+    text-align: left;
+    line-height: 1.1;
+  }
+  .map-node > svg {
+    width: 28px;
+    height: 28px;
+  }
+  .map-node > span {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .map-node small {
+    font-size: 9px;
+    font-weight: normal;
+  }
+  .map-node strong {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .map-future {
+    background: #d6c7a7;
+    color: #75664f;
+  }
+  .map-skipped {
+    opacity: 0.45;
+    box-shadow: none;
+  }
+  .map-visited {
+    background: #babda0;
+    border-color: #858b68;
+    color: #465139;
+  }
+  .map-current {
+    background: #726041;
+    border-color: #4d3b25;
+    color: #fff0cd;
+  }
+  .map-available {
+    background: #f6e3b5;
+    color: #5f3e26;
+    border-color: #ba8051;
+    cursor: pointer;
+  }
+  .map-available:hover,
+  .map-node.selected {
+    background: #fff0c7;
+    border-color: #9c3925;
+    box-shadow:
+      0 0 0 2px #c07346,
+      3px 4px #a98a5f;
+  }
+  .map-node:focus-visible {
+    outline: 3px solid #78321e;
+    outline-offset: 3px;
+  }
+  .map-scroll-hint {
+    color: #80684e;
+    font-size: 10px;
+    text-align: center;
+    margin: 7px 0 12px;
+  }
+  .map-destination {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 10px 13px;
+    padding: 13px;
+    background: #eee0c3;
+    border: 2px solid #9f7955;
+  }
+  .map-destination-art {
+    width: 90px;
+    height: 68px;
+    object-fit: cover;
+    image-rendering: pixelated;
+    border: 2px solid #664b33;
+  }
+  .map-destination strong {
+    display: block;
+    color: #603c27;
+    font:
+      bold 19px Georgia,
+      serif;
+    margin-bottom: 5px;
+  }
+  .map-destination p {
+    font-size: 12px;
+    color: #70583e;
+    line-height: 1.4;
+  }
+  .map-destination > button {
+    grid-column: 1/-1;
+    width: 100%;
+  }
+  @media (max-width: 1100px) {
+    .topbar {
+      flex-wrap: wrap;
+      height: auto;
+      min-height: 78px;
+      padding: 12px 0;
+      gap: 10px;
+    }
+    .header-run {
+      order: 3;
+      flex: 1;
+    }
+    .run-seed {
+      order: 4;
+    }
+    .header-actions {
+      margin-left: auto;
+    }
+  }
+  @media (max-width: 640px) {
+    .run-seed {
+      margin-left: auto;
+    }
+    .run-seed button {
+      padding: 3px 6px;
+      font-size: 10px;
+    }
+    .topbar {
+      position: relative;
+      padding-bottom: 34px;
+    }
+    .run-seed {
+      position: absolute;
+      right: 0;
+      bottom: 6px;
+    }
+    .merchant {
+      grid-template-columns: 84px 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+    .merchant-art {
+      width: 80px;
+      height: 140px;
+    }
+    .merchant-name {
+      font-size: 20px;
+    }
+    .merchant-name span {
+      display: block;
+      margin: 0;
+      font-size: 10px;
+    }
+    .merchant-speech {
+      font-size: 12px;
+    }
+    .merchant-questions {
+      grid-column: 1/-1;
+    }
+    .merchant-questions button {
+      padding: 5px 6px;
+      font-size: 11px;
+    }
+    .map-node {
+      padding: 6px;
+      gap: 4px;
+    }
+    .map-node > svg {
+      width: 22px;
+      height: 22px;
+    }
+    .map-node strong {
+      font-size: 11px;
+    }
+    .map-node small {
+      font-size: 8px;
+    }
+    .map-destination {
+      grid-template-columns: 64px 1fr;
+      padding: 10px;
+    }
+    .map-destination-art {
+      width: 64px;
+      height: 64px;
+    }
+    .map-destination strong {
+      font-size: 17px;
+    }
+    .map-dialog {
+      padding: 19px;
+    }
+  }
+}
+
+html[data-skin='palace-cellar'] .run-dialog > .run-seed {
+  position: static;
+  margin: 0;
+  display: grid;
+  justify-items: center;
+}
+html[data-skin='palace-cellar'] .run-dialog > .run-seed button {
+  background: #cdbc98;
+  color: #533c28;
+  border-color: #8c6b46;
+}

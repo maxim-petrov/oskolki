@@ -149,6 +149,7 @@ export function gameAction(s: State, input: unknown): Result {
 export function gameSnapshot(s: State, busy: boolean, hidden = false) {
   return {
     phase: s.phase,
+    seed: s.seed >>> 0,
     room: s.room,
     round: s.round,
     busy,

@@ -1,6 +1,7 @@
 /* eslint-disable react/react-compiler, nextjs/no-img-element -- This event-driven renderer is not React Compiler compiled; refs bridge asynchronous frame replay and WebMCP to React state. */
 'use client';
-import { VISUAL_STYLE } from '@/game/visual-style';
+import { roomBackground, ROOM_BACKGROUNDS } from '@/game/visual-style';
+import { RunSeed } from '@/components/run-seed';
 import { useRef, useState, useEffect, type PointerEvent } from 'react';
 import {
   Sword,
@@ -222,7 +223,7 @@ export default function Game() {
         setGame(loaded);
         setMessage('Забег восстановлен. Можно продолжать.');
       } else {
-        const fresh = withUnlocks(startRun(), loadedMeta);
+        const fresh = withUnlocks(startRun(Date.now() >>> 0), loadedMeta);
         fresh.runId = crypto.randomUUID();
         gameRef.current = fresh;
         setGame(fresh);
@@ -419,6 +420,7 @@ export default function Game() {
           <span className="divider">/</span>
           <span>Комната {s.room} из 10</span>
         </div>
+        <RunSeed seed={s.seed} />
         <div className="header-actions">
           <span className="gold">
             <SkinIcon name="coin" size={30} />
@@ -474,40 +476,32 @@ export default function Game() {
             меняет следующий ход.
           </p>
           <ol className="path-list">
-            {[
-              'Вход в крипту',
-              'Развилка',
-              'Тихие залы',
-              'Старые катакомбы',
-              'Торговец',
-              'Нижние залы',
-              'Испытание',
-              'Последний рубеж',
-              'Привал',
-              'Привратник',
-            ].map((name, i) => (
-              <li
-                key={name}
-                className={
-                  i + 1 === s.room
-                    ? 'current'
-                    : i + 1 < s.room
-                      ? 'complete'
-                      : ''
-                }
-              >
-                <span className="path-dot">
-                  {i + 1 < s.room ? (
-                    <Check size={12} />
-                  ) : i === 9 ? (
-                    <Crown size={14} />
-                  ) : (
-                    i + 1
-                  )}
-                </span>
-                <span>{name}</span>
-              </li>
-            ))}
+            {ROOM_BACKGROUNDS.map((background, i) => {
+              const name = s.path[i] ?? background.name;
+              return (
+                <li
+                  key={name}
+                  className={
+                    i + 1 === s.room
+                      ? 'current'
+                      : i + 1 < s.room
+                        ? 'complete'
+                        : ''
+                  }
+                >
+                  <span className="path-dot">
+                    {i + 1 < s.room ? (
+                      <Check size={12} />
+                    ) : i === 9 ? (
+                      <Crown size={14} />
+                    ) : (
+                      i + 1
+                    )}
+                  </span>
+                  <span>{name}</span>
+                </li>
+              );
+            })}
           </ol>
           <div className="journey-bottom">
             <span className="eyebrow">СТРАННИК</span>
@@ -524,9 +518,9 @@ export default function Game() {
             className={`arena ${motion ? `beat-${motion.cue.type} beat-${motion.stage}` : ''}`}
           >
             <img
-              className="arena-bg"
-              src={VISUAL_STYLE.arena}
-              alt={VISUAL_STYLE.arenaAlt}
+              className="arena-bg room-background"
+              src={roomBackground(s.room).src}
+              alt={roomBackground(s.room).alt}
             />
             <div className="arena-shade" />
             <div className="arena-dust" aria-hidden="true">
@@ -538,7 +532,9 @@ export default function Game() {
             </div>
             <div className="arena-caption">
               <span className="eyebrow">
-                {s.roomKind === 'boss' ? 'БОСС БИОМА' : 'КРИПТА · ПЕРВЫЙ БИОМ'}
+                {s.roomKind === 'boss'
+                  ? 'БОСС · ГЛАВНЫЙ ЦЕНЗОР'
+                  : roomBackground(s.room).name.toUpperCase()}
               </span>
               <span className="turn-badge">
                 {s.phase === 'trial'
@@ -974,7 +970,7 @@ export default function Game() {
         </button>
       )}
       <RunPanel
-        key={`${game.phase}-${game.room}`}
+        key={`${game.runId}:${game.phase}:${game.room}`}
         game={game}
         meta={meta}
         busy={busy}
@@ -991,6 +987,7 @@ export default function Game() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         balance={game.balance}
+        currentSeed={game.seed}
         onAnimation={(animation) =>
           setGame((g) => ({ ...g, balance: { ...g.balance, animation } }))
         }

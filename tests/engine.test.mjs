@@ -537,7 +537,7 @@ test('shop stocks distinct affordable gear slots and rejects unavailable or unaf
   const items = shop.offers.filter((o) => o.kind === 'equipment');
   assert.equal(items.length, 2);
   assert.equal(new Set(items.map((o) => o.slot)).size, 2);
-  assert.ok(items.every((o) => o.cost === 25 || o.cost === 40));
+  assert.ok(items.every((o) => [25, 40].includes(o.baseCost ?? o.cost)));
   shop.gold = 0;
   assert.equal(g.buy(shop, items[0].id).state, shop);
   shop.gold = items[0].cost;

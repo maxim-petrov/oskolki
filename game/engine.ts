@@ -192,6 +192,8 @@ export type Offer = {
   description: string;
   tag: string;
   cost?: number;
+  baseCost?: number;
+  discount?: number;
 };
 export const EQUIPMENT_SLOTS = [
   'weapon',
@@ -970,6 +972,7 @@ export function startRun(
   seed = 19062026,
   balance: Balance = DEFAULT_BALANCE,
 ): State {
+  seed = seed >>> 0;
   const s: State = {
     version: 2,
     equipment: startingEquipment(),
@@ -1509,8 +1512,20 @@ export function withUnlocks(s: State, m: Meta) {
   return s;
 }
 export function nextRooms(s: State): Room[] {
-  const n = s.room + 1;
-  if (n > 10) return [];
+  return roomsAtDepth(s.room + 1);
+}
+// The map and room-entry validation share the same route definitions.
+export function roomsAtDepth(n: number): Room[] {
+  if (!Number.isInteger(n) || n < 1 || n > 10) return [];
+  if (n === 1)
+    return [
+      {
+        id: '1-battle',
+        kind: 'battle',
+        name: 'Вход в крипту',
+        description: 'Начало пути.',
+      },
+    ];
   const mk = (kind: Room['kind'], name: string, description: string): Room => ({
     id: `${n}-${kind}`,
     kind,
@@ -1580,6 +1595,47 @@ export function nextRooms(s: State): Room[] {
     encounter('2-armored', 'battle', 'Скреплённый проход'),
   ];
 }
+export type RouteNode = Room & {
+  depth: number;
+  status: 'visited' | 'current' | 'available' | 'future' | 'skipped';
+};
+export function routeMap(s: State): RouteNode[][] {
+  return Array.from({ length: 10 }, (_, index) => {
+    const depth = index + 1;
+    const rooms = roomsAtDepth(depth);
+    const visited = s.path?.[index];
+    // Preserve named stops from older saves even when the encounter catalog changes.
+    if (
+      depth <= s.room &&
+      visited &&
+      !rooms.some((room) => room.name === visited)
+    ) {
+      rooms.push({
+        id: `${depth}-legacy`,
+        kind: depth === s.room ? s.roomKind : 'battle',
+        name: visited,
+        description: 'Комната из пройденного пути.',
+      });
+    }
+    return rooms.map(
+      (room): RouteNode => ({
+        ...room,
+        depth,
+        status:
+          depth <= s.room
+            ? room.name === visited || (!visited && room === rooms[0])
+              ? depth === s.room && s.phase !== 'victory'
+                ? 'current'
+                : 'visited'
+              : 'skipped'
+            : depth === s.room + 1 && s.phase === 'map'
+              ? 'available'
+              : 'future',
+      }),
+    );
+  });
+}
+
 const ROOM_ENEMIES: Record<string, EnemyKind[]> = {
   '2-battle': ['paper-rat'],
   '2-armored': ['stapler'],
@@ -1766,6 +1822,24 @@ function shopOffers(s: State): Offer[] {
   const ups = upgradeOptions(s);
   if (ups.length)
     offers.push({ ...ups[Math.floor(random(s) * ups.length)], cost: 35 });
+  // Roll once on entry, using the saved run RNG. Displaying or buying an offer
+  // never re-rolls its price, including purchases that need a replacement slot.
+  const salePool = offers.map((_, index) => index);
+  for (let i = 0; i < Math.min(2, offers.length - 1); i++) {
+    const index = salePool.splice(
+      Math.floor(random(s) * salePool.length),
+      1,
+    )[0];
+    const offer = offers[index];
+    const discount = [20, 30, 40][Math.floor(random(s) * 3)];
+    const baseCost = offer.cost!;
+    offers[index] = {
+      ...offer,
+      baseCost,
+      discount,
+      cost: Math.ceil((baseCost * (100 - discount)) / 100),
+    };
+  }
   return offers;
 }
 export function buy(input: State, id: string, slot?: number): Result {

@@ -1,5 +1,13 @@
+/* eslint-disable nextjs/no-img-element -- Room artwork keeps its original native pixels. */
 'use client';
 import { useState } from 'react';
+import { RoomIcon } from '@/components/room-icon';
+import { RunSeed } from '@/components/run-seed';
+import { JourneyMap, NextStops } from '@/components/journey-map';
+import { Merchant, ShopPrice } from '@/components/merchant';
+import { merchantGreeting, merchantPurchase } from '@/game/merchant';
+import { roomBackground } from '@/game/visual-style';
+import { isValidSeed } from '@/game/seed';
 import {
   ArrowRight,
   ArrowLeft,
@@ -24,7 +32,6 @@ import {
   equipmentById,
   EQUIPMENT_SLOT_NAMES,
   itemById,
-  nextRooms,
   chooseReward,
   enterRoom,
   buy,
@@ -40,26 +47,6 @@ import {
   type Offer,
   type Balance,
 } from '@/game/engine';
-export const RoomIcon = ({ kind }: { kind: string }) => {
-  return (
-    <SkinIcon
-      name={
-        (
-          {
-            battle: 'blade',
-            elite: 'crown',
-            event: 'relic',
-            trial: 'spark',
-            shop: 'coin',
-            rest: 'heart',
-            boss: 'crown',
-          } as Record<string, SkinIconName>
-        )[kind] ?? 'star'
-      }
-      size={34}
-    />
-  );
-};
 export const ItemIcon = ({ id }: { id: string }) => {
   if (equipmentById(id)) return <EquipmentIcon id={id} size={40} />;
   return (
@@ -109,6 +96,19 @@ export function RunPanel({
   restart: () => void;
 }) {
   const [pending, setPending] = useState<Offer | null>(null);
+  const [speech, setSpeech] = useState<{ runId: string; text: string } | null>(
+    null,
+  );
+  const say = (text: string) => setSpeech({ runId: s.runId, text });
+  const purchase = (offer: Offer, slot?: number) => {
+    const result = buy(s, offer.id, slot);
+    say(
+      result.error
+        ? 'Монеты не беру: ' + result.error
+        : merchantPurchase(offer),
+    );
+    void act(result);
+  };
   const open =
     !['battle', 'trial'].includes(s.phase) ||
     (s.phase === 'trial' && !!s.trial?.paused);
@@ -121,15 +121,13 @@ export function RunPanel({
       setPending(o);
       return;
     }
-    void act(s.phase === 'shop' ? buy(s, o.id) : chooseReward(s, o.id));
+    if (s.phase === 'shop') purchase(o);
+    else void act(chooseReward(s, o.id));
   };
   const replace = (slot: number) => {
     if (!pending) return;
-    void act(
-      s.phase === 'shop'
-        ? buy(s, pending.id, slot)
-        : chooseReward(s, pending.id, slot),
-    );
+    if (s.phase === 'shop') purchase(pending, slot);
+    else void act(chooseReward(s, pending.id, slot));
     setPending(null);
   };
   const heading = pending
@@ -176,7 +174,7 @@ export function RunPanel({
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         showCloseButton={false}
-        className={`game-dialog run-dialog ${s.phase === 'victory' ? 'victory-dialog' : ''}`}
+        className={`game-dialog run-dialog ${s.phase}-dialog ${pending ? 'pending-dialog' : ''}`}
       >
         <div className="panel-emblem">
           {pending ? (
@@ -204,21 +202,41 @@ export function RunPanel({
         </span>
         <DialogTitle>{heading}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
+        {['victory', 'defeat'].includes(s.phase) && <RunSeed seed={s.seed} />}
+        {s.phase === 'shop' && (
+          <Merchant
+            text={
+              speech?.runId === s.runId
+                ? speech.text
+                : merchantGreeting(
+                    s.seed,
+                    s.offers.some((o) => !!o.discount),
+                  )
+            }
+            onTalk={say}
+            busy={busy}
+          />
+        )}
+        {['rest', 'event'].includes(s.phase) && (
+          <img
+            className="room-vignette"
+            src={roomBackground(s.room).src}
+            alt={roomBackground(s.room).alt}
+          />
+        )}
         {pending ? (
           <>
             {pending.kind === 'equipment' ? (
               <>
                 <EquipmentComparison game={s} id={pending.id} />
+                {s.phase === 'shop' && <ShopPrice offer={pending} />}
                 <Button
                   disabled={
                     busy || (s.phase === 'shop' && s.gold < (pending.cost ?? 0))
                   }
                   onClick={() => {
-                    void act(
-                      s.phase === 'shop'
-                        ? buy(s, pending.id)
-                        : chooseReward(s, pending.id),
-                    );
+                    if (s.phase === 'shop') purchase(pending);
+                    else void act(chooseReward(s, pending.id));
                     setPending(null);
                   }}
                 >
@@ -297,14 +315,7 @@ export function RunPanel({
                       </span>
                     )}
                     <span className="offer-tag">
-                      {o.cost ? (
-                        <>
-                          <SkinIcon name="coin" size={22} />
-                          {o.cost}
-                        </>
-                      ) : (
-                        o.tag
-                      )}
+                      {o.cost ? <ShopPrice offer={o} /> : o.tag}
                     </span>
                   </button>
                 ))}
@@ -315,9 +326,10 @@ export function RunPanel({
                 variant="ghost"
                 onClick={() => void act(chooseReward(s, null))}
               >
-                Пропустить находку <ArrowRight />
+                Пропустить находку и открыть карту <ArrowRight />
               </Button>
             )}
+            {s.phase === 'reward' && <NextStops game={s} />}
             {s.phase === 'shop' && (
               <Button
                 className="panel-main-action"
@@ -327,25 +339,11 @@ export function RunPanel({
               </Button>
             )}
             {s.phase === 'map' && (
-              <div className="route-options">
-                {nextRooms(s).map((r) => (
-                  <button
-                    key={r.id}
-                    className={`route-card route-${r.kind}`}
-                    disabled={busy}
-                    onClick={() => void act(enterRoom(s, r.id))}
-                  >
-                    <span className="route-symbol">
-                      <RoomIcon kind={r.kind} />
-                    </span>
-                    <div>
-                      <strong>{r.name}</strong>
-                      <p>{r.description}</p>
-                    </div>
-                    <ArrowRight size={19} />
-                  </button>
-                ))}
-              </div>
+              <JourneyMap
+                game={s}
+                busy={busy}
+                onEnter={(id) => void act(enterRoom(s, id))}
+              />
             )}
             {s.phase === 'rest' && (
               <>
@@ -520,12 +518,14 @@ export function SettingsPanel({
   open,
   onClose,
   balance,
+  currentSeed,
   onAnimation,
   onStart,
 }: {
   open: boolean;
   onClose: () => void;
   balance: Balance;
+  currentSeed: number;
   onAnimation: (ms: number) => void;
   onStart: (b: Balance, p: Preset, seed?: number) => void;
 }) {
@@ -533,6 +533,7 @@ export function SettingsPanel({
   const [preset, setPreset] = useState<Preset>('normal');
   const [seed, setSeed] = useState('');
   const [copied, setCopied] = useState(false);
+  const seedValid = seed === '' || isValidSeed(seed);
   const sliders: [keyof Balance, string, number, number, number][] = [
     ['health', 'Здоровье героя', 20, 80, 5],
     ['blade', 'Урон одной фишки', 1, 5, 1],
@@ -593,17 +594,33 @@ export function SettingsPanel({
           )}
         </div>
         <label className="seed-control" htmlFor="run-seed">
-          Номер поля для повтора{' '}
+          Seed — номер забега{' '}
           <Input
             id="run-seed"
             value={seed}
-            onChange={(e) =>
-              setSeed(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))
-            }
-            placeholder="Случайное поле"
+            onChange={(e) => setSeed(e.target.value)}
+            placeholder="Случайный seed"
+            aria-invalid={!seedValid}
+            aria-describedby="seed-explanation"
             inputMode="numeric"
           />
         </label>
+        <div className="seed-current">
+          <Button
+            variant="outline"
+            onClick={() => setSeed(String(currentSeed >>> 0))}
+          >
+            Использовать текущий: {currentSeed >>> 0}
+          </Button>
+          <p
+            id="seed-explanation"
+            className={seedValid ? 'panel-note' : 'seed-error'}
+          >
+            {seedValid
+              ? 'Одинаковый seed, открытия, настройки и решения повторяют поле, находки и скидки.'
+              : 'Введи целое число от 0 до 4294967295.'}
+          </p>
+        </div>
         <p className="panel-note">
           Забеги с изменённым балансом, готовой сборкой или заданным номером не
           влияют на открытия и серию побед. Текущий незавершённый забег
@@ -612,7 +629,9 @@ export function SettingsPanel({
         <div className="settings-actions">
           <Button
             className="panel-main-action"
+            disabled={!seedValid}
             onClick={() => {
+              if (!seedValid) return;
               onStart(settings, preset, seed ? Number(seed) : undefined);
               onClose();
             }}

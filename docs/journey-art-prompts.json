@@ -1,0 +1,368 @@
+{
+  "version": 1,
+  "generator": "native image_gen",
+  "method": "one separate text-only native generation per asset",
+  "programmatic_bitmap_edits": false,
+  "asset_count": 11,
+  "merchant_sprite_count": 1,
+  "opaque_room_background_count": 10,
+  "notes": [
+    "All 11 output PNGs were visually inspected and checked using read-only metadata/alpha analysis.",
+    "Merchant is native 1254×1254 RGBA with genuine alpha transparency. Its bbox uses alpha>=128 and exclusive right/bottom edges.",
+    "All ten backgrounds are native 1672×941 RGB, fully opaque, approximately 16:9 (aspect 1.7768331562). Exact requested 1536×864 was not produced.",
+    "All backgrounds have empty left/right actor positions at about 75% image height. Floor depth varies between rooms; supplied floor bands are visual estimates, not generated masks.",
+    "No output bitmap was resized, cropped, redrawn, cleaned or otherwise programmatically edited.",
+    "No retry was needed. All original native files remain outside the repository."
+  ],
+  "assets": [
+    {
+      "id": "merchant",
+      "kind": "sprite",
+      "suggested_filename": "merchant.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-942bd021-e391-4101-870f-7ea6ea0f7efd.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "transparency": {
+        "has_alpha_channel": true,
+        "alpha_range": [0, 255],
+        "fully_transparent_pixels": 941629,
+        "fully_opaque": false,
+        "visible_bbox_alpha_128": [199, 50, 1063, 1215]
+      },
+      "visual_check": {
+        "usable": true,
+        "one_full_body_figure": true,
+        "facing": "three-quarter right",
+        "full_silhouette_inside_canvas": true,
+        "rendered_checkerboard": false,
+        "no_floor_shadow_or_halo": true
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original full-body idle merchant sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nAn odd friendly elderly itinerant junk dealer in a patched dusty-olive coat, large cream moustache, round spectacles, tattered soft hat, an orange/copper scarf, and a bag of unlabelled wares slung over his shoulder. He holds one small coin in one hand and a little closed ledger with a blank cover in the other. No writing anywhere.\nExactly one complete figure, facing RIGHT in a three-quarter view. One idle pose only. Square canvas, centered with generous transparent padding, entire hat, bag, hands and feet inside the central 75% of the canvas.\nDeliberately chunky LOW-RESOLUTION pixel art, approximately 72 logical pixels across the entire figure, enlarged with nearest-neighbor hard square pixels. Thick very dark brown/black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material. Muted warm cellar palette: cream, ochre, dusty olive and copper. Friendly eccentric expression, readable silhouette. Original character, no copyrighted likenesses.\nOutput PNG with REAL RGBA transparency. All empty space outside and within the silhouette must be truly transparent. No drawn checkerboard, no background color, no floor, no shadow, no glow, no halo, no scene, no UI, no text, no letters, no labels, no watermark or frame. No photorealism, smooth vector curves, painterly noise, gradients or fine stippling. Only the isolated merchant.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/merchant.png",
+      "sha256": "5eaadff795e4fe9ed469ed7bd015003ed082ad5a8d31f3c2eedd978ebe37a915"
+    },
+    {
+      "id": "entrance",
+      "kind": "background",
+      "suggested_filename": "entrance.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-b4f4a62a-926e-482f-bc30-12e9601439f6.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.58, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: The entrance to an old stone cellar. Descending stairs tucked into the back-left wall, a broad worn stone arch in the back center, two amber lanterns fixed to the masonry, a few small dusty wooden remnants near the back wall. Inviting but mysterious first room.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/entrance.png",
+      "sha256": "fbf83a69bd438047036d4361ca81729c5634598456c2da5dba6c1f567e82eed0"
+    },
+    {
+      "id": "paper-tunnels",
+      "kind": "background",
+      "suggested_filename": "paper-tunnels.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-1120ebab-bc5d-4d11-bfe0-89702a41a936.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.56, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: A vaulted underground paper-storage tunnel. Low stone vaults receding behind the battle stage, shelves of blank tied paper bundles along the back wall, small crumpled cream pages collected at the wall edges, a few broken wooden crates pushed against the wall. Clear warm ochre masonry and dusty olive accents.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/paper-tunnels.png",
+      "sha256": "8b737a274d3d16b39d969248b4c9f53a68a5010a4cf9588f4c5f34fa79829dc9"
+    },
+    {
+      "id": "library",
+      "kind": "background",
+      "suggested_filename": "library.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-db615f22-2a09-419f-a07b-c4015a5a3884.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.6, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: An old underground library. Tall aged dark-wood bookcases filled with muted unlabelled books, a narrow ladder leaning against a back bookcase, a small forgotten plain stone altar at the rear center. Books have no readable writing. Warm amber lamps, cream stone and subdued purple/olive book accents.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/library.png",
+      "sha256": "d40fc5af2b4b29fe134ec955ee7d767a8b701935d4e408dcde04fcae63a8ed93"
+    },
+    {
+      "id": "corrections",
+      "kind": "background",
+      "suggested_filename": "corrections.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-affc1ae5-1e50-418e-b03a-b99595e8f4e4.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.6, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: An abandoned bureaucratic office built inside a stone cellar. A few old desks and tilted filing cabinets are clustered along the back wall; all drawers and papers are unlabelled. Tattered dusty pink and muted red cloth accents hang at the back. Worn stone arches, warm sepia light, slightly uneasy institutional mood.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/corrections.png",
+      "sha256": "2035edf3fbf1d9070516d6639ceb03a8ba0a0ba30a602641b55990403d9aff27"
+    },
+    {
+      "id": "market",
+      "kind": "background",
+      "suggested_filename": "market.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-6489bd9f-0ead-4174-ad85-0123b7950ba1.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.63, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: A warm underground merchant stall in a stone cellar. A wooden counter at the back center, blank triangular bunting overhead, shelves holding a few unlabelled jars, wrapped bundles, blank books and simple wares. Warm green and amber lanterns illuminate the stall. No vendor or person is present; it is an empty stage ready for a separate merchant sprite.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/market.png",
+      "sha256": "acdf4b6bd1a03d4e2ee6f6bb30e633335d1793619e849d7900433c3e5f0f6efc"
+    },
+    {
+      "id": "ink-cistern",
+      "kind": "background",
+      "suggested_filename": "ink-cistern.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-8ef57bbc-2870-47f6-bd19-24b083b28715.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.65, 0.81],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: An old ink cistern beneath the office. Dark teal-black ink canals lie BEHIND the continuous stone foreground walkway, huge worn iron pipes run along the back masonry, large old valves without labels, sparse ochre lamps. The black ink stays in recessed rear canals; the entire foreground is a clear dry flat walkable stone stage.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/ink-cistern.png",
+      "sha256": "7022c81a322c9ae9466ae663cf571fcdf196064b0d27bdf355f981958eaf9437"
+    },
+    {
+      "id": "waterlock",
+      "kind": "background",
+      "suggested_filename": "waterlock.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-4c9a46f6-26a4-422e-a30e-41151e1e57b0.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.67, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: An old underground floodgate machinery chamber. Large static iron gears, thick chains and an ancient wooden-and-iron floodgate occupy the back wall; a muted blue-green water cistern lies behind the dry stone foreground walkway. Worn copper fittings and amber utility lamps. The floor across the foreground remains uninterrupted and clear.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/waterlock.png",
+      "sha256": "bb5c04da9d4140a7d40543b9019c0fa1628d3e1aaec9ecbb31510fe3ad415e89"
+    },
+    {
+      "id": "vault",
+      "kind": "background",
+      "suggested_filename": "vault.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-5c489865-848a-48db-baba-40d97d789fd0.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.6, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: A cellar vault chamber. A tall closed bronze-and-iron vault door set into the back wall, several closed lockboxes stacked at the far wall sides, a pair of tarnished empty mirrors, sparse bronze lanterns. No digits or lettering on locks or the vault. Warm sepia stone, dusty olive iron and restrained copper shine.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/vault.png",
+      "sha256": "25ca070a2791129d670ed3ed2e2eaaf974216f5cad9c8c018ae83d98493fd981"
+    },
+    {
+      "id": "campfire",
+      "kind": "background",
+      "suggested_filename": "campfire.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-237b8ee1-b9ee-455a-a63e-f96a00e0f0c7.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.57, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: A quiet sheltered stone alcove for rest. A SMALL warm campfire in a shallow stone ring sits toward the back middle, one rolled and one partly spread bedroll stay close to the rear wall, a simple wooden stool and a few small unlabelled supplies at the wall. Cozy safer tone, warm amber light, broad clear stone floor in front. Fire and bedroll never block the foreground battle lane.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/campfire.png",
+      "sha256": "609f18291098affb077fdcdb95e101d830da799a5ed947de449500007ac908f6"
+    },
+    {
+      "id": "throne",
+      "kind": "background",
+      "suggested_filename": "throne.png",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-5a8e16aa-f7c9-4c4c-aeea-cdbb20511db3.png",
+      "dimensions": [1672, 941],
+      "format": "PNG",
+      "mode": "RGB",
+      "transparency": {
+        "has_alpha_channel": false,
+        "alpha_range": null,
+        "fully_transparent_pixels": 0,
+        "fully_opaque": true,
+        "visible_bbox_alpha_128": null
+      },
+      "visual_check": {
+        "usable": true,
+        "empty_environment": true,
+        "no_people_or_creatures": true,
+        "no_readable_text_or_ui": true,
+        "side_on_battle_stage": true,
+        "clear_actor_positions_at_y_ratio": 0.75,
+        "uninterrupted_foreground_walkway": true,
+        "approximate_walkable_floor_y_band": [0.62, 1],
+        "floor_band_method": "visually estimated normalized canvas coordinates"
+      },
+      "generation_attempts": 1,
+      "prompt": "Create one original EMPTY ROOM BACKGROUND for the side-on 2D battle stages in the pixel-art cellar roguelike “Дворец слов — подвал”.\nRoom design: A grand dark bureaucratic cellar throne room, empty. A heavy imposing stone-and-iron throne stands at the BACK CENTER, high blank burgundy banners, broad stone columns and restrained gold-red architectural accents. Crown-like abstract geometry on the throne but no faces, statues, creatures or writing. A wide open foreground boss arena with clearly readable warm stone ground.\nCanvas: WIDE LANDSCAPE 16:9, ideally 1536×864. Fill the entire canvas with a fully OPAQUE painted environment. This is a background image, not a transparent sprite.\nCamera and layout: side-on 2D battle-stage view, nearly straight-on to the back wall, mild architectural depth only. NOT top-down and NOT isometric. Architecture and props occupy the upper TWO THIRDS. The bottom THIRD is a broad continuous FLAT horizontal walkable stone floor, brighter and simpler than the back wall. The intended actor standing baseline is exactly around 75% of image height. Leave broad unoccupied actor positions on BOTH the left and right sides around that baseline. Keep all furniture, machinery, stairs, fire, crates and detail close to the BACK WALL, behind the play lane. No foreground obstruction, no central pit, no steps across the battle lane. The same camera height and floor arrangement should suit every room in the series.\nArt direction: original deliberately LOW-RESOLUTION chunky pixel art, imagined visual grid of 256×144 pixels or fewer, enlarged with nearest-neighbor square pixels. Large hard square color clusters, thick black/dark-brown staircase outlines, flat limited color palette, sparse meaningful details. Minimal fine texture, no dithering or stippled noise, no smooth gradients, no soft photorealistic lighting. Warm sepia cellar palette with cream, ochre, dusty olive and copper; tasteful restrained red/teal/purple accents appropriate to this room. Atmospheric depth expressed through large discrete flat shade bands. Brighter readable foreground ground, strong clear stage silhouettes, uncluttered composition.\nAbsolute exclusions: NO CHARACTERS, NO PEOPLE, NO VENDORS, NO CREATURES, NO FACES, NO STATUES, NO LETTERS, NO TEXT, NO NUMBERS, NO SIGNS, NO LABELS, NO UI, NO LOGOS OR WATERMARKS, no interface border. No copyrighted characters or copied game assets. No photorealism, smooth vector art, painterly rendering, noisy texture or blur. Only the fully opaque empty pixel-art environment.",
+      "referenced_image_paths": [],
+      "saved_path": "public/art/pronoun-palace/backgrounds/throne.png",
+      "sha256": "81c5271da2743cfdb29e6dabbcc291f1874338603a49aa0ea765bc3264dd042c"
+    }
+  ]
+}
