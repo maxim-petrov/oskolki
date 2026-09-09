@@ -1,16 +1,12 @@
 /* eslint-disable react/react-compiler, nextjs/no-img-element -- This event-driven renderer is not React Compiler compiled; refs bridge asynchronous frame replay and WebMCP to React state. */
 'use client';
-import { VISUAL_STYLES } from '@/game/visual-style';
+import { VISUAL_STYLE } from '@/game/visual-style';
 import { useRef, useState, useEffect, type PointerEvent } from 'react';
 import {
   Sword,
   Shield,
   Zap,
-  Sparkles,
-  Heart,
-  Coins,
   Skull,
-  Bomb,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
@@ -22,7 +18,6 @@ import {
   Gem,
   Footprints,
   Flame,
-  FlaskConical,
   Check,
   Settings2,
   Crown,
@@ -70,12 +65,6 @@ import {
 } from '@/game/engine';
 import { registerGameTools, gameAction, gameSnapshot } from '@/game/webmcp';
 import { SkinIcon } from '@/components/skin-icon';
-import {
-  StylePicker,
-  useVisualStyle,
-  readVisualStyle,
-  selectVisualStyle,
-} from '@/components/visual-style';
 import { CombatSprite } from '@/components/combat-sprite';
 import { motionFor, type Motion } from '@/game/motion';
 import { Progress } from '@/components/ui/progress';
@@ -98,12 +87,10 @@ import {
   type Result,
   type Family,
 } from '@/game/engine';
-const SYMBOLS = { blade: Sword, shield: Shield, spark: Zap, focus: Sparkles };
+
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 export default function Game() {
-  const visualStyle = useVisualStyle();
-  const illustrated = visualStyle !== 'crypt';
   const [game, setGame] = useState(() => startRun());
   const [motion, setMotion] = useState<Motion | null>(null);
   const motionSerial = useRef(0);
@@ -407,18 +394,13 @@ export default function Game() {
       return registerGameTools(
         () => toolsRef.current.read(),
         (input) => toolsRef.current.act(input),
-        { read: readVisualStyle, select: selectVisualStyle },
       );
   }, [ready]);
   return (
     <main className="game-shell">
       <header className="topbar">
         <div className="brand">
-          {illustrated ? (
-            <SkinIcon name="crown" size={40} />
-          ) : (
-            <Gem size={27} />
-          )}
+          <SkinIcon name="crown" size={40} />
           <h1>ОСКОЛКИ</h1>
           <span className="build-tag">
             {s.modified ? 'ПРОВЕРКА БАЛАНСА' : 'ПЕРВЫЙ СПУСК'}
@@ -432,11 +414,7 @@ export default function Game() {
         </div>
         <div className="header-actions">
           <span className="gold">
-            {illustrated ? (
-              <SkinIcon name="coin" size={30} />
-            ) : (
-              <Coins size={17} />
-            )}
+            <SkinIcon name="coin" size={30} />
             {s.gold}
           </span>
           <Button
@@ -475,9 +453,6 @@ export default function Game() {
           </Button>
         </div>
       </header>
-      <div className="appearance-bar">
-        <StylePicker disabled={busy} />
-      </div>
       <div className="game-layout">
         <aside className="journey">
           <p className="eyebrow">ТВОЙ ПУТЬ</p>
@@ -543,10 +518,8 @@ export default function Game() {
           >
             <img
               className="arena-bg"
-              src={VISUAL_STYLES.find((skin) => skin.id === visualStyle)!.arena}
-              alt={
-                VISUAL_STYLES.find((skin) => skin.id === visualStyle)!.arenaAlt
-              }
+              src={VISUAL_STYLE.arena}
+              alt={VISUAL_STYLE.arenaAlt}
             />
             <div className="arena-shade" />
             <div className="arena-dust" aria-hidden="true">
@@ -571,11 +544,7 @@ export default function Game() {
               <div className="fighter-caption">
                 <strong>Странник</strong>
                 <span className="health-number">
-                  {illustrated ? (
-                    <SkinIcon name="heart" size={22} />
-                  ) : (
-                    <Heart size={13} />
-                  )}
+                  <SkinIcon name="heart" size={22} />
                   {s.hp} / {s.maxHp}
                   {s.heroPoison > 0 && (
                     <span className="poison-number"> · яд {s.heroPoison}</span>
@@ -724,12 +693,6 @@ export default function Game() {
                   aria-label="Поле 6 на 6. Выбери фишку и используй стрелки или перетащи её."
                 >
                   {board.map((t, i) => {
-                    const Icon =
-                      t.variant === 'bomb'
-                        ? Bomb
-                        : t.variant === 'venom'
-                          ? Skull
-                          : SYMBOLS[t.family];
                     return (
                       <button
                         key={i}
@@ -751,11 +714,7 @@ export default function Game() {
                           }
                         }}
                       >
-                        {illustrated ? (
-                          <SkinIcon name={t.variant ?? t.family} size={56} />
-                        ) : (
-                          <Icon size={27} strokeWidth={1.8} />
-                        )}
+                        <SkinIcon name={t.variant ?? t.family} size={56} />
                         {t.root && (
                           <span
                             className="root-mark"
@@ -803,14 +762,9 @@ export default function Game() {
             </div>
             <div className="board-legend">
               {FAMILIES.map((f) => {
-                const Icon = SYMBOLS[f];
                 return (
                   <span key={f} className={`legend-${f}`}>
-                    {illustrated ? (
-                      <SkinIcon name={f} size={23} />
-                    ) : (
-                      <Icon size={14} />
-                    )}
+                    <SkinIcon name={f} size={23} />
                     {FAMILY_NAMES[f]}
                   </span>
                 );
@@ -844,11 +798,7 @@ export default function Game() {
         <aside className="loadout">
           <div className="resource-row">
             <div className="resource energy">
-              {illustrated ? (
-                <SkinIcon name="spark" size={40} />
-              ) : (
-                <Zap size={21} />
-              )}
+              <SkinIcon name="spark" size={40} />
               <strong>
                 {s.energy}
                 <small>/{energyMax(s)}</small>
@@ -856,11 +806,7 @@ export default function Game() {
               <span>Энергия</span>
             </div>
             <div className="resource focus">
-              {illustrated ? (
-                <SkinIcon name="focus" size={40} />
-              ) : (
-                <Sparkles size={21} />
-              )}
+              <SkinIcon name="focus" size={40} />
               <strong>
                 {s.focus}
                 <small>/{focusMax(s)}</small>
@@ -897,11 +843,7 @@ export default function Game() {
                 disabled={busy || s.cast || s.focus < 3 || !active}
                 onClick={() => setEditing(editing ? null : 'blade')}
               >
-                {illustrated ? (
-                  <SkinIcon name="focus" size={32} />
-                ) : (
-                  <Sparkles size={20} />
-                )}
+                <SkinIcon name="focus" size={32} />
                 <span>
                   <strong>Правка поля</strong>
                   <small>3 фокуса · замени одну фишку</small>
@@ -910,7 +852,6 @@ export default function Game() {
               {editing && (
                 <div className="family-choices">
                   {FAMILIES.map((f) => {
-                    const Icon = SYMBOLS[f];
                     return (
                       <button
                         key={f}
@@ -918,11 +859,7 @@ export default function Game() {
                         aria-label={`Превратить в ${FAMILY_NAMES[f]}`}
                         onClick={() => setEditing(f)}
                       >
-                        {illustrated ? (
-                          <SkinIcon name={f} size={28} />
-                        ) : (
-                          <Icon size={18} />
-                        )}
+                        <SkinIcon name={f} size={28} />
                       </button>
                     );
                   })}
@@ -938,11 +875,7 @@ export default function Game() {
             }
             onClick={() => void play(consumePotion(game))}
           >
-            {illustrated ? (
-              <SkinIcon name="potion" size={36} />
-            ) : (
-              <FlaskConical size={19} />
-            )}
+            <SkinIcon name="potion" size={36} />
             <span>
               Лечебное зелье <small>+8 здоровья</small>
             </span>
@@ -964,11 +897,7 @@ export default function Game() {
             </div>
           ) : (
             <div className="empty-relics">
-              {illustrated ? (
-                <SkinIcon name="relic" size={42} />
-              ) : (
-                <Gem size={24} />
-              )}
+              <SkinIcon name="relic" size={42} />
               <p>
                 Первая находка
                 <br />

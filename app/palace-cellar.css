@@ -60,22 +60,6 @@ html[data-skin='palace-cellar'] {
     border-color: #cead7e;
     background: #4b3429;
   }
-  .appearance-label {
-    color: #bfae94;
-  }
-  .style-picker[data-slot='radio-group'] {
-    background: #241d18;
-    border-color: #534236;
-  }
-  .style-option {
-    color: #c4b397;
-  }
-  .style-option.chosen {
-    background: #dfd2b9;
-    color: #632920;
-    border-color: #ad8063;
-    box-shadow: 2px 2px #080605;
-  }
   .journey,
   .loadout {
     background: #d8cdb7;
@@ -407,22 +391,6 @@ html[data-skin='palace-cellar'] {
   }
   .game-dialog [data-slot='dialog-close'] {
     color: #6e382c;
-  }
-  .game-dialog .appearance-label {
-    color: #6e5b48;
-  }
-  .game-dialog .style-picker[data-slot='radio-group'] {
-    background: #c7b99f;
-    border-color: #a18b70;
-  }
-  .game-dialog .style-option {
-    color: #69533f;
-  }
-  .game-dialog .style-option.chosen {
-    color: #872e24;
-    background: #efe1c5;
-    border-color: #8d4a36;
-    box-shadow: 2px 2px #a18b70;
   }
   .panel-emblem {
     color: #8a3e2b;

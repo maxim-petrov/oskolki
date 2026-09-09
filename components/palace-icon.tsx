@@ -1,6 +1,6 @@
 'use client';
 import { useId } from 'react';
-import { ROYAL_ICONS, type RoyalIconName } from '@/components/royal-icon';
+import { ICON_NAMES, type IconName } from '@/game/icon-names';
 import { PalaceCutout } from '@/components/palace-cutout';
 
 // Measured item bounds, including detached sparks. The source stays untouched.
@@ -24,12 +24,12 @@ export function PalaceIcon({
   size = 30,
   className = '',
 }: {
-  name: RoyalIconName;
+  name: IconName;
   size?: number;
   className?: string;
 }) {
   const id = useId().replace(/:/g, '');
-  const [x, y, width, height] = REGIONS[ROYAL_ICONS.indexOf(name)];
+  const [x, y, width, height] = REGIONS[ICON_NAMES.indexOf(name)];
   const extent = Math.max(width, height) + 12;
   return (
     <svg

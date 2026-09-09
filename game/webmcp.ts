@@ -1,4 +1,4 @@
-import { isVisualStyle, VISUAL_STYLES, type VisualStyle } from './visual-style';
+import { VISUAL_STYLE } from './visual-style';
 import {
   move,
   endTurn,
@@ -202,7 +202,6 @@ type Context = {
 export function registerGameTools(
   read: () => Record<string, unknown>,
   act: (input: unknown) => Promise<unknown>,
-  appearance: { read: () => VisualStyle; select: (style: VisualStyle) => void },
 ) {
   const context = (document as Document & { modelContext?: Context })
     .modelContext;
@@ -228,7 +227,7 @@ export function registerGameTools(
           Object.keys(input).length
         )
           throw Error('Нужен пустой объект.');
-        return { ...read(), visualStyle: appearance.read() };
+        return { ...read(), visualStyle: VISUAL_STYLE.id };
       },
     },
     {
@@ -239,41 +238,6 @@ export function registerGameTools(
       inputSchema: actionSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: act,
-    },
-    {
-      name: 'set_visual_style',
-      title: 'Сменить оформление игры',
-      description:
-        'Switch only the appearance of the current game between crypt (dark fantasy), royal (bright kingdom), pixel (retro pixel adventure), paper (flat paper-cut cartoon), cartoon (bold inked comic knights), darktale (minimal dark pixel tale with white frames and vivid accents), midnight (gothic pixel adventure with teal metal frames, cream type and animal explorers), underworld (painted Greek underworld with gold frames, crimson cloth and jade fire), deadcells (coarse pixel castle, copper-edged navy panels and cyan selection glow), basement (creepy-cute chunky pixel characters, brown cellar, red hearts and charcoal-on-paper menus), palace (gray suburban pixel cartoons, thick black outlines, wooden tiles and pink stationery in the spirit of Pronoun Palace), palace-pop (same Pronoun Palace characters and icons with a vivid comic street, cyan panels and pink/yellow accents), palace-vivid (same bright Palace scenery and UI with slightly more saturated and brighter character colors), palace-cellar (Pronoun Palace drawings in the Binding of Isaac palette: sepia street, charcoal and brown board, cream paper panels and red accents), palace-summit (Pronoun Palace drawings in the Celeste palette: a cold blue street, midnight panels, snow-white frames, icy blue and coral accents), summit (coarse snowy mountain pixels, midnight blue panels, white frames and coral accents in the spirit of Celeste), and arcade (urban pixel comic brawlers, thick black outlines, light cyan HUD panels and pink/yellow accents in the spirit of Scott Pilgrim vs. The World). Updates characters, board and all panels; saves the choice in this browser. Does not reset or advance the run. Returns after the interface updates. Read read_game to inspect the style and unchanged run.',
-      inputSchema: {
-        type: 'object',
-        required: ['style'],
-        additionalProperties: false,
-        properties: {
-          style: {
-            type: 'string',
-            enum: VISUAL_STYLES.map((style) => style.id),
-          },
-        },
-      },
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      async execute(input) {
-        if (!input || typeof input !== 'object' || Array.isArray(input))
-          throw Error('Нужен объект со style.');
-        const p = input as Record<string, unknown>;
-        if (
-          Object.keys(p).some((k) => k !== 'style') ||
-          !isVisualStyle(p.style)
-        )
-          throw Error(
-            `Ожидается только style: ${VISUAL_STYLES.map((style) => style.id).join(', ')}.`,
-          );
-        appearance.select(p.style);
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-        );
-        return { visualStyle: appearance.read(), runUnchanged: true };
-      },
     },
   ];
   for (const tool of list) {

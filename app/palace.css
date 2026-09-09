@@ -1,11 +1,5 @@
 /* Palace: quiet gray streets, blunt black contours and pink stationery. */
-html:is(
-  [data-skin='palace'],
-  [data-skin='palace-pop'],
-  [data-skin='palace-vivid'],
-  [data-skin='palace-cellar'],
-  [data-skin='palace-summit']
-) {
+html[data-skin='palace-cellar'] {
   --background: #92938f;
   --foreground: #161714;
   --card: #d0ceca;
@@ -101,32 +95,6 @@ html:is(
   .header-actions button:hover {
     background: #ead0d6;
     border-color: #151912;
-  }
-  .appearance-control {
-    gap: 12px;
-  }
-  .appearance-label {
-    color: #30372e;
-    font-size: 14px;
-  }
-  .style-picker[data-slot='radio-group'] {
-    background: #a4a8a0;
-    border: 2px solid #52584e;
-    border-radius: 0;
-    gap: 3px;
-    padding: 4px;
-  }
-  .style-option {
-    color: #333a30;
-    font-size: 14px;
-    padding: 7px 9px;
-    border-radius: 0;
-  }
-  .style-option.chosen {
-    background: #e8c9ce;
-    color: #171b16;
-    border: 2px solid #23261e;
-    box-shadow: 2px 2px #696f63;
   }
   .game-layout {
     gap: 24px;
@@ -694,22 +662,6 @@ html:is(
     color: #2b3421;
     opacity: 1;
   }
-  .game-dialog .appearance-label {
-    color: #515c43;
-  }
-  .game-dialog .style-picker[data-slot='radio-group'] {
-    background: #c5b9b3;
-    border-color: #928d7f;
-  }
-  .game-dialog .style-option {
-    color: #4a553e;
-  }
-  .game-dialog .style-option.chosen {
-    color: #252e1b;
-    background: #f0d8de;
-    border-color: #2d3821;
-    box-shadow: 2px 2px #998d88;
-  }
   .panel-emblem {
     color: #28391a;
     background: #c2c7b4;
@@ -864,13 +816,7 @@ html:is(
   }
 }
 @media (max-width: 1150px) {
-  html:is(
-    [data-skin='palace'],
-    [data-skin='palace-pop'],
-    [data-skin='palace-vivid'],
-    [data-skin='palace-cellar'],
-    [data-skin='palace-summit']
-  ) {
+  html[data-skin='palace-cellar'] {
     .game-layout {
       gap: 18px;
     }
@@ -904,13 +850,7 @@ html:is(
   }
 }
 @media (max-width: 640px) {
-  html:is(
-    [data-skin='palace'],
-    [data-skin='palace-pop'],
-    [data-skin='palace-vivid'],
-    [data-skin='palace-cellar'],
-    [data-skin='palace-summit']
-  ) {
+  html[data-skin='palace-cellar'] {
     .game-shell {
       padding: 0 12px;
     }
@@ -935,19 +875,6 @@ html:is(
     }
     .header-run {
       font-size: 14px;
-    }
-    .style-picker[data-slot='radio-group'] {
-      justify-content: center;
-      gap: 2px;
-    }
-    .style-option {
-      font-size: 13px;
-      padding: 6px;
-      gap: 4px;
-    }
-    .style-option > svg {
-      width: 14px;
-      height: 14px;
     }
     .arena {
       height: 330px;
@@ -1069,13 +996,7 @@ html:is(
   }
 }
 @media (max-width: 360px) {
-  html:is(
-    [data-skin='palace'],
-    [data-skin='palace-pop'],
-    [data-skin='palace-vivid'],
-    [data-skin='palace-cellar'],
-    [data-skin='palace-summit']
-  ) {
+  html[data-skin='palace-cellar'] {
     .topbar {
       flex-wrap: wrap;
       height: auto;
@@ -1126,14 +1047,7 @@ html:is(
   }
 }
 @media (max-width: 420px) {
-  html:is(
-      [data-skin='palace'],
-      [data-skin='palace-pop'],
-      [data-skin='palace-vivid'],
-      [data-skin='palace-cellar'],
-      [data-skin='palace-summit']
-    )
-    .skills {
+  html[data-skin='palace-cellar'] {
     grid-template-columns: minmax(0, 1fr);
   }
 }

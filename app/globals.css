@@ -1880,14 +1880,6 @@ p {
   transform-origin: 50% 90%;
   animation: actorBreath 3.6s ease-in-out infinite;
 }
-.art-wanderer {
-  background-image: url('/art/wanderer.png');
-}
-.art-guardian {
-  background-image: url('/art/crypt-guardian.png');
-  animation-duration: 4.1s;
-  animation-delay: -1.3s;
-}
 .sprite-ground {
   position: absolute;
   left: 19%;

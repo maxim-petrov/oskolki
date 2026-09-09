@@ -1,28 +1,13 @@
 'use client';
 import { useState } from 'react';
 import {
-  Gem,
-  Shield,
-  Sword,
-  Zap,
-  Sparkles,
-  Skull,
-  Bomb,
   ArrowRight,
   ArrowLeft,
-  Coins,
-  Flame,
-  Footprints,
-  Crown,
   Timer,
-  Gift,
-  Heart,
-  FlaskConical,
   Check,
   LockKeyhole,
   RotateCcw,
 } from 'lucide-react';
-import { useVisualStyle, StylePicker } from '@/components/visual-style';
 import { SkinIcon, type SkinIconName } from '@/components/skin-icon';
 import { Button } from '@/components/ui/button';
 import {
@@ -53,102 +38,58 @@ import {
   type Balance,
 } from '@/game/engine';
 export const RoomIcon = ({ kind }: { kind: string }) => {
-  const illustrated = useVisualStyle() !== 'crypt';
-  const Icon =
-    (
-      {
-        battle: Sword,
-        elite: Skull,
-        event: Gift,
-        trial: Timer,
-        shop: Coins,
-        rest: Flame,
-        boss: Crown,
-      } as Record<string, typeof Sword>
-    )[kind] ?? Footprints;
-  if (illustrated)
-    return (
-      <SkinIcon
-        name={
-          (
-            {
-              battle: 'blade',
-              elite: 'crown',
-              event: 'relic',
-              trial: 'spark',
-              shop: 'coin',
-              rest: 'heart',
-              boss: 'crown',
-            } as Record<string, SkinIconName>
-          )[kind] ?? 'star'
-        }
-        size={34}
-      />
-    );
-  return <Icon size={27} strokeWidth={1.5} />;
+  return (
+    <SkinIcon
+      name={
+        (
+          {
+            battle: 'blade',
+            elite: 'crown',
+            event: 'relic',
+            trial: 'spark',
+            shop: 'coin',
+            rest: 'heart',
+            boss: 'crown',
+          } as Record<string, SkinIconName>
+        )[kind] ?? 'star'
+      }
+      size={34}
+    />
+  );
 };
 export const ItemIcon = ({ id }: { id: string }) => {
-  const illustrated = useVisualStyle() !== 'crypt';
-  const Icon =
-    (
-      {
-        thorns: Shield,
-        coil: Zap,
-        return: RotateCcw,
-        toxin: Skull,
-        heart: Heart,
-        prism: Gem,
-        conductor: Zap,
-        order: Sparkles,
-        lens: Heart,
-        vessel: FlaskConical,
-        lamp: Flame,
-        thread: Sparkles,
-        venom: Skull,
-        bomb: Bomb,
-        bolt: Zap,
-        guard: Shield,
-        pierce: Sword,
-        blood: Sword,
-        seal: Flame,
-        reshape: Sparkles,
-        potion: FlaskConical,
-      } as Record<string, typeof Sword>
-    )[id] ?? Gem;
-  if (illustrated)
-    return (
-      <SkinIcon
-        name={
-          (
-            {
-              thorns: 'shield',
-              coil: 'spark',
-              return: 'shield',
-              toxin: 'venom',
-              heart: 'heart',
-              prism: 'focus',
-              conductor: 'spark',
-              order: 'focus',
-              lens: 'heart',
-              vessel: 'potion',
-              lamp: 'spark',
-              thread: 'relic',
-              venom: 'venom',
-              bomb: 'bomb',
-              bolt: 'spark',
-              guard: 'shield',
-              pierce: 'blade',
-              blood: 'blade',
-              seal: 'spark',
-              reshape: 'focus',
-              potion: 'potion',
-            } as Record<string, SkinIconName>
-          )[id] ?? 'relic'
-        }
-        size={34}
-      />
-    );
-  return <Icon size={27} strokeWidth={1.5} />;
+  return (
+    <SkinIcon
+      name={
+        (
+          {
+            thorns: 'shield',
+            coil: 'spark',
+            return: 'shield',
+            toxin: 'venom',
+            heart: 'heart',
+            prism: 'focus',
+            conductor: 'spark',
+            order: 'focus',
+            lens: 'heart',
+            vessel: 'potion',
+            lamp: 'spark',
+            thread: 'relic',
+            venom: 'venom',
+            bomb: 'bomb',
+            bolt: 'spark',
+            guard: 'shield',
+            pierce: 'blade',
+            blood: 'blade',
+            seal: 'spark',
+            reshape: 'focus',
+            potion: 'potion',
+          } as Record<string, SkinIconName>
+        )[id] ?? 'relic'
+      }
+      size={34}
+    />
+  );
 };
 export function RunPanel({
   game: s,
@@ -163,7 +104,6 @@ export function RunPanel({
   act: (r: Result) => Promise<void>;
   restart: () => void;
 }) {
-  const illustrated = useVisualStyle() !== 'crypt';
   const [pending, setPending] = useState<Offer | null>(null);
   const open =
     !['battle', 'trial'].includes(s.phase) ||
@@ -319,13 +259,7 @@ export function RunPanel({
                     <span className="offer-tag">
                       {o.cost ? (
                         <>
-                          <>
-                            {illustrated ? (
-                              <SkinIcon name="coin" size={22} />
-                            ) : (
-                              <Coins size={14} />
-                            )}
-                          </>
+                          <SkinIcon name="coin" size={22} />
                           {o.cost}
                         </>
                       ) : (
@@ -380,11 +314,7 @@ export function RunPanel({
                   variant="outline"
                   onClick={() => void act(rest(s, 'heal'))}
                 >
-                  {illustrated ? (
-                    <SkinIcon name="heart" size={40} />
-                  ) : (
-                    <Heart />
-                  )}
+                  <SkinIcon name="heart" size={40} />
                   <span>
                     <strong>Перевести дух</strong>
                     <small>
@@ -417,7 +347,7 @@ export function RunPanel({
                   disabled={s.hp <= 5}
                   onClick={() => void act(eventChoice(s, 'relic'))}
                 >
-                  {illustrated ? <SkinIcon name="relic" size={44} /> : <Gem />}
+                  <SkinIcon name="relic" size={44} />
                   <div>
                     <strong>Открыть тайник</strong>
                     <p>Потерять 5 здоровья и выбрать сильную находку.</p>
@@ -428,11 +358,7 @@ export function RunPanel({
                   className="route-card"
                   onClick={() => void act(eventChoice(s, 'supplies'))}
                 >
-                  {illustrated ? (
-                    <SkinIcon name="potion" size={44} />
-                  ) : (
-                    <FlaskConical />
-                  )}
+                  <SkinIcon name="potion" size={44} />
                   <div>
                     <strong>Забрать припасы</strong>
                     <p>Восстановить 5 здоровья и получить 10 золота.</p>
@@ -445,20 +371,12 @@ export function RunPanel({
               <>
                 <div className="trial-brief">
                   <div>
-                    {illustrated ? (
-                      <SkinIcon name="spark" size={40} />
-                    ) : (
-                      <Zap />
-                    )}
+                    <SkinIcon name="spark" size={40} />
                     <strong>{s.trial?.energy ?? 0} / 18</strong>
                     <span>Энергия механизма</span>
                   </div>
                   <div>
-                    {illustrated ? (
-                      <SkinIcon name="blade" size={40} />
-                    ) : (
-                      <Sword />
-                    )}
+                    <SkinIcon name="blade" size={40} />
                     <strong>{s.trial?.damage ?? 0} / 30</strong>
                     <span>Разрушить преграду</span>
                   </div>
@@ -513,9 +431,6 @@ export function RunPanel({
             )}
           </>
         )}
-        <div className="panel-appearance">
-          <StylePicker compact disabled={busy} />
-        </div>
       </DialogContent>
     </Dialog>
   );
@@ -590,10 +505,9 @@ export function SettingsPanel({
       <DialogContent className="game-dialog settings-dialog">
         <DialogTitle>Настройки</DialogTitle>
         <DialogDescription>
-          Оформление и анимация меняются сразу. Остальные параметры применяются
-          в новом забеге.
+          Скорость анимации меняется сразу. Остальные параметры применяются в
+          новом забеге.
         </DialogDescription>
-        <StylePicker compact />
         <div className="settings-controls">
           {sliders.map(([key, label, min, max, step]) => (
             <div key={key} className="setting-row">
