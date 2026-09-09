@@ -1107,3 +1107,217 @@ html[data-skin='palace-cellar'] {
   outline: 4px dashed var(--palace-ink);
   outline-offset: -6px;
 }
+
+/* Tactical combat: the same paper UI, with room for the complete enemy party. */
+html[data-skin='palace-cellar'] {
+  .turn-budget {
+    margin: 10px 0;
+    padding: 12px 16px;
+    background: var(--palace-paper-light);
+    border: 2px solid var(--palace-ink);
+    color: var(--palace-ink);
+    font-size: 14px;
+  }
+  .turn-budget-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .turn-budget p {
+    margin: 8px 0 0;
+    line-height: 1.4;
+  }
+  .turn-budget summary {
+    margin-top: 8px;
+    cursor: pointer;
+  }
+  .action-pips {
+    display: flex;
+    gap: 5px;
+  }
+  .action-pips i {
+    width: 13px;
+    height: 13px;
+    border: 2px solid var(--palace-ink);
+    background: var(--palace-paper);
+  }
+  .action-pips .available {
+    background: var(--palace-green);
+  }
+  .tactical-notice {
+    border-top: 1px solid var(--palace-quiet);
+    padding-top: 8px;
+  }
+  .action-counter {
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--palace-ink);
+    margin-right: auto;
+  }
+  .board {
+    grid-template-columns: repeat(var(--board-size, 6), minmax(0, 1fr));
+  }
+  .arrow-row {
+    grid-template-columns: 24px repeat(
+        var(--board-size, 6),
+        minmax(0, 1fr)
+      ) 24px;
+  }
+  .side-arrows {
+    grid-template-rows: repeat(var(--board-size, 6), 1fr);
+  }
+  .tile.sealed-tile {
+    outline: 3px solid var(--palace-ink);
+    outline-offset: -4px;
+  }
+  .lock-mark {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0 4px;
+    background: var(--palace-paper-light);
+    color: var(--palace-ink);
+    border: 2px solid var(--palace-ink);
+    font:
+      bold 16px/18px Georgia,
+      serif;
+    z-index: 4;
+  }
+  .unknown-room-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    font:
+      bold 24px/1 Georgia,
+      serif;
+    color: currentColor;
+  }
+  .arena.squad-arena {
+    display: grid;
+    grid-template-columns: 27% minmax(0, 1fr);
+    gap: 16px;
+    height: auto;
+    min-height: 580px;
+    padding: 65px 12px 20px;
+  }
+  .squad-arena .hero {
+    position: relative;
+    inset: auto;
+    align-self: center;
+    width: 100%;
+  }
+  .squad-arena .enemies {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: auto;
+  }
+  .squad-arena .enemies .enemy {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px;
+    border: 2px solid transparent;
+  }
+  .squad-arena .enemies .enemy.targeted {
+    border-color: var(--palace-ink);
+  }
+  .squad-arena .enemies .enemy-intent {
+    position: relative;
+    inset: auto;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    min-height: 55px;
+    font-size: 12px;
+    text-align: left;
+  }
+  .squad-arena .enemies .enemy-intent svg {
+    flex-shrink: 0;
+  }
+  .squad-arena .enemies .sprite-root {
+    position: relative;
+    inset: auto;
+    translate: none;
+    width: min(120px, 100%);
+    height: auto;
+    aspect-ratio: 1;
+    flex: none;
+  }
+  .squad-arena .enemies .fighter-caption {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    min-height: 59px;
+    padding: 4px;
+    background: var(--palace-paper-light);
+  }
+  .squad-arena .enemies .fighter-caption strong,
+  .squad-arena .enemies .health-number {
+    font-size: 12px;
+  }
+}
+@media (max-width: 640px) {
+  html[data-skin='palace-cellar'] {
+    .battle-actions-inner {
+      gap: 10px;
+    }
+    .battle-actions-inner:has(.action-counter) .end-turn {
+      width: auto;
+      flex: 1;
+      min-width: 0;
+    }
+    .action-counter {
+      font-size: 13px;
+    }
+    .arena.squad-arena {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .squad-arena .hero {
+      inset: auto;
+      justify-self: center;
+      width: 160px;
+      height: 220px;
+    }
+    .squad-arena .enemies {
+      inset: auto;
+      width: 100%;
+    }
+    .turn-budget {
+      padding: 10px;
+    }
+  }
+}
+
+html[data-skin='palace-cellar'] {
+  .action-counter small {
+    display: block;
+    color: var(--palace-red);
+    font-size: 12px;
+  }
+  .map-uncertainty {
+    background: var(--palace-paper-light);
+    border: 2px solid var(--palace-ink);
+    padding: 10px 14px;
+    margin: 0 0 12px;
+    color: var(--palace-ink);
+  }
+}
+
+@media (max-width: 640px) {
+  html[data-skin='palace-cellar'] .arrow-row {
+    grid-template-columns: 20px repeat(
+        var(--board-size, 6),
+        minmax(0, 1fr)
+      ) 20px;
+  }
+}

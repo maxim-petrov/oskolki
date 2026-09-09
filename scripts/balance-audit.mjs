@@ -60,77 +60,94 @@ export function simulate(seed, style = 'balanced', options = {}) {
       };
       if (s.potions && !s.consumed && s.hp <= s.maxHp - 8)
         take(g.consumePotion(s));
-      const targets = s.enemies
-        .filter((e) => e.hp > 0)
-        .sort((a, b) => a.hp + a.block * 0.5 - (b.hp + b.block * 0.5));
-      s = { ...s, target: targets[0]?.id ?? s.target };
-      if (!s.moved) {
-        const m = g
-          .validMoves(s.board)
-          .map((m) => {
-            const p = g.previewMove(s, m.axis, m.line, m.amount);
-            const dmg = p.targets.reduce(
-              (n, e) => n + e.damage + e.poison * 1.5 + (e.defeated ? 7 : 0),
-              0,
-            );
-            return {
-              m,
-              score:
-                dmg * 1.4 +
-                Math.min(Math.max(0, threat() - s.block), p.block) * 1.8 +
-                p.energy * 1.2 +
-                p.focus * 0.6 +
-                p.health * 3 +
-                (p.tideCleared ? 5 : 0) -
-                (p.lethal ? 10000 : 0),
-            };
-          })
-          .sort((a, b) => b.score - a.score)[0]?.m;
-        if (m) take(g.move(s, m.axis, m.line, m.amount));
-      }
-      if (s.phase === 'battle' && !s.cast) {
-        if (
-          g.canCast(s, 'binding') &&
-          (threat() === 0 ||
-            (s.enemies.filter((e) => e.hp > 0).length === 1 &&
-              s.enemies.find((e) => e.hp > 0).hp +
-                s.enemies.find((e) => e.hp > 0).block <=
-                Math.min(s.block, 8) * 2))
-        )
-          take(g.castSkill(s, 'binding'));
-        else if (g.canCast(s, 'pierce')) take(g.castSkill(s, 'pierce'));
-        else if (g.canCast(s, 'bolt')) take(g.castSkill(s, 'bolt'));
-        else if (g.canCast(s, 'guard') && threat() > s.block)
-          take(g.castSkill(s, 'guard'));
-        else if (g.canCast(s, 'edit')) {
-          // Score the visible groups a cell replacement would create, no refill.
-          let choice = null;
-          for (let i = 0; i < 36; i++)
-            for (const family of g.FAMILIES) {
-              if (s.board[i].family === family) continue;
-              const b = s.board.map((t, j) => (j === i ? { ...t, family } : t));
-              const gs = g.groups(b);
-              const score = gs.reduce(
-                (n, is) =>
-                  n +
-                  is.length *
-                    (family === 'blade'
-                      ? 2
-                      : family === 'shield' && threat() > s.block
-                        ? 1.5
-                        : 0.7),
+      // Use the complete shared budget, while keeping the historical one-pass policy for v4.
+      while (s.phase === 'battle') {
+        const budgetBefore = g.actionLeft(s);
+        const targets = s.enemies
+          .filter((e) => e.hp > 0)
+          .sort((a, b) => a.hp + a.block * 0.5 - (b.hp + b.block * 0.5));
+        s = { ...s, target: targets[0]?.id ?? s.target };
+        if (g.canShift(s)) {
+          const m = g
+            .validMoves(s.board, g.minimumMatch(s))
+            .filter(
+              (m) =>
+                !g.lineLocked(s, m.axis, m.line) &&
+                (!g.tactical(s) || g.shiftCost(s, m.amount) <= g.actionLeft(s)),
+            )
+            .map((m) => {
+              const p = g.previewMove(s, m.axis, m.line, m.amount);
+              const dmg = p.targets.reduce(
+                (n, e) => n + e.damage + e.poison * 1.5 + (e.defeated ? 7 : 0),
                 0,
               );
-              if (!choice || score > choice.score)
-                choice = { i, family, score };
-            }
-          if (choice?.score >= 5 && !g.hasSeal(s, 'double-edit'))
-            take(g.castSkill(s, 'edit', choice.i, choice.family));
-        } else if (
-          g.canCast(s, 'blood') &&
-          s.enemies.some((e) => e.hp > 0 && e.hp <= 8 && e.block === 0)
+              return {
+                m,
+                score:
+                  dmg * 1.4 +
+                  Math.min(Math.max(0, threat() - s.block), p.block) * 1.8 +
+                  p.energy * 1.2 +
+                  p.focus * 0.6 +
+                  p.health * 3 +
+                  (p.tideCleared ? 5 : 0) -
+                  (p.lethal ? 10000 : 0),
+              };
+            })
+            .sort((a, b) => b.score - a.score)[0]?.m;
+          if (m) take(g.move(s, m.axis, m.line, m.amount));
+        }
+        if (s.phase === 'battle' && !s.cast) {
+          if (
+            g.canCast(s, 'binding') &&
+            (threat() === 0 ||
+              (s.enemies.filter((e) => e.hp > 0).length === 1 &&
+                s.enemies.find((e) => e.hp > 0).hp +
+                  s.enemies.find((e) => e.hp > 0).block <=
+                  Math.min(s.block, 8) * 2))
+          )
+            take(g.castSkill(s, 'binding'));
+          else if (g.canCast(s, 'pierce')) take(g.castSkill(s, 'pierce'));
+          else if (g.canCast(s, 'bolt')) take(g.castSkill(s, 'bolt'));
+          else if (g.canCast(s, 'guard') && threat() > s.block)
+            take(g.castSkill(s, 'guard'));
+          else if (g.canCast(s, 'edit')) {
+            // Score the visible groups a cell replacement would create, no refill.
+            let choice = null;
+            for (let i = 0; i < s.board.length; i++)
+              for (const family of g.FAMILIES) {
+                if (s.board[i].family === family) continue;
+                const b = s.board.map((t, j) =>
+                  j === i ? { ...t, family } : t,
+                );
+                const gs = g.groups(b, g.minimumMatch(s));
+                const score = gs.reduce(
+                  (n, is) =>
+                    n +
+                    is.length *
+                      (family === 'blade'
+                        ? 2
+                        : family === 'shield' && threat() > s.block
+                          ? 1.5
+                          : 0.7),
+                  0,
+                );
+                if (!choice || score > choice.score)
+                  choice = { i, family, score };
+              }
+            if (choice?.score >= 5 && !g.hasSeal(s, 'double-edit'))
+              take(g.castSkill(s, 'edit', choice.i, choice.family));
+          } else if (
+            g.canCast(s, 'blood') &&
+            s.enemies.some((e) => e.hp > 0 && e.hp <= 8 && e.block === 0)
+          )
+            take(g.castSkill(s, 'blood'));
+        }
+        if (
+          !g.tactical(s) ||
+          !g.actionLeft(s) ||
+          g.actionLeft(s) === budgetBefore
         )
-          take(g.castSkill(s, 'blood'));
+          break;
       }
       if (s.phase === 'battle') {
         take(g.endTurn(s));
@@ -145,7 +162,7 @@ export function simulate(seed, style = 'balanced', options = {}) {
     } else if (s.phase === 'map') {
       const routes = g.nextRooms(s);
       const goal =
-        options.forbidden && s.room < 17
+        options.forbidden && !g.tactical(s) && s.room < 17
           ? s.journey.nodes.find((n) => n.depth === 17 && n.kind === 'event')
               ?.id
           : null;
@@ -185,7 +202,7 @@ export function simulate(seed, style = 'balanced', options = {}) {
           s,
           options.forbidden && g.canEnterForbidden(s)
             ? 'forbidden'
-            : s.room > 10 && s.gold >= 30
+            : s.room === 17 && s.gold >= 30
               ? 'repair'
               : 'supplies',
         ),
@@ -227,7 +244,7 @@ if (
     }
   const report = {
     policy:
-      'Visible first-wave heuristic, regular stats, 12 starting relics. Deterministic bot; not evidence of fun or a human win rate.',
+      'Visible first-wave heuristic, regular stats, current rule version. Masked room contents are not inspected. Deterministic bot; not evidence of fun or a human win rate.',
     runs: data,
   };
   writeFileSync(

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as g from '../game/engine.ts';
+import * as g from './helpers/stage2-engine.mjs';
 import { accept, at, clear, finish } from './helpers/stage2-fixtures.mjs';
 
 test('seeded graphs contain exactly twenty-room paths, shared anchors, one treasure per biome and a route with no elites or timer', () => {

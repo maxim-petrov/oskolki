@@ -4,6 +4,8 @@ import {
   itemById,
   itemForRun,
   ENEMY_CATALOG,
+  enemyTactic,
+  type EnemyKind,
   HEROES,
   CHALLENGES,
   RELICS,
@@ -66,7 +68,8 @@ export function RunJournal({ meta, game }: { meta: Meta; game: State }) {
           .filter(([id]) => seen.has(`enemy:${id}`))
           .map(([id, e]) => (
             <p key={id}>
-              <strong>{e.name}</strong> — {e.tactic}
+              <strong>{e.name}</strong> —{' '}
+              {enemyTactic(game, { kind: id as EnemyKind })}
             </p>
           ))}
         {!seen.size && <p>Записи появляются при встречах в обычных забегах.</p>}

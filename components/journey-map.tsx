@@ -5,6 +5,7 @@ import { ArrowUp, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RoomIcon } from '@/components/room-icon';
 import {
+  tactical,
   routeMap,
   nextRooms,
   TOTAL_ROOMS,
@@ -66,6 +67,13 @@ export function JourneyMap({
   }, [game.room, game.runId]);
   return (
     <div className="journey-map">
+      {tactical(game) && (
+        <p className="map-uncertainty">
+          Знак «?» скрывает содержимое комнаты до входа. Разведанные двери,
+          магазины, привалы и боссы видны заранее. Выбранная ветка ведёт до
+          следующего соединения путей.
+        </p>
+      )}
       <div className="map-legend">
         <span>
           <i className="map-key visited" />

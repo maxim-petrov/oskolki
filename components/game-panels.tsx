@@ -62,7 +62,17 @@ import {
   type Balance,
 } from '@/game/engine';
 export const ItemIcon = ({ id }: { id: string }) => {
-  if (['tape', 'binding', 'carbon', 'bookmark'].includes(id))
+  if (
+    [
+      'tape',
+      'binding',
+      'carbon',
+      'bookmark',
+      'grand-design',
+      'borrowed-time',
+      'iron-agenda',
+    ].includes(id)
+  )
     return <ReplayRelicArt id={id} />;
   if (equipmentById(id)) return <EquipmentIcon id={id} size={40} />;
   return (

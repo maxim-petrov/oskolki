@@ -9,7 +9,29 @@ export function ReplayRelicArt({ id }: { id: string }) {
       shapeRendering="crispEdges"
       data-relic-art={id}
     >
-      {id === 'tape' ? (
+      {id === 'grand-design' ? (
+        <>
+          <path d="M2 3h20v19H2z" fill="#17171b" />
+          <path d="M4 5h16v15H4z" fill="#dfd3be" />
+          <path d="M6 8h2v9H6zm4 0h2v6h2V8h2v9h-6z" fill="#ad5660" />
+          <path d="M4 5h16v2H4z" fill="#a4ab75" />
+        </>
+      ) : id === 'borrowed-time' ? (
+        <>
+          <path d="M7 2h10v3h4v15h-4v2H7v-2H3V5h4z" fill="#17171b" />
+          <path d="M7 6h10v2h2v10h-2v2H7v-2H5V8h2z" fill="#dfd3be" />
+          <path d="M11 7h2v6h4v2h-6z" fill="#62616a" />
+          <path d="M7 3h10v2H7zm1 15h3v2H8z" fill="#ad5660" />
+        </>
+      ) : id === 'iron-agenda' ? (
+        <>
+          <path d="M3 3h18v19H3z" fill="#17171b" />
+          <path d="M5 5h14v15H5z" fill="#8f9fa6" />
+          <path d="M7 7h10v10H7z" fill="#dfd3be" />
+          <path d="M3 9h18v3H3zm6-7h6v5H9z" fill="#62616a" />
+          <path d="M10 14h4v4h-4z" fill="#17171b" />
+        </>
+      ) : id === 'tape' ? (
         <>
           <path d="M3 5h17v3h2v11H2V7h1z" fill="#17171b" />
           <path d="M4 7h15v3h1v7H4z" fill="#a4aaa5" />

@@ -1,5 +1,11 @@
 'use client';
-import { previewMove, type State } from '@/game/engine';
+import {
+  previewMove,
+  tactical,
+  actionLeft,
+  minimumMatch,
+  type State,
+} from '@/game/engine';
 
 const LIMITS: Record<string, string> = {
   'turn:toxin': 'Токсичный амулет',
@@ -18,12 +24,19 @@ export function MovePreview({
   game: State;
   move: { axis: 'row' | 'col'; line: number; amount: number } | null;
 }) {
-  if (!move || game.moved)
+  if (
+    !move ||
+    (tactical(game)
+      ? game.phase !== 'trial' && actionLeft(game) === 0
+      : game.moved)
+  )
     return (
       <p className="move-preview-hint">
-        {game.moved
-          ? 'Сдвиг использован. Можно применить приём или завершить ход.'
-          : 'Стрелка сразу сдвигает линию. При перетаскивании отпусти фишку, чтобы сделать ход.'}
+        {tactical(game) && game.phase === 'battle'
+          ? `Осталось действий: ${actionLeft(game)}. Минимум ${minimumMatch(game)} фишки в ряд. Сдвиги без совпадения тоже платные.`
+          : game.moved
+            ? 'Сдвиг использован. Можно применить приём или завершить ход.'
+            : 'Стрелка сразу сдвигает линию. При перетаскивании отпусти фишку, чтобы сделать ход.'}
         {game.flags.includes('turn:rune-armed') &&
           ' Рунный заряд готов: следующий атакующий приём за энергию получит +2 урона.'}
       </p>
@@ -49,7 +62,12 @@ export function MovePreview({
               : 'вверх'}{' '}
           на {Math.abs(move.amount)}
         </strong>
-        <span>Первая волна</span>
+        <span>
+          Первая волна
+          {tactical(game) &&
+            game.phase === 'battle' &&
+            ` · ${result.actionCost ?? 0} действия · останется ${result.actionsRemaining ?? actionLeft(game)}`}
+        </span>
       </div>
       <div aria-live="polite" aria-atomic="true">
         {result.error ? (

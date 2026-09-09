@@ -9,7 +9,7 @@ import {
   Droplet,
   Gem,
 } from 'lucide-react';
-import { intent, ENEMY_CATALOG, type State, type Enemy } from '@/game/engine';
+import { intent, enemyTactic, type State, type Enemy } from '@/game/engine';
 
 export function EnemyIntentLabel({
   state,
@@ -20,6 +20,11 @@ export function EnemyIntentLabel({
 }) {
   const action = intent(state, enemy);
   const Icon = {
+    summon: Skull,
+    rally: Flame,
+    mend: Heart,
+    lock: Shield,
+    resize: Gem,
     redact: Gem,
     attack: Sword,
     pierce: Sword,
@@ -35,7 +40,7 @@ export function EnemyIntentLabel({
   return (
     <span
       className={`enemy-intent intent-${action.type}`}
-      title={ENEMY_CATALOG[enemy.kind].tactic}
+      title={enemyTactic(state, enemy)}
     >
       <Icon size={14} aria-hidden="true" /> {action.text}
     </span>

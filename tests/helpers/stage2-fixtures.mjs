@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import * as g from '../../game/engine.ts';
+import * as g from './stage2-engine.mjs';
 export const accept = (r) => {
   assert.equal(r.error, undefined);
   return r.state;

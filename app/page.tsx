@@ -1,11 +1,28 @@
 /* eslint-disable react/react-compiler, nextjs/no-img-element -- This event-driven renderer is not React Compiler compiled; refs bridge asynchronous frame replay and WebMCP to React state. */
 'use client';
+import { TurnBudget } from '@/components/turn-budget';
+import {
+  tactical,
+  boardSize,
+  minimumMatch,
+  actionLeft,
+  actionMax,
+  canShift,
+  lineLocked,
+  shiftCost,
+} from '@/game/engine';
 import { MovePreview } from '@/components/move-preview';
 import { roomBackground, ROOM_BACKGROUNDS } from '@/game/visual-style';
 import { ArchiveMechanics } from '@/components/archive-mechanics';
 import { biomeAt, TOTAL_ROOMS } from '@/game/engine';
 import { RunSeed } from '@/components/run-seed';
-import { useRef, useState, useEffect, type PointerEvent } from 'react';
+import {
+  useRef,
+  useState,
+  useEffect,
+  type CSSProperties,
+  type PointerEvent,
+} from 'react';
 import {
   Sword,
   Shield,
@@ -151,11 +168,14 @@ export default function Game() {
     size: number;
   } | null>(null);
   const s = frame?.state ?? game;
+  const size = boardSize(s.board);
+  const selectedCell = Math.min(selected, s.board.length - 1);
   const active = ['battle', 'trial'].includes(game.phase);
   const board = preview
     ? shifted(s.board, preview.axis, preview.line, preview.amount)
     : s.board;
-  const marked = frame?.cells ?? (preview ? groups(board).flat() : []);
+  const marked =
+    frame?.cells ?? (preview ? groups(board, minimumMatch(s)).flat() : []);
   const play = async (transition: Result) => {
     if (busyRef.current) return;
     if (transition.error) {
@@ -195,9 +215,11 @@ export default function Game() {
     setMessage(
       transition.state.phase === 'reward'
         ? 'Победа. Впереди — новая находка.'
-        : transition.state.moved
-          ? 'Можно применить способность или завершить ход.'
-          : 'Твой ход. Выбирай комбинацию.',
+        : tactical(transition.state) && transition.state.phase === 'battle'
+          ? `Осталось действий: ${actionLeft(transition.state)}. Враги ответят после завершения хода.`
+          : transition.state.moved
+            ? 'Можно применить способность или завершить ход.'
+            : 'Твой ход. Выбирай комбинацию.',
     );
   };
   const restart = (
@@ -314,7 +336,7 @@ export default function Game() {
       busyRef.current ||
       !active ||
       modalOpen ||
-      game.moved ||
+      !canShift(game) ||
       game.trial?.paused
     )
       return;
@@ -348,7 +370,7 @@ export default function Game() {
       selectEditCell(i);
       return;
     }
-    if (game.moved) return;
+    if (!canShift(game)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     gesture.current = {
       pointerId: e.pointerId,
@@ -366,11 +388,14 @@ export default function Game() {
     if (Math.max(Math.abs(dx), Math.abs(dy)) < d.size * 0.35) return null;
     const axis: 'row' | 'col' = Math.abs(dx) > Math.abs(dy) ? 'row' : 'col';
     const delta = axis === 'row' ? dx : dy;
-    const amount = Math.max(-5, Math.min(5, Math.round(delta / d.size)));
+    const amount = Math.max(
+      1 - size,
+      Math.min(size - 1, Math.round(delta / d.size)),
+    );
     return amount
       ? {
           axis,
-          line: axis === 'row' ? Math.floor(d.index / 6) : d.index % 6,
+          line: axis === 'row' ? Math.floor(d.index / size) : d.index % size,
           amount,
         }
       : null;
@@ -390,11 +415,17 @@ export default function Game() {
     if (chosen) doMove(chosen.axis, chosen.line, chosen.amount);
   };
   const hint = () => {
-    const m = validMoves(game.board).sort(
-      (a, b) => b.cells.length - a.cells.length,
-    )[0];
+    const m = validMoves(game.board, minimumMatch(game))
+      .filter(
+        (m) =>
+          !lineLocked(game, m.axis, m.line) &&
+          (!tactical(game) ||
+            game.phase === 'trial' ||
+            shiftCost(game, m.amount) <= actionLeft(game)),
+      )
+      .sort((a, b) => b.cells.length - a.cells.length)[0];
     if (m) {
-      setSelected(m.axis === 'row' ? m.line * 6 : m.line);
+      setSelected(m.axis === 'row' ? m.line * size : m.line);
       setMessage(
         `${m.axis === 'row' ? 'Строка' : 'Столбец'} ${m.line + 1}: ${m.axis === 'row' ? 'вправо' : 'вниз'} на ${m.amount} ${m.amount === 1 ? 'клетку' : 'клетки'}. Можно перетащить фишку.`,
       );
@@ -420,10 +451,10 @@ export default function Game() {
       )
         return;
       const keys: Record<string, ['row' | 'col', number, number]> = {
-        ArrowLeft: ['row', Math.floor(selected / 6), -1],
-        ArrowRight: ['row', Math.floor(selected / 6), 1],
-        ArrowUp: ['col', selected % 6, -1],
-        ArrowDown: ['col', selected % 6, 1],
+        ArrowLeft: ['row', Math.floor(selectedCell / size), -1],
+        ArrowRight: ['row', Math.floor(selectedCell / size), 1],
+        ArrowUp: ['col', selectedCell % size, -1],
+        ArrowDown: ['col', selectedCell % size, 1],
       };
       if (keys[e.key]) {
         e.preventDefault();
@@ -588,7 +619,7 @@ export default function Game() {
         </aside>
         <section className="play-area" aria-label="Поле боя">
           <div
-            className={`arena ${motion ? `beat-${motion.cue.type} beat-${motion.stage}` : ''}`}
+            className={`arena ${s.enemies.length > 2 ? 'squad-arena' : ''} ${motion ? `beat-${motion.cue.type} beat-${motion.stage}` : ''}`}
           >
             <img
               className="arena-bg room-background"
@@ -715,8 +746,10 @@ export default function Game() {
               <strong>
                 {busy
                   ? 'Комбинация сработала'
-                  : s.moved
-                    ? 'Сдвиг использован'
+                  : !canShift(s)
+                    ? tactical(s)
+                      ? 'Действия закончились'
+                      : 'Сдвиг использован'
                     : 'Твой ход'}
               </strong>
             </div>
@@ -730,20 +763,22 @@ export default function Game() {
               Подсказка
             </Button>
           </div>
+          <TurnBudget game={s} />
           <ActiveHeroRules game={s} />
           <ArchiveMechanics game={s} />
           <div
+            style={{ '--board-size': size } as CSSProperties}
             className={`board-section ${editing ? 'is-editing' : ''} ${game.phase === 'trial' && (game.trial?.paused || modalOpen) ? 'trial-paused' : ''}`}
           >
             <div className="board-frame">
               <div className="arrow-row top-arrows">
                 <span />
-                {Array.from({ length: 6 }, (_, i) => (
+                {Array.from({ length: size }, (_, i) => (
                   <button
                     key={i}
                     aria-label={`Столбец ${i + 1} вверх`}
                     onClick={() => doMove('col', i, -1)}
-                    disabled={busy || s.moved || !active}
+                    disabled={busy || !canShift(s) || lineLocked(s, 'col', i)}
                   >
                     <ChevronUp />
                   </button>
@@ -752,12 +787,12 @@ export default function Game() {
               </div>
               <div className="board-body">
                 <div className="side-arrows">
-                  {Array.from({ length: 6 }, (_, i) => (
+                  {Array.from({ length: size }, (_, i) => (
                     <button
                       key={i}
                       aria-label={`Строка ${i + 1} влево`}
                       onClick={() => doMove('row', i, -1)}
-                      disabled={busy || s.moved || !active}
+                      disabled={busy || !canShift(s) || lineLocked(s, 'row', i)}
                     >
                       <ChevronLeft />
                     </button>
@@ -765,14 +800,14 @@ export default function Game() {
                 </div>
                 <fieldset
                   className="board"
-                  aria-label="Поле 6 на 6. Выбери фишку и используй стрелки или перетащи её."
+                  aria-label={`Поле ${size} на ${size}. Выбери фишку и используй стрелки или перетащи её.`}
                 >
                   {board.map((t, i) => {
                     return (
                       <button
                         key={i}
-                        className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${editing && editFirst === i ? 'edit-first' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? 'tide-row' : ''}`}
-                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : t.variant === 'spiked' ? ', шип: 1 урона при сборе' : t.variant === 'marked' ? ', помета: 3 блока раз за ход' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
+                        className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${editing && editFirst === i ? 'edit-first' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.locked ? 'sealed-tile' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / size) === s.tide.row ? 'tide-row' : ''}`}
+                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : t.variant === 'spiked' ? ', шип: 1 урона при сборе' : t.variant === 'marked' ? ', помета: 3 блока раз за ход' : ''}${t.locked ? ', печать: строка и столбец заблокированы' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / size) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / size) + 1}, столбец ${(i % size) + 1}`}
                         aria-pressed={selected === i}
                         onPointerDown={(e) => pointerDown(e, i)}
                         onPointerMove={dragMove}
@@ -792,6 +827,11 @@ export default function Game() {
                           weaponId={s.equipment.weapon}
                           size={56}
                         />
+                        {t.locked && (
+                          <span className="lock-mark" aria-hidden="true">
+                            ×
+                          </span>
+                        )}
                         {t.ink && (
                           <span
                             className="ink-mark"
@@ -816,12 +856,12 @@ export default function Game() {
                   })}
                 </fieldset>
                 <div className="side-arrows">
-                  {Array.from({ length: 6 }, (_, i) => (
+                  {Array.from({ length: size }, (_, i) => (
                     <button
                       key={i}
                       aria-label={`Строка ${i + 1} вправо`}
                       onClick={() => doMove('row', i, 1)}
-                      disabled={busy || s.moved || !active}
+                      disabled={busy || !canShift(s) || lineLocked(s, 'row', i)}
                     >
                       <ChevronRight />
                     </button>
@@ -830,12 +870,12 @@ export default function Game() {
               </div>
               <div className="arrow-row bottom-arrows">
                 <span />
-                {Array.from({ length: 6 }, (_, i) => (
+                {Array.from({ length: size }, (_, i) => (
                   <button
                     key={i}
                     aria-label={`Столбец ${i + 1} вниз`}
                     onClick={() => doMove('col', i, 1)}
-                    disabled={busy || s.moved || !active}
+                    disabled={busy || !canShift(s) || lineLocked(s, 'col', i)}
                   >
                     <ChevronDown />
                   </button>
@@ -902,7 +942,13 @@ export default function Game() {
           )}
           <div className="section-label">
             <span className="eyebrow">ПРИЁМЫ</span>
-            <span>{s.cast ? 'Использован' : '1 за ход'}</span>
+            <span>
+              {tactical(s) && s.phase === 'battle'
+                ? '1 действие + ресурс'
+                : s.cast
+                  ? 'Использован'
+                  : '1 за ход'}
+            </span>
           </div>
           <div className="skills">
             {[
@@ -916,7 +962,7 @@ export default function Game() {
                 variant="outline"
                 className="skill-card"
                 disabled={busy || !canCast(game, id)}
-                onClick={() => void play(castSkill(game, id, selected))}
+                onClick={() => void play(castSkill(game, id, selectedCell))}
               >
                 <span className="skill-icon">
                   <ItemIcon id={id} />
@@ -935,7 +981,7 @@ export default function Game() {
               <Button
                 variant="ghost"
                 className="edit-trigger"
-                disabled={busy || s.cast || s.focus < 3 || !active}
+                disabled={busy || !canCast(s, 'edit') || !active}
                 onClick={() => {
                   setPreview(null);
                   gesture.current = null;
@@ -1060,6 +1106,14 @@ export default function Game() {
       {active && !modalOpen && !game.trial?.paused && (
         <section className="battle-actions" aria-label="Управление ходом">
           <div className="battle-actions-inner">
+            {tactical(s) && s.phase === 'battle' && (
+              <output className="action-counter">
+                Действия: {actionLeft(s)} / {actionMax(s)}
+                {s.relics.includes('borrowed-time') && (
+                  <small>В конце: −2 здоровья</small>
+                )}
+              </output>
+            )}
             <span className="turn-shortcut">
               Пробел — {game.phase === 'trial' ? 'пауза' : 'завершить ход'}
             </span>
@@ -1190,12 +1244,14 @@ export default function Game() {
               </p>
             )}
             <p>
-              Три одинаковых семейства дают урон, блок, энергию или фокус. Сдвиг
-              без комбинации не тратит ход.
+              {tactical(game)
+                ? `Совпадение от ${minimumMatch(game)} фишек даёт урон, блок, энергию или фокус. Подготовительный сдвиг без совпадения тоже тратит действия.`
+                : 'Три одинаковых семейства дают урон, блок, энергию или фокус. Сдвиг без комбинации не тратит ход.'}
             </p>
             <p>
-              За ход доступны один успешный сдвиг, одна способность и одно
-              зелье. Способность можно применить до или после комбинации.
+              {tactical(game)
+                ? 'Базовый запас — 3 очка действия за ход. Сдвиг стоит 1 действие за клетку по кратчайшему пути вокруг края. Приём и Правка стоят 1 действие плюс свой ресурс. Можно выполнить несколько сдвигов и приёмов в любом порядке. Зелье — раз за ход, бесплатно по действиям. Остаток действий не переносится.'
+                : 'За ход доступны один успешный сдвиг, одна способность и одно зелье. Способность можно применить до или после комбинации.'}
             </p>
             <p>
               Щиты защищают до следующего хода. Фокус позволяет превратить

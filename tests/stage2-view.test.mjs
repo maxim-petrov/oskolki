@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement, Children, isValidElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import * as g from '../game/engine.ts';
+import * as g from './helpers/stage2-engine.mjs';
 const { JourneyMap } = await import('../components/journey-map.tsx');
 const { RewardActions, SealConfirmation, ActiveSeal } =
   await import('../components/journey-rewards.tsx');

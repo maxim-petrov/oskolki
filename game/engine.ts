@@ -7,6 +7,7 @@ export type Tile = {
   variant: Variant;
   ink?: true;
   root?: { owner: number; expires: number };
+  locked?: { owner: number; expires: number };
 };
 export type Enemy = {
   id: number;
@@ -17,6 +18,10 @@ export type Enemy = {
   poison: number;
   kind: EnemyKind;
   damage: number;
+  power?: number;
+  powerReady?: number;
+  summons?: number;
+  summoned?: true;
 };
 export const NEW_ENEMY_KINDS = [
   'paper-rat',
@@ -233,10 +238,16 @@ export type EnemyIntent = {
     | 'pierce'
     | 'ink'
     | 'siphon'
-    | 'redact';
+    | 'redact'
+    | 'summon'
+    | 'rally'
+    | 'mend'
+    | 'lock'
+    | 'resize';
   value: number;
   text: string;
   family?: Family;
+  target?: number;
 };
 export type Balance = {
   health: number;
@@ -265,9 +276,11 @@ export type Room = {
     | 'shop'
     | 'rest'
     | 'boss'
-    | 'treasure';
+    | 'treasure'
+    | 'unknown';
   name: string;
   description: string;
+  concealed?: boolean;
   roster?: EnemyKind[];
   next?: string[];
 };
@@ -427,10 +440,16 @@ export function equipmentForRun(
 ) {
   const item = equipmentById(id);
   if (item?.slot !== 'weapon' || (s.rulesVersion ?? 0) < 2) return item;
-  return weaponOffer(
+  const offer = weaponOffer(
     item.id,
     quality ?? (id === s.equipment.weapon ? (s.weaponQuality ?? 0) : 0),
   );
+  return minimumMatch(s) === 4
+    ? {
+        ...offer,
+        description: `${offer.description} Великий замысел: только группы 4+, итоговый урон оружия ×2; яд, пробитие и заряд не удваиваются.`,
+      }
+    : offer;
 }
 export function itemRequirement(s: State, id: string): string | undefined {
   if ((s.rulesVersion ?? 0) < 3) return;
@@ -476,6 +495,12 @@ export function itemForRun(s: State, id: string): Offer | undefined {
           'После первой жертвы здоровьем за ход следующая группа клинков в этом же ходу даёт 4 блока.',
       };
   }
+  if (tactical(s) && item && id === 'binding')
+    item = {
+      ...item,
+      description:
+        'Приём за 1 действие: потратить до 8 блока и нанести вдвое больше урона выбранной цели. Энергия не нужна.',
+    };
   const requirement = itemRequirement(s, id);
   if (item && requirement)
     return { ...item, description: `${item.description} ${requirement}` };
@@ -650,7 +675,7 @@ export type RunRecord = {
 };
 export type State = {
   version: 2;
-  rulesVersion?: 2 | 3 | 4;
+  rulesVersion?: 2 | 3 | 4 | 5;
   hero?: HeroId;
   difficulty?: 0 | 1;
   challenge?: ChallengeId;
@@ -689,6 +714,8 @@ export type State = {
   target: number;
   enemies: Enemy[];
   moved: boolean;
+  actions?: number;
+  boardWarp?: { size: 5 | 7; expires: number };
   cast: boolean;
   consumed: boolean;
   relics: string[];
@@ -866,12 +893,46 @@ RELICS.push(
     tag: 'Защита → удар',
   },
 );
+export const TACTIC_RELIC_IDS = [
+  'grand-design',
+  'borrowed-time',
+  'iron-agenda',
+];
+RELICS.push(
+  {
+    id: 'grand-design',
+    kind: 'relic',
+    name: 'Великий замысел',
+    description:
+      'Все совпадения теперь от 4 фишек. Итоговый урон оружия и базовая отдача щитов, искр и фокуса удваиваются. Бонусы к блоку и ресурсам остаются прежними. Тройки не исчезают. Приёмы и побочные эффекты не удваиваются.',
+    tag: 'Сила ×2 / матч 4+',
+  },
+  {
+    id: 'borrowed-time',
+    kind: 'relic',
+    name: 'Заемное время',
+    description:
+      '+1 очко действия каждый ход. При завершении каждого хода теряешь 2 здоровья сквозь блок; это может убить. Не действует в испытании на время.',
+    tag: '+1 действие / −2 здоровья',
+  },
+  {
+    id: 'iron-agenda',
+    kind: 'relic',
+    name: 'Железный распорядок',
+    description:
+      'В начале каждого хода получаешь 6 блока, но запас действий уменьшается на 1. Минимум 1 действие. Не действует в испытании на время.',
+    tag: '+6 блока / −1 действие',
+  },
+);
 export const CORE_RELIC_IDS = RELICS.slice(0, 12).map((o) => o.id);
 function relicPoolFor(s: State) {
   return RELICS.filter(
     (o) =>
       CORE_RELIC_IDS.includes(o.id) ||
-      ((s.rulesVersion ?? 0) >= 4 && s.flags.includes(`run:available:${o.id}`)),
+      ((s.rulesVersion ?? 0) >= 5 && TACTIC_RELIC_IDS.includes(o.id)) ||
+      ((s.rulesVersion ?? 0) >= 4 &&
+        !TACTIC_RELIC_IDS.includes(o.id) &&
+        s.flags.includes(`run:available:${o.id}`)),
   );
 }
 function modifierPoolFor(s: State) {
@@ -994,11 +1055,11 @@ export function sealConsequences(s: State, id: string) {
   if (id === 'red-line') {
     const max = s.maxHp - 8;
     return max > 0
-      ? `Здоровье после печати и передышки: ${Math.min(max, Math.min(s.hp, max) + Math.ceil(max / 2))}/${max}. Каждая группа клинков: +4 урона, включая каскады.`
+      ? `Здоровье после печати и передышки: ${Math.min(max, Math.min(s.hp, max) + Math.ceil(max / 2))}/${max}. Каждая группа клинков: +${minimumMatch(s) === 4 ? 8 : 4} урона${minimumMatch(s) === 4 ? ' с Великим замыслом' : ''}, включая каскады.`
       : 'Нужно больше 8 максимального здоровья. Эту печать принять нельзя.';
   }
   if (id === 'enduring-record')
-    return `Тройка щитов без временных бонусов: ${Math.max(0, 3 * s.balance.shield + 2 * s.upgrades.shield + equipmentBonus(s, 'clothing') - 2)} блока. Остаток после ответа врагов: до 6 на следующий ход; между комнатами не сохраняется.`;
+    return `${minimumMatch(s) === 4 ? 'Четвёрка' : 'Тройка'} щитов без временных бонусов: ${Math.max(0, minimumMatch(s) * s.balance.shield * (minimumMatch(s) === 4 ? 2 : 1) + 2 * s.upgrades.shield + equipmentBonus(s, 'clothing') - 2)} блока. Остаток после ответа врагов: до 6 на следующий ход; между комнатами не сохраняется.`;
   const changed = { ...s, seal: 'double-edit' as const };
   const skills = s.skills
     .filter((id) => ['bolt', 'pierce', 'blood', 'seal'].includes(id))
@@ -1006,7 +1067,7 @@ export function sealConsequences(s: State, id: string) {
       (id) => `${itemById(id)?.name}: ${itemForRun(changed, id)?.description}`,
     )
     .join(' ');
-  return `Выбери семейство и две разные клетки. Замены и совпадения сработают вместе, только после второго выбора. Один приём за ход. Твои атакующие приёмы после печати: ${skills || 'пока не экипированы'}`;
+  return `Выбери семейство и две разные клетки. Замены и совпадения сработают вместе, только после второго выбора. ${tactical(s) ? 'Одна Правка стоит 1 действие и 3 фокуса.' : 'Один приём за ход.'} Твои атакующие приёмы после печати: ${skills || 'пока не экипированы'}`;
 }
 export const itemById = (id: string) =>
   [...RELICS, ...MODIFIERS, ...SKILLS, ...EQUIPMENT, ...SEALS].find(
@@ -1052,17 +1113,65 @@ function tile(s: State, family?: Family): Tile {
   }
   return { id: ++s.serial, family: f, variant };
 }
-export function groups(board: Tile[]): number[][] {
+export const tactical = (s: State) => (s.rulesVersion ?? 0) >= 5;
+export const boardSize = (board: Tile[]) => Math.sqrt(board.length) || 6;
+export const minimumMatch = (s: State) =>
+  tactical(s) && s.relics.includes('grand-design') ? 4 : 3;
+export const actionMax = (s: State) =>
+  Math.max(
+    1,
+    3 +
+      (s.relics.includes('borrowed-time') ? 1 : 0) -
+      (s.relics.includes('iron-agenda') ? 1 : 0),
+  );
+export const actionLeft = (s: State) =>
+  tactical(s) ? (s.actions ?? actionMax(s)) : s.moved ? 0 : 1;
+export const shiftCost = (s: State, amount: number) =>
+  s.phase === 'trial' || !tactical(s)
+    ? 0
+    : Math.min(Math.abs(amount), boardSize(s.board) - Math.abs(amount));
+export function lineLocked(s: State, axis: 'row' | 'col', line: number) {
+  const size = boardSize(s.board);
+  return (
+    tactical(s) &&
+    s.board.some(
+      (t, i) =>
+        t.locked && (axis === 'row' ? Math.floor(i / size) : i % size) === line,
+    )
+  );
+}
+export const canShift = (s: State) =>
+  ['battle', 'trial'].includes(s.phase) &&
+  !s.trial?.paused &&
+  (tactical(s) ? s.phase === 'trial' || actionLeft(s) > 0 : !s.moved);
+function spendAction(s: State, cost: number) {
+  if (tactical(s) && s.phase !== 'trial') {
+    s.actions = Math.max(0, actionLeft(s) - cost);
+    s.moved = s.actions === 0;
+  }
+}
+function resetActions(s: State) {
+  if (!tactical(s)) return;
+  s.actions = actionMax(s);
+  s.moved = false;
+  if (s.phase === 'battle' && s.relics.includes('iron-agenda')) s.block += 6;
+}
+export function groups(board: Tile[], minimum = 3): number[][] {
+  const size = boardSize(board);
   const runs: number[][] = [];
   for (const axis of ['row', 'col'])
-    for (let line = 0; line < 6; line++) {
+    for (let line = 0; line < size; line++) {
       let start = 0;
-      const idx = (n: number) => (axis === 'row' ? line * 6 + n : n * 6 + line);
-      while (start < 6) {
+      const idx = (n: number) =>
+        axis === 'row' ? line * size + n : n * size + line;
+      while (start < size) {
         let end = start + 1;
-        while (end < 6 && board[idx(end)].family === board[idx(start)].family)
+        while (
+          end < size &&
+          board[idx(end)].family === board[idx(start)].family
+        )
           end++;
-        if (end - start >= 3)
+        if (end - start >= minimum)
           runs.push(
             Array.from({ length: end - start }, (_, j) => idx(start + j)),
           );
@@ -1092,15 +1201,17 @@ export function shifted(
   line: number,
   amount: number,
 ): Tile[] {
+  const size = boardSize(board);
   const out = board.slice();
-  for (let n = 0; n < 6; n++) {
-    const dest = (((n + amount) % 6) + 6) % 6;
-    out[axis === 'row' ? line * 6 + dest : dest * 6 + line] =
-      board[axis === 'row' ? line * 6 + n : n * 6 + line];
+  for (let n = 0; n < size; n++) {
+    const dest = (((n + amount) % size) + size) % size;
+    out[axis === 'row' ? line * size + dest : dest * size + line] =
+      board[axis === 'row' ? line * size + n : n * size + line];
   }
   return out;
 }
-export function validMoves(board: Tile[]) {
+export function validMoves(board: Tile[], minimum = 3) {
+  const size = boardSize(board);
   const moves: {
     axis: 'row' | 'col';
     line: number;
@@ -1108,25 +1219,32 @@ export function validMoves(board: Tile[]) {
     cells: number[];
   }[] = [];
   for (const axis of ['row', 'col'] as const)
-    for (let line = 0; line < 6; line++)
-      for (let amount = 1; amount <= 5; amount++) {
-        const cells = groups(shifted(board, axis, line, amount)).flat();
+    for (let line = 0; line < size; line++)
+      for (let amount = 1; amount < size; amount++) {
+        const cells = groups(
+          shifted(board, axis, line, amount),
+          minimum,
+        ).flat();
         if (cells.length) moves.push({ axis, line, amount, cells });
       }
   return moves;
 }
-function newBoard(s: State) {
+function newBoard(s: State, size = boardSize(s.board)) {
   for (let attempt = 0; attempt < 200; attempt++) {
     const b: Tile[] = [];
-    for (let i = 0; i < 36; i++) {
+    for (let i = 0; i < size * size; i++) {
       const options = FAMILIES.filter(
         (f) =>
-          !(i % 6 >= 2 && b[i - 1].family === f && b[i - 2].family === f) &&
-          !(i >= 12 && b[i - 6].family === f && b[i - 12].family === f),
+          !(i % size >= 2 && b[i - 1].family === f && b[i - 2].family === f) &&
+          !(
+            i >= size * 2 &&
+            b[i - size].family === f &&
+            b[i - size * 2].family === f
+          ),
       );
       b.push(tile(s, options[Math.floor(random(s) * options.length)]));
     }
-    const moves = validMoves(b);
+    const moves = validMoves(b, minimumMatch(s));
     if (
       moves.length >= 3 &&
       moves.some((m) =>
@@ -1232,6 +1350,7 @@ function weaponAttack(s: State, count: number, venom: number) {
     s.flags = s.flags.filter((f) => f !== 'turn:carbon-armed');
     note(s, 'Копирка: +3 урона группе клинков.');
   }
+  if (minimumMatch(s) === 4) value *= 2;
   const splash = id === 'gear-cleaver' && second ? Math.floor(value / 3) : 0;
   const strikes = [
     { target: first, value: value - splash },
@@ -1272,13 +1391,15 @@ function poison(s: State, amount: number) {
   if (e) e.poison += amount;
 }
 function collapse(s: State, removed: Set<number>) {
+  const size = boardSize(s.board);
   const next = s.board.slice();
-  for (let col = 0; col < 6; col++) {
-    const survivors = Array.from({ length: 6 }, (_, row) => row * 6 + col)
+  for (let col = 0; col < size; col++) {
+    const survivors = Array.from({ length: size }, (_, row) => row * size + col)
       .filter((i) => !removed.has(i))
       .map((i) => s.board[i]);
-    while (survivors.length < 6) survivors.unshift(tile(s));
-    for (let row = 0; row < 6; row++) next[row * 6 + col] = survivors[row];
+    while (survivors.length < size) survivors.unshift(tile(s));
+    for (let row = 0; row < size; row++)
+      next[row * size + col] = survivors[row];
   }
   s.board = next;
 }
@@ -1294,7 +1415,9 @@ function startTide(s: State) {
   // Every fresh warning has at least one legal matching response on this board.
   const rows = [
     ...new Set(
-      validMoves(s.board).flatMap((m) => m.cells.map((i) => Math.floor(i / 6))),
+      validMoves(s.board, minimumMatch(s)).flatMap((m) =>
+        m.cells.map((i) => Math.floor(i / boardSize(s.board))),
+      ),
     ),
   ].sort((a, b) => a - b);
   s.tide = {
@@ -1330,9 +1453,11 @@ function resolve(
   manual: boolean,
   firstWaveOnly = false,
 ) {
+  const size = boardSize(s.board);
+  const multiplier = minimumMatch(s) === 4 ? 2 : 1;
   let wave = 0;
   while (true) {
-    const matches = groups(s.board);
+    const matches = groups(s.board, minimumMatch(s));
     if (!matches.length) break;
     if (wave++ > 128) throw Error('Цепочка эффектов не завершилась');
     if (wave > 1) {
@@ -1353,7 +1478,7 @@ function resolve(
     if (
       s.tide &&
       !s.tide.cleared &&
-      [...removed].some((i) => Math.floor(i / 6) === s.tide!.row)
+      [...removed].some((i) => Math.floor(i / size) === s.tide!.row)
     ) {
       s.tide.cleared = true;
       note(s, 'Сток открыт — этот прилив не нанесёт урона.');
@@ -1365,6 +1490,12 @@ function resolve(
     ) {
       s.board.forEach((t) => delete t.ink);
       note(s, 'Фокус смыл все кляксы.');
+    }
+    if (
+      tactical(s) &&
+      matches.some((indices) => s.board[indices[0]].family === 'focus')
+    ) {
+      s.board.forEach((t) => delete t.locked);
     }
     const inkDamage = [...removed].filter((i) => s.board[i].ink).length;
     const collateral = new Set<number>();
@@ -1436,7 +1567,7 @@ function resolve(
       }
       if (family === 'shield') {
         let block =
-          count * s.balance.shield +
+          count * s.balance.shield * multiplier +
           s.upgrades.shield * 2 +
           equipmentBonus(s, 'clothing');
         if (s.flags.includes('return:armed')) {
@@ -1463,14 +1594,15 @@ function resolve(
         }
       }
       if (family === 'spark') {
-        const value = count + (s.upgrades.spark >= 2 ? 1 : 0);
+        const value = count * multiplier + (s.upgrades.spark >= 2 ? 1 : 0);
         gainEnergy(s, value);
         if (s.trial) s.trial.energy += value;
         note(s, `Искры: +${value} энергии`);
       }
       if (family === 'focus') {
         const value =
-          count + (s.upgrades.focus >= 2 && once(s, 'turn:focus') ? 1 : 0);
+          count * multiplier +
+          (s.upgrades.focus >= 2 && once(s, 'turn:focus') ? 1 : 0);
         s.focus = Math.min(focusMax(s), s.focus + value);
         note(s, `Фокус: +${value}`);
       }
@@ -1490,12 +1622,13 @@ function resolve(
       for (const i of indices)
         if (s.board[i].variant === 'bomb')
           for (const j of [
-            i - 6,
-            i + 6,
-            ...(i % 6 ? [i - 1] : []),
-            ...(i % 6 < 5 ? [i + 1] : []),
+            i - size,
+            i + size,
+            ...(i % size ? [i - 1] : []),
+            ...(i % size < size - 1 ? [i + 1] : []),
           ])
-            if (j >= 0 && j < 36 && !removed.has(j)) collateral.add(j);
+            if (j >= 0 && j < s.board.length && !removed.has(j))
+              collateral.add(j);
     }
     if (tapeMove && !s.echo) {
       const record = matches.find((indices) => indices.length >= 4);
@@ -1515,12 +1648,12 @@ function resolve(
         if (fired.has(i)) continue;
         fired.add(i);
         for (const j of [
-          i - 6,
-          i + 6,
-          ...(i % 6 ? [i - 1] : []),
-          ...(i % 6 < 5 ? [i + 1] : []),
+          i - size,
+          i + size,
+          ...(i % size ? [i - 1] : []),
+          ...(i % size < size - 1 ? [i + 1] : []),
         ]) {
-          if (j < 0 || j >= 36) continue;
+          if (j < 0 || j >= s.board.length) continue;
           if (!removed.has(j)) collateral.add(j);
           if (s.board[j].variant === 'bomb' && !fired.has(j)) queue.push(j);
         }
@@ -1565,10 +1698,59 @@ function resolve(
     )
       break;
   }
-  if (!validMoves(s.board).length) {
+  if (!validMoves(s.board, minimumMatch(s)).length) {
     newBoard(s);
     note(s, 'Ходов нет — поле бесплатно перемешано');
   }
+}
+function resizeBoard(s: State, size: number) {
+  const old = s.board,
+    before = boardSize(old);
+  if (before === size) return;
+  const next: Tile[] = [];
+  for (let row = 0; row < size; row++)
+    for (let col = 0; col < size; col++) {
+      const original =
+        row < before && col < before ? old[row * before + col] : undefined;
+      if (original) next.push(original);
+      else {
+        const available = FAMILIES.filter(
+          (f) =>
+            !(
+              col >= 2 &&
+              next.at(-1)?.family === f &&
+              next.at(-2)?.family === f
+            ) &&
+            !(
+              row >= 2 &&
+              next[(row - 1) * size + col]?.family === f &&
+              next[(row - 2) * size + col]?.family === f
+            ),
+        );
+        next.push(tile(s, available[Math.floor(random(s) * available.length)]));
+      }
+    }
+  s.board = next;
+  if (s.tide) s.tide.row = Math.min(size - 1, s.tide.row);
+  if (!validMoves(s.board, minimumMatch(s)).length) newBoard(s, size);
+}
+export function enemyTactic(s: State, e: Pick<Enemy, 'kind'>) {
+  if (!tactical(s)) return ENEMY_CATALOG[e.kind].tactic;
+  const tactics: Partial<Record<EnemyKind, string>> = {
+    bell: 'На первом и каждом третьем ответе вызывает крысу. Не более 2 призывов за бой и 4 живых врагов. Подмога вступает со следующего ответа.',
+    candle:
+      'Каждый нечётный ответ лечит самого раненого союзника до 6 здоровья; иначе атакует.',
+    'lantern-fish':
+      'Каждый нечётный ответ лечит самого раненого союзника до 8 здоровья; иначе атакует.',
+    mirror:
+      'Нечётный ответ: союзники получают +2 к следующему удару со следующего хода. Не складывается. Затем бьёт сквозь защиту.',
+    librarian:
+      'Нечётный ответ: запечатывает 2 фишки на 1 ход. Их строки и столбцы нельзя сдвигать. Фокус, Правка или смерть архивариуса снимают печати.',
+    eraser:
+      'Каждый третий ответ сжимает поле до 5×5 на 2 хода героя. Затем удар. Размер возвращается без бесплатных совпадений.',
+    safe: 'Каждый третий ответ расширяет поле до 7×7 на 2 хода героя. Затем дважды атакует. За ход размер меняет только один враг.',
+  };
+  return tactics[e.kind] ?? ENEMY_CATALOG[e.kind].tactic;
 }
 export function intent(s: State, e: Enemy): EnemyIntent {
   const damage = (bonus = 0, round = s.round) => {
@@ -1580,7 +1762,16 @@ export function intent(s: State, e: Enemy): EnemyIntent {
       ) * 2;
     return Math.max(
       0,
-      Math.round((e.damage + bonus) * s.balance.enemyPower) + rage + pressure,
+      Math.round(
+        (e.damage +
+          bonus +
+          (tactical(s) && (e.powerReady ?? Infinity) <= round
+            ? (e.power ?? 0)
+            : 0)) *
+          s.balance.enemyPower,
+      ) +
+        rage +
+        pressure,
     );
   };
   const attack = (bonus = 0): EnemyIntent => ({
@@ -1610,6 +1801,62 @@ export function intent(s: State, e: Enemy): EnemyIntent {
     value: Math.min(value, 6 - s.board.filter((t) => t.ink).length),
     text: `Нанесёт кляксы: ${Math.min(value, 6 - s.board.filter((t) => t.ink).length)}`,
   });
+  if (tactical(s)) {
+    if (
+      e.kind === 'bell' &&
+      cycle === 1 &&
+      (e.summons ?? 0) < 2 &&
+      s.enemies.filter((a) => a.hp > 0).length < 4
+    )
+      return {
+        type: 'summon',
+        value: 1,
+        text: 'Призовёт крысу · действует со следующего ответа',
+      };
+    if (['candle', 'lantern-fish'].includes(e.kind) && odd) {
+      const target = s.enemies
+        .filter((a) => a.hp > 0 && a.hp < a.maxHp)
+        .sort((a, b) => b.maxHp - b.hp - (a.maxHp - a.hp) || a.id - b.id)[0];
+      if (target) {
+        const amount = Math.min(
+          e.kind === 'candle' ? 6 : 8,
+          target.maxHp - target.hp,
+        );
+        return {
+          type: 'mend',
+          target: target.id,
+          value: amount,
+          text: `Лечит ${target.name}: +${amount}`,
+        };
+      }
+    }
+    if (
+      e.kind === 'mirror' &&
+      odd &&
+      s.enemies.some((a) => a.id !== e.id && a.hp > 0)
+    )
+      return {
+        type: 'rally',
+        value: 2,
+        text: 'Союзникам +2 к следующему удару · со следующего хода',
+      };
+    if (e.kind === 'librarian' && odd) {
+      const count = Math.min(2, 3 - s.board.filter((t) => t.locked).length);
+      return {
+        type: 'lock',
+        value: count,
+        text: `Запечатает фишек: ${count} · фокус или Правка снимут печати`,
+      };
+    }
+    if (['eraser', 'safe'].includes(e.kind) && cycle === 1) {
+      const size = e.kind === 'eraser' ? 5 : 7;
+      return {
+        type: 'resize',
+        value: size,
+        text: `Поле ${size}×${size} на 2 хода · первый меняющий размер имеет приоритет`,
+      };
+    }
+  }
   switch (e.kind) {
     case 'redactor': {
       if (cycle === 1) {
@@ -1723,6 +1970,13 @@ function checkFinish(s: State) {
   for (const t of s.board)
     if (t.root && !s.enemies.some((e) => e.id === t.root?.owner && e.hp > 0))
       delete t.root;
+  if (tactical(s))
+    for (const t of s.board)
+      if (
+        t.locked &&
+        !s.enemies.some((e) => e.id === t.locked?.owner && e.hp > 0)
+      )
+        delete t.locked;
   if (s.hp <= 0) {
     s.hp = 0;
     s.phase = 'defeat';
@@ -1802,7 +2056,7 @@ function checkFinish(s: State) {
 export function startRun(
   seed = 19062026,
   balance: Balance = DEFAULT_BALANCE,
-  rulesVersion: 2 | 3 | 4 = 4,
+  rulesVersion: 2 | 3 | 4 | 5 = 5,
 ): State {
   seed = seed >>> 0;
   const s: State = {
@@ -1870,6 +2124,7 @@ export function startRun(
   s.enemies = [makeEnemy(s, 'raider', 18)];
   s.target = s.enemies[0].id;
   newBoard(s);
+  resetActions(s);
   return s;
 }
 function makeEnemy(
@@ -1905,6 +2160,8 @@ export function previewMove(
   const defeated = s.enemies.filter((e) => e.hp === 0).map((e) => e.id);
   return {
     error: undefined,
+    actionCost: shiftCost(input, amount),
+    actionsRemaining: actionLeft(input) - shiftCost(input, amount),
     cells,
     targets: s.enemies
       .map((e) => {
@@ -1951,7 +2208,7 @@ function moveError(
 ) {
   if (
     !['battle', 'trial'].includes(input.phase) ||
-    input.moved ||
+    !canShift(input) ||
     input.trial?.paused
   )
     return 'Сначала заверши ход.';
@@ -1959,14 +2216,25 @@ function moveError(
     !['row', 'col'].includes(axis) ||
     !Number.isInteger(line) ||
     line < 0 ||
-    line > 5 ||
+    line >= boardSize(input.board) ||
     !Number.isInteger(amount) ||
-    amount < -5 ||
-    amount > 5 ||
+    Math.abs(amount) >= boardSize(input.board) ||
     amount === 0
   )
-    return 'Выбери сдвиг от 1 до 5 клеток.';
-  if (!groups(shifted(input.board, axis, line, amount)).length)
+    return `Выбери сдвиг от 1 до ${boardSize(input.board) - 1} клеток.`;
+  if (lineLocked(input, axis, line))
+    return 'Линия запечатана. Собери фокус, примени Правку или победи архивариуса.';
+  if (
+    tactical(input) &&
+    input.phase !== 'trial' &&
+    shiftCost(input, amount) > actionLeft(input)
+  )
+    return `Нужно ${shiftCost(input, amount)} очков действия, осталось ${actionLeft(input)}.`;
+  if (
+    (!tactical(input) || input.phase === 'trial') &&
+    !groups(shifted(input.board, axis, line, amount), minimumMatch(input))
+      .length
+  )
     return 'Нет комбинации — сдвиг не тратится.';
 }
 export function move(
@@ -1979,7 +2247,10 @@ export function move(
   if (error) return result(input, [], error);
   const s = copy(input);
   s.board = shifted(s.board, axis, line, amount);
-  s.moved = s.phase !== 'trial';
+  if (tactical(s)) spendAction(s, shiftCost(s, amount));
+  else s.moved = s.phase !== 'trial';
+  if (tactical(s) && !groups(s.board, minimumMatch(s)).length)
+    note(s, `Подготовка поля: −${shiftCost(s, amount)} очков действия.`);
   const frames: Frame[] = [];
   resolve(s, frames, true);
   if (s.phase === 'trial') {
@@ -2000,6 +2271,14 @@ export function endTurn(input: State): Result {
   if (input.phase !== 'battle') return result(input);
   const s = copy(input);
   const frames: Frame[] = [];
+  if (tactical(s) && s.relics.includes('borrowed-time')) {
+    hurtHero(s, 2, true, 'Заемное время');
+    note(s, 'Заемное время: −2 здоровья за завершение хода.');
+    if (s.hp <= 0) {
+      checkFinish(s);
+      return result(s);
+    }
+  }
   if (s.tide) {
     s.tide.turns--;
     if (s.tide.turns === 0 && !s.tide.cleared) {
@@ -2009,7 +2288,10 @@ export function endTurn(input: State): Result {
       note(s, `Прилив: ${damage} урона, ${blocked} в блок.`);
       frames.push({
         state: copy(s),
-        cells: Array.from({ length: 6 }, (_, i) => s.tide!.row * 6 + i),
+        cells: Array.from(
+          { length: boardSize(s.board) },
+          (_, i) => s.tide!.row * boardSize(s.board) + i,
+        ),
         label: 'Прилив',
         cue: { actor: 'status', type: 'attack', target: 'hero' },
       });
@@ -2035,11 +2317,25 @@ export function endTurn(input: State): Result {
       return result(s, frames);
     }
   }
+  if (tactical(s)) {
+    for (const t of s.board)
+      if (t.locked && t.locked.expires <= s.round) delete t.locked;
+    if (s.boardWarp && s.boardWarp.expires <= s.round) {
+      resizeBoard(s, 6);
+      delete s.boardWarp;
+      note(s, 'Поле вернулось к 6×6.');
+    }
+  }
   const poisonAtStart = new Map(s.enemies.map((e) => [e.id, e.poison]));
-  for (const e of s.enemies) {
+  const participants = tactical(s) ? [...s.enemies] : s.enemies;
+  const planned = tactical(s)
+    ? new Map(participants.map((e) => [e.id, intent(s, e)]))
+    : null;
+  let resized = false;
+  for (const e of participants) {
     if (e.hp <= 0) continue;
     // Snapshot the displayed intent before this enemy's status tick.
-    const action = intent(s, e);
+    const action = planned?.get(e.id) ?? intent(s, e);
     const tickingPoison =
       (s.rulesVersion ?? 0) >= 4 ? poisonAtStart.get(e.id)! : e.poison;
     if (tickingPoison > 0) {
@@ -2102,6 +2398,59 @@ export function endTurn(input: State): Result {
       s.redaction = { family: action.family, expires: s.round + 2 };
       note(s, action.text);
     }
+    if (
+      action.type === 'summon' &&
+      s.enemies.filter((a) => a.hp > 0).length < 4 &&
+      (e.summons ?? 0) < 2
+    ) {
+      e.summons = (e.summons ?? 0) + 1;
+      const minion = makeEnemy(s, 'paper-rat', 12 + Math.floor(s.room / 3));
+      minion.damage = 3;
+      minion.summoned = true;
+      s.enemies = s.enemies.filter((a) => a.hp > 0);
+      s.enemies.push(minion);
+      note(s, `${e.name} вызвал крысу. Она не атакует в этот ответ.`);
+    }
+    if (action.type === 'rally') {
+      for (const ally of s.enemies.filter((a) => a.hp > 0 && a.id !== e.id))
+        if (!ally.power) {
+          ally.power = 2;
+          ally.powerReady = s.round + 1;
+        }
+      note(s, 'Зеркало усилило следующий удар союзников со следующего хода.');
+    }
+    if (action.type === 'mend') {
+      const ally = s.enemies.find((a) => a.id === action.target && a.hp > 0);
+      if (ally) {
+        ally.hp = Math.min(ally.maxHp, ally.hp + action.value);
+        note(s, `${e.name} лечит ${ally.name}: до +${action.value} здоровья.`);
+      }
+    }
+    if (action.type === 'lock') {
+      const candidates = s.board.filter(
+        (t) => !t.locked && t.family !== 'focus',
+      );
+      for (
+        let i = 0;
+        i < action.value &&
+        s.board.filter((t) => t.locked).length < 3 &&
+        candidates.length;
+        i++
+      ) {
+        const t = candidates.splice(
+          Math.floor(random(s, 'encounters') * candidates.length),
+          1,
+        )[0];
+        t.locked = { owner: e.id, expires: s.round + 1 };
+      }
+      note(s, 'Печати держат строки и столбцы. Фокус и Правка снимают их.');
+    }
+    if (action.type === 'resize' && !resized) {
+      resized = true;
+      resizeBoard(s, action.value);
+      s.boardWarp = { size: action.value as 5 | 7, expires: s.round + 2 };
+      note(s, `Размер поля: ${action.value}×${action.value} на 2 хода.`);
+    }
     if (action.type === 'block') e.block = action.value;
     if (action.type === 'drain') {
       s.energy = Math.max(0, s.energy - action.value);
@@ -2112,6 +2461,10 @@ export function endTurn(input: State): Result {
       note(s, `${e.name}: +${action.value} здоровья`);
     }
     if (action.type === 'attack' || action.type === 'pierce') {
+      if (tactical(s) && (e.powerReady ?? Infinity) <= s.round) {
+        delete e.power;
+        delete e.powerReady;
+      }
       const blocked =
         action.type === 'pierce' ? 0 : Math.min(s.block, action.value);
       s.block -= blocked;
@@ -2136,18 +2489,25 @@ export function endTurn(input: State): Result {
       note(s, `${e.name}: ${action.text.toLowerCase()} на следующий ход`);
     if (action.type === 'ink') {
       const choices = s.board.filter((t) => !t.ink);
-      for (let i = 0; i < action.value; i++) {
+      for (
+        let i = 0;
+        i < action.value &&
+        choices.length &&
+        s.board.filter((t) => t.ink).length < 6;
+        i++
+      ) {
         const index = Math.floor(random(s, 'encounters') * choices.length);
         choices.splice(index, 1)[0].ink = true;
       }
       note(s, `${e.name}: ${action.value} клякс. Матч фокуса смоет их все.`);
     }
     if (action.type === 'siphon') {
-      s.focus -= action.value;
-      e.hp = Math.min(e.maxHp, e.hp + action.value);
+      const stolen = Math.min(s.focus, action.value);
+      s.focus -= stolen;
+      e.hp = Math.min(e.maxHp, e.hp + stolen);
       note(
         s,
-        `${e.name} украл ${action.value} фокуса и восстановил до ${action.value} здоровья.`,
+        `${e.name} украл ${stolen} фокуса и восстановил до ${action.value} здоровья.`,
       );
     }
     frames.push({
@@ -2163,11 +2523,26 @@ export function endTurn(input: State): Result {
             ? 'guard'
             : action.type === 'pierce'
               ? 'attack'
-              : ['drain', 'ink', 'siphon', 'redact'].includes(action.type)
+              : [
+                    'drain',
+                    'ink',
+                    'siphon',
+                    'redact',
+                    'summon',
+                    'rally',
+                    'lock',
+                    'resize',
+                  ].includes(action.type)
                 ? 'cast'
-                : (action.type as CombatCue['type']),
+                : action.type === 'mend'
+                  ? 'heal'
+                  : (action.type as CombatCue['type']),
         target:
-          action.type === 'heal' || action.type === 'block' ? e.id : 'hero',
+          action.type === 'mend'
+            ? action.target
+            : action.type === 'heal' || action.type === 'block'
+              ? e.id
+              : 'hero',
       },
     });
     if (s.hp <= 0) break;
@@ -2182,6 +2557,7 @@ export function endTurn(input: State): Result {
       hasSeal(s, 'enduring-record') ? 6 : s.hero === 'warden' ? 4 : 0,
     );
     s.moved = false;
+    resetActions(s);
     s.cast = false;
     s.consumed = false;
     s.flags = s.flags.filter(
@@ -2202,10 +2578,16 @@ export function castSkill(
 ): Result {
   if (
     !['battle', 'trial'].includes(input.phase) ||
-    input.cast ||
+    (tactical(input) && input.phase !== 'trial'
+      ? actionLeft(input) < 1
+      : input.cast) ||
     input.trial?.paused
   )
-    return result(input, [], 'Одна способность за ход.');
+    return result(
+      input,
+      [],
+      tactical(input) ? 'Нужно 1 очко действия.' : 'Одна способность за ход.',
+    );
   const binding =
     id === 'binding' &&
     (input.rulesVersion ?? 0) >= 4 &&
@@ -2228,7 +2610,7 @@ export function castSkill(
     return result(input, [], 'Нужен Боевой переплёт и хотя бы 1 блок.');
   if (input.energy < cost[0] || input.focus < cost[1] || input.hp <= cost[2])
     return result(input, [], 'Недостаточно ресурсов.');
-  if (index < 0 || index >= 36 || !FAMILIES.includes(family))
+  if (index < 0 || index >= input.board.length || !FAMILIES.includes(family))
     return result(input, [], 'Выбери фишку на поле.');
   const double = id === 'edit' && hasSeal(input, 'double-edit');
   if (
@@ -2237,12 +2619,13 @@ export function castSkill(
       (double &&
         (!Number.isInteger(secondIndex) ||
           secondIndex! < 0 ||
-          secondIndex! >= 36 ||
+          secondIndex! >= input.board.length ||
           secondIndex === index)))
   )
     return result(input, [], 'Выбери две разные клетки для правки.');
   const s = copy(input);
-  s.cast = true;
+  s.cast = !tactical(s) || s.phase === 'trial';
+  spendAction(s, 1);
   s.stats.skills++;
   s.energy -= cost[0];
   s.focus -= cost[1];
@@ -2283,6 +2666,7 @@ export function castSkill(
   if (id === 'blood') hit(s, damage(8 + bonus));
   if (id === 'seal') hit(s, damage(16 + bonus + rune));
   if (id === 'edit') {
+    if (tactical(s)) s.board.forEach((t) => delete t.locked);
     if (s.redaction) {
       delete s.redaction;
       note(s, 'Правка сняла запрет Редактора.');
@@ -2299,10 +2683,10 @@ export function castSkill(
     if (s.relics.includes('order')) s.block += 3;
   }
   if (id === 'reshape') {
-    const row = Math.floor(index / 6);
+    const row = Math.floor(index / boardSize(s.board));
     for (let col = 0; col < 3; col++) {
-      s.board[row * 6 + col] = tile(s, 'blade');
-      s.board[row * 6 + col].variant = null;
+      s.board[row * boardSize(s.board) + col] = tile(s, 'blade');
+      s.board[row * boardSize(s.board) + col].variant = null;
     }
   }
   note(
@@ -2323,9 +2707,9 @@ export function castSkill(
             : [index]
           : id === 'reshape'
             ? [
-                Math.floor(index / 6) * 6,
-                Math.floor(index / 6) * 6 + 1,
-                Math.floor(index / 6) * 6 + 2,
+                Math.floor(index / boardSize(s.board)) * boardSize(s.board),
+                Math.floor(index / boardSize(s.board)) * boardSize(s.board) + 1,
+                Math.floor(index / boardSize(s.board)) * boardSize(s.board) + 2,
               ]
             : [],
       label: id === 'edit' ? 'Правка поля' : (itemById(id)?.name ?? 'Приём'),
@@ -2667,10 +3051,11 @@ export function progressionRewards(m: Meta): string[] {
       : []),
   ];
 }
-export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4) {
+export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4 | 5) {
   if ((rulesVersion ?? 0) >= 2)
     return [
       ...CORE_RELIC_IDS,
+      ...((rulesVersion ?? 0) >= 5 ? TACTIC_RELIC_IDS : []),
       ...((rulesVersion ?? 0) >= 4 ? progressionRewards(m) : []),
       ...((rulesVersion ?? 0) >= 4
         ? ACHIEVEMENTS.filter(
@@ -2760,11 +3145,72 @@ export function canEnterForbidden(s: State) {
     !!s.journey
   );
 }
+function visibleRoom<T extends Room & { depth: number }>(s: State, n: T): T {
+  if (
+    !tactical(s) ||
+    s.journey?.visited.includes(n.id) ||
+    ['shop', 'rest', 'boss'].includes(n.kind)
+  )
+    return { ...n };
+  if (!n.concealed && n.depth <= s.room + 1) return { ...n };
+  const { roster: _roster, ...publicRoom } = n;
+  return {
+    ...publicRoom,
+    kind: 'unknown',
+    name: 'Неизвестная комната',
+    description:
+      'За дверью может быть бой, находка, событие или испытание. Содержимое откроется после входа. Магазины, привалы и боссы отмечены заранее.',
+  } as T;
+}
+function tacticalRoster(
+  s: State,
+  archive: boolean,
+  local: number,
+  elite: boolean,
+): EnemyKind[] {
+  if (local === 1) return archive ? ['reed-crab', 'moth'] : ['raider'];
+  const pick = <T>(items: T[]): T =>
+    items[Math.floor(random(s, 'encounters') * items.length)];
+  if (local <= 3)
+    return archive
+      ? pick([
+          ['reed-crab', 'lantern-fish'],
+          ['ink-eel', 'leech'],
+        ] as EnemyKind[][])
+      : pick([
+          ['paper-rat', 'stapler'],
+          ['candle', 'paper-rat'],
+        ] as EnemyKind[][]);
+  if (elite)
+    return archive
+      ? pick([
+          ['anchor', 'lantern-fish', 'mirror', 'ink-scribe'],
+          ['bell', 'reed-crab', 'leech', 'lantern-fish'],
+        ] as EnemyKind[][])
+      : local >= 8
+        ? ['safe', 'mirror', 'candle', 'paper-rat']
+        : ['bell', 'paper-rat', 'candle'];
+  if (local >= 8)
+    return archive
+      ? ['ink-scribe', 'lantern-fish', 'ink-eel']
+      : ['mirror', 'candle', 'eraser'];
+  return archive
+    ? pick([
+        ['librarian', 'leech'],
+        ['anchor', 'lantern-fish'],
+      ] as EnemyKind[][])
+    : pick([
+        ['librarian', 'moth'],
+        ['eraser', 'paper-rat'],
+      ] as EnemyKind[][]);
+}
 export function nextRooms(s: State): Room[] {
   if ((s.rulesVersion ?? 0) >= 3 && s.journey) {
     const ids =
       s.journey.nodes.find((n) => n.id === s.journey!.current)?.next ?? [];
-    return s.journey.nodes.filter((n) => ids.includes(n.id));
+    return s.journey.nodes
+      .filter((n) => ids.includes(n.id))
+      .map((n) => visibleRoom(s, n));
   }
   return roomsAtDepth(s.room + 1);
 }
@@ -3002,6 +3448,33 @@ function createJourney(s: State): NonNullable<State['journey']> {
           name = archive ? 'Хранитель прилива' : 'Цензор';
           roster = archive ? ['tide-keeper'] : ['censor'];
         }
+        if (tactical(s)) {
+          if ([2, 3, 6].includes(local)) {
+            const roll = random(s, 'map');
+            kind =
+              local === 3
+                ? roll < 0.65
+                  ? 'treasure'
+                  : roll < 0.85
+                    ? 'event'
+                    : 'battle'
+                : roll < 0.8
+                  ? 'battle'
+                  : roll < 0.9
+                    ? 'event'
+                    : 'treasure';
+            name =
+              kind === 'treasure'
+                ? 'Забытый запасник'
+                : kind === 'event'
+                  ? 'Следы прежнего спуска'
+                  : '';
+          }
+          if (['battle', 'elite'].includes(kind)) {
+            roster = tacticalRoster(s, archive, local, kind === 'elite');
+            if (local !== 1) name = '';
+          } else if (kind !== 'boss') roster = undefined;
+        }
         if (!name)
           name = `${kind === 'elite' ? 'Элита: ' : ''}${roster!.map((e) => ENEMY_CATALOG[e].name).join(' и ')}`;
         const reward = {
@@ -3010,11 +3483,12 @@ function createJourney(s: State): NonNullable<State['journey']> {
             'Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.',
           treasure:
             'Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.',
-          event: archive
-            ? 'Припасы бесплатно или ремонт насоса за 30 золота.'
-            : (s.rulesVersion ?? 0) >= 4
-              ? 'Припасы, находка за 5 здоровья или обмен своей реликвии на одну из двух новых.'
-              : 'Припасы бесплатно или сильная находка за 5 здоровья.',
+          event:
+            archive && (!tactical(s) || local === 7)
+              ? 'Припасы бесплатно или ремонт насоса за 30 золота.'
+              : (s.rulesVersion ?? 0) >= 4
+                ? 'Припасы, находка за 5 здоровья или обмен своей реликвии на одну из двух новых.'
+                : 'Припасы бесплатно или сильная находка за 5 здоровья.',
           trial:
             '45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.',
           shop: 'Ассортимент и скидки фиксированы. Здесь ветки соединяются.',
@@ -3042,7 +3516,12 @@ function createJourney(s: State): NonNullable<State['journey']> {
           depth,
           kind,
           name,
-          description: reward + continuation,
+          description: reward + (tactical(s) ? '' : continuation),
+          ...(tactical(s) &&
+          !['shop', 'rest', 'boss'].includes(kind) &&
+          local !== 1
+            ? { concealed: random(s, 'map') < 0.65 }
+            : {}),
           ...(roster ? { roster } : {}),
           next,
         });
@@ -3199,25 +3678,32 @@ function validJourneySave(s: State): boolean {
     if (lane < 0 || (lane === 1 && ![2, 3, 4, 6, 7, 8].includes(local)))
       return false;
     const legalKinds =
-      local === 3
-        ? ['treasure']
-        : local === 5
-          ? ['shop']
-          : local === 7
-            ? ['event', 'trial']
-            : local === 9
-              ? ['rest']
-              : local === 10
-                ? ['boss']
-                : [4, 8].includes(local)
-                  ? ['battle', 'elite']
-                  : ['battle'];
-    if (!legalKinds.includes(n.kind)) return false;
+      tactical(s) && [2, 3, 6].includes(local)
+        ? ['battle', 'event', 'treasure']
+        : local === 3
+          ? ['treasure']
+          : local === 5
+            ? ['shop']
+            : local === 7
+              ? ['event', 'trial']
+              : local === 9
+                ? ['rest']
+                : local === 10
+                  ? ['boss']
+                  : [4, 8].includes(local)
+                    ? ['battle', 'elite']
+                    : ['battle'];
+    if (
+      !legalKinds.includes(n.kind) ||
+      (n.concealed !== undefined &&
+        (!tactical(s) || typeof n.concealed !== 'boolean'))
+    )
+      return false;
     if (
       ['battle', 'elite', 'boss'].includes(n.kind) &&
       (!Array.isArray(n.roster) ||
         !n.roster.length ||
-        n.roster.length > 2 ||
+        n.roster.length > (tactical(s) ? 4 : 2) ||
         !n.roster.every((e) => Object.hasOwn(ENEMY_CATALOG, e)))
     )
       return false;
@@ -3336,7 +3822,7 @@ export function routeMap(s: State): RouteNode[][] {
         .filter((n) => n.depth === i + 1)
         .map(
           (n): RouteNode => ({
-            ...n,
+            ...visibleRoom(s, n),
             status:
               n.id === j.current && s.phase !== 'victory'
                 ? 'current'
@@ -3414,7 +3900,10 @@ const ROOM_ENEMIES: Record<string, EnemyKind[]> = {
 export function enterRoom(input: State, id: string): Result {
   if (input.phase !== 'map')
     return result(input, [], 'Сначала заверши текущую комнату.');
-  const room = nextRooms(input).find((r) => r.id === id);
+  const allowed = nextRooms(input).find((r) => r.id === id);
+  const room =
+    allowed &&
+    (tactical(input) ? input.journey?.nodes.find((n) => n.id === id) : allowed);
   if (!room) return result(input, [], 'Этот путь недоступен.');
   const s = copy(input);
   s.room++;
@@ -3425,6 +3914,10 @@ export function enterRoom(input: State, id: string): Result {
     delete s.treasureRerolled;
   }
   s.heroPoison = 0;
+  if (tactical(s)) {
+    delete s.boardWarp;
+    s.board = [];
+  }
   delete s.tide;
   delete s.redaction;
   delete s.echo;
@@ -3483,6 +3976,8 @@ export function enterRoom(input: State, id: string): Result {
     newBoard(s);
     note(s, 'Открой шлюз: 18 энергии от матчей и 30 урона.');
   }
+  if (tactical(s) && !s.board.length) newBoard(s, 6);
+  resetActions(s);
   return result(s);
 }
 function upgradeOffer(f: Family): Offer {
@@ -3555,6 +4050,7 @@ function grant(s: State, offer: Offer, slot?: number): string | undefined {
   if (offer.kind === 'relic') {
     if (s.relics.includes(offer.id)) return 'Эта реликвия уже есть.';
     s.relics.push(offer.id);
+    if (tactical(s) && offer.id === 'grand-design') newBoard(s);
   }
   if (offer.kind === 'modifier') {
     if (s.modifiers.includes(offer.id))
@@ -3880,11 +4376,26 @@ export function isSave(value: unknown): value is State {
       (Array.isArray(s.chronicle) &&
         s.chronicle.length <= 80 &&
         s.chronicle.every((x) => typeof x === 'string'))) &&
+    (!tactical(s) ||
+      (Number.isInteger(s.actions) &&
+        s.actions! >= 0 &&
+        s.actions! <= 4 &&
+        (s.boardWarp === undefined
+          ? Array.isArray(s.board) && s.board.length === 36
+          : s.boardWarp !== null &&
+            [5, 7].includes(s.boardWarp.size) &&
+            Number.isInteger(s.boardWarp.expires) &&
+            s.boardWarp.expires >= s.round &&
+            Array.isArray(s.board) &&
+            s.board.length === s.boardWarp.size ** 2) &&
+        Array.isArray(s.enemies) &&
+        s.enemies.filter((e) => e?.hp > 0).length <= 4)) &&
     isEquipment(s.equipment) &&
     (s.rulesVersion === undefined ||
       s.rulesVersion === 2 ||
       s.rulesVersion === 3 ||
-      s.rulesVersion === 4) &&
+      s.rulesVersion === 4 ||
+      s.rulesVersion === 5) &&
     ((s.rulesVersion ?? 0) < 3 || validJourneySave(s)) &&
     ((s.rulesVersion ?? 0) < 2 ||
       (Number.isInteger(s.weaponQuality) &&
@@ -3902,13 +4413,16 @@ export function isSave(value: unknown): value is State {
         s.phase === 'battle' &&
         Number.isInteger(s.tide.row) &&
         s.tide.row >= 0 &&
-        s.tide.row < 6 &&
+        Array.isArray(s.board) &&
+        s.tide.row < boardSize(s.board) &&
         Number.isInteger(s.tide.turns) &&
         s.tide.turns >= 1 &&
         s.tide.turns <= 3 &&
         typeof s.tide.cleared === 'boolean')) &&
     Array.isArray(s.board) &&
-    s.board.length === 36 &&
+    (tactical(s)
+      ? [25, 36, 49].includes(s.board.length)
+      : s.board.length === 36) &&
     s.board.every(
       (t) =>
         t &&
@@ -3920,7 +4434,15 @@ export function isSave(value: unknown): value is State {
           'bomb',
           ...((s.rulesVersion ?? 0) >= 4 ? ['spiked', 'marked'] : []),
         ].includes(t.variant) &&
-        (t.ink === undefined || t.ink === true),
+        (t.ink === undefined || t.ink === true) &&
+        (t.locked === undefined ||
+          (tactical(s) &&
+            t.locked !== null &&
+            Number.isInteger(t.locked.owner) &&
+            Number.isInteger(t.locked.expires) &&
+            t.locked.expires >= s.round &&
+            Array.isArray(s.enemies) &&
+            s.enemies.some((e) => e.id === t.locked!.owner && e.hp > 0))),
     ) &&
     s.board.filter((t) => t.ink).length <= 6 &&
     Number.isFinite(s.hp) &&
@@ -3944,7 +4466,15 @@ export function isSave(value: unknown): value is State {
         e.hp <= e.maxHp &&
         Number.isFinite(e.damage) &&
         e.damage >= 0 &&
-        Number.isFinite(e.id),
+        Number.isFinite(e.id) &&
+        (e.power === undefined ||
+          (tactical(s) && e.power === 2 && Number.isInteger(e.powerReady))) &&
+        (e.summons === undefined ||
+          (tactical(s) &&
+            Number.isInteger(e.summons) &&
+            e.summons >= 0 &&
+            e.summons <= 2)) &&
+        (e.summoned === undefined || (tactical(s) && e.summoned === true)),
     ) &&
     Array.isArray(s.relics) &&
     Array.isArray(s.modifiers) &&
@@ -4076,7 +4606,7 @@ export function canCast(s: State, id: string): boolean {
     !!cost &&
     ['battle', 'trial'].includes(s.phase) &&
     !s.trial?.paused &&
-    !s.cast &&
+    (tactical(s) && s.phase !== 'trial' ? actionLeft(s) >= 1 : !s.cast) &&
     (id === 'binding'
       ? (s.rulesVersion ?? 0) >= 4 &&
         s.relics.includes('binding') &&
@@ -4094,7 +4624,11 @@ export function configureRun(
 ): State {
   if (preset === 'normal') return s;
   s.modified = true;
-  s.flags.push(...RELICS.map((x) => `run:available:${x.id}`));
+  s.flags.push(
+    ...RELICS.filter(
+      (x) => tactical(s) || !TACTIC_RELIC_IDS.includes(x.id),
+    ).map((x) => `run:available:${x.id}`),
+  );
   if (preset === 'shields') s.relics = ['thorns', 'coil', 'return'];
   if (preset === 'editor') {
     s.equipment.weapon = 'gear-axe';
@@ -4115,5 +4649,6 @@ export function configureRun(
     s.relics = ['prism', 'conductor'];
   }
   newBoard(s);
+  resetActions(s);
   return s;
 }

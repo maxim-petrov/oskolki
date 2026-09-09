@@ -1,5 +1,13 @@
 import { VISUAL_STYLE } from './visual-style';
 import {
+  tactical,
+  boardSize,
+  minimumMatch,
+  actionLeft,
+  actionMax,
+  canShift,
+  lineLocked,
+  shiftCost,
   biomeAt,
   TOTAL_ROOMS,
   tideDamage,
@@ -172,13 +180,15 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
   return {
     phase: s.phase,
     rulesVersion:
-      s.rulesVersion === 4
-        ? 'v0.2-stage3'
-        : s.rulesVersion === 3
-          ? 'v0.2-stage2'
-          : s.rulesVersion === 2
-            ? 'v0.2'
-            : 'classic',
+      s.rulesVersion === 5
+        ? 'v0.3-tactics'
+        : s.rulesVersion === 4
+          ? 'v0.2-stage3'
+          : s.rulesVersion === 3
+            ? 'v0.2-stage2'
+            : s.rulesVersion === 2
+              ? 'v0.2'
+              : 'classic',
     hero: s.hero ?? 'wanderer',
     challenge: s.challenge ?? null,
     difficulty: s.difficulty ?? 0,
@@ -206,6 +216,17 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
     focus: s.focus,
     gold: s.gold,
     heroPoison: s.heroPoison,
+    boardSize: boardSize(s.board),
+    minimumMatch: minimumMatch(s),
+    actionRules: tactical(s)
+      ? {
+          setupShiftsAllowed: s.phase === 'battle',
+          cost: 'Shift uses shortest cyclic distance. Ability uses 1 AP plus resources. Potion once per turn costs 0 AP. End turn alone triggers the enemy response.',
+          endTurnHealthCost:
+            s.phase === 'battle' && s.relics.includes('borrowed-time') ? 2 : 0,
+        }
+      : null,
+    actions: tactical(s) ? { left: actionLeft(s), max: actionMax(s) } : null,
     moved: s.moved,
     cast: s.cast,
     consumed: s.consumed,
@@ -234,15 +255,23 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
     validMoves:
       !busy &&
       !hidden &&
-      !s.moved &&
+      canShift(s) &&
       ['battle', 'trial'].includes(s.phase) &&
       !s.trial?.paused
-        ? validMoves(s.board).map(({ axis, line, amount }) => ({
-            axis,
-            line,
-            amount,
-            firstWave: previewMove(s, axis, line, amount),
-          }))
+        ? validMoves(s.board, minimumMatch(s))
+            .filter(
+              (m) =>
+                !lineLocked(s, m.axis, m.line) &&
+                (!tactical(s) ||
+                  s.phase === 'trial' ||
+                  shiftCost(s, m.amount) <= actionLeft(s)),
+            )
+            .map(({ axis, line, amount }) => ({
+              axis,
+              line,
+              amount,
+              firstWave: previewMove(s, axis, line, amount),
+            }))
         : [],
   };
 }
