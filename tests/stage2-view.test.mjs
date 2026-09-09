@@ -150,7 +150,7 @@ test('structured controls expose connected routes, saved seal, paid reroll, and 
   assert.equal(r.state.gold, t.gold - 20);
   const before = g.copy(t),
     snap = gameSnapshot(t, false);
-  assert.equal(snap.rulesVersion, 'v0.2-stage2');
+  assert.equal(snap.rulesVersion, 'v0.2-stage3');
   assert.equal(snap.rewardSource, 'treasure');
   assert.equal(snap.canRerollTreasure, true);
   assert.equal(gameSnapshot(s, false).seal, 'double-edit');

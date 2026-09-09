@@ -1,0 +1,2125 @@
+{
+  "fixtures": [
+    {
+      "label": "stage2 1",
+      "input": {
+        "version": 2,
+        "rulesVersion": 3,
+        "weaponQuality": 0,
+        "equipment": {
+          "weapon": "gear-cutter",
+          "helmet": null,
+          "clothing": "gear-shirt",
+          "trousers": "gear-worn-trousers"
+        },
+        "seed": 1,
+        "rng": 1511859829,
+        "serial": 37,
+        "runId": "run-1",
+        "phase": "battle",
+        "board": [
+          {
+            "id": 2,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 3,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 4,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 5,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 6,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 7,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 8,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 9,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 10,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 11,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 12,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 13,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 14,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 15,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 16,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 17,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 18,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 19,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 20,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 21,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 22,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 23,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 24,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 25,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 26,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 27,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 28,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 29,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 30,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 31,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 32,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 33,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 34,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 35,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 36,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 37,
+            "family": "focus",
+            "variant": null
+          }
+        ],
+        "hp": 40,
+        "maxHp": 40,
+        "block": 0,
+        "heroPoison": 0,
+        "energy": 3,
+        "focus": 0,
+        "gold": 25,
+        "round": 1,
+        "room": 1,
+        "roomKind": "battle",
+        "target": 1,
+        "enemies": [
+          {
+            "id": 1,
+            "kind": "raider",
+            "hp": 100,
+            "maxHp": 100,
+            "name": "Костяной налётчик",
+            "block": 0,
+            "poison": 0,
+            "damage": 6
+          }
+        ],
+        "moved": false,
+        "cast": false,
+        "consumed": false,
+        "relics": [
+          "thorns",
+          "vessel",
+          "heart",
+          "toxin",
+          "conductor"
+        ],
+        "modifiers": [
+          "venom",
+          "bomb"
+        ],
+        "skills": [
+          "bolt",
+          "guard",
+          "blood"
+        ],
+        "potions": 1,
+        "upgrades": {
+          "blade": 0,
+          "shield": 0,
+          "spark": 0,
+          "focus": 0
+        },
+        "log": [
+          "Сдвинь строку или столбец и собери три одинаковых символа."
+        ],
+        "offers": [],
+        "path": [
+          "Вход в крипту"
+        ],
+        "flags": [
+          "run:available:thorns",
+          "run:available:coil",
+          "run:available:return",
+          "run:available:toxin",
+          "run:available:heart",
+          "run:available:prism",
+          "run:available:conductor",
+          "run:available:order",
+          "run:available:lens",
+          "run:available:vessel",
+          "run:available:lamp",
+          "run:available:thread"
+        ],
+        "balance": {
+          "health": 40,
+          "blade": 2,
+          "shield": 2,
+          "enemyPower": 1,
+          "animation": 260
+        },
+        "modified": false,
+        "stats": {
+          "matches": 0,
+          "cascades": 0,
+          "kills": 0,
+          "skills": 0,
+          "damage": 0,
+          "blocked": 0,
+          "big": 0,
+          "sacrifices": 0,
+          "trials": 0
+        },
+        "trial": null,
+        "streams": {
+          "map": 1183774072,
+          "encounters": 3903212476,
+          "loot": 3210233708
+        },
+        "journey": {
+          "nodes": [
+            {
+              "id": "1-0",
+              "depth": 1,
+              "kind": "battle",
+              "name": "Вход в крипту",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "raider"
+              ],
+              "next": [
+                "2-0",
+                "2-1"
+              ]
+            },
+            {
+              "id": "2-0",
+              "depth": 2,
+              "kind": "battle",
+              "name": "Скобогрыз",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → элита → магазин.",
+              "roster": [
+                "stapler"
+              ],
+              "next": [
+                "3-0"
+              ]
+            },
+            {
+              "id": "2-1",
+              "depth": 2,
+              "kind": "battle",
+              "name": "Книжная моль",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → обычный бой → магазин.",
+              "roster": [
+                "moth"
+              ],
+              "next": [
+                "3-1"
+              ]
+            },
+            {
+              "id": "3-0",
+              "depth": 3,
+              "kind": "treasure",
+              "name": "Запечатанный запасник",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "4-0"
+              ]
+            },
+            {
+              "id": "3-1",
+              "depth": 3,
+              "kind": "treasure",
+              "name": "Забытая кладовая",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "4-1"
+              ]
+            },
+            {
+              "id": "4-0",
+              "depth": 4,
+              "kind": "elite",
+              "name": "Элита: Гулкий звонарь и Бумажная крыса",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "bell",
+                "paper-rat"
+              ],
+              "next": [
+                "5-0"
+              ]
+            },
+            {
+              "id": "4-1",
+              "depth": 4,
+              "kind": "battle",
+              "name": "Ластик-вышибала",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "eraser"
+              ],
+              "next": [
+                "5-0"
+              ]
+            },
+            {
+              "id": "5-0",
+              "depth": 5,
+              "kind": "shop",
+              "name": "Торговец у переправы",
+              "description": "Ассортимент и скидки фиксированы. Здесь ветки соединяются.",
+              "next": [
+                "6-0",
+                "6-1"
+              ]
+            },
+            {
+              "id": "6-0",
+              "depth": 6,
+              "kind": "battle",
+              "name": "Чернильная жижа",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем событие → обычный бой → привал.",
+              "roster": [
+                "ink-slime"
+              ],
+              "next": [
+                "7-0"
+              ]
+            },
+            {
+              "id": "6-1",
+              "depth": 6,
+              "kind": "battle",
+              "name": "Слепой архивариус",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем испытание → элита → привал.",
+              "roster": [
+                "librarian"
+              ],
+              "next": [
+                "7-1"
+              ]
+            },
+            {
+              "id": "7-0",
+              "depth": 7,
+              "kind": "event",
+              "name": "Тайник странника",
+              "description": "Припасы бесплатно или сильная находка за 5 здоровья.",
+              "next": [
+                "8-0"
+              ]
+            },
+            {
+              "id": "7-1",
+              "depth": 7,
+              "kind": "trial",
+              "name": "Закрывающийся шлюз",
+              "description": "45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.",
+              "next": [
+                "8-1"
+              ]
+            },
+            {
+              "id": "8-0",
+              "depth": 8,
+              "kind": "battle",
+              "name": "Огарок",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "candle"
+              ],
+              "next": [
+                "9-0"
+              ]
+            },
+            {
+              "id": "8-1",
+              "depth": 8,
+              "kind": "elite",
+              "name": "Элита: Сейф-страж и Кривое зеркало",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "safe",
+                "mirror"
+              ],
+              "next": [
+                "9-0"
+              ]
+            },
+            {
+              "id": "9-0",
+              "depth": 9,
+              "kind": "rest",
+              "name": "Тлеющий костёр",
+              "description": "Лечение или усиление. Здесь ветки соединяются.",
+              "next": [
+                "10-0"
+              ]
+            },
+            {
+              "id": "10-0",
+              "depth": 10,
+              "kind": "boss",
+              "name": "Цензор",
+              "description": "40 золота, выбор печати с ценой или отказ. Затем передышка и архив.",
+              "roster": [
+                "censor"
+              ],
+              "next": [
+                "11-0"
+              ]
+            },
+            {
+              "id": "11-0",
+              "depth": 11,
+              "kind": "battle",
+              "name": "Вход в затопленный архив",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "reed-crab"
+              ],
+              "next": [
+                "12-0",
+                "12-1"
+              ]
+            },
+            {
+              "id": "12-0",
+              "depth": 12,
+              "kind": "battle",
+              "name": "Чернильный угорь",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → обычный бой → магазин.",
+              "roster": [
+                "ink-eel"
+              ],
+              "next": [
+                "13-0"
+              ]
+            },
+            {
+              "id": "12-1",
+              "depth": 12,
+              "kind": "battle",
+              "name": "Фонарный удильщик",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → элита → магазин.",
+              "roster": [
+                "lantern-fish"
+              ],
+              "next": [
+                "13-1"
+              ]
+            },
+            {
+              "id": "13-0",
+              "depth": 13,
+              "kind": "treasure",
+              "name": "Запечатанный запасник",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "14-0"
+              ]
+            },
+            {
+              "id": "13-1",
+              "depth": 13,
+              "kind": "treasure",
+              "name": "Забытая кладовая",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "14-1"
+              ]
+            },
+            {
+              "id": "14-0",
+              "depth": 14,
+              "kind": "battle",
+              "name": "Якорный смотритель",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "anchor"
+              ],
+              "next": [
+                "15-0"
+              ]
+            },
+            {
+              "id": "14-1",
+              "depth": 14,
+              "kind": "elite",
+              "name": "Элита: Мокрый писарь и Скобогрыз",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "ink-scribe",
+                "stapler"
+              ],
+              "next": [
+                "15-0"
+              ]
+            },
+            {
+              "id": "15-0",
+              "depth": 15,
+              "kind": "shop",
+              "name": "Плавучая лавка Саввы",
+              "description": "Ассортимент и скидки фиксированы. Здесь ветки соединяются.",
+              "next": [
+                "16-0",
+                "16-1"
+              ]
+            },
+            {
+              "id": "16-0",
+              "depth": 16,
+              "kind": "battle",
+              "name": "Буквоед",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем событие → обычный бой → привал.",
+              "roster": [
+                "leech"
+              ],
+              "next": [
+                "17-0"
+              ]
+            },
+            {
+              "id": "16-1",
+              "depth": 16,
+              "kind": "battle",
+              "name": "Слепой архивариус",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем испытание → элита → привал.",
+              "roster": [
+                "librarian"
+              ],
+              "next": [
+                "17-1"
+              ]
+            },
+            {
+              "id": "17-0",
+              "depth": 17,
+              "kind": "event",
+              "name": "Сердце насосной",
+              "description": "Припасы бесплатно или ремонт насоса за 30 золота.",
+              "next": [
+                "18-0"
+              ]
+            },
+            {
+              "id": "17-1",
+              "depth": 17,
+              "kind": "trial",
+              "name": "Закрывающийся шлюз",
+              "description": "45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.",
+              "next": [
+                "18-1"
+              ]
+            },
+            {
+              "id": "18-0",
+              "depth": 18,
+              "kind": "battle",
+              "name": "Мокрый писарь и Чернильная жижа",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "ink-scribe",
+                "ink-slime"
+              ],
+              "next": [
+                "19-0"
+              ]
+            },
+            {
+              "id": "18-1",
+              "depth": 18,
+              "kind": "elite",
+              "name": "Элита: Кривое зеркало и Якорный смотритель",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "mirror",
+                "anchor"
+              ],
+              "next": [
+                "19-0"
+              ]
+            },
+            {
+              "id": "19-0",
+              "depth": 19,
+              "kind": "rest",
+              "name": "Сухой причал",
+              "description": "Лечение или усиление. Здесь ветки соединяются.",
+              "next": [
+                "20-0"
+              ]
+            },
+            {
+              "id": "20-0",
+              "depth": 20,
+              "kind": "boss",
+              "name": "Хранитель прилива",
+              "description": "Последний бой спуска.",
+              "roster": [
+                "tide-keeper"
+              ],
+              "next": []
+            }
+          ],
+          "current": "1-0",
+          "visited": [
+            "1-0"
+          ]
+        }
+      },
+      "actions": [
+        [
+          "castSkill",
+          "blood"
+        ],
+        [
+          "move",
+          "row",
+          2,
+          1
+        ],
+        [
+          "endTurn"
+        ]
+      ],
+      "sha256": "b6f30e339d566c9c7ea856fa4c2988770e3a9af6998a90fee25e90c66dc0194b"
+    },
+    {
+      "label": "stage2 42",
+      "input": {
+        "version": 2,
+        "rulesVersion": 3,
+        "weaponQuality": 0,
+        "equipment": {
+          "weapon": "gear-cutter",
+          "helmet": null,
+          "clothing": "gear-shirt",
+          "trousers": "gear-worn-trousers"
+        },
+        "seed": 42,
+        "rng": 1511859870,
+        "serial": 37,
+        "runId": "run-42",
+        "phase": "battle",
+        "board": [
+          {
+            "id": 2,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 3,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 4,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 5,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 6,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 7,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 8,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 9,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 10,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 11,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 12,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 13,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 14,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 15,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 16,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 17,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 18,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 19,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 20,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 21,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 22,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 23,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 24,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 25,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 26,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 27,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 28,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 29,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 30,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 31,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 32,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 33,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 34,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 35,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 36,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 37,
+            "family": "spark",
+            "variant": null
+          }
+        ],
+        "hp": 40,
+        "maxHp": 40,
+        "block": 0,
+        "heroPoison": 0,
+        "energy": 3,
+        "focus": 0,
+        "gold": 25,
+        "round": 1,
+        "room": 1,
+        "roomKind": "battle",
+        "target": 1,
+        "enemies": [
+          {
+            "id": 1,
+            "kind": "raider",
+            "hp": 100,
+            "maxHp": 100,
+            "name": "Костяной налётчик",
+            "block": 0,
+            "poison": 0,
+            "damage": 6
+          }
+        ],
+        "moved": false,
+        "cast": false,
+        "consumed": false,
+        "relics": [
+          "thorns",
+          "vessel",
+          "heart",
+          "toxin",
+          "conductor"
+        ],
+        "modifiers": [
+          "venom",
+          "bomb"
+        ],
+        "skills": [
+          "bolt",
+          "guard",
+          "blood"
+        ],
+        "potions": 1,
+        "upgrades": {
+          "blade": 0,
+          "shield": 0,
+          "spark": 0,
+          "focus": 0
+        },
+        "log": [
+          "Сдвинь строку или столбец и собери три одинаковых символа."
+        ],
+        "offers": [],
+        "path": [
+          "Вход в крипту"
+        ],
+        "flags": [
+          "run:available:thorns",
+          "run:available:coil",
+          "run:available:return",
+          "run:available:toxin",
+          "run:available:heart",
+          "run:available:prism",
+          "run:available:conductor",
+          "run:available:order",
+          "run:available:lens",
+          "run:available:vessel",
+          "run:available:lamp",
+          "run:available:thread"
+        ],
+        "balance": {
+          "health": 40,
+          "blade": 2,
+          "shield": 2,
+          "enemyPower": 1,
+          "animation": 260
+        },
+        "modified": false,
+        "stats": {
+          "matches": 0,
+          "cascades": 0,
+          "kills": 0,
+          "skills": 0,
+          "damage": 0,
+          "blocked": 0,
+          "big": 0,
+          "sacrifices": 0,
+          "trials": 0
+        },
+        "trial": null,
+        "streams": {
+          "map": 1183774051,
+          "encounters": 3903212519,
+          "loot": 3210233671
+        },
+        "journey": {
+          "nodes": [
+            {
+              "id": "1-0",
+              "depth": 1,
+              "kind": "battle",
+              "name": "Вход в крипту",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "raider"
+              ],
+              "next": [
+                "2-0",
+                "2-1"
+              ]
+            },
+            {
+              "id": "2-0",
+              "depth": 2,
+              "kind": "battle",
+              "name": "Скобогрыз",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → обычный бой → магазин.",
+              "roster": [
+                "stapler"
+              ],
+              "next": [
+                "3-0"
+              ]
+            },
+            {
+              "id": "2-1",
+              "depth": 2,
+              "kind": "battle",
+              "name": "Бумажная крыса",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → элита → магазин.",
+              "roster": [
+                "paper-rat"
+              ],
+              "next": [
+                "3-1"
+              ]
+            },
+            {
+              "id": "3-0",
+              "depth": 3,
+              "kind": "treasure",
+              "name": "Запечатанный запасник",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "4-0"
+              ]
+            },
+            {
+              "id": "3-1",
+              "depth": 3,
+              "kind": "treasure",
+              "name": "Забытая кладовая",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "4-1"
+              ]
+            },
+            {
+              "id": "4-0",
+              "depth": 4,
+              "kind": "battle",
+              "name": "Ластик-вышибала",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "eraser"
+              ],
+              "next": [
+                "5-0"
+              ]
+            },
+            {
+              "id": "4-1",
+              "depth": 4,
+              "kind": "elite",
+              "name": "Элита: Гулкий звонарь и Бумажная крыса",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "bell",
+                "paper-rat"
+              ],
+              "next": [
+                "5-0"
+              ]
+            },
+            {
+              "id": "5-0",
+              "depth": 5,
+              "kind": "shop",
+              "name": "Торговец у переправы",
+              "description": "Ассортимент и скидки фиксированы. Здесь ветки соединяются.",
+              "next": [
+                "6-0",
+                "6-1"
+              ]
+            },
+            {
+              "id": "6-0",
+              "depth": 6,
+              "kind": "battle",
+              "name": "Огарок",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем событие → обычный бой → привал.",
+              "roster": [
+                "candle"
+              ],
+              "next": [
+                "7-0"
+              ]
+            },
+            {
+              "id": "6-1",
+              "depth": 6,
+              "kind": "battle",
+              "name": "Чернильная жижа",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем испытание → элита → привал.",
+              "roster": [
+                "ink-slime"
+              ],
+              "next": [
+                "7-1"
+              ]
+            },
+            {
+              "id": "7-0",
+              "depth": 7,
+              "kind": "event",
+              "name": "Тайник странника",
+              "description": "Припасы бесплатно или сильная находка за 5 здоровья.",
+              "next": [
+                "8-0"
+              ]
+            },
+            {
+              "id": "7-1",
+              "depth": 7,
+              "kind": "trial",
+              "name": "Закрывающийся шлюз",
+              "description": "45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.",
+              "next": [
+                "8-1"
+              ]
+            },
+            {
+              "id": "8-0",
+              "depth": 8,
+              "kind": "battle",
+              "name": "Огарок",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "candle"
+              ],
+              "next": [
+                "9-0"
+              ]
+            },
+            {
+              "id": "8-1",
+              "depth": 8,
+              "kind": "elite",
+              "name": "Элита: Сейф-страж и Кривое зеркало",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "safe",
+                "mirror"
+              ],
+              "next": [
+                "9-0"
+              ]
+            },
+            {
+              "id": "9-0",
+              "depth": 9,
+              "kind": "rest",
+              "name": "Тлеющий костёр",
+              "description": "Лечение или усиление. Здесь ветки соединяются.",
+              "next": [
+                "10-0"
+              ]
+            },
+            {
+              "id": "10-0",
+              "depth": 10,
+              "kind": "boss",
+              "name": "Цензор",
+              "description": "40 золота, выбор печати с ценой или отказ. Затем передышка и архив.",
+              "roster": [
+                "censor"
+              ],
+              "next": [
+                "11-0"
+              ]
+            },
+            {
+              "id": "11-0",
+              "depth": 11,
+              "kind": "battle",
+              "name": "Вход в затопленный архив",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "reed-crab"
+              ],
+              "next": [
+                "12-0",
+                "12-1"
+              ]
+            },
+            {
+              "id": "12-0",
+              "depth": 12,
+              "kind": "battle",
+              "name": "Чернильный угорь",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → обычный бой → магазин.",
+              "roster": [
+                "ink-eel"
+              ],
+              "next": [
+                "13-0"
+              ]
+            },
+            {
+              "id": "12-1",
+              "depth": 12,
+              "kind": "battle",
+              "name": "Фонарный удильщик",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → элита → магазин.",
+              "roster": [
+                "lantern-fish"
+              ],
+              "next": [
+                "13-1"
+              ]
+            },
+            {
+              "id": "13-0",
+              "depth": 13,
+              "kind": "treasure",
+              "name": "Запечатанный запасник",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "14-0"
+              ]
+            },
+            {
+              "id": "13-1",
+              "depth": 13,
+              "kind": "treasure",
+              "name": "Забытая кладовая",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "14-1"
+              ]
+            },
+            {
+              "id": "14-0",
+              "depth": 14,
+              "kind": "battle",
+              "name": "Якорный смотритель",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "anchor"
+              ],
+              "next": [
+                "15-0"
+              ]
+            },
+            {
+              "id": "14-1",
+              "depth": 14,
+              "kind": "elite",
+              "name": "Элита: Мокрый писарь и Скобогрыз",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "ink-scribe",
+                "stapler"
+              ],
+              "next": [
+                "15-0"
+              ]
+            },
+            {
+              "id": "15-0",
+              "depth": 15,
+              "kind": "shop",
+              "name": "Плавучая лавка Саввы",
+              "description": "Ассортимент и скидки фиксированы. Здесь ветки соединяются.",
+              "next": [
+                "16-0",
+                "16-1"
+              ]
+            },
+            {
+              "id": "16-0",
+              "depth": 16,
+              "kind": "battle",
+              "name": "Буквоед",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем событие → обычный бой → привал.",
+              "roster": [
+                "leech"
+              ],
+              "next": [
+                "17-0"
+              ]
+            },
+            {
+              "id": "16-1",
+              "depth": 16,
+              "kind": "battle",
+              "name": "Фонарный удильщик",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем испытание → элита → привал.",
+              "roster": [
+                "lantern-fish"
+              ],
+              "next": [
+                "17-1"
+              ]
+            },
+            {
+              "id": "17-0",
+              "depth": 17,
+              "kind": "event",
+              "name": "Сердце насосной",
+              "description": "Припасы бесплатно или ремонт насоса за 30 золота.",
+              "next": [
+                "18-0"
+              ]
+            },
+            {
+              "id": "17-1",
+              "depth": 17,
+              "kind": "trial",
+              "name": "Закрывающийся шлюз",
+              "description": "45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.",
+              "next": [
+                "18-1"
+              ]
+            },
+            {
+              "id": "18-0",
+              "depth": 18,
+              "kind": "battle",
+              "name": "Мокрый писарь и Чернильная жижа",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "ink-scribe",
+                "ink-slime"
+              ],
+              "next": [
+                "19-0"
+              ]
+            },
+            {
+              "id": "18-1",
+              "depth": 18,
+              "kind": "elite",
+              "name": "Элита: Кривое зеркало и Якорный смотритель",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "mirror",
+                "anchor"
+              ],
+              "next": [
+                "19-0"
+              ]
+            },
+            {
+              "id": "19-0",
+              "depth": 19,
+              "kind": "rest",
+              "name": "Сухой причал",
+              "description": "Лечение или усиление. Здесь ветки соединяются.",
+              "next": [
+                "20-0"
+              ]
+            },
+            {
+              "id": "20-0",
+              "depth": 20,
+              "kind": "boss",
+              "name": "Хранитель прилива",
+              "description": "Последний бой спуска.",
+              "roster": [
+                "tide-keeper"
+              ],
+              "next": []
+            }
+          ],
+          "current": "1-0",
+          "visited": [
+            "1-0"
+          ]
+        }
+      },
+      "actions": [
+        [
+          "castSkill",
+          "blood"
+        ],
+        [
+          "move",
+          "row",
+          1,
+          1
+        ],
+        [
+          "endTurn"
+        ]
+      ],
+      "sha256": "773500e322994bfc0c831ffd69484d1e3911b2d917adaf522b8dbcea9933a7a4"
+    },
+    {
+      "label": "stage2 19062026",
+      "input": {
+        "version": 2,
+        "rulesVersion": 3,
+        "weaponQuality": 0,
+        "equipment": {
+          "weapon": "gear-cutter",
+          "helmet": null,
+          "clothing": "gear-shirt",
+          "trousers": "gear-worn-trousers"
+        },
+        "seed": 19062026,
+        "rng": 1530921854,
+        "serial": 37,
+        "runId": "run-19062026",
+        "phase": "battle",
+        "board": [
+          {
+            "id": 2,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 3,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 4,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 5,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 6,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 7,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 8,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 9,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 10,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 11,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 12,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 13,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 14,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 15,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 16,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 17,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 18,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 19,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 20,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 21,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 22,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 23,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 24,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 25,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 26,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 27,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 28,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 29,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 30,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 31,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 32,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 33,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 34,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 35,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 36,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 37,
+            "family": "blade",
+            "variant": null
+          }
+        ],
+        "hp": 40,
+        "maxHp": 40,
+        "block": 0,
+        "heroPoison": 0,
+        "energy": 3,
+        "focus": 0,
+        "gold": 25,
+        "round": 1,
+        "room": 1,
+        "roomKind": "battle",
+        "target": 1,
+        "enemies": [
+          {
+            "id": 1,
+            "kind": "raider",
+            "hp": 100,
+            "maxHp": 100,
+            "name": "Костяной налётчик",
+            "block": 0,
+            "poison": 0,
+            "damage": 6
+          }
+        ],
+        "moved": false,
+        "cast": false,
+        "consumed": false,
+        "relics": [
+          "thorns",
+          "vessel",
+          "heart",
+          "toxin",
+          "conductor"
+        ],
+        "modifiers": [
+          "venom",
+          "bomb"
+        ],
+        "skills": [
+          "bolt",
+          "guard",
+          "blood"
+        ],
+        "potions": 1,
+        "upgrades": {
+          "blade": 0,
+          "shield": 0,
+          "spark": 0,
+          "focus": 0
+        },
+        "log": [
+          "Сдвинь строку или столбец и собери три одинаковых символа."
+        ],
+        "offers": [],
+        "path": [
+          "Вход в крипту"
+        ],
+        "flags": [
+          "run:available:thorns",
+          "run:available:coil",
+          "run:available:return",
+          "run:available:toxin",
+          "run:available:heart",
+          "run:available:prism",
+          "run:available:conductor",
+          "run:available:order",
+          "run:available:lens",
+          "run:available:vessel",
+          "run:available:lamp",
+          "run:available:thread"
+        ],
+        "balance": {
+          "health": 40,
+          "blade": 2,
+          "shield": 2,
+          "enemyPower": 1,
+          "animation": 260
+        },
+        "modified": false,
+        "stats": {
+          "matches": 0,
+          "cascades": 0,
+          "kills": 0,
+          "skills": 0,
+          "damage": 0,
+          "blocked": 0,
+          "big": 0,
+          "sacrifices": 0,
+          "trials": 0
+        },
+        "trial": null,
+        "streams": {
+          "map": 1165080707,
+          "encounters": 3888410823,
+          "loot": 3195705959
+        },
+        "journey": {
+          "nodes": [
+            {
+              "id": "1-0",
+              "depth": 1,
+              "kind": "battle",
+              "name": "Вход в крипту",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "raider"
+              ],
+              "next": [
+                "2-0",
+                "2-1"
+              ]
+            },
+            {
+              "id": "2-0",
+              "depth": 2,
+              "kind": "battle",
+              "name": "Скобогрыз",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → обычный бой → магазин.",
+              "roster": [
+                "stapler"
+              ],
+              "next": [
+                "3-0"
+              ]
+            },
+            {
+              "id": "2-1",
+              "depth": 2,
+              "kind": "battle",
+              "name": "Книжная моль",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → элита → магазин.",
+              "roster": [
+                "moth"
+              ],
+              "next": [
+                "3-1"
+              ]
+            },
+            {
+              "id": "3-0",
+              "depth": 3,
+              "kind": "treasure",
+              "name": "Запечатанный запасник",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "4-0"
+              ]
+            },
+            {
+              "id": "3-1",
+              "depth": 3,
+              "kind": "treasure",
+              "name": "Забытая кладовая",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "4-1"
+              ]
+            },
+            {
+              "id": "4-0",
+              "depth": 4,
+              "kind": "battle",
+              "name": "Ластик-вышибала",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "eraser"
+              ],
+              "next": [
+                "5-0"
+              ]
+            },
+            {
+              "id": "4-1",
+              "depth": 4,
+              "kind": "elite",
+              "name": "Элита: Гулкий звонарь и Бумажная крыса",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "bell",
+                "paper-rat"
+              ],
+              "next": [
+                "5-0"
+              ]
+            },
+            {
+              "id": "5-0",
+              "depth": 5,
+              "kind": "shop",
+              "name": "Торговец у переправы",
+              "description": "Ассортимент и скидки фиксированы. Здесь ветки соединяются.",
+              "next": [
+                "6-0",
+                "6-1"
+              ]
+            },
+            {
+              "id": "6-0",
+              "depth": 6,
+              "kind": "battle",
+              "name": "Слепой архивариус",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем событие → обычный бой → привал.",
+              "roster": [
+                "librarian"
+              ],
+              "next": [
+                "7-0"
+              ]
+            },
+            {
+              "id": "6-1",
+              "depth": 6,
+              "kind": "battle",
+              "name": "Чернильная жижа",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем испытание → элита → привал.",
+              "roster": [
+                "ink-slime"
+              ],
+              "next": [
+                "7-1"
+              ]
+            },
+            {
+              "id": "7-0",
+              "depth": 7,
+              "kind": "event",
+              "name": "Тайник странника",
+              "description": "Припасы бесплатно или сильная находка за 5 здоровья.",
+              "next": [
+                "8-0"
+              ]
+            },
+            {
+              "id": "7-1",
+              "depth": 7,
+              "kind": "trial",
+              "name": "Закрывающийся шлюз",
+              "description": "45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.",
+              "next": [
+                "8-1"
+              ]
+            },
+            {
+              "id": "8-0",
+              "depth": 8,
+              "kind": "battle",
+              "name": "Огарок",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "candle"
+              ],
+              "next": [
+                "9-0"
+              ]
+            },
+            {
+              "id": "8-1",
+              "depth": 8,
+              "kind": "elite",
+              "name": "Элита: Сейф-страж и Кривое зеркало",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "safe",
+                "mirror"
+              ],
+              "next": [
+                "9-0"
+              ]
+            },
+            {
+              "id": "9-0",
+              "depth": 9,
+              "kind": "rest",
+              "name": "Тлеющий костёр",
+              "description": "Лечение или усиление. Здесь ветки соединяются.",
+              "next": [
+                "10-0"
+              ]
+            },
+            {
+              "id": "10-0",
+              "depth": 10,
+              "kind": "boss",
+              "name": "Цензор",
+              "description": "40 золота, выбор печати с ценой или отказ. Затем передышка и архив.",
+              "roster": [
+                "censor"
+              ],
+              "next": [
+                "11-0"
+              ]
+            },
+            {
+              "id": "11-0",
+              "depth": 11,
+              "kind": "battle",
+              "name": "Вход в затопленный архив",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "reed-crab"
+              ],
+              "next": [
+                "12-0",
+                "12-1"
+              ]
+            },
+            {
+              "id": "12-0",
+              "depth": 12,
+              "kind": "battle",
+              "name": "Мокрый писарь",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → элита → магазин.",
+              "roster": [
+                "ink-scribe"
+              ],
+              "next": [
+                "13-0"
+              ]
+            },
+            {
+              "id": "12-1",
+              "depth": 12,
+              "kind": "battle",
+              "name": "Чернильный угорь",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем кладовая → обычный бой → магазин.",
+              "roster": [
+                "ink-eel"
+              ],
+              "next": [
+                "13-1"
+              ]
+            },
+            {
+              "id": "13-0",
+              "depth": 13,
+              "kind": "treasure",
+              "name": "Запечатанный запасник",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "14-0"
+              ]
+            },
+            {
+              "id": "13-1",
+              "depth": 13,
+              "kind": "treasure",
+              "name": "Забытая кладовая",
+              "description": "Одна случайная реликвия бесплатно. Можно сменить находку один раз за 20 золота.",
+              "next": [
+                "14-1"
+              ]
+            },
+            {
+              "id": "14-0",
+              "depth": 14,
+              "kind": "elite",
+              "name": "Элита: Мокрый писарь и Скобогрыз",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "ink-scribe",
+                "stapler"
+              ],
+              "next": [
+                "15-0"
+              ]
+            },
+            {
+              "id": "14-1",
+              "depth": 14,
+              "kind": "battle",
+              "name": "Якорный смотритель",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "anchor"
+              ],
+              "next": [
+                "15-0"
+              ]
+            },
+            {
+              "id": "15-0",
+              "depth": 15,
+              "kind": "shop",
+              "name": "Плавучая лавка Саввы",
+              "description": "Ассортимент и скидки фиксированы. Здесь ветки соединяются.",
+              "next": [
+                "16-0",
+                "16-1"
+              ]
+            },
+            {
+              "id": "16-0",
+              "depth": 16,
+              "kind": "battle",
+              "name": "Слепой архивариус",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем событие → обычный бой → привал.",
+              "roster": [
+                "librarian"
+              ],
+              "next": [
+                "17-0"
+              ]
+            },
+            {
+              "id": "16-1",
+              "depth": 16,
+              "kind": "battle",
+              "name": "Фонарный удильщик",
+              "description": "Бой: 12–18 золота и одна из двух находок. Затем испытание → элита → привал.",
+              "roster": [
+                "lantern-fish"
+              ],
+              "next": [
+                "17-1"
+              ]
+            },
+            {
+              "id": "17-0",
+              "depth": 17,
+              "kind": "event",
+              "name": "Сердце насосной",
+              "description": "Припасы бесплатно или ремонт насоса за 30 золота.",
+              "next": [
+                "18-0"
+              ]
+            },
+            {
+              "id": "17-1",
+              "depth": 17,
+              "kind": "trial",
+              "name": "Закрывающийся шлюз",
+              "description": "45 секунд: 18 энергии и 30 урона. Успех — сильная находка; провал — потеря здоровья.",
+              "next": [
+                "18-1"
+              ]
+            },
+            {
+              "id": "18-0",
+              "depth": 18,
+              "kind": "battle",
+              "name": "Мокрый писарь и Чернильная жижа",
+              "description": "Бой: 12–18 золота и одна из двух находок.",
+              "roster": [
+                "ink-scribe",
+                "ink-slime"
+              ],
+              "next": [
+                "19-0"
+              ]
+            },
+            {
+              "id": "18-1",
+              "depth": 18,
+              "kind": "elite",
+              "name": "Элита: Кривое зеркало и Якорный смотритель",
+              "description": "Элита: 25–35 золота и выбор из трёх реликвий или модификаторов.",
+              "roster": [
+                "mirror",
+                "anchor"
+              ],
+              "next": [
+                "19-0"
+              ]
+            },
+            {
+              "id": "19-0",
+              "depth": 19,
+              "kind": "rest",
+              "name": "Сухой причал",
+              "description": "Лечение или усиление. Здесь ветки соединяются.",
+              "next": [
+                "20-0"
+              ]
+            },
+            {
+              "id": "20-0",
+              "depth": 20,
+              "kind": "boss",
+              "name": "Хранитель прилива",
+              "description": "Последний бой спуска.",
+              "roster": [
+                "tide-keeper"
+              ],
+              "next": []
+            }
+          ],
+          "current": "1-0",
+          "visited": [
+            "1-0"
+          ]
+        }
+      },
+      "actions": [
+        [
+          "castSkill",
+          "blood"
+        ],
+        [
+          "move",
+          "row",
+          0,
+          2
+        ],
+        [
+          "endTurn"
+        ]
+      ],
+      "sha256": "64d85f7fd94c6729f580b1fee2a15a27074bcb28f195edb276e4bf82c0944dec"
+    }
+  ]
+}

@@ -17,6 +17,18 @@ export function BoardTileArt({
   weaponId: string | null;
   size?: number;
 }) {
+  if (variant === 'spiked' || variant === 'marked')
+    return (
+      <span className="board-weapon-art" aria-hidden="true">
+        <SkinIcon name={family} size={size} />
+        <span
+          className="weapon-variant"
+          style={{ fontWeight: 900, fontSize: 18 }}
+        >
+          {variant === 'spiked' ? '▲' : '+'}
+        </span>
+      </span>
+    );
   if (family !== 'blade')
     return <SkinIcon name={variant ?? family} size={size} />;
   const weapon = weaponArtById(weaponId);

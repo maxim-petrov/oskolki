@@ -19,7 +19,7 @@ export function RewardActions({
   busy: boolean;
   act: (r: Result) => unknown;
 }) {
-  const source = game.rulesVersion === 3 ? game.rewardSource : undefined;
+  const source = (game.rulesVersion ?? 0) >= 3 ? game.rewardSource : undefined;
   return (
     <div className="reward-actions">
       {source === 'treasure' && (

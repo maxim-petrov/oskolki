@@ -742,7 +742,7 @@ export default function Game() {
                       <button
                         key={i}
                         className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${editing && editFirst === i ? 'edit-first' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? 'tide-row' : ''}`}
-                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
+                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : t.variant === 'spiked' ? ', шип: 1 урона при сборе' : t.variant === 'marked' ? ', помета: 3 блока раз за ход' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
                         aria-pressed={selected === i}
                         onPointerDown={(e) => pointerDown(e, i)}
                         onPointerMove={dragMove}
@@ -830,7 +830,7 @@ export default function Game() {
               })}
             </div>
           </div>
-          {game.rulesVersion !== 3 && (
+          {(game.rulesVersion ?? 0) < 3 && (
             <p className="rules-notice">
               Этот забег идёт по прежним правилам. Связанные ветки, кладовые и
               печати Цензора доступны в новом спуске.

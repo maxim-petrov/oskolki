@@ -531,7 +531,7 @@ export function RunPanel({
                 <p className="panel-note">
                   {s.modified
                     ? 'Проверка баланса: серия и открытия не изменились.'
-                    : `Открыто ${meta.unlocked.length} из 10 реликвий. Серия побед: ${meta.streak}. Лучшая: ${meta.best}.`}
+                    : `Достижения: ${meta.unlocked.length}/${ACHIEVEMENTS.length}. Серия побед: ${meta.streak}. Лучшая: ${meta.best}.`}
                 </p>
                 <Button className="panel-main-action" onClick={restart}>
                   Новый спуск <RotateCcw />
@@ -558,8 +558,10 @@ export function Discoveries({
       <DialogContent className="game-dialog discovery-dialog">
         <DialogTitle>Открытия</DialogTitle>
         <DialogDescription>
-          {meta.unlocked.length} / 10 достижений. В новых забегах все 12
-          реликвий доступны сразу; достижения отмечают освоенные приёмы.
+          {meta.unlocked.length} / {ACHIEVEMENTS.length} достижений. В новых
+          забегах 12 основных реликвий доступны сразу. Копирка, Закладка и две
+          новые метки открываются через освоение приёмов и появляются со
+          следующего забега.
         </DialogDescription>
         <div className="discovery-list">
           {ACHIEVEMENTS.map((a) => {

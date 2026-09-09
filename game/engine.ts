@@ -1,6 +1,6 @@
 // Pure deterministic game state. Rendering only replays the returned frames.
 export type Family = 'blade' | 'shield' | 'spark' | 'focus';
-export type Variant = 'venom' | 'bomb' | null;
+export type Variant = 'venom' | 'bomb' | 'spiked' | 'marked' | null;
 export type Tile = {
   id: number;
   family: Family;
@@ -422,14 +422,14 @@ export function equipmentForRun(
   );
 }
 export function itemRequirement(s: State, id: string): string | undefined {
-  if (s.rulesVersion !== 3) return;
+  if ((s.rulesVersion ?? 0) < 3) return;
   if (
     ['lens', 'vessel'].includes(id) &&
     !s.skills.some((id) => ['blood', 'seal'].includes(id))
   )
     return 'Нужен приём с ценой в здоровье.';
   if (
-    ['toxin', 'heart'].includes(id) &&
+    ['toxin', 'heart', 'bookmark'].includes(id) &&
     s.equipment.weapon !== 'gear-rusty-dagger' &&
     !s.modifiers.includes('venom')
   )
@@ -440,7 +440,7 @@ export function itemRequirement(s: State, id: string): string | undefined {
     return 'Нужен приём за 6 энергии: Разряд.';
 }
 export function offerForRun(s: State, offer: Offer): Offer {
-  if (s.rulesVersion !== 3 || !['skill', 'relic'].includes(offer.kind))
+  if ((s.rulesVersion ?? 0) < 3 || !['skill', 'relic'].includes(offer.kind))
     return offer;
   // Temporary battle charges do not carry into the next room; permanent seal
   // costs and the current equipment/relic dependencies do affect this choice.
@@ -450,12 +450,26 @@ export function offerForRun(s: State, offer: Offer): Offer {
 export function itemForRun(s: State, id: string): Offer | undefined {
   const gear = equipmentForRun(s, id);
   if (gear) return gear;
-  const item = itemById(id);
+  let item = itemById(id);
+  if ((s.rulesVersion ?? 0) >= 4 && item) {
+    if (id === 'thorns')
+      item = {
+        ...item,
+        description:
+          'После каждого удара врага возвращает ему половину поглощённого этим ударом блока (вниз). Яд, корни и прилив не отражаются.',
+      };
+    if (id === 'vessel')
+      item = {
+        ...item,
+        description:
+          'После первой жертвы здоровьем за ход следующая группа клинков в этом же ходу даёт 4 блока.',
+      };
+  }
   const requirement = itemRequirement(s, id);
   if (item && requirement)
     return { ...item, description: `${item.description} ${requirement}` };
   if (
-    s.rulesVersion === 3 &&
+    (s.rulesVersion ?? 0) >= 3 &&
     item &&
     ['bolt', 'pierce', 'blood', 'seal'].includes(id)
   ) {
@@ -561,10 +575,14 @@ export type Stats = {
   big: number;
   sacrifices: number;
   trials: number;
+  edits?: number;
+  poisonKills?: number;
+  shieldGroups?: number;
+  focusGroups?: number;
 };
 export type State = {
   version: 2;
-  rulesVersion?: 2 | 3;
+  rulesVersion?: 2 | 3 | 4;
   weaponQuality?: 0 | 1 | 2;
   streams?: Record<'map' | 'encounters' | 'loot', number>;
   journey?: {
@@ -737,6 +755,39 @@ export const RELICS: Offer[] = [
     tag: 'Большие матчи',
   },
 ];
+RELICS.push(
+  {
+    id: 'carbon',
+    kind: 'relic',
+    name: 'Копирка',
+    description:
+      'После правки следующая группа клинков в этом ходу наносит на 3 урона больше. Один раз за ход.',
+    tag: 'Правка → урон',
+  },
+  {
+    id: 'bookmark',
+    kind: 'relic',
+    name: 'Заразная закладка',
+    description:
+      'Убитый отравленный враг передаёт следующему живому половину оставшегося яда (вниз). Переданный яд не срабатывает в тот же ответ врагов.',
+    tag: 'Яд → новая цель',
+  },
+);
+export const CORE_RELIC_IDS = RELICS.slice(0, 12).map((o) => o.id);
+function relicPoolFor(s: State) {
+  return RELICS.filter(
+    (o) =>
+      CORE_RELIC_IDS.includes(o.id) ||
+      ((s.rulesVersion ?? 0) >= 4 && s.flags.includes(`run:available:${o.id}`)),
+  );
+}
+function modifierPoolFor(s: State) {
+  return MODIFIERS.filter(
+    (o) =>
+      ['venom', 'bomb'].includes(o.id) ||
+      ((s.rulesVersion ?? 0) >= 4 && s.flags.includes(`run:available:${o.id}`)),
+  );
+}
 export const MODIFIERS: Offer[] = [
   {
     id: 'venom',
@@ -755,6 +806,24 @@ export const MODIFIERS: Offer[] = [
     tag: 'Меняет поле',
   },
 ];
+MODIFIERS.push(
+  {
+    id: 'spiked',
+    kind: 'modifier',
+    name: 'Колючие щиты',
+    description:
+      'Четверть новых щитов с шипом. Каждый собранный щит с шипом наносит 1 урона выбранной цели.',
+    tag: 'Щиты → урон',
+  },
+  {
+    id: 'marked',
+    kind: 'modifier',
+    name: 'Защитная помета',
+    description:
+      'Четверть нового фокуса с пометой. Матч с пометой даёт 3 блока один раз за ход.',
+    tag: 'Фокус → блок',
+  },
+);
 export const SKILLS: Offer[] = [
   {
     id: 'bolt',
@@ -827,7 +896,7 @@ export const SEALS: Offer[] = [
 ];
 export type SealId = 'red-line' | 'enduring-record' | 'double-edit';
 export const hasSeal = (s: State, id: SealId) =>
-  s.rulesVersion === 3 && s.seal === id;
+  (s.rulesVersion ?? 0) >= 3 && s.seal === id;
 export function sealConsequences(s: State, id: string) {
   if (id === 'red-line') {
     const max = s.maxHp - 8;
@@ -858,7 +927,7 @@ export function random(
 ): number {
   // Legacy runs retain their single sequence byte for byte.
   let t =
-    s.rulesVersion === 3 && stream !== 'board'
+    (s.rulesVersion ?? 0) >= 3 && stream !== 'board'
       ? (s.streams![stream] = (s.streams![stream] + 0x6d2b79f5) >>> 0)
       : (s.rng = (s.rng + 0x6d2b79f5) >>> 0);
   t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -880,6 +949,12 @@ function tile(s: State, family?: Family): Tile {
     variant = 'venom';
   if (f === 'spark' && s.modifiers.includes('bomb') && random(s) < 0.25)
     variant = 'bomb';
+  if ((s.rulesVersion ?? 0) >= 4) {
+    if (f === 'shield' && s.modifiers.includes('spiked') && random(s) < 0.25)
+      variant = 'spiked';
+    if (f === 'focus' && s.modifiers.includes('marked') && random(s) < 0.25)
+      variant = 'marked';
+  }
   return { id: ++s.serial, family: f, variant };
 }
 export function groups(board: Tile[]): number[][] {
@@ -1021,8 +1096,18 @@ function hit(
   s.stats.damage += damage;
   if (e.hp <= 0) {
     s.stats.kills++;
+    spreadPoison(s, e);
     if (e.poison > 0 && s.relics.includes('heart') && once(s, 'battle:heart'))
       heal(s, 3);
+  }
+}
+function spreadPoison(s: State, dead: Enemy) {
+  if ((s.rulesVersion ?? 0) < 4 || !s.relics.includes('bookmark')) return;
+  const target = s.enemies.find((e) => e.hp > 0 && e.id !== dead.id);
+  const value = Math.floor(dead.poison / 2);
+  if (target && value) {
+    target.poison += value;
+    note(s, `Закладка: ${value} яда → ${target.name}`);
   }
 }
 function weaponAttack(s: State, count: number, venom: number) {
@@ -1040,6 +1125,11 @@ function weaponAttack(s: State, count: number, venom: number) {
     value = Math.max(0, base - 2);
   if (id === 'gear-axe') value = Math.max(0, base + (count >= 4 ? 4 : -2));
   if (hasSeal(s, 'red-line')) value += 4;
+  if ((s.rulesVersion ?? 0) >= 4 && s.flags.includes('turn:carbon-armed')) {
+    value += 3;
+    s.flags = s.flags.filter((f) => f !== 'turn:carbon-armed');
+    note(s, 'Копирка: +3 урона группе клинков.');
+  }
   const splash = id === 'gear-cleaver' && second ? Math.floor(value / 3) : 0;
   const strikes = [
     { target: first, value: value - splash },
@@ -1167,6 +1257,12 @@ function resolve(
       s.stats.matches++;
       const family = s.board[indices[0]].family;
       const count = indices.length;
+      if ((s.rulesVersion ?? 0) >= 4) {
+        if (family === 'shield')
+          s.stats.shieldGroups = (s.stats.shieldGroups ?? 0) + 1;
+        if (family === 'focus')
+          s.stats.focusGroups = (s.stats.focusGroups ?? 0) + 1;
+      }
       if (count >= 5) {
         s.stats.big++;
         if (s.relics.includes('thread') && once(s, 'battle:thread')) heal(s, 3);
@@ -1203,7 +1299,11 @@ function resolve(
         s.block += block;
         if (s.trial) s.trial.protection += block;
         note(s, `Щиты: +${block} блока`);
-        if (s.relics.includes('thorns') && once(s, 'turn:thorns')) {
+        if (
+          (s.rulesVersion ?? 0) < 4 &&
+          s.relics.includes('thorns') &&
+          once(s, 'turn:thorns')
+        ) {
           const dmg = Math.floor(block / 2);
           hit(s, dmg, false, false);
           note(s, `Шипованный обод: ${dmg} урона`);
@@ -1226,6 +1326,19 @@ function resolve(
         s.focus = Math.min(focusMax(s), s.focus + value);
         note(s, `Фокус: +${value}`);
       }
+      if ((s.rulesVersion ?? 0) >= 4) {
+        const spikes = indices.filter(
+          (i) => s.board[i].variant === 'spiked',
+        ).length;
+        if (spikes) hit(s, spikes, false, false);
+        if (
+          indices.some((i) => s.board[i].variant === 'marked') &&
+          once(s, 'turn:marked')
+        ) {
+          s.block += 3;
+          if (s.trial) s.trial.protection += 3;
+        }
+      }
       for (const i of indices)
         if (s.board[i].variant === 'bomb')
           for (const j of [
@@ -1235,6 +1348,25 @@ function resolve(
             ...(i % 6 < 5 ? [i + 1] : []),
           ])
             if (j >= 0 && j < 36 && !removed.has(j)) collateral.add(j);
+    }
+    if ((s.rulesVersion ?? 0) >= 4) {
+      const queue = [...removed].filter((i) => s.board[i].variant === 'bomb');
+      const fired = new Set<number>();
+      while (queue.length) {
+        const i = queue.shift()!;
+        if (fired.has(i)) continue;
+        fired.add(i);
+        for (const j of [
+          i - 6,
+          i + 6,
+          ...(i % 6 ? [i - 1] : []),
+          ...(i % 6 < 5 ? [i + 1] : []),
+        ]) {
+          if (j < 0 || j >= 36) continue;
+          if (!removed.has(j)) collateral.add(j);
+          if (s.board[j].variant === 'bomb' && !fired.has(j)) queue.push(j);
+        }
+      }
     }
     if (collateral.size) {
       if (s.relics.includes('conductor')) {
@@ -1267,7 +1399,13 @@ function resolve(
     collateral.forEach((i) => removed.add(i));
     if (firstWaveOnly) return;
     collapse(s, removed);
-    if (s.hp <= 0) break;
+    if (
+      s.hp <= 0 ||
+      ((s.rulesVersion ?? 0) >= 4 &&
+        s.phase === 'battle' &&
+        s.enemies.every((e) => e.hp <= 0))
+    )
+      break;
   }
   if (!validMoves(s.board).length) {
     newBoard(s);
@@ -1421,7 +1559,7 @@ function checkFinish(s: State) {
     note(s, 'Странник пал. Следующий путь будет другим.');
   } else if (s.phase === 'battle' && s.enemies.every((e) => e.hp <= 0)) {
     s.gold +=
-      s.rulesVersion === 3
+      (s.rulesVersion ?? 0) >= 3
         ? s.roomKind === 'boss'
           ? s.room === TOTAL_ROOMS
             ? 0
@@ -1438,7 +1576,7 @@ function checkFinish(s: State) {
       s.flags.push('run:elite');
     s.phase =
       s.roomKind === 'boss' && s.room === TOTAL_ROOMS ? 'victory' : 'reward';
-    if (s.rulesVersion === 3)
+    if ((s.rulesVersion ?? 0) >= 3)
       s.rewardSource =
         s.roomKind === 'boss'
           ? 'seal'
@@ -1446,11 +1584,14 @@ function checkFinish(s: State) {
             ? 'elite'
             : 'battle';
     s.offers =
-      s.rulesVersion === 3 && s.phase === 'victory' ? [] : rewardOffers(s);
-    if (s.rulesVersion === 3 && s.phase === 'victory') delete s.rewardSource;
+      (s.rulesVersion ?? 0) >= 3 && s.phase === 'victory'
+        ? []
+        : rewardOffers(s);
+    if ((s.rulesVersion ?? 0) >= 3 && s.phase === 'victory')
+      delete s.rewardSource;
     delete s.tide;
     s.board.forEach((t) => delete t.ink);
-    if (s.roomKind === 'boss' && s.room === 10 && s.rulesVersion !== 3) {
+    if (s.roomKind === 'boss' && s.room === 10 && (s.rulesVersion ?? 0) < 3) {
       heal(s, Math.ceil(s.maxHp / 2));
       s.potions = Math.min(2, s.potions + 1);
       s.heroPoison = 0;
@@ -1473,7 +1614,7 @@ function checkFinish(s: State) {
   ) {
     s.stats.trials++;
     s.phase = 'reward';
-    if (s.rulesVersion === 3) s.rewardSource = 'trial';
+    if ((s.rulesVersion ?? 0) >= 3) s.rewardSource = 'trial';
     s.offers = rewardOffers(s, true);
     note(s, 'Шлюз открыт! Испытание пройдено.');
     s.trial = null;
@@ -1482,7 +1623,7 @@ function checkFinish(s: State) {
 export function startRun(
   seed = 19062026,
   balance: Balance = DEFAULT_BALANCE,
-  rulesVersion: 2 | 3 = 3,
+  rulesVersion: 2 | 3 | 4 = 4,
 ): State {
   seed = seed >>> 0;
   const s: State = {
@@ -1519,7 +1660,7 @@ export function startRun(
     log: ['Сдвинь строку или столбец и собери три одинаковых символа.'],
     offers: [],
     path: ['Вход в крипту'],
-    flags: RELICS.map((r) => `run:available:${r.id}`),
+    flags: CORE_RELIC_IDS.map((id) => `run:available:${id}`),
     balance: { ...balance },
     modified:
       balance.health !== 40 ||
@@ -1539,7 +1680,7 @@ export function startRun(
     },
     trial: null,
   };
-  if (rulesVersion === 3) {
+  if (rulesVersion >= 3) {
     s.streams = {
       map: (seed ^ 0x91e10da5) >>> 0,
       encounters: (seed ^ 0x7f4a7c15) >>> 0,
@@ -1667,7 +1808,9 @@ export function move(
     s.consumed = false;
     s.flags = s.flags.filter(
       (f) =>
-        f.startsWith('battle:') || f.startsWith('run:') || f === 'vessel:armed',
+        f.startsWith('battle:') ||
+        f.startsWith('run:') ||
+        ((s.rulesVersion ?? 0) < 4 && f === 'vessel:armed'),
     );
     s.block = 0;
   }
@@ -1712,12 +1855,15 @@ export function endTurn(input: State): Result {
       return result(s, frames);
     }
   }
+  const poisonAtStart = new Map(s.enemies.map((e) => [e.id, e.poison]));
   for (const e of s.enemies) {
     if (e.hp <= 0) continue;
     // Snapshot the displayed intent before this enemy's status tick.
     const action = intent(s, e);
-    if (e.poison > 0) {
-      const damage = Math.min(e.hp, e.poison);
+    const tickingPoison =
+      (s.rulesVersion ?? 0) >= 4 ? poisonAtStart.get(e.id)! : e.poison;
+    if (tickingPoison > 0) {
+      const damage = Math.min(e.hp, tickingPoison);
       e.hp -= damage;
       s.stats.damage += damage;
       e.poison--;
@@ -1729,6 +1875,9 @@ export function endTurn(input: State): Result {
       });
       if (e.hp <= 0) {
         s.stats.kills++;
+        if ((s.rulesVersion ?? 0) >= 4)
+          s.stats.poisonKills = (s.stats.poisonKills ?? 0) + 1;
+        spreadPoison(s, e);
         if (s.relics.includes('heart') && once(s, 'battle:heart')) heal(s, 3);
         continue;
       }
@@ -1784,6 +1933,18 @@ export function endTurn(input: State): Result {
       s.stats.blocked += blocked;
       s.hp -= action.value - blocked;
       note(s, `${e.name}: ${action.value - blocked} урона, ${blocked} в блок`);
+      if (
+        (s.rulesVersion ?? 0) >= 4 &&
+        s.hp > 0 &&
+        blocked >= 2 &&
+        s.relics.includes('thorns')
+      ) {
+        hit(s, Math.floor(blocked / 2), false, false, e.id);
+        note(
+          s,
+          `Шипованный обод: ${Math.floor(blocked / 2)} урона → ${e.name}`,
+        );
+      }
     }
     if (action.type === 'prepare')
       note(s, `${e.name}: ${action.text.toLowerCase()} на следующий ход`);
@@ -1835,7 +1996,9 @@ export function endTurn(input: State): Result {
     s.consumed = false;
     s.flags = s.flags.filter(
       (f) =>
-        f.startsWith('battle:') || f.startsWith('run:') || f === 'vessel:armed',
+        f.startsWith('battle:') ||
+        f.startsWith('run:') ||
+        ((s.rulesVersion ?? 0) < 4 && f === 'vessel:armed'),
     );
   }
   return result(s, frames);
@@ -1872,7 +2035,7 @@ export function castSkill(
     return result(input, [], 'Выбери фишку на поле.');
   const double = id === 'edit' && hasSeal(input, 'double-edit');
   if (
-    input.rulesVersion === 3 &&
+    (input.rulesVersion ?? 0) >= 3 &&
     (!Number.isInteger(index) ||
       (double &&
         (!Number.isInteger(secondIndex) ||
@@ -1889,7 +2052,10 @@ export function castSkill(
   s.hp -= cost[2];
   if (cost[2]) {
     s.stats.sacrifices++;
-    if (s.relics.includes('vessel') && once(s, 'battle:vessel'))
+    if (
+      s.relics.includes('vessel') &&
+      once(s, (s.rulesVersion ?? 0) >= 4 ? 'turn:vessel' : 'battle:vessel')
+    )
       s.flags.push('vessel:armed');
   }
   if (cost[0] >= 6 && s.relics.includes('return')) s.flags.push('return:armed');
@@ -1913,6 +2079,11 @@ export function castSkill(
   if (id === 'blood') hit(s, damage(8 + bonus));
   if (id === 'seal') hit(s, damage(16 + bonus + rune));
   if (id === 'edit') {
+    if ((s.rulesVersion ?? 0) >= 4) {
+      s.stats.edits = (s.stats.edits ?? 0) + 1;
+      if (s.relics.includes('carbon') && once(s, 'turn:carbon'))
+        s.flags.push('turn:carbon-armed');
+    }
     for (const cell of double ? [index, secondIndex!] : [index]) {
       s.board[cell] = tile(s, family);
       s.board[cell].variant = null;
@@ -1989,12 +2160,12 @@ export function consumePotion(input: State): Result {
   ]);
 }
 export function rewardOffers(s: State, strong = false): Offer[] {
-  if (s.rulesVersion === 3) return journeyRewardOffers(s, strong);
+  if ((s.rulesVersion ?? 0) >= 3) return journeyRewardOffers(s, strong);
   const gearPool = equipmentOptions(s);
   if (s.room === 1 && (s.rulesVersion ?? 0) >= 2) {
     const weapons = gearPool.filter((o) => o.slot === 'weapon');
-    const mods = MODIFIERS.filter((o) => !s.modifiers.includes(o.id));
-    const useful = RELICS.filter(
+    const mods = modifierPoolFor(s).filter((o) => !s.modifiers.includes(o.id));
+    const useful = relicPoolFor(s).filter(
       (r) =>
         ['thorns', 'coil', 'prism', 'order', 'lamp', 'thread'].includes(r.id) &&
         !s.relics.includes(r.id),
@@ -2009,19 +2180,19 @@ export function rewardOffers(s: State, strong = false): Offer[] {
   if (s.room === 1)
     return [
       ...equipment,
-      ...[RELICS[0], ...MODIFIERS].filter(
+      ...[RELICS[0], ...modifierPoolFor(s)].filter(
         (x) => !s.relics.includes(x.id) && !s.modifiers.includes(x.id),
       ),
     ];
   const pool = [
-    ...RELICS.filter(
+    ...relicPoolFor(s).filter(
       (x) =>
         !s.relics.includes(x.id) &&
         ((s.rulesVersion ?? 0) >= 2 ||
           BASE_RELICS.includes(x.id) ||
           s.flags.includes(`run:available:${x.id}`)),
     ),
-    ...MODIFIERS.filter((x) => !s.modifiers.includes(x.id)),
+    ...modifierPoolFor(s).filter((x) => !s.modifiers.includes(x.id)),
     ...(strong
       ? []
       : [
@@ -2108,6 +2279,35 @@ export const ACHIEVEMENTS = [
     reward: 'lamp',
   },
 ];
+ACHIEVEMENTS.push(
+  {
+    id: 'three-edits',
+    name: 'Точная копия',
+    description: 'Сделать 3 правки за обычный забег. Открывает Копирку.',
+    reward: 'carbon',
+  },
+  {
+    id: 'poison-finish',
+    name: 'Заражение',
+    description:
+      'Победить 3 врагов тиками яда за обычный забег. Открывает Заразную закладку.',
+    reward: 'bookmark',
+  },
+  {
+    id: 'shield-mastery',
+    name: 'Острый край',
+    description:
+      'Собрать 5 групп щитов за обычный забег. Открывает Колючие щиты.',
+    reward: 'spiked',
+  },
+  {
+    id: 'focus-mastery',
+    name: 'На полях',
+    description:
+      'Собрать 5 групп фокуса за обычный забег. Открывает Защитную помету.',
+    reward: 'marked',
+  },
+);
 export type Meta = {
   version: 1;
   unlocked: string[];
@@ -2127,6 +2327,13 @@ export const EMPTY_META: Meta = {
 export function updateMeta(input: Meta, s: State): Meta {
   const m = copy(input);
   const checks: Record<string, boolean> = {
+    'three-edits': (s.rulesVersion ?? 0) >= 4 && (s.stats.edits ?? 0) >= 3,
+    'poison-finish':
+      (s.rulesVersion ?? 0) >= 4 && (s.stats.poisonKills ?? 0) >= 3,
+    'shield-mastery':
+      (s.rulesVersion ?? 0) >= 4 && (s.stats.shieldGroups ?? 0) >= 5,
+    'focus-mastery':
+      (s.rulesVersion ?? 0) >= 4 && (s.stats.focusGroups ?? 0) >= 5,
     'first-match': s.stats.matches > 0,
     'first-skill': s.stats.skills > 0,
     five: s.stats.big > 0,
@@ -2169,8 +2376,17 @@ export function abandonMeta(input: Meta, s: State) {
   }
   return m;
 }
-export function availableRelics(m: Meta, rulesVersion?: 2 | 3) {
-  if ((rulesVersion ?? 0) >= 2) return RELICS.map((r) => r.id);
+export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4) {
+  if ((rulesVersion ?? 0) >= 2)
+    return [
+      ...CORE_RELIC_IDS,
+      ...((rulesVersion ?? 0) >= 4
+        ? ACHIEVEMENTS.filter(
+            (a) =>
+              m.unlocked.includes(a.id) && !CORE_RELIC_IDS.includes(a.reward),
+          ).map((a) => a.reward)
+        : []),
+    ];
   return [
     ...BASE_RELICS,
     ...ACHIEVEMENTS.filter((a) => m.unlocked.includes(a.id)).map(
@@ -2186,7 +2402,7 @@ export function withUnlocks(s: State, m: Meta) {
   return s;
 }
 export function nextRooms(s: State): Room[] {
-  if (s.rulesVersion === 3 && s.journey) {
+  if ((s.rulesVersion ?? 0) >= 3 && s.journey) {
     const ids =
       s.journey.nodes.find((n) => n.id === s.journey!.current)?.next ?? [];
     return s.journey.nodes.filter((n) => ids.includes(n.id));
@@ -2410,6 +2626,14 @@ function createJourney(s: State): NonNullable<State['journey']> {
               ? ['safe', 'mirror']
               : ['candle'];
         }
+        if ((s.rulesVersion ?? 0) >= 4 && local === 8) {
+          if (archive)
+            roster =
+              kind === 'elite'
+                ? ['anchor', 'lantern-fish']
+                : ['ink-scribe', 'paper-rat'];
+          else if (kind === 'elite') roster = ['safe', 'moth'];
+        }
         if (local === 9) {
           kind = 'rest';
           name = archive ? 'Сухой причал' : 'Тлеющий костёр';
@@ -2478,18 +2702,20 @@ function drawOffers(s: State, pool: Offer[], count: number): Offer[] {
 function treasureOffers(s: State, excluded: string[] = []) {
   return drawOffers(
     s,
-    RELICS.filter((o) => !s.relics.includes(o.id) && !excluded.includes(o.id)),
+    relicPoolFor(s).filter(
+      (o) => !s.relics.includes(o.id) && !excluded.includes(o.id),
+    ),
     1,
   );
 }
 export function canRerollTreasure(s: State) {
   return (
-    s.rulesVersion === 3 &&
+    (s.rulesVersion ?? 0) >= 3 &&
     s.phase === 'reward' &&
     s.rewardSource === 'treasure' &&
     !s.treasureRerolled &&
     s.gold >= 20 &&
-    RELICS.some(
+    relicPoolFor(s).some(
       (o) => !s.relics.includes(o.id) && !s.offers.some((a) => a.id === o.id),
     )
   );
@@ -2515,8 +2741,10 @@ function journeyRewardOffers(s: State, strong: boolean): Offer[] {
   if (s.roomKind === 'boss' && s.room === TOTAL_ROOMS) return [];
   if (s.rewardSource === 'seal') return copy(SEALS);
   if (s.rewardSource === 'treasure') return treasureOffers(s);
-  const relics = RELICS.filter((o) => !s.relics.includes(o.id));
-  const modifiers = MODIFIERS.filter((o) => !s.modifiers.includes(o.id));
+  const relics = relicPoolFor(s).filter((o) => !s.relics.includes(o.id));
+  const modifiers = modifierPoolFor(s).filter(
+    (o) => !s.modifiers.includes(o.id),
+  );
   if (s.room === 1 && !strong) {
     return [
       ...drawOffers(
@@ -2723,7 +2951,7 @@ export type RouteNode = Room & {
   status: 'visited' | 'current' | 'available' | 'future' | 'skipped';
 };
 export function routeMap(s: State): RouteNode[][] {
-  if (s.rulesVersion === 3 && s.journey) {
+  if ((s.rulesVersion ?? 0) >= 3 && s.journey) {
     const j = s.journey,
       reachable = new Set<string>();
     const visit = (id: string) => {
@@ -2822,7 +3050,7 @@ export function enterRoom(input: State, id: string): Result {
   if (!room) return result(input, [], 'Этот путь недоступен.');
   const s = copy(input);
   s.room++;
-  if (s.rulesVersion === 3) {
+  if ((s.rulesVersion ?? 0) >= 3) {
     s.journey!.current = room.id;
     s.journey!.visited.push(room.id);
     delete s.rewardSource;
@@ -2906,7 +3134,7 @@ export function upgradeOptions(s: State) {
 function grant(s: State, offer: Offer, slot?: number): string | undefined {
   if (offer.kind === 'seal') {
     if (
-      s.rulesVersion !== 3 ||
+      (s.rulesVersion ?? 0) < 3 ||
       s.rewardSource !== 'seal' ||
       s.seal ||
       !SEALS.some((o) => o.id === offer.id)
@@ -3005,7 +3233,7 @@ export function chooseReward(
     const error = grant(s, offer, slot);
     if (error) return result(input, [], error);
   }
-  if (s.rulesVersion === 3) {
+  if ((s.rulesVersion ?? 0) >= 3) {
     if (!id && s.rewardSource === 'battle') {
       s.gold += 8;
       note(s, 'Вся награда обменяна на 8 золота.');
@@ -3027,7 +3255,7 @@ export function chooseReward(
   return result(s);
 }
 function shopOffers(s: State): Offer[] {
-  const relicPool = RELICS.filter(
+  const relicPool = relicPoolFor(s).filter(
     (r) =>
       !s.relics.includes(r.id) &&
       ((s.rulesVersion ?? 0) >= 2 || s.flags.includes(`run:available:${r.id}`)),
@@ -3058,7 +3286,7 @@ function shopOffers(s: State): Offer[] {
       ...skills[Math.floor(random(s, 'loot') * skills.length)],
       cost: 40,
     });
-  const mods = MODIFIERS.filter((x) => !s.modifiers.includes(x.id));
+  const mods = modifierPoolFor(s).filter((x) => !s.modifiers.includes(x.id));
   if (mods.length)
     offers.push({
       ...mods[Math.floor(random(s, 'loot') * mods.length)],
@@ -3078,7 +3306,7 @@ function shopOffers(s: State): Offer[] {
   if (ups.length)
     offers.push({
       ...ups[Math.floor(random(s, 'loot') * ups.length)],
-      cost: s.rulesVersion === 3 ? 40 : 35,
+      cost: (s.rulesVersion ?? 0) >= 3 ? 40 : 35,
     });
   // Roll once on entry, using the saved run RNG. Displaying or buying an offer
   // never re-rolls its price, including purchases that need a replacement slot.
@@ -3150,7 +3378,7 @@ export function eventChoice(input: State, choice: string): Result {
     if (s.hp <= 5) return result(input, [], 'Нужно больше 5 здоровья.');
     s.hp -= 5;
     s.phase = 'reward';
-    if (s.rulesVersion === 3) s.rewardSource = 'event';
+    if ((s.rulesVersion ?? 0) >= 3) s.rewardSource = 'event';
     s.offers = rewardOffers(s, true);
   } else if (choice === 'supplies') {
     heal(s, 5);
@@ -3188,8 +3416,9 @@ export function isSave(value: unknown): value is State {
     isEquipment(s.equipment) &&
     (s.rulesVersion === undefined ||
       s.rulesVersion === 2 ||
-      s.rulesVersion === 3) &&
-    (s.rulesVersion !== 3 || validJourneySave(s)) &&
+      s.rulesVersion === 3 ||
+      s.rulesVersion === 4) &&
+    ((s.rulesVersion ?? 0) < 3 || validJourneySave(s)) &&
     ((s.rulesVersion ?? 0) < 2 ||
       (Number.isInteger(s.weaponQuality) &&
         [0, 1, 2].includes(s.weaponQuality!))) &&
@@ -3218,7 +3447,12 @@ export function isSave(value: unknown): value is State {
         t &&
         FAMILIES.includes(t.family) &&
         Number.isFinite(t.id) &&
-        [null, 'venom', 'bomb'].includes(t.variant) &&
+        [
+          null,
+          'venom',
+          'bomb',
+          ...((s.rulesVersion ?? 0) >= 4 ? ['spiked', 'marked'] : []),
+        ].includes(t.variant) &&
         (t.ink === undefined || t.ink === true),
     ) &&
     s.board.filter((t) => t.ink).length <= 6 &&

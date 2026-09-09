@@ -92,6 +92,7 @@ test('Red Line adds exactly four per weapon match before cleaver distribution, i
 
 test('Enduring Record penalizes each shield group and relics use actual generated block, then carries only unused block after attacks', () => {
   const { s, m } = fixture('enduring-record', 'shield', 3);
+  s.rulesVersion = 3; // Frozen stage-2 thorns rule; v4 retaliation is tested separately.
   s.relics = ['coil', 'thorns'];
   s.block = 0;
   s.energy = 0;

@@ -171,11 +171,13 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
   return {
     phase: s.phase,
     rulesVersion:
-      s.rulesVersion === 3
-        ? 'v0.2-stage2'
-        : s.rulesVersion === 2
-          ? 'v0.2'
-          : 'classic',
+      s.rulesVersion === 4
+        ? 'v0.2-stage3'
+        : s.rulesVersion === 3
+          ? 'v0.2-stage2'
+          : s.rulesVersion === 2
+            ? 'v0.2'
+            : 'classic',
     seal: s.seal ?? null,
     rewardSource: s.rewardSource ?? null,
     canRerollTreasure: canRerollTreasure(s),

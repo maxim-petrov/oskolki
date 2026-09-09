@@ -8,7 +8,7 @@ test('seeded graphs contain exactly twenty-room paths, shared anchors, one treas
   for (let seed = 0; seed < 256; seed++) {
     const s = g.startRun(seed),
       j = s.journey;
-    assert.equal(s.rulesVersion, 3);
+    assert.equal(s.rulesVersion, 4);
     assert.ok(g.isSave(s));
     assert.equal(j.nodes.length, 32);
     assert.deepEqual(j, g.startRun(seed).journey);
