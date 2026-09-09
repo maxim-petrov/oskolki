@@ -1,4 +1,57 @@
 /* Extension layouts. All surfaces follow docs/visual-style.md and palace.css. */
+/* Keep the primary combat action in the viewport, below dialogs. */
+html[data-skin='palace-cellar'] {
+  --battle-actions-clearance: calc(96px + env(safe-area-inset-bottom, 0px));
+
+  &:has(.battle-active) {
+    scroll-padding-bottom: var(--battle-actions-clearance);
+  }
+  .game-shell.battle-active {
+    padding-bottom: var(--battle-actions-clearance);
+  }
+  .battle-actions {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 30;
+    padding: 10px max(16px, env(safe-area-inset-right, 0px))
+      calc(12px + env(safe-area-inset-bottom, 0px))
+      max(16px, env(safe-area-inset-left, 0px));
+    background: var(--palace-paper-light);
+    border-top: 3px solid var(--palace-ink);
+    box-shadow: 0 -3px 0 var(--palace-shadow);
+  }
+  .battle-actions-inner {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 20px;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+  .battle-actions .end-turn {
+    width: auto;
+    min-height: 48px;
+    flex-shrink: 0;
+  }
+  .turn-shortcut {
+    color: var(--palace-quiet);
+    font-size: 14px;
+  }
+  .battle-active .discovery-toast {
+    bottom: var(--battle-actions-clearance);
+  }
+}
+@media (max-width: 640px) {
+  html[data-skin='palace-cellar'] {
+    .turn-shortcut {
+      display: none;
+    }
+    .battle-actions .end-turn {
+      width: 100%;
+    }
+  }
+}
+
 /* Equipment belongs to the same paper-and-ink interface as the arena. */
 html[data-skin='palace-cellar'] {
   .equipment-panel {

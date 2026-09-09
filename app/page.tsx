@@ -460,7 +460,9 @@ export default function Game() {
       );
   }, [ready]);
   return (
-    <main className={`game-shell biome-${biomeAt(s.room).id}`}>
+    <main
+      className={`game-shell biome-${biomeAt(s.room).id}${active ? ' battle-active' : ''}`}
+    >
       <header className="topbar">
         <div className="brand">
           <SkinIcon name="crown" size={40} />
@@ -875,24 +877,6 @@ export default function Game() {
                 ? `${hasSeal(game, 'double-edit') ? (editFirst === null ? 'Выбери первую из двух фишек' : 'Выбери вторую фишку; Esc — отмена') : 'Выбери фишку'} → ${FAMILY_NAMES[editing]}`
                 : message}
             </output>
-            <Button
-              className="end-turn"
-              onClick={() =>
-                void play(
-                  game.phase === 'trial'
-                    ? pauseTrial(game, true)
-                    : endTurn(game),
-                )
-              }
-              disabled={busy || !active}
-            >
-              {game.phase === 'trial' ? 'Пауза' : 'Завершить ход'}{' '}
-              {game.phase === 'trial' ? (
-                <Pause size={17} />
-              ) : (
-                <ArrowRight size={17} />
-              )}
-            </Button>
           </div>
         </section>
         <aside className="loadout">
@@ -1078,6 +1062,34 @@ export default function Game() {
           · Пробел — завершить ход
         </span>
       </footer>
+      {active && !modalOpen && !game.trial?.paused && (
+        <section className="battle-actions" aria-label="Управление ходом">
+          <div className="battle-actions-inner">
+            <span className="turn-shortcut">
+              Пробел — {game.phase === 'trial' ? 'пауза' : 'завершить ход'}
+            </span>
+            <Button
+              className="end-turn"
+              aria-keyshortcuts="Space"
+              onClick={() =>
+                void play(
+                  game.phase === 'trial'
+                    ? pauseTrial(game, true)
+                    : endTurn(game),
+                )
+              }
+              disabled={busy}
+            >
+              {game.phase === 'trial' ? 'Пауза' : 'Завершить ход'}{' '}
+              {game.phase === 'trial' ? (
+                <Pause size={17} />
+              ) : (
+                <ArrowRight size={17} />
+              )}
+            </Button>
+          </div>
+        </section>
+      )}
       {newDiscovery && (
         <button
           className="discovery-toast"
