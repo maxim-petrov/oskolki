@@ -25,7 +25,7 @@ test('rewarded, purchased and restored weapons appear on both the hero and board
       state.room = 6;
       state.phase = i % 2 ? 'reward' : 'shop';
       state.gold = 100;
-      state.offers = [{ ...weapon, cost: 25 }];
+      state.offers = [{ ...g.weaponOffer(weapon.id, i % 3), cost: 25 }];
       const result =
         i % 2 ? g.chooseReward(state, weapon.id) : g.buy(state, weapon.id);
       assert.equal(result.error, undefined);

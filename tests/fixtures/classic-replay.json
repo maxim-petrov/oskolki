@@ -1,0 +1,1102 @@
+{
+  "sourceCommit": "994b9a7",
+  "fixtures": [
+    {
+      "label": "Classic weapon bonus, turn, skill and saved random cascade",
+      "input": {
+        "version": 2,
+        "equipment": {
+          "weapon": "gear-rune-sword",
+          "helmet": null,
+          "clothing": "gear-shirt",
+          "trousers": "gear-worn-trousers"
+        },
+        "seed": 71,
+        "rng": 1511859899,
+        "serial": 37,
+        "runId": "run-71",
+        "phase": "battle",
+        "board": [
+          {
+            "id": 2,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 3,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 4,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 5,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 6,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 7,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 8,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 9,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 10,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 11,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 12,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 13,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 14,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 15,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 16,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 17,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 18,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 19,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 20,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 21,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 22,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 23,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 24,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 25,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 26,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 27,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 28,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 29,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 30,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 31,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 32,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 33,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 34,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 35,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 36,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 37,
+            "family": "blade",
+            "variant": null
+          }
+        ],
+        "hp": 40,
+        "maxHp": 40,
+        "block": 0,
+        "heroPoison": 0,
+        "energy": 6,
+        "focus": 0,
+        "gold": 25,
+        "round": 1,
+        "room": 1,
+        "roomKind": "battle",
+        "target": 1,
+        "enemies": [
+          {
+            "id": 1,
+            "kind": "raider",
+            "hp": 1000,
+            "maxHp": 1000,
+            "name": "Костяной налётчик",
+            "block": 0,
+            "poison": 0,
+            "damage": 6
+          }
+        ],
+        "moved": false,
+        "cast": false,
+        "consumed": false,
+        "relics": ["toxin", "heart"],
+        "modifiers": ["venom"],
+        "skills": ["bolt", "guard"],
+        "potions": 1,
+        "upgrades": {
+          "blade": 0,
+          "shield": 0,
+          "spark": 0,
+          "focus": 0
+        },
+        "log": ["Сдвинь строку или столбец и собери три одинаковых символа."],
+        "offers": [],
+        "path": ["Вход в крипту"],
+        "flags": ["run:available:thorns", "run:available:order"],
+        "balance": {
+          "health": 40,
+          "blade": 2,
+          "shield": 2,
+          "enemyPower": 1,
+          "animation": 260
+        },
+        "modified": false,
+        "stats": {
+          "matches": 0,
+          "cascades": 0,
+          "kills": 0,
+          "skills": 0,
+          "damage": 0,
+          "blocked": 0,
+          "big": 0,
+          "sacrifices": 0,
+          "trials": 0
+        },
+        "trial": null
+      },
+      "actions": [["move", "row", 0, 4], ["castSkill", "bolt"], ["endTurn"]],
+      "sha256": "c6c5b4edb98db52440bae6f016fb3888745d65b4ba7eb66c518aaebeca47ae4a"
+    },
+    {
+      "label": "Archive statuses and edits",
+      "input": {
+        "version": 2,
+        "equipment": {
+          "weapon": "gear-cutter",
+          "helmet": null,
+          "clothing": "gear-shirt",
+          "trousers": "gear-worn-trousers"
+        },
+        "seed": 17,
+        "rng": 560318190,
+        "serial": 74,
+        "runId": "run-17",
+        "phase": "battle",
+        "board": [
+          {
+            "id": 39,
+            "family": "shield",
+            "variant": null,
+            "ink": true
+          },
+          {
+            "id": 40,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 41,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 42,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 43,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 44,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 45,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 46,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 47,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 48,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 49,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 50,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 51,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 52,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 53,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 54,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 55,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 56,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 57,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 58,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 59,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 60,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 61,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 62,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 63,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 64,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 65,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 66,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 67,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 68,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 69,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 70,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 71,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 72,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 73,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 74,
+            "family": "spark",
+            "variant": null
+          }
+        ],
+        "hp": 40,
+        "maxHp": 40,
+        "block": 0,
+        "heroPoison": 0,
+        "energy": 3,
+        "focus": 3,
+        "gold": 25,
+        "round": 1,
+        "room": 11,
+        "roomKind": "battle",
+        "target": 38,
+        "enemies": [
+          {
+            "id": 38,
+            "kind": "reed-crab",
+            "hp": 37,
+            "maxHp": 37,
+            "name": "Картотечный краб",
+            "block": 0,
+            "poison": 0,
+            "damage": 7
+          }
+        ],
+        "moved": false,
+        "cast": false,
+        "consumed": false,
+        "relics": ["toxin", "heart", "order"],
+        "modifiers": [],
+        "skills": ["bolt", "guard"],
+        "potions": 1,
+        "upgrades": {
+          "blade": 0,
+          "shield": 0,
+          "spark": 0,
+          "focus": 0
+        },
+        "log": [
+          "Затопленный порог. Враги показывают намерения.",
+          "Сдвинь строку или столбец и собери три одинаковых символа."
+        ],
+        "offers": [],
+        "path": ["Вход в крипту", "Затопленный порог"],
+        "flags": ["run:available:thorns", "run:available:order"],
+        "balance": {
+          "health": 40,
+          "blade": 2,
+          "shield": 2,
+          "enemyPower": 1,
+          "animation": 260
+        },
+        "modified": false,
+        "stats": {
+          "matches": 0,
+          "cascades": 0,
+          "kills": 0,
+          "skills": 0,
+          "damage": 0,
+          "blocked": 0,
+          "big": 0,
+          "sacrifices": 0,
+          "trials": 0
+        },
+        "trial": null,
+        "tide": {
+          "row": 2,
+          "turns": 3,
+          "cleared": false
+        }
+      },
+      "actions": [
+        ["move", "row", 0, 3],
+        ["castSkill", "edit", 2, "focus"],
+        ["endTurn"]
+      ],
+      "sha256": "bef5acec2efc2f850d4d80d54c137484520395ed5e309eedab35e7d98dd0616e"
+    },
+    {
+      "label": "Shop offers, discounts and purchase sequence",
+      "input": {
+        "version": 2,
+        "equipment": {
+          "weapon": "gear-cutter",
+          "helmet": null,
+          "clothing": "gear-shirt",
+          "trousers": "gear-worn-trousers"
+        },
+        "seed": 44,
+        "rng": 1511859872,
+        "serial": 37,
+        "runId": "run-44",
+        "phase": "map",
+        "board": [
+          {
+            "id": 2,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 3,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 4,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 5,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 6,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 7,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 8,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 9,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 10,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 11,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 12,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 13,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 14,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 15,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 16,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 17,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 18,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 19,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 20,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 21,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 22,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 23,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 24,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 25,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 26,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 27,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 28,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 29,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 30,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 31,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 32,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 33,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 34,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 35,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 36,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 37,
+            "family": "blade",
+            "variant": null
+          }
+        ],
+        "hp": 40,
+        "maxHp": 40,
+        "block": 0,
+        "heroPoison": 0,
+        "energy": 3,
+        "focus": 0,
+        "gold": 200,
+        "round": 1,
+        "room": 4,
+        "roomKind": "battle",
+        "target": 1,
+        "enemies": [
+          {
+            "id": 1,
+            "kind": "raider",
+            "hp": 18,
+            "maxHp": 18,
+            "name": "Костяной налётчик",
+            "block": 0,
+            "poison": 0,
+            "damage": 6
+          }
+        ],
+        "moved": false,
+        "cast": false,
+        "consumed": false,
+        "relics": [],
+        "modifiers": [],
+        "skills": ["bolt", "guard"],
+        "potions": 1,
+        "upgrades": {
+          "blade": 0,
+          "shield": 0,
+          "spark": 0,
+          "focus": 0
+        },
+        "log": ["Сдвинь строку или столбец и собери три одинаковых символа."],
+        "offers": [],
+        "path": ["Вход в крипту"],
+        "flags": ["run:available:thorns", "run:available:order"],
+        "balance": {
+          "health": 40,
+          "blade": 2,
+          "shield": 2,
+          "enemyPower": 1,
+          "animation": 260
+        },
+        "modified": false,
+        "stats": {
+          "matches": 0,
+          "cascades": 0,
+          "kills": 0,
+          "skills": 0,
+          "damage": 0,
+          "blocked": 0,
+          "big": 0,
+          "sacrifices": 0,
+          "trials": 0
+        },
+        "trial": null
+      },
+      "actions": [
+        ["enterRoom", "5-shop"],
+        ["buy", "gear-reinforced-trousers"],
+        ["leaveRoom"]
+      ],
+      "sha256": "d5c17b934948abebe276d0b128b12f9e0c52e525d46efbcc7ff725d1ee5ab5a5"
+    },
+    {
+      "label": "First reward and following encounter",
+      "input": {
+        "version": 2,
+        "equipment": {
+          "weapon": "gear-cutter",
+          "helmet": null,
+          "clothing": "gear-shirt",
+          "trousers": "gear-worn-trousers"
+        },
+        "seed": 42,
+        "rng": 3343425683,
+        "serial": 37,
+        "runId": "run-42",
+        "phase": "reward",
+        "board": [
+          {
+            "id": 2,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 3,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 4,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 5,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 6,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 7,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 8,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 9,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 10,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 11,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 12,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 13,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 14,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 15,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 16,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 17,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 18,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 19,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 20,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 21,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 22,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 23,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 24,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 25,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 26,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 27,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 28,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 29,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 30,
+            "family": "spark",
+            "variant": null
+          },
+          {
+            "id": 31,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 32,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 33,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 34,
+            "family": "shield",
+            "variant": null
+          },
+          {
+            "id": 35,
+            "family": "focus",
+            "variant": null
+          },
+          {
+            "id": 36,
+            "family": "blade",
+            "variant": null
+          },
+          {
+            "id": 37,
+            "family": "spark",
+            "variant": null
+          }
+        ],
+        "hp": 40,
+        "maxHp": 40,
+        "block": 0,
+        "heroPoison": 0,
+        "energy": 3,
+        "focus": 0,
+        "gold": 25,
+        "round": 1,
+        "room": 1,
+        "roomKind": "battle",
+        "target": 1,
+        "enemies": [
+          {
+            "id": 1,
+            "kind": "raider",
+            "hp": 18,
+            "maxHp": 18,
+            "name": "Костяной налётчик",
+            "block": 0,
+            "poison": 0,
+            "damage": 6
+          }
+        ],
+        "moved": false,
+        "cast": false,
+        "consumed": false,
+        "relics": [],
+        "modifiers": [],
+        "skills": ["bolt", "guard"],
+        "potions": 1,
+        "upgrades": {
+          "blade": 0,
+          "shield": 0,
+          "spark": 0,
+          "focus": 0
+        },
+        "log": ["Сдвинь строку или столбец и собери три одинаковых символа."],
+        "offers": [
+          {
+            "id": "gear-rusty-dagger",
+            "kind": "equipment",
+            "slot": "weapon",
+            "tier": 0,
+            "name": "Ржавый кинжал",
+            "bonus": 1,
+            "icon": 0,
+            "tag": "Простое",
+            "description": "+1 урона за каждую комбинацию клинков."
+          },
+          {
+            "id": "thorns",
+            "kind": "relic",
+            "name": "Шипованный обод",
+            "description": "Первый матч щитов за ход наносит урон, равный половине полученного блока.",
+            "tag": "Блок → урон"
+          },
+          {
+            "id": "venom",
+            "kind": "modifier",
+            "name": "Ядовитые клинки",
+            "description": "Четверть новых клинков накладывает 1 яд. Они собираются с обычными клинками.",
+            "tag": "Меняет поле"
+          },
+          {
+            "id": "bomb",
+            "kind": "modifier",
+            "name": "Пороховая искра",
+            "description": "Четверть новых искр становится бомбами и разрушает соседей. Семейство — Искра.",
+            "tag": "Меняет поле"
+          }
+        ],
+        "path": ["Вход в крипту"],
+        "flags": ["run:available:thorns", "run:available:order"],
+        "balance": {
+          "health": 40,
+          "blade": 2,
+          "shield": 2,
+          "enemyPower": 1,
+          "animation": 260
+        },
+        "modified": false,
+        "stats": {
+          "matches": 0,
+          "cascades": 0,
+          "kills": 0,
+          "skills": 0,
+          "damage": 0,
+          "blocked": 0,
+          "big": 0,
+          "sacrifices": 0,
+          "trials": 0
+        },
+        "trial": null
+      },
+      "actions": [
+        ["chooseReward", "gear-rusty-dagger"],
+        ["enterRoom", "2-battle"]
+      ],
+      "sha256": "214972e921f896d5107d35251c590327d439cf4f45c162a35fd74fcb2cb176d2"
+    }
+  ]
+}

@@ -9,6 +9,8 @@ import {
   EQUIPMENT_SLOT_NAMES,
   EQUIPMENT_TIERS,
   equipmentById,
+  equipmentForRun,
+  WEAPON_RULES,
   equipmentSummary,
   type State,
 } from '@/game/engine';
@@ -72,7 +74,7 @@ export function EquipmentPanel({
       </div>
       <div className="equipment-grid">
         {EQUIPMENT_SLOTS.map((slot) => {
-          const item = equipmentById(game.equipment[slot]);
+          const item = equipmentForRun(game, game.equipment[slot]);
           return item ? (
             <button
               type="button"
@@ -114,9 +116,10 @@ export function EquipmentPanel({
 }
 
 export function EquipmentComparison({ game, id }: { game: State; id: string }) {
-  const item = equipmentById(id);
+  const offer = game.offers.find((o) => o.id === id);
+  const item = equipmentForRun(game, id, offer?.quality);
   if (!item) return null;
-  const old = equipmentById(game.equipment[item.slot]);
+  const old = equipmentForRun(game, game.equipment[item.slot]);
   return (
     <div className="equipment-comparison">
       <div>
@@ -148,7 +151,9 @@ export function WeaponGallery({
   selectedId,
   equippedId,
   onSelect,
+  game,
 }: {
+  game?: State;
   selectedId: string;
   equippedId: string | null;
   onSelect: (id: string) => void;
@@ -161,14 +166,18 @@ export function WeaponGallery({
           <button
             type="button"
             key={weapon.id}
-            className={`weapon-preview gear-tier-${weapon.tier}`}
+            className={`weapon-preview gear-tier-${game?.rulesVersion === 2 ? (weapon.id === equippedId ? game.weaponQuality : 0) : weapon.tier}`}
             aria-pressed={selectedId === weapon.id}
             onClick={() => onSelect(weapon.id)}
           >
             <EquipmentIcon id={weapon.id} size={64} />
             <strong>{weapon.name}</strong>
             <small>
-              {weapon.id === equippedId ? 'Надето' : `+${weapon.bonus} к урону`}
+              {weapon.id === equippedId
+                ? 'Надето'
+                : game?.rulesVersion === 2
+                  ? WEAPON_RULES[weapon.id].short
+                  : `+${weapon.bonus} к урону`}
             </small>
           </button>
         ))}

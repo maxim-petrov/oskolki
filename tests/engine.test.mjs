@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as g from '../game/engine.ts';
+// Pre-v0.2 saves deliberately retain their original rules and reward sequence.
+function classic(s = g.startRun()) {
+  delete s.rulesVersion;
+  delete s.weaponQuality;
+  s.flags = s.flags.filter((f) => !f.startsWith('run:available:'));
+  s.flags.push('run:available:thorns', 'run:available:order');
+  return s;
+}
 function moveOf(s, family) {
   for (const m of g.validMoves(s.board)) {
     const b = g.shifted(s.board, m.axis, m.line, m.amount),
@@ -296,8 +304,8 @@ test('lab runs never advance achievements or normal streaks', () => {
   assert.equal(m.streak, 0);
   assert.equal(m.unlocked.length, 0);
 });
-test('new openings only enter subsequent runs', () => {
-  const s = g.startRun();
+test('classic saves: new openings only enter subsequent runs', () => {
+  const s = classic();
   s.stats.matches = 1;
   const m = g.updateMeta(g.EMPTY_META, s);
   assert.ok(!s.flags.includes('run:available:coil'));
@@ -419,9 +427,9 @@ test('every run starts with basic equipment and a genuinely empty helmet slot', 
   assert.equal(g.startRun().equipment.weapon, 'gear-cutter');
 });
 
-test('gear appears deterministically, progresses by room, and never offers a downgrade', () => {
+test('classic saves: gear appears deterministically, progresses by room, and never offers a downgrade', () => {
   for (const room of [1, 2, 4, 6, 9]) {
-    const a = g.startRun(room),
+    const a = classic(g.startRun(room)),
       b = g.copy(a);
     a.room = b.room = room;
     const offers = g.rewardOffers(a),
@@ -432,7 +440,7 @@ test('gear appears deterministically, progresses by room, and never offers a dow
     assert.equal(offers.filter((o) => o.kind === 'equipment').length, 1);
     assert.equal(new Set(offers.map((o) => o.id)).size, offers.length);
   }
-  const s = g.startRun();
+  const s = classic();
   for (const slot of g.EQUIPMENT_SLOTS)
     s.equipment[slot] = g.EQUIPMENT.find(
       (o) => o.slot === slot && o.tier === 1,
@@ -448,8 +456,8 @@ test('gear appears deterministically, progresses by room, and never offers a dow
   assert.deepEqual(g.equipmentOptions(s), []);
 });
 
-test('equipment rewards replace only their slot, and invalid or repeated choices are atomic', () => {
-  const s = g.startRun();
+test('classic saves: equipment rewards replace only their slot, and invalid or repeated choices are atomic', () => {
+  const s = classic();
   s.phase = 'reward';
   s.offers = [g.equipmentById('gear-cleaver')];
   const before = g.copy(s);
@@ -468,12 +476,13 @@ test('equipment rewards replace only their slot, and invalid or repeated choices
   assert.deepEqual(skipped.equipment, r.equipment);
 });
 
-test('weapon and clothing bonuses change real match results, without changing the board rolls', () => {
+test('classic saves: weapon and clothing bonuses change real match results, without changing the board rolls', () => {
   for (const [family, slot, id, field] of [
     ['blade', 'weapon', 'gear-cleaver', 'damage'],
     ['shield', 'clothing', 'gear-jacket', 'block'],
   ]) {
     const { s, m } = findState(family);
+    classic(s);
     s.enemies[0].hp = s.enemies[0].maxHp = 10000;
     const enhanced = g.copy(s);
     enhanced.equipment[slot] = id;
@@ -596,7 +605,7 @@ test('complete routes also work when the player prefers equipment and resumes up
   assert.ok(upgrades > 0);
 });
 
-test('five weapons progress in order, including improvements within the same quality', () => {
+test('classic saves: five weapons progress in order, including improvements within the same quality', () => {
   const ids = [
     'gear-cutter',
     'gear-rusty-dagger',
@@ -608,7 +617,7 @@ test('five weapons progress in order, including improvements within the same qua
     g.WEAPONS.map((weapon) => weapon.id),
     ids,
   );
-  let s = g.startRun();
+  let s = classic();
   for (let i = 1; i < ids.length; i++) {
     s.room = i === 4 ? 6 : 2;
     const next = g.equipmentOptions(s).filter((item) => item.slot === 'weapon');
@@ -629,8 +638,8 @@ test('five weapons progress in order, including improvements within the same qua
   );
 });
 
-test('rare sword stays gated, and an existing cleaver save offers the new axe', () => {
-  const old = g.startRun();
+test('classic saves: rare sword stays gated, and an existing cleaver save offers the new axe', () => {
+  const old = classic();
   old.equipment.weapon = 'gear-cleaver';
   old.room = 4;
   const loaded = g.loadSave(JSON.parse(JSON.stringify(old)));
@@ -651,8 +660,9 @@ test('rare sword stays gated, and an existing cleaver save offers the new axe', 
   );
 });
 
-test('all five weapons use their own match damage bonus and do not amplify spells', () => {
+test('classic saves: all five weapons use their own match damage bonus and do not amplify spells', () => {
   const { s, m } = findState('blade');
+  classic(s);
   s.enemies[0].hp = s.enemies[0].maxHp = 10000;
   s.energy = 6;
   const baseline = applyMove(s, m).frames[0].state.stats.damage;

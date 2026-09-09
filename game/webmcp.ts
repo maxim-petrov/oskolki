@@ -19,6 +19,9 @@ import {
   intent,
   FAMILIES,
   equipmentBonus,
+  equipmentForRun,
+  previewMove,
+  restOptions,
   type State,
   type Result,
   type Family,
@@ -152,6 +155,10 @@ export function gameAction(s: State, input: unknown): Result {
 export function gameSnapshot(s: State, busy: boolean, hidden = false) {
   return {
     phase: s.phase,
+    rulesVersion: s.rulesVersion === 2 ? 'v0.2' : 'classic',
+    weapon: equipmentForRun(s, s.equipment.weapon),
+    runeReady: s.flags.includes('turn:rune-armed'),
+    restOptions: s.phase === 'rest' ? restOptions(s) : [],
     seed: s.seed >>> 0,
     room: s.room,
     totalRooms: TOTAL_ROOMS,
@@ -196,6 +203,7 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
             axis,
             line,
             amount,
+            firstWave: previewMove(s, axis, line, amount),
           }))
         : [],
   };
@@ -249,7 +257,7 @@ export function registerGameTools(
       name: 'perform_game_action',
       title: 'Выполнить действие в игре',
       description:
-        'Execute one action in the current local game and update the visible interface. Read read_game first. shift needs axis/line/amount; cast needs equipped skill id (or edit), optionally index/family; select_target needs enemy target; choose_reward needs offer id or null to skip, and slot 0/1 when replacing; enter_room/buy/rest/event need id; rest id is heal or up-blade/up-shield/up-spark/up-focus; event id is relic or supplies; in room 17 use repair (30 gold, reduces tides by 2) or supplies; pause_trial needs paused. end_turn, potion and leave_shop take no other parameters. Does not start or reset runs.',
+        'Execute one action in the current local game and update the visible interface. Read read_game first. shift needs axis/line/amount; cast needs equipped skill id (or edit), optionally index/family; select_target needs enemy target; choose_reward needs offer id or null to skip, and slot 0/1 when replacing; enter_room/buy/rest/event need id; rest id is heal or a current restOptions id (including sharpen in v0.2); event id is relic or supplies; in room 17 use repair (30 gold, reduces tides by 2) or supplies; pause_trial needs paused. end_turn, potion and leave_shop take no other parameters. Does not start or reset runs.',
       inputSchema: actionSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: act,

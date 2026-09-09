@@ -41,7 +41,7 @@ import {
   rest,
   eventChoice,
   pauseTrial,
-  upgradeOptions,
+  restOptions,
   DEFAULT_BALANCE,
   type State,
   type Meta,
@@ -77,6 +77,7 @@ export const ItemIcon = ({ id }: { id: string }) => {
             seal: 'spark',
             reshape: 'focus',
             potion: 'potion',
+            sharpen: 'blade',
           } as Record<string, SkinIconName>
         )[id] ?? 'relic'
       }
@@ -171,7 +172,10 @@ export function RunPanel({
           reward: 'Одна вещь останется с тобой до конца забега.',
           map: `Комната ${s.room + 1} из ${TOTAL_ROOMS}. Выбирай риск, который готов принять.`,
           shop: `У тебя ${s.gold} золота. Ассортимент не обновляется.`,
-          rest: 'Выбери восстановление здоровья или усиление поля.',
+          rest:
+            s.rulesVersion === 2
+              ? 'Выбери лечение, усиление поля или заточку оружия.'
+              : 'Выбери лечение или усиление поля.',
           event:
             s.room === 17
               ? 'Насос ещё можно спасти. Его работа ослабит приливы до конца забега.'
@@ -297,7 +301,7 @@ export function RunPanel({
                 {s.offers.map((o) => (
                   <button
                     key={o.id}
-                    className={`offer-card ${o.kind === 'modifier' ? 'modifier-offer' : ''} ${o.kind === 'equipment' ? `equipment-offer gear-tier-${equipmentById(o.id)?.tier}` : ''}`}
+                    className={`offer-card ${o.kind === 'modifier' ? 'modifier-offer' : ''} ${o.kind === 'equipment' ? `equipment-offer gear-tier-${o.quality ?? equipmentById(o.id)?.tier}` : ''}`}
                     onClick={() => select(o)}
                     disabled={
                       busy ||
@@ -379,9 +383,13 @@ export function RunPanel({
                     </small>
                   </span>
                 </Button>
-                <span className="choice-divider">ИЛИ УЛУЧШИТЬ ПОЛЕ</span>
+                <span className="choice-divider">
+                  {s.rulesVersion === 2
+                    ? 'ИЛИ ВЫБРАТЬ УСИЛЕНИЕ'
+                    : 'ИЛИ УЛУЧШИТЬ ПОЛЕ'}
+                </span>
                 <div className="upgrade-grid">
-                  {upgradeOptions(s).map((o) => (
+                  {restOptions(s).map((o) => (
                     <Button
                       variant="outline"
                       key={o.id}
@@ -520,8 +528,8 @@ export function Discoveries({
       <DialogContent className="game-dialog discovery-dialog">
         <DialogTitle>Открытия</DialogTitle>
         <DialogDescription>
-          {meta.unlocked.length} / 10. Каждое достижение добавляет реликвию в
-          следующие забеги.
+          {meta.unlocked.length} / 10 достижений. В новых забегах все 12
+          реликвий доступны сразу; достижения отмечают освоенные приёмы.
         </DialogDescription>
         <div className="discovery-list">
           {ACHIEVEMENTS.map((a) => {
@@ -534,9 +542,7 @@ export function Discoveries({
                 <div>
                   <strong>{a.name}</strong>
                   <p>{a.description}</p>
-                  <small>
-                    {done ? 'Открыто' : 'Награда'}: {itemById(a.reward)?.name}
-                  </small>
+                  <small>Связанный предмет: {itemById(a.reward)?.name}</small>
                 </div>
               </div>
             );
@@ -546,7 +552,13 @@ export function Discoveries({
     </Dialog>
   );
 }
-export type Preset = 'normal' | 'shields' | 'poison' | 'cascades';
+export type Preset =
+  | 'normal'
+  | 'shields'
+  | 'poison'
+  | 'cascades'
+  | 'editor'
+  | 'runes';
 export function SettingsPanel({
   open,
   onClose,
@@ -606,25 +618,34 @@ export function SettingsPanel({
         </div>
         <span className="eyebrow">СТАРТОВАЯ СБОРКА</span>
         <div className="preset-options">
-          {(['normal', 'shields', 'poison', 'cascades'] as Preset[]).map(
-            (p) => (
-              <Button
-                variant="outline"
-                key={p}
-                aria-pressed={preset === p}
-                onClick={() => setPreset(p)}
-              >
+          {(
+            [
+              'normal',
+              'shields',
+              'poison',
+              'editor',
+              'runes',
+              'cascades',
+            ] as Preset[]
+          ).map((p) => (
+            <Button
+              variant="outline"
+              key={p}
+              aria-pressed={preset === p}
+              onClick={() => setPreset(p)}
+            >
+              {
                 {
-                  {
-                    normal: 'Обычная',
-                    shields: 'Щиты',
-                    poison: 'Яд',
-                    cascades: 'Каскады',
-                  }[p]
-                }
-              </Button>
-            ),
-          )}
+                  normal: 'Обычная',
+                  shields: 'Щиты',
+                  poison: 'Кинжал и яд',
+                  editor: 'Топор и правка',
+                  runes: 'Рунный разряд',
+                  cascades: 'Каскады',
+                }[p]
+              }
+            </Button>
+          ))}
         </div>
         <label className="seed-control" htmlFor="run-seed">
           Seed — номер забега{' '}

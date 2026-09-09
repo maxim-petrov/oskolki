@@ -257,6 +257,7 @@ export type Offer = {
   description: string;
   tag: string;
   cost?: number;
+  quality?: 0 | 1 | 2;
   baseCost?: number;
   discount?: number;
 };
@@ -333,10 +334,13 @@ export const startingEquipment = (): Equipment => ({
   trousers: 'gear-worn-trousers',
 });
 export function equipmentBonus(s: State, slot: EquipmentSlot) {
+  if (slot === 'weapon' && s.rulesVersion === 2) return s.weaponQuality ?? 0;
   return equipmentById(s.equipment[slot])?.bonus ?? 0;
 }
 export function equipmentSummary(item: EquipmentItem | undefined) {
   if (!item) return 'Без шлема';
+  if (item.slot === 'weapon' && item.quality !== undefined)
+    return `Качество ${item.quality}/2 · ${WEAPON_RULES[item.id].short}`;
   if (!item.bonus) return 'Без бонусов';
   return {
     weapon: `+${item.bonus} урона клинками`,
@@ -345,9 +349,115 @@ export function equipmentSummary(item: EquipmentItem | undefined) {
     trousers: `+${item.bonus} к запасу фокуса`,
   }[item.slot];
 }
+export const WEAPON_RULES: Record<
+  string,
+  { short: string; description: string }
+> = {
+  'gear-cutter': {
+    short: 'До 2 урона сквозь блок',
+    description:
+      'Наносит D урона. До 2 урона каждого попадания проходит сквозь блок.',
+  },
+  'gear-rusty-dagger': {
+    short: '−2 урона, +2 яда',
+    description:
+      'Наносит D−2 урона (минимум 0). Выжившая цель получает 2 яда после попадания.',
+  },
+  'gear-cleaver': {
+    short: 'Делит удар между двумя',
+    description:
+      'При двух целях треть D (округление вниз) получает следующий живой враг по порядку, остаток — выбранный. При одной цели весь D идёт ей.',
+  },
+  'gear-axe': {
+    short: 'Тройка −2, матч 4+ +4',
+    description:
+      'Тройка клинков наносит D−2 урона (минимум 0). Группа из 4+ клинков — D+4.',
+  },
+  'gear-rune-sword': {
+    short: '−2 урона, +1 энергия',
+    description:
+      'Группа наносит D−2 урона (минимум 0) и даёт 1 энергию. Первая группа клинков за ход усиливает следующий атакующий приём за энергию на 2 урона. Один заряд за ход.',
+  },
+};
+export function weaponOffer(id: string, quality: 0 | 1 | 2 = 0): EquipmentItem {
+  const base = equipmentById(id);
+  if (!base || base.slot !== 'weapon') throw Error('Неизвестное оружие');
+  return {
+    ...base,
+    tier: quality,
+    quality,
+    bonus: quality,
+    tag: `Качество ${quality}/2`,
+    description: `${WEAPON_RULES[id].description} D = число клинков × урон фишки + 2 за уровень семейства + ${quality} качества.`,
+  };
+}
+export function equipmentForRun(
+  s: State,
+  id: string | null | undefined,
+  quality?: 0 | 1 | 2,
+) {
+  const item = equipmentById(id);
+  if (item?.slot !== 'weapon' || s.rulesVersion !== 2) return item;
+  return weaponOffer(
+    item.id,
+    quality ?? (id === s.equipment.weapon ? (s.weaponQuality ?? 0) : 0),
+  );
+}
+export function itemForRun(s: State, id: string): Offer | undefined {
+  const gear = equipmentForRun(s, id);
+  if (gear) return gear;
+  const item = itemById(id);
+  if (
+    s.rulesVersion === 2 &&
+    s.flags.includes('turn:rune-armed') &&
+    ['bolt', 'seal'].includes(id) &&
+    item
+  ) {
+    const damage =
+      id === 'bolt' ? 14 : 18 + (s.relics.includes('lens') ? 4 : 0);
+    return {
+      ...item,
+      description: `${id === 'bolt' ? '6 энергии' : '2 здоровья + 3 энергии'} · ${damage} урона. Рунный заряд +2 уже учтён; расходуется этим приёмом.`,
+    };
+  }
+  return item;
+}
+export function sharpeningOffer(s: State): Offer | undefined {
+  if (s.rulesVersion !== 2 || (s.weaponQuality ?? 0) >= 2) return;
+  return {
+    id: 'sharpen',
+    kind: 'upgrade',
+    name: 'Заточка оружия',
+    description: `Качество ${s.weaponQuality ?? 0} → ${(s.weaponQuality ?? 0) + 1}: +1 урона за группу клинков. Тип оружия сохраняется.`,
+    tag: 'Текущее оружие',
+  };
+}
+export function restOptions(s: State) {
+  const sharpening = sharpeningOffer(s);
+  return [...upgradeOptions(s), ...(sharpening ? [sharpening] : [])];
+}
 export function equipmentOptions(s: State): EquipmentItem[] {
   const maxTier = s.room >= 6 ? 2 : 1;
-  // Quality is a label, not a progression index: weapons have five steps.
+  if (s.rulesVersion === 2) {
+    const quality: 0 | 1 | 2 = s.room >= 11 ? 2 : s.room >= 5 ? 1 : 0;
+    const weapons = WEAPONS.filter(
+      (w) => w.id !== s.equipment.weapon || quality > (s.weaponQuality ?? 0),
+    ).map((w) => weaponOffer(w.id, quality));
+    const armor = EQUIPMENT_SLOTS.filter((slot) => slot !== 'weapon').flatMap(
+      (slot) => {
+        const bonus = equipmentBonus(s, slot);
+        const next = EQUIPMENT.find(
+          (item) =>
+            item.slot === slot &&
+            item.tier <= maxTier &&
+            item.bonus > (s.equipment[slot] ? bonus : -1),
+        );
+        return next ? [next] : [];
+      },
+    );
+    return [...weapons, ...armor];
+  }
+  // Classic saves retain the original progression.
   // Keep one next improvement per slot, including stronger weapons of the same quality.
   return EQUIPMENT_SLOTS.flatMap((slot) => {
     const bonus = equipmentById(s.equipment[slot])?.bonus ?? -1;
@@ -383,6 +493,8 @@ export type Stats = {
 };
 export type State = {
   version: 2;
+  rulesVersion?: 2;
+  weaponQuality?: 0 | 1 | 2;
   equipment: Equipment;
   seed: number;
   rng: number;
@@ -736,14 +848,22 @@ function heal(s: State, value: number) {
   s.hp += actual;
   if (actual) note(s, `Восстановлено ${actual} здоровья`);
 }
-function hit(s: State, value: number, piercing = false, direct = true) {
+function hit(
+  s: State,
+  value: number,
+  piercing: boolean | number = false,
+  direct = true,
+  targetId?: number,
+) {
   if (s.phase === 'trial' && s.trial) {
     s.trial.damage += value;
     return;
   }
   const e =
-    s.enemies.find((e) => e.id === s.target && e.hp > 0) ??
-    s.enemies.find((e) => e.hp > 0);
+    targetId !== undefined
+      ? s.enemies.find((e) => e.id === targetId && e.hp > 0)
+      : (s.enemies.find((e) => e.id === s.target && e.hp > 0) ??
+        s.enemies.find((e) => e.hp > 0));
   if (!e) return;
   if (
     direct &&
@@ -752,7 +872,13 @@ function hit(s: State, value: number, piercing = false, direct = true) {
     once(s, 'turn:toxin')
   )
     e.poison += 2;
-  const absorb = piercing ? 0 : Math.min(value, e.block);
+  const bypass =
+    typeof piercing === 'number'
+      ? Math.min(value, piercing)
+      : piercing
+        ? value
+        : 0;
+  const absorb = Math.min(Math.max(0, value - bypass), e.block);
   e.block -= absorb;
   const damage = Math.min(e.hp, value - absorb);
   e.hp -= damage;
@@ -762,6 +888,47 @@ function hit(s: State, value: number, piercing = false, direct = true) {
     if (e.poison > 0 && s.relics.includes('heart') && once(s, 'battle:heart'))
       heal(s, 3);
   }
+}
+function weaponAttack(s: State, count: number, venom: number) {
+  const id = s.equipment.weapon ?? 'gear-cutter';
+  const base =
+    count * s.balance.blade +
+    s.upgrades.blade * 2 +
+    equipmentBonus(s, 'weapon');
+  const first =
+    s.enemies.find((e) => e.id === s.target && e.hp > 0) ??
+    s.enemies.find((e) => e.hp > 0);
+  const second = s.enemies.find((e) => e.hp > 0 && e.id !== first?.id);
+  let value = base;
+  if (['gear-rusty-dagger', 'gear-rune-sword'].includes(id))
+    value = Math.max(0, base - 2);
+  if (id === 'gear-axe') value = Math.max(0, base + (count >= 4 ? 4 : -2));
+  const splash = id === 'gear-cleaver' && second ? Math.floor(value / 3) : 0;
+  const strikes = [
+    { target: first, value: value - splash },
+    ...(splash ? [{ target: second, value: splash }] : []),
+  ];
+  for (const strike of strikes) {
+    hit(
+      s,
+      strike.value,
+      id === 'gear-cutter' ? 2 : false,
+      true,
+      strike.target?.id,
+    );
+    const addedPoison = venom + (id === 'gear-rusty-dagger' ? 2 : 0);
+    if (strike.target && strike.target.hp > 0 && addedPoison)
+      strike.target.poison += addedPoison;
+  }
+  if (id === 'gear-rune-sword') {
+    gainEnergy(s, 1);
+    if (s.trial) s.trial.energy++;
+    if (once(s, 'turn:rune-trigger')) s.flags.push('turn:rune-armed');
+  }
+  note(
+    s,
+    `${equipmentById(id)?.name}: ${value} урона${splash ? `, из них ${splash} второй цели` : ''}${id === 'gear-rusty-dagger' ? ', +2 яда выжившей цели' : ''}${id === 'gear-rune-sword' ? ', +1 энергия' : ''}`,
+  );
 }
 function gainEnergy(s: State, amount: number) {
   const overflow = s.energy + amount > energyMax(s);
@@ -815,7 +982,12 @@ function hurtHero(s: State, value: number, piercing = false) {
   s.hp -= damage;
   return damage;
 }
-function resolve(s: State, frames: Frame[], manual: boolean) {
+function resolve(
+  s: State,
+  frames: Frame[],
+  manual: boolean,
+  firstWaveOnly = false,
+) {
   let wave = 0;
   while (true) {
     const matches = groups(s.board);
@@ -863,13 +1035,19 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
         if (s.relics.includes('thread') && once(s, 'battle:thread')) heal(s, 3);
       }
       if (family === 'blade') {
-        poison(s, indices.filter((i) => s.board[i].variant === 'venom').length);
-        const value =
-          count * s.balance.blade +
-          s.upgrades.blade * 2 +
-          equipmentBonus(s, 'weapon');
-        hit(s, value);
-        note(s, `Клинки: ${value} урона`);
+        const venom = indices.filter(
+          (i) => s.board[i].variant === 'venom',
+        ).length;
+        if (s.rulesVersion === 2) weaponAttack(s, count, venom);
+        else {
+          poison(s, venom);
+          const value =
+            count * s.balance.blade +
+            s.upgrades.blade * 2 +
+            equipmentBonus(s, 'weapon');
+          hit(s, value);
+          note(s, `Клинки: ${value} урона`);
+        }
         if (s.flags.includes('vessel:armed')) {
           s.block += 4;
           s.flags = s.flags.filter((x) => x !== 'vessel:armed');
@@ -949,6 +1127,7 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
       },
     });
     collateral.forEach((i) => removed.add(i));
+    if (firstWaveOnly) return;
     collapse(s, removed);
     if (s.hp <= 0) break;
   }
@@ -1146,6 +1325,8 @@ export function startRun(
   seed = seed >>> 0;
   const s: State = {
     version: 2,
+    rulesVersion: 2,
+    weaponQuality: 0,
     equipment: startingEquipment(),
     seed,
     rng: seed >>> 0,
@@ -1176,7 +1357,7 @@ export function startRun(
     log: ['Сдвинь строку или столбец и собери три одинаковых символа.'],
     offers: [],
     path: ['Вход в крипту'],
-    flags: ['run:available:thorns', 'run:available:order'],
+    flags: RELICS.map((r) => `run:available:${r.id}`),
     balance: { ...balance },
     modified:
       balance.health !== 40 ||
@@ -1218,31 +1399,96 @@ function makeEnemy(
     damage: definition.damage,
   };
 }
+export function previewMove(
+  input: State,
+  axis: 'row' | 'col',
+  line: number,
+  amount: number,
+) {
+  const error = moveError(input, axis, line, amount);
+  if (error) return { error };
+  const s = copy(input);
+  s.board = shifted(s.board, axis, line, amount);
+  const frames: Frame[] = [];
+  resolve(s, frames, true, true);
+  const cells = frames[0]?.cells ?? [];
+  const defeated = s.enemies.filter((e) => e.hp === 0).map((e) => e.id);
+  return {
+    error: undefined,
+    cells,
+    targets: s.enemies
+      .map((e) => {
+        const before = input.enemies.find((old) => old.id === e.id)!;
+        return {
+          id: e.id,
+          name: e.name,
+          damage: before.hp - e.hp,
+          block: before.block - e.block,
+          poison: e.poison - before.poison,
+          defeated: before.hp > 0 && e.hp === 0,
+          phaseChanged: e.hp > 0 && bossPhase(e) !== bossPhase(before),
+          intent: e.hp > 0 ? intent(s, e) : null,
+        };
+      })
+      .filter((e) => e.damage || e.block || e.poison || e.phaseChanged),
+    block: s.block - input.block,
+    energy: s.energy - input.energy,
+    focus: s.focus - input.focus,
+    health: s.hp - input.hp,
+    trialDamage: (s.trial?.damage ?? 0) - (input.trial?.damage ?? 0),
+    tideCleared: !!s.tide?.cleared && !input.tide?.cleared,
+    inkCleared:
+      input.board.filter((t) => t.ink).length -
+      s.board.filter((t, i) => t.ink && !cells.includes(i)).length,
+    rootsCleared: s.board.filter(
+      (t, i) =>
+        t.root && (cells.includes(i) || defeated.includes(t.root.owner)),
+    ).length,
+    runeReady: input.phase !== 'trial' && s.flags.includes('turn:rune-armed'),
+    limitsUsed: s.flags.filter(
+      (f) => !input.flags.includes(f) && /^(turn:|battle:|conductor:)/.test(f),
+    ),
+    lethal: s.hp === 0,
+    enemiesDefeated:
+      input.phase === 'battle' && s.enemies.every((e) => !e.hp) && s.hp > 0,
+  };
+}
+function moveError(
+  input: State,
+  axis: 'row' | 'col',
+  line: number,
+  amount: number,
+) {
+  if (
+    !['battle', 'trial'].includes(input.phase) ||
+    input.moved ||
+    input.trial?.paused
+  )
+    return 'Сначала заверши ход.';
+  if (
+    !['row', 'col'].includes(axis) ||
+    !Number.isInteger(line) ||
+    line < 0 ||
+    line > 5 ||
+    !Number.isInteger(amount) ||
+    amount < -5 ||
+    amount > 5 ||
+    amount === 0
+  )
+    return 'Выбери сдвиг от 1 до 5 клеток.';
+  if (!groups(shifted(input.board, axis, line, amount)).length)
+    return 'Нет комбинации — сдвиг не тратится.';
+}
 export function move(
   input: State,
   axis: 'row' | 'col',
   line: number,
   amount: number,
 ): Result {
-  if (
-    !['battle', 'trial'].includes(input.phase) ||
-    input.moved ||
-    input.trial?.paused
-  )
-    return result(input, [], 'Сначала заверши ход.');
-  if (
-    !Number.isInteger(line) ||
-    line < 0 ||
-    line > 5 ||
-    !Number.isInteger(amount) ||
-    amount % 6 === 0
-  )
-    return result(input, [], 'Выбери строку или столбец.');
-  const b = shifted(input.board, axis, line, amount);
-  if (!groups(b).length)
-    return result(input, [], 'Нет комбинации — сдвиг возвращён.');
+  const error = moveError(input, axis, line, amount);
+  if (error) return result(input, [], error);
   const s = copy(input);
-  s.board = b;
+  s.board = shifted(s.board, axis, line, amount);
   s.moved = s.phase !== 'trial';
   const frames: Frame[] = [];
   resolve(s, frames, true);
@@ -1466,11 +1712,22 @@ export function castSkill(
   }
   if (cost[0] >= 6 && s.relics.includes('return')) s.flags.push('return:armed');
   const bonus = cost[2] && s.relics.includes('lens') ? 4 : 0;
-  if (id === 'bolt') hit(s, 12);
+  const rune =
+    s.rulesVersion === 2 &&
+    cost[0] > 0 &&
+    ['bolt', 'seal'].includes(id) &&
+    s.flags.includes('turn:rune-armed')
+      ? 2
+      : 0;
+  if (rune) {
+    s.flags = s.flags.filter((f) => f !== 'turn:rune-armed');
+    note(s, 'Рунный заряд: +2 урона приёму.');
+  }
+  if (id === 'bolt') hit(s, 12 + rune);
   if (id === 'guard') s.block += 8;
   if (id === 'pierce') hit(s, 8, true);
   if (id === 'blood') hit(s, 8 + bonus);
-  if (id === 'seal') hit(s, 16 + bonus);
+  if (id === 'seal') hit(s, 16 + bonus + rune);
   if (id === 'edit') {
     s.board[index] = tile(s, family);
     s.board[index].variant = null;
@@ -1541,6 +1798,18 @@ export function consumePotion(input: State): Result {
 }
 export function rewardOffers(s: State, strong = false): Offer[] {
   const gearPool = equipmentOptions(s);
+  if (s.room === 1 && s.rulesVersion === 2) {
+    const weapons = gearPool.filter((o) => o.slot === 'weapon');
+    const mods = MODIFIERS.filter((o) => !s.modifiers.includes(o.id));
+    const useful = RELICS.filter(
+      (r) =>
+        ['thorns', 'coil', 'prism', 'order', 'lamp', 'thread'].includes(r.id) &&
+        !s.relics.includes(r.id),
+    );
+    return [weapons, mods, useful].flatMap((pool) =>
+      pool.length ? [pool[Math.floor(random(s) * pool.length)]] : [],
+    );
+  }
   const equipment = gearPool.length
     ? [gearPool[Math.floor(random(s) * gearPool.length)]]
     : [];
@@ -1555,7 +1824,8 @@ export function rewardOffers(s: State, strong = false): Offer[] {
     ...RELICS.filter(
       (x) =>
         !s.relics.includes(x.id) &&
-        (BASE_RELICS.includes(x.id) ||
+        (s.rulesVersion === 2 ||
+          BASE_RELICS.includes(x.id) ||
           s.flags.includes(`run:available:${x.id}`)),
     ),
     ...MODIFIERS.filter((x) => !s.modifiers.includes(x.id)),
@@ -1575,7 +1845,8 @@ export function rewardOffers(s: State, strong = false): Offer[] {
         ? 'prism'
         : null;
   const candidate = pool.findIndex((x) => x.id === synergy);
-  if (candidate >= 0) offers.push(pool.splice(candidate, 1)[0]);
+  if (s.rulesVersion !== 2 && candidate >= 0)
+    offers.push(pool.splice(candidate, 1)[0]);
   while (offers.length < 3 && pool.length)
     offers.push(pool.splice(Math.floor(random(s) * pool.length), 1)[0]);
   return [...equipment, ...offers];
@@ -1705,7 +1976,8 @@ export function abandonMeta(input: Meta, s: State) {
   }
   return m;
 }
-export function availableRelics(m: Meta) {
+export function availableRelics(m: Meta, rulesVersion?: 2) {
+  if (rulesVersion === 2) return RELICS.map((r) => r.id);
   return [
     ...BASE_RELICS,
     ...ACHIEVEMENTS.filter((a) => m.unlocked.includes(a.id)).map(
@@ -1715,7 +1987,9 @@ export function availableRelics(m: Meta) {
 }
 export function withUnlocks(s: State, m: Meta) {
   s.flags = s.flags.filter((f) => !f.startsWith('run:available:'));
-  s.flags.push(...availableRelics(m).map((id) => `run:available:${id}`));
+  s.flags.push(
+    ...availableRelics(m, s.rulesVersion).map((id) => `run:available:${id}`),
+  );
   return s;
 }
 export function nextRooms(s: State): Room[] {
@@ -2015,6 +2289,20 @@ function grant(s: State, offer: Offer, slot?: number): string | undefined {
     const item = equipmentById(offer.id);
     if (!item) return 'Неизвестный предмет экипировки.';
     const previous = equipmentById(s.equipment[item.slot]);
+    if (s.rulesVersion === 2 && item.slot === 'weapon') {
+      const quality = offer.quality;
+      if (quality === undefined || ![0, 1, 2].includes(quality))
+        return 'Неизвестное качество оружия.';
+      if (previous?.id === item.id && quality === s.weaponQuality)
+        return 'Такое оружие уже надето.';
+      s.equipment.weapon = item.id;
+      s.weaponQuality = quality;
+      note(
+        s,
+        `Оружие: ${item.name}, качество ${quality}/2. ${WEAPON_RULES[item.id].short}.`,
+      );
+      return;
+    }
     if (previous && previous.bonus >= item.bonus)
       return 'У тебя уже есть такая же или более сильная вещь.';
     s.equipment[item.slot] = item.id;
@@ -2050,6 +2338,12 @@ function grant(s: State, offer: Offer, slot?: number): string | undefined {
       s.skills[slot] = offer.id;
     } else s.skills.push(offer.id);
   }
+  if (offer.id === 'sharpen') {
+    if (!sharpeningOffer(s)) return 'Оружие уже заточено до предела.';
+    s.weaponQuality = ((s.weaponQuality ?? 0) + 1) as 1 | 2;
+    note(s, `Оружие заточено: качество ${s.weaponQuality}/2.`);
+    return;
+  }
   if (offer.kind === 'upgrade') {
     const f = offer.id.slice(3) as Family;
     if (!FAMILIES.includes(f) || s.upgrades[f] >= 2)
@@ -2082,12 +2376,16 @@ export function chooseReward(
 function shopOffers(s: State): Offer[] {
   const relicPool = RELICS.filter(
     (r) =>
-      !s.relics.includes(r.id) && s.flags.includes(`run:available:${r.id}`),
+      !s.relics.includes(r.id) &&
+      (s.rulesVersion === 2 || s.flags.includes(`run:available:${r.id}`)),
   );
   const offers: Offer[] = [];
   const gearPool = equipmentOptions(s);
   for (let i = 0; i < 2 && gearPool.length; i++) {
     const item = gearPool.splice(Math.floor(random(s) * gearPool.length), 1)[0];
+    if (s.rulesVersion === 2)
+      for (let j = gearPool.length - 1; j >= 0; j--)
+        if (gearPool[j].slot === item.slot) gearPool.splice(j, 1);
     offers.push({ ...item, cost: [25, 40, 65][item.tier] });
   }
   for (let i = 0; i < 2 && relicPool.length; i++)
@@ -2110,6 +2408,8 @@ function shopOffers(s: State): Offer[] {
     cost: 25,
   });
   const ups = upgradeOptions(s);
+  const sharpening = sharpeningOffer(s);
+  if (sharpening) offers.push({ ...sharpening, cost: 40 });
   if (ups.length)
     offers.push({ ...ups[Math.floor(random(s) * ups.length)], cost: 35 });
   // Roll once on entry, using the saved run RNG. Displaying or buying an offer
@@ -2156,7 +2456,7 @@ export function rest(input: State, choice: string): Result {
   const s = copy(input);
   if (choice === 'heal') heal(s, Math.ceil(s.maxHp * 0.25));
   else {
-    const offer = upgradeOptions(s).find((x) => x.id === choice);
+    const offer = restOptions(s).find((x) => x.id === choice);
     if (!offer) return result(input, [], 'Улучшение недоступно.');
     const error = grant(s, offer);
     if (error) return result(input, [], error);
@@ -2217,6 +2517,10 @@ export function isSave(value: unknown): value is State {
   return (
     s.version === 2 &&
     isEquipment(s.equipment) &&
+    (s.rulesVersion === undefined || s.rulesVersion === 2) &&
+    (s.rulesVersion !== 2 ||
+      (Number.isInteger(s.weaponQuality) &&
+        [0, 1, 2].includes(s.weaponQuality!))) &&
     typeof s.runId === 'string' &&
     Number.isFinite(s.rng) &&
     Number.isInteger(s.room) &&
@@ -2277,7 +2581,12 @@ export function isSave(value: unknown): value is State {
     Array.isArray(s.offers) &&
     s.offers.every(
       (offer) =>
-        offer && (offer.kind !== 'equipment' || !!equipmentById(offer.id)),
+        offer &&
+        (offer.kind !== 'equipment' ||
+          (!!equipmentById(offer.id) &&
+            (s.rulesVersion !== 2 ||
+              equipmentById(offer.id)?.slot !== 'weapon' ||
+              [0, 1, 2].includes(offer.quality!)))),
     ) &&
     !!s.stats &&
     !!s.balance &&
@@ -2351,13 +2660,23 @@ export function canCast(s: State, id: string): boolean {
 
 export function configureRun(
   s: State,
-  preset: 'normal' | 'shields' | 'poison' | 'cascades',
+  preset: 'normal' | 'shields' | 'poison' | 'cascades' | 'editor' | 'runes',
 ): State {
   if (preset === 'normal') return s;
   s.modified = true;
   s.flags.push(...RELICS.map((x) => `run:available:${x.id}`));
   if (preset === 'shields') s.relics = ['thorns', 'coil', 'return'];
+  if (preset === 'editor') {
+    s.equipment.weapon = 'gear-axe';
+    s.relics = ['order', 'thread'];
+    s.focus = 3;
+  }
+  if (preset === 'runes') {
+    s.equipment.weapon = 'gear-rune-sword';
+    s.relics = ['coil', 'lamp'];
+  }
   if (preset === 'poison') {
+    if (s.rulesVersion === 2) s.equipment.weapon = 'gear-rusty-dagger';
     s.modifiers = ['venom'];
     s.relics = ['toxin', 'heart'];
   }

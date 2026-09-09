@@ -1,5 +1,6 @@
 /* eslint-disable react/react-compiler, nextjs/no-img-element -- This event-driven renderer is not React Compiler compiled; refs bridge asynchronous frame replay and WebMCP to React state. */
 'use client';
+import { MovePreview } from '@/components/move-preview';
 import { roomBackground, ROOM_BACKGROUNDS } from '@/game/visual-style';
 import { ArchiveMechanics } from '@/components/archive-mechanics';
 import { biomeAt, TOTAL_ROOMS } from '@/game/engine';
@@ -85,6 +86,7 @@ import {
   castSkill,
   consumePotion,
   shifted,
+  itemForRun,
   groups,
   validMoves,
   bossPhase,
@@ -150,10 +152,11 @@ export default function Game() {
       setMessage(transition.error);
       return;
     }
+    setPreview(null);
+    gesture.current = null;
     busyRef.current = true;
     setBusy(true);
     setEditing(null);
-    setPreview(null);
     let previous = gameRef.current;
     const reduced = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
@@ -243,7 +246,9 @@ export default function Game() {
     const fresh = updated.unlocked.filter((x) => !old.unlocked.includes(x));
     if (fresh.length)
       setNewDiscovery(
-        `Новое открытие! Реликвии станут доступны в следующем забеге.`,
+        game.rulesVersion === 2
+          ? 'Новое достижение! Отмечено в справочнике.'
+          : 'Новое открытие! Реликвии станут доступны в следующем забеге.',
       );
     metaRef.current = updated;
     setMeta(updated);
@@ -286,10 +291,14 @@ export default function Game() {
     return () => document.removeEventListener('visibilitychange', hidden);
   }, []);
   const doMove = (axis: 'row' | 'col', line: number, amount: number) => {
-    if (!busyRef.current && active) void play(move(game, axis, line, amount));
+    if (busyRef.current || !active || game.moved || game.trial?.paused) return;
+    if (game.rulesVersion === 2) {
+      setEditing(null);
+      setPreview({ axis, line, amount });
+    } else void play(move(game, axis, line, amount));
   };
   const pointerDown = (e: PointerEvent<HTMLButtonElement>, i: number) => {
-    if (busy || !active) return;
+    if (busy || !active || game.trial?.paused) return;
     setSelected(i);
     if (editing) {
       void play(castSkill(game, 'edit', i, editing));
@@ -328,8 +337,10 @@ export default function Game() {
   };
   const dragEnd = () => {
     gesture.current = null;
-    if (preview) doMove(preview.axis, preview.line, preview.amount);
-    setPreview(null);
+    if (preview && game.rulesVersion !== 2) {
+      doMove(preview.axis, preview.line, preview.amount);
+      setPreview(null);
+    }
   };
   const hint = () => {
     const m = validMoves(game.board).sort(
@@ -344,14 +355,21 @@ export default function Game() {
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || modalOpen || busyRef.current || !active) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setEditing(null);
+        setPreview(null);
+        gesture.current = null;
+        return;
+      }
+      const target = e.target as HTMLElement;
       if (
-        e.defaultPrevented ||
-        modalOpen ||
-        busyRef.current ||
-        !active ||
-        (e.target as HTMLElement).closest(
-          'input,textarea,select,a,[role=slider],[role=radio],[role=radiogroup],button:not(.tile)',
-        )
+        target.closest(
+          'input,textarea,select,a,[role=slider],[role=radio],[role=radiogroup]',
+        ) ||
+        (target.closest('button:not(.tile)') &&
+          !(e.key === 'Enter' && preview && target.closest('.board-frame')))
       )
         return;
       const keys: Record<string, ['row' | 'col', number, number]> = {
@@ -370,7 +388,10 @@ export default function Game() {
           game.phase === 'trial' ? pauseTrial(game, true) : endTurn(game),
         );
       }
-      if (e.key === 'Escape') setEditing(null);
+      if (e.key === 'Enter' && preview) {
+        e.preventDefault();
+        void play(move(game, preview.axis, preview.line, preview.amount));
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -792,6 +813,29 @@ export default function Game() {
               })}
             </div>
           </div>
+          {game.rulesVersion !== 2 && (
+            <p className="rules-notice">
+              Этот забег идёт по прежним правилам. Пять поведений оружия
+              доступны в новом спуске.
+            </p>
+          )}
+          {game.rulesVersion === 2 &&
+            !busy &&
+            active &&
+            !modalOpen &&
+            !game.trial?.paused && (
+              <MovePreview
+                game={game}
+                move={preview}
+                onConfirm={() => {
+                  if (preview)
+                    void play(
+                      move(game, preview.axis, preview.line, preview.amount),
+                    );
+                }}
+                onCancel={() => setPreview(null)}
+              />
+            )}
           <div className="turn-controls">
             <output className="move-message">
               {editing ? `Выбери фишку → ${FAMILY_NAMES[editing]}` : message}
@@ -854,7 +898,7 @@ export default function Game() {
                 </span>
                 <span>
                   <strong>{itemById(id)?.name}</strong>
-                  <small>{itemById(id)?.description}</small>
+                  <small>{itemForRun(s, id)?.description}</small>
                 </span>
               </Button>
             ))}
@@ -863,7 +907,11 @@ export default function Game() {
                 variant="ghost"
                 className="edit-trigger"
                 disabled={busy || s.cast || s.focus < 3 || !active}
-                onClick={() => setEditing(editing ? null : 'blade')}
+                onClick={() => {
+                  setPreview(null);
+                  gesture.current = null;
+                  setEditing(editing ? null : 'blade');
+                }}
               >
                 <SkinIcon name="focus" size={32} />
                 <span>
@@ -970,7 +1018,13 @@ export default function Game() {
         <span>
           <Footprints size={14} /> Два биома. Двадцать комнат. Твоя сборка.
         </span>
-        <span>Выбери фишку + ← ↑ ↓ → · Пробел — завершить ход</span>
+        <span>
+          Выбери фишку + ← ↑ ↓ →
+          {game.rulesVersion === 2
+            ? ' · Enter — подтвердить · Esc — отменить'
+            : ''}{' '}
+          · Пробел — завершить ход
+        </span>
       </footer>
       {newDiscovery && (
         <button
@@ -1022,11 +1076,12 @@ export default function Game() {
           </div>
           <DialogTitle>{itemById(detail ?? '')?.name}</DialogTitle>
           <DialogDescription>
-            {itemById(detail ?? '')?.description}
+            {itemForRun(s, detail ?? '')?.description}
           </DialogDescription>
-          <span className="offer-tag">{itemById(detail ?? '')?.tag}</span>
+          <span className="offer-tag">{itemForRun(s, detail ?? '')?.tag}</span>
           {equipmentById(detail)?.slot === 'weapon' && (
             <WeaponGallery
+              game={s}
               selectedId={detail!}
               equippedId={s.equipment.weapon}
               onSelect={setDetail}
@@ -1061,6 +1116,14 @@ export default function Game() {
               Перетащи фишку вдоль строки или столбца. Двигается вся линия;
               вышедшие за край фишки возвращаются с другой стороны.
             </p>
+            {game.rulesVersion === 2 && (
+              <p>
+                После выбора сдвига проверь результат под полем. «Сделать сдвиг»
+                или Enter подтверждает его, «Отмена» или Esc возвращает поле.
+                Показана первая волна; пополнение и случайные каскады
+                неизвестны.
+              </p>
+            )}
             <p>
               Три одинаковых семейства дают урон, блок, энергию или фокус. Сдвиг
               без комбинации не тратит ход.
