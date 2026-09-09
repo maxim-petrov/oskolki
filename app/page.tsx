@@ -144,6 +144,7 @@ export default function Game() {
     amount: number;
   } | null>(null);
   const gesture = useRef<{
+    pointerId: number;
     x: number;
     y: number;
     index: number;
@@ -309,12 +310,17 @@ export default function Game() {
     return () => document.removeEventListener('visibilitychange', hidden);
   }, []);
   const doMove = (axis: 'row' | 'col', line: number, amount: number) => {
-    if (busyRef.current || !active || game.moved || game.trial?.paused) return;
-    if ((game.rulesVersion ?? 0) >= 2) {
-      setEditing(null);
-      setEditFirst(null);
-      setPreview({ axis, line, amount });
-    } else void play(move(game, axis, line, amount));
+    if (
+      busyRef.current ||
+      !active ||
+      modalOpen ||
+      game.moved ||
+      game.trial?.paused
+    )
+      return;
+    setEditing(null);
+    setEditFirst(null);
+    void play(move(game, axis, line, amount));
   };
   const selectEditCell = (index: number) => {
     if (!editing || busyRef.current) return;
@@ -328,7 +334,15 @@ export default function Game() {
     } else void play(castSkill(game, 'edit', index, editing));
   };
   const pointerDown = (e: PointerEvent<HTMLButtonElement>, i: number) => {
-    if (busy || !active || game.trial?.paused) return;
+    if (
+      !e.isPrimary ||
+      e.button !== 0 ||
+      busyRef.current ||
+      !active ||
+      modalOpen ||
+      game.trial?.paused
+    )
+      return;
     setSelected(i);
     if (editing) {
       selectEditCell(i);
@@ -337,40 +351,43 @@ export default function Game() {
     if (game.moved) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     gesture.current = {
+      pointerId: e.pointerId,
       x: e.clientX,
       y: e.clientY,
       index: i,
       size: e.currentTarget.getBoundingClientRect().width + 5,
     };
   };
-  const dragMove = (e: PointerEvent<HTMLButtonElement>) => {
+  const draggedMove = (e: PointerEvent<HTMLButtonElement>) => {
     const d = gesture.current;
-    if (!d) return;
+    if (!d || d.pointerId !== e.pointerId) return null;
     const dx = e.clientX - d.x,
       dy = e.clientY - d.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < d.size * 0.35) {
-      setPreview(null);
-      return;
-    }
-    const axis = Math.abs(dx) > Math.abs(dy) ? 'row' : 'col';
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < d.size * 0.35) return null;
+    const axis: 'row' | 'col' = Math.abs(dx) > Math.abs(dy) ? 'row' : 'col';
     const delta = axis === 'row' ? dx : dy;
     const amount = Math.max(-5, Math.min(5, Math.round(delta / d.size)));
-    setPreview(
-      amount
-        ? {
-            axis,
-            line: axis === 'row' ? Math.floor(d.index / 6) : d.index % 6,
-            amount,
-          }
-        : null,
-    );
+    return amount
+      ? {
+          axis,
+          line: axis === 'row' ? Math.floor(d.index / 6) : d.index % 6,
+          amount,
+        }
+      : null;
   };
-  const dragEnd = () => {
+  const dragMove = (e: PointerEvent<HTMLButtonElement>) => {
+    if (gesture.current?.pointerId === e.pointerId) setPreview(draggedMove(e));
+  };
+  const cancelDrag = () => {
     gesture.current = null;
-    if (preview && (game.rulesVersion ?? 0) < 2) {
-      doMove(preview.axis, preview.line, preview.amount);
-      setPreview(null);
-    }
+    setPreview(null);
+  };
+  const dragEnd = (e: PointerEvent<HTMLButtonElement>) => {
+    if (gesture.current?.pointerId !== e.pointerId) return;
+    // Use release coordinates, even if React has not rendered the last preview.
+    const chosen = draggedMove(e);
+    cancelDrag();
+    if (chosen) doMove(chosen.axis, chosen.line, chosen.amount);
   };
   const hint = () => {
     const m = validMoves(game.board).sort(
@@ -399,8 +416,7 @@ export default function Game() {
         target.closest(
           'input,textarea,select,a,[role=slider],[role=radio],[role=radiogroup]',
         ) ||
-        (target.closest('button:not(.tile)') &&
-          !(e.key === 'Enter' && preview && target.closest('.board-frame')))
+        target.closest('button:not(.tile)')
       )
         return;
       const keys: Record<string, ['row' | 'col', number, number]> = {
@@ -418,10 +434,6 @@ export default function Game() {
         void play(
           game.phase === 'trial' ? pauseTrial(game, true) : endTurn(game),
         );
-      }
-      if (e.key === 'Enter' && preview) {
-        e.preventDefault();
-        void play(move(game, preview.axis, preview.line, preview.amount));
       }
     };
     window.addEventListener('keydown', onKey);
@@ -765,10 +777,8 @@ export default function Game() {
                         onPointerDown={(e) => pointerDown(e, i)}
                         onPointerMove={dragMove}
                         onPointerUp={dragEnd}
-                        onPointerCancel={() => {
-                          gesture.current = null;
-                          setPreview(null);
-                        }}
+                        onPointerCancel={cancelDrag}
+                        onLostPointerCapture={cancelDrag}
                         onClick={(e) => {
                           if (e.detail === 0) {
                             setSelected(i);
@@ -858,19 +868,7 @@ export default function Game() {
             !busy &&
             active &&
             !modalOpen &&
-            !game.trial?.paused && (
-              <MovePreview
-                game={game}
-                move={preview}
-                onConfirm={() => {
-                  if (preview)
-                    void play(
-                      move(game, preview.axis, preview.line, preview.amount),
-                    );
-                }}
-                onCancel={() => setPreview(null)}
-              />
-            )}
+            !game.trial?.paused && <MovePreview game={game} move={preview} />}
           <div className="turn-controls">
             <output className="move-message">
               {editing
@@ -1056,10 +1054,7 @@ export default function Game() {
         </span>
         <span>
           Выбери фишку + ← ↑ ↓ →
-          {(game.rulesVersion ?? 0) >= 2
-            ? ' · Enter — подтвердить · Esc — отменить'
-            : ''}{' '}
-          · Пробел — завершить ход
+          {' · Esc — отменить перетаскивание · Пробел — завершить ход'}
         </span>
       </footer>
       {active && !modalOpen && !game.trial?.paused && (
@@ -1187,10 +1182,11 @@ export default function Game() {
             </p>
             {(game.rulesVersion ?? 0) >= 2 && (
               <p>
-                После выбора сдвига проверь результат под полем. «Сделать сдвиг»
-                или Enter подтверждает его, «Отмена» или Esc возвращает поле.
-                Показана первая волна; пополнение и случайные каскады
-                неизвестны.
+                Во время перетаскивания под полем виден результат первой волны.
+                Отпусти фишку — сдвиг сразу сработает. Esc отменяет
+                перетаскивание. Нажатие на стрелку у поля или клавишу
+                направления сразу сдвигает линию на одну клетку. Пополнение и
+                случайные каскады заранее неизвестны.
               </p>
             )}
             <p>

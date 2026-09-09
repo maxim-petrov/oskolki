@@ -26,23 +26,20 @@ test('preview UI explains affected targets, consumed block, poison, rune energy 
   const html = render(MovePreview, {
     game: s,
     move: m,
-    onConfirm() {},
-    onCancel() {},
   });
   assert.ok(html.includes(s.enemies[0].name));
   assert.ok(html.includes(`−${p.targets[0].damage} здоровья`));
   assert.ok(html.includes('−2 блока'));
   assert.ok(html.includes('+2 яда'));
-  assert.ok(html.includes('Сделать сдвиг'));
-  assert.ok(html.includes('Отмена'));
+  assert.ok(!html.includes('<button'));
+  assert.ok(html.includes('Отпусти фишку, чтобы сделать ход'));
+  assert.ok(html.includes('Esc — отменить перетаскивание'));
   assert.ok(html.includes('случайные каскады не показаны'));
   assert.deepEqual(s, before);
   s.equipment.weapon = 'gear-rune-sword';
   const runes = render(MovePreview, {
     game: s,
     move: m,
-    onConfirm() {},
-    onCancel() {},
   });
   assert.ok(runes.includes('Рунный заряд готов'));
   assert.ok(
@@ -53,23 +50,22 @@ test('preview UI explains affected targets, consumed block, poison, rune energy 
   s.flags.push('turn:rune-armed');
   assert.ok(g.itemForRun(s, 'bolt').description.includes('14 урона'));
 });
-test('illegal previews cannot confirm; idle and already-used turns show truthful guidance', () => {
+test('illegal drag previews explain errors without actions; idle and used turns explain immediate movement', () => {
   const s = g.startRun();
   const html = render(MovePreview, {
     game: s,
     move: { axis: 'row', line: 0, amount: 0 },
-    onConfirm() {},
-    onCancel() {},
   });
   assert.match(html, /Выбери сдвиг от 1 до 5/);
-  assert.match(html, /<button[^>]*disabled[^>]*>Сделать сдвиг/);
+  assert.ok(!html.includes('<button'));
   assert.ok(!html.includes('случайные каскады'));
+  const idle = render(MovePreview, { game: s, move: null });
+  assert.ok(idle.includes('Стрелка сразу сдвигает линию'));
+  assert.ok(idle.includes('отпусти фишку'));
   s.moved = true;
   const used = render(MovePreview, {
     game: s,
     move: null,
-    onConfirm() {},
-    onCancel() {},
   });
   assert.ok(used.includes('Сдвиг использован'));
 });

@@ -1038,7 +1038,6 @@ html[data-skin='palace-cellar'] {
     line-height: 1.45;
   }
   .move-preview-heading,
-  .move-preview-actions,
   .move-preview-resources {
     display: flex;
     gap: 8px 16px;
@@ -1064,13 +1063,6 @@ html[data-skin='palace-cellar'] {
   }
   .move-preview-resources {
     font-weight: bold;
-  }
-  .move-preview-actions {
-    margin-top: 12px;
-  }
-  .move-preview-actions button {
-    font-size: 14px;
-    min-height: 36px;
   }
   .move-preview-danger {
     color: var(--palace-red);

@@ -1,5 +1,4 @@
 'use client';
-import { Button } from '@/components/ui/button';
 import { previewMove, type State } from '@/game/engine';
 
 const LIMITS: Record<string, string> = {
@@ -15,20 +14,16 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 export function MovePreview({
   game,
   move,
-  onConfirm,
-  onCancel,
 }: {
   game: State;
   move: { axis: 'row' | 'col'; line: number; amount: number } | null;
-  onConfirm: () => void;
-  onCancel: () => void;
 }) {
   if (!move || game.moved)
     return (
       <p className="move-preview-hint">
         {game.moved
           ? 'Сдвиг использован. Можно применить приём или завершить ход.'
-          : 'Выбери сдвиг стрелкой или перетаскиванием. Сначала увидишь результат, затем подтвердишь ход.'}
+          : 'Стрелка сразу сдвигает линию. При перетаскивании отпусти фишку, чтобы сделать ход.'}
         {game.flags.includes('turn:rune-armed') &&
           ' Рунный заряд готов: следующий атакующий приём за энергию получит +2 урона.'}
       </p>
@@ -124,14 +119,9 @@ export function MovePreview({
           </>
         )}
       </div>
-      <div className="move-preview-actions">
-        <Button disabled={!!result.error} onClick={onConfirm}>
-          Сделать сдвиг
-        </Button>
-        <Button variant="outline" onClick={onCancel}>
-          Отмена
-        </Button>
-      </div>
+      <p className="move-preview-hint">
+        Отпусти фишку, чтобы сделать ход. Esc — отменить перетаскивание.
+      </p>
     </section>
   );
 }
