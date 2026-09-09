@@ -1540,6 +1540,126 @@
       "native_unchanged": true,
       "display_alpha_threshold": 128,
       "display_bounds_source": "game/enemy-art.json"
+    },
+    {
+      "id": "gear-cutter-miniature",
+      "weapon_id": "gear-cutter",
+      "category": "weapon-miniatures",
+      "kind": "sprite",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-cutter.png",
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-583526c8-8b3d-4762-9b56-76d0f9f0288c.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "sha256": "589bad019088155d78d6303998ff6bf3b41bd96e65e2754485d6ee70b77b26c0",
+      "native_unchanged": true,
+      "display_bounds": [
+        104,
+        116,
+        1072,
+        1047
+      ],
+      "prompt_source": "docs/weapon-miniature-prompts.json#gear-cutter"
+    },
+    {
+      "id": "gear-rusty-dagger-miniature",
+      "weapon_id": "gear-rusty-dagger",
+      "category": "weapon-miniatures",
+      "kind": "sprite",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-rusty-dagger.png",
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-99dc4bf4-1b6b-45db-98b5-d16eda50f348.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "sha256": "938af4b56f2b1f36a690cf360a294dbad69a123020c5498eee943c74c21ff596",
+      "native_unchanged": true,
+      "display_bounds": [
+        203,
+        168,
+        917,
+        964
+      ],
+      "prompt_source": "docs/weapon-miniature-prompts.json#gear-rusty-dagger"
+    },
+    {
+      "id": "gear-cleaver-miniature",
+      "weapon_id": "gear-cleaver",
+      "category": "weapon-miniatures",
+      "kind": "sprite",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-cleaver.png",
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-91d6ab68-7294-4a96-acdc-44f10174f3e8.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "sha256": "4c56b36a184ccfba690adf3403c881796674cca20862764c91e70a1fddea5aba",
+      "native_unchanged": true,
+      "display_bounds": [
+        87,
+        136,
+        1096,
+        1013
+      ],
+      "prompt_source": "docs/weapon-miniature-prompts.json#gear-cleaver"
+    },
+    {
+      "id": "gear-axe-miniature",
+      "weapon_id": "gear-axe",
+      "category": "weapon-miniatures",
+      "kind": "sprite",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-axe.png",
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-5a509caf-617a-4412-842c-6eb0bcdfeb58.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "sha256": "2927401ebfbd40497606dcec29230ca064b009b2eb6ac2bd062278edc6cbf3ed",
+      "native_unchanged": true,
+      "display_bounds": [
+        100,
+        131,
+        1092,
+        1032
+      ],
+      "prompt_source": "docs/weapon-miniature-prompts.json#gear-axe"
+    },
+    {
+      "id": "gear-rune-sword-miniature",
+      "weapon_id": "gear-rune-sword",
+      "category": "weapon-miniatures",
+      "kind": "sprite",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-rune-sword.png",
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-0df1fcd3-a444-450b-96dc-9d4828f84845.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "sha256": "7e7b86d56da2a493d1ab6444a3f4b73a3b1a74d51ec45bf566da36572978f516",
+      "native_unchanged": true,
+      "display_bounds": [
+        114,
+        103,
+        1033,
+        1059
+      ],
+      "prompt_source": "docs/weapon-miniature-prompts.json#gear-rune-sword"
     }
   ]
 }

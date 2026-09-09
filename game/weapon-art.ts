@@ -8,6 +8,12 @@ export type WeaponArt = {
   grip: [number, number];
   tip: [number, number];
   heldLength: number;
+  miniature: {
+    src: string;
+    width: number;
+    height: number;
+    bounds: [number, number, number, number];
+  };
 };
 
 export function weaponArtById(id: string | null | undefined) {
@@ -16,8 +22,13 @@ export function weaponArtById(id: string | null | undefined) {
   return { id: key, ...catalogue[key] };
 }
 
-// Map the measured PNG grip to a pose's hand. Both the board and actor use
-// the original PNG; no weapon is baked into the character or saved board.
+export function boardWeaponArtById(id: string | null | undefined) {
+  const weapon = weaponArtById(id);
+  return { id: weapon.id, ...weapon.miniature };
+}
+
+// Map the full sprite's measured grip to a pose's hand. The board uses a
+// separate simplified miniature of the same ID; neither is saved in the run.
 export function heldWeaponTransform(
   weapon: WeaponArt,
   hand: [number, number],

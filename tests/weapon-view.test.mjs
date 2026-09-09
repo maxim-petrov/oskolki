@@ -9,7 +9,7 @@ const { CombatSprite } = await import('../components/combat-sprite.tsx');
 const { PalaceActorArt } = await import('../components/palace-actor-art.tsx');
 const { BoardTileArt } = await import('../components/board-tile-art.tsx');
 const { WeaponGallery } = await import('../components/equipment.tsx');
-const { weaponArtById, heldWeaponTransform } =
+const { weaponArtById, boardWeaponArtById, heldWeaponTransform } =
   await import('../game/weapon-art.ts');
 const g = await import('./helpers/stage1-engine.mjs');
 const rig = JSON.parse(
@@ -18,7 +18,7 @@ const rig = JSON.parse(
 const render = (component, props) =>
   renderToStaticMarkup(createElement(component, props));
 
-test('rewarded, purchased and restored weapons appear on both the hero and board', () => {
+test('rewarded, purchased and restored weapons share identity but use separate hero and board art', () => {
   let state = g.startRun(212);
   for (const [i, weapon] of g.WEAPONS.entries()) {
     if (i) {
@@ -37,12 +37,23 @@ test('rewarded, purchased and restored weapons appear on both the hero and board
       family: 'blade',
       weaponId: state.equipment.weapon,
     });
-    for (const html of [actor, tile]) {
+    for (const [html, folder] of [
+      [actor, 'weapons'],
+      [tile, 'weapon-miniatures'],
+    ]) {
       assert.ok(html.includes(`data-weapon-id="${weapon.id}"`));
-      assert.ok(html.includes(`/weapons/${weapon.id}.png`));
+      assert.ok(html.includes(`/${folder}/${weapon.id}.png`));
       for (const other of g.WEAPONS.filter((item) => item.id !== weapon.id))
-        assert.ok(!html.includes(`/weapons/${other.id}.png`));
+        assert.ok(!html.includes(`/${folder}/${other.id}.png`));
     }
+    assert.ok(
+      !tile.includes('/weapons/'),
+      'Board must not shrink the full weapon sprite',
+    );
+    assert.ok(
+      !actor.includes('/weapon-miniatures/'),
+      'Held art keeps its original detail',
+    );
     assert.equal(
       JSON.stringify(state),
       snapshot,
@@ -77,19 +88,50 @@ test('every battle pose holds the selected weapon while enemies keep their own a
 });
 
 test('special blade tiles show equipped weapon and effect, other tile families stay intact', () => {
-  for (const variant of ['venom', 'bomb']) {
+  for (const variant of ['venom', 'bomb', 'spiked', 'marked']) {
     const html = render(BoardTileArt, {
       family: 'blade',
       variant,
       weaponId: 'gear-axe',
     });
-    assert.ok(html.includes('/weapons/gear-axe.png'));
+    assert.ok(html.includes('/weapon-miniatures/gear-axe.png'));
     assert.ok(html.includes(`weapon-variant variant-${variant}`));
   }
   for (const family of ['shield', 'spark', 'focus']) {
-    const html = render(BoardTileArt, { family, weaponId: 'gear-axe' });
-    assert.ok(html.includes('/icons.png'));
-    assert.ok(!html.includes('/weapons/'));
+    for (const variant of [null, 'venom', 'bomb', 'spiked', 'marked']) {
+      const html = render(BoardTileArt, {
+        family,
+        variant,
+        weaponId: 'gear-axe',
+      });
+      assert.ok(html.includes('/icons.png'));
+      assert.ok(!html.includes('/weapons/'));
+      assert.ok(!html.includes('/weapon-miniatures/'));
+    }
+  }
+});
+
+test('missing or unknown weapon IDs fall back to the same cutter for hero and miniature', () => {
+  for (const id of [
+    null,
+    undefined,
+    '',
+    'missing-weapon',
+    'toString',
+    '__proto__',
+  ]) {
+    const held = weaponArtById(id);
+    const mini = boardWeaponArtById(id);
+    assert.equal(held.id, 'gear-cutter');
+    assert.equal(mini.id, held.id);
+    assert.notEqual(mini.src, held.src);
+    const html = render(BoardTileArt, {
+      family: 'blade',
+      weaponId: id,
+      size: 32,
+    });
+    assert.ok(html.includes('/weapon-miniatures/gear-cutter.png'));
+    assert.ok(!html.includes('NaN') && !html.includes('undefined'));
   }
 });
 

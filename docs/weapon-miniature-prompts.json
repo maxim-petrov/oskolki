@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "date": "2026-09-10",
+  "generator": "built-in image_gen",
+  "style_contract": "visual-style.md",
+  "purpose": "Independent simplified board drawings sharing equipped weapon identity with the full hand sprites.",
+  "programmatic_bitmap_edits": false,
+  "assets": [
+    {
+      "id": "gear-cutter",
+      "prompt": "Use case: stylized-concept. Asset type: separate MINIATURE bitmap weapon icon for a match-3 board, readable at 32x32 pixels.\nInput image 1 is the exact weapon identity reference; image 2 is the original game icon style reference; image 3 is the hero/enemy style anchor. Do NOT copy the large weapon with all its detail. REDRAW it as a deliberately simpler compact pictogram for a small board tile.\nSubject: A red utility box-cutter. Short off-white silver exposed blade pointing northeast, chunky red handle southwest, one dark gray thumb slider and dark end cap. Keep it obviously a utility knife, not a fantasy sword. No blade segmentation or screws.\nStyle: flat Pronoun Palace-like pixel cartoon. Think a REAL 24x24 pixel sprite enlarged with nearest-neighbor for delivery. Very coarse intentional square pixel blocks, thick uninterrupted almost-black outline of 1-2 logical pixels. No thin lines or tiny features. At most 6-8 opaque colors, TWO flat shades per material, large calm color clusters. Stout, slightly exaggerated proportions so the weapon fills a square tile.\nComposition: a SINGLE centered isolated weapon filling 80% of a square image, consistent 10% clear padding, diagonal southwest-to-northeast, fully visible.\nBackground: genuinely transparent RGBA alpha. No tile, border, badge, lettering, hand, character, shadow, checkerboard or backdrop. Preserve weapon identity and signature colors from image 1. Avoid gradients, soft shading, texture, realistic materials, fine details, anti-aliasing and smooth vector edges.",
+      "references": [
+        "public/art/pronoun-palace/weapons/gear-cutter.png",
+        "public/art/pronoun-palace/icons.png",
+        "public/art/pronoun-palace/actors.png"
+      ],
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-583526c8-8b3d-4762-9b56-76d0f9f0288c.png",
+      "alpha_prompt": "Use case: background-extraction. Remove the entire gray-and-white checkerboard background from image 1. Return this EXACT single simplified pixel weapon as a cutout on a completely TRANSPARENT background, PNG with real alpha channel. Every background pixel must have alpha=0, including any gaps and the cleaver hole. Preserve all the weapon's thick black outlines, very coarse stair-step geometry, silhouette, colors and placement. Keep the weapon itself opaque. Do not redraw details, do not add shadows, and do not paint any new background. The output must be RGBA, not RGB with a checkerboard.",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-cutter.png",
+      "mode": "RGBA",
+      "dimensions": [1254, 1254],
+      "display_bounds": [104, 116, 1072, 1047],
+      "native_unchanged": true,
+      "sha256": "589bad019088155d78d6303998ff6bf3b41bd96e65e2754485d6ee70b77b26c0"
+    },
+    {
+      "id": "gear-rusty-dagger",
+      "prompt": "Use case: stylized-concept. Asset type: separate MINIATURE bitmap weapon icon for a match-3 board, readable at 32x32 pixels.\nInput image 1 is the exact weapon identity reference; image 2 is the original game icon style reference; image 3 is the hero/enemy style anchor. Do NOT copy the large weapon with all its detail. REDRAW it as a deliberately simpler compact pictogram for a small board tile.\nSubject: A short rusty dagger pointing northeast. Broad triangular pale silver blade with a single orange-brown rust patch, small ochre crossguard, stubby brown handle southwest. No mottling, scratches, engraving or bands.\nStyle: flat Pronoun Palace-like pixel cartoon. Think a REAL 24x24 pixel sprite enlarged with nearest-neighbor for delivery. Very coarse intentional square pixel blocks, thick uninterrupted almost-black outline of 1-2 logical pixels. No thin lines or tiny features. At most 6-8 opaque colors, TWO flat shades per material, large calm color clusters. Stout, slightly exaggerated proportions so the weapon fills a square tile.\nComposition: a SINGLE centered isolated weapon filling 80% of a square image, consistent 10% clear padding, diagonal southwest-to-northeast, fully visible.\nBackground: genuinely transparent RGBA alpha. No tile, border, badge, lettering, hand, character, shadow, checkerboard or backdrop. Preserve weapon identity and signature colors from image 1. Avoid gradients, soft shading, texture, realistic materials, fine details, anti-aliasing and smooth vector edges.",
+      "references": [
+        "public/art/pronoun-palace/weapons/gear-rusty-dagger.png",
+        "public/art/pronoun-palace/icons.png",
+        "public/art/pronoun-palace/actors.png"
+      ],
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-99dc4bf4-1b6b-45db-98b5-d16eda50f348.png",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-rusty-dagger.png",
+      "mode": "RGBA",
+      "dimensions": [1254, 1254],
+      "display_bounds": [203, 168, 917, 964],
+      "native_unchanged": true,
+      "sha256": "938af4b56f2b1f36a690cf360a294dbad69a123020c5498eee943c74c21ff596"
+    },
+    {
+      "id": "gear-cleaver",
+      "prompt": "Use case: stylized-concept. Asset type: separate MINIATURE bitmap weapon icon for a match-3 board, readable at 32x32 pixels.\nInput image 1 is the exact weapon identity reference; image 2 is the original game icon style reference; image 3 is the hero/enemy style anchor. Do NOT copy the large weapon with all its detail. REDRAW it as a deliberately simpler compact pictogram for a small board tile.\nSubject: A butcher's cleaver pointing northeast. VERY BROAD rectangular gray blade, one small black hole in the far corner, one flat off-white cutting edge, stubby brown handle southwest. No scratches, rivets or grain.\nStyle: flat Pronoun Palace-like pixel cartoon. Think a REAL 24x24 pixel sprite enlarged with nearest-neighbor for delivery. Very coarse intentional square pixel blocks, thick uninterrupted almost-black outline of 1-2 logical pixels. No thin lines or tiny features. At most 6-8 opaque colors, TWO flat shades per material, large calm color clusters. Stout, slightly exaggerated proportions so the weapon fills a square tile.\nComposition: a SINGLE centered isolated weapon filling 80% of a square image, consistent 10% clear padding, diagonal southwest-to-northeast, fully visible.\nBackground: genuinely transparent RGBA alpha. No tile, border, badge, lettering, hand, character, shadow, checkerboard or backdrop. Preserve weapon identity and signature colors from image 1. Avoid gradients, soft shading, texture, realistic materials, fine details, anti-aliasing and smooth vector edges.",
+      "references": [
+        "public/art/pronoun-palace/weapons/gear-cleaver.png",
+        "public/art/pronoun-palace/icons.png",
+        "public/art/pronoun-palace/actors.png"
+      ],
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-91d6ab68-7294-4a96-acdc-44f10174f3e8.png",
+      "alpha_prompt": "Use case: background-extraction. Remove the entire gray-and-white checkerboard background from image 1. Return this EXACT single simplified pixel weapon as a cutout on a completely TRANSPARENT background, PNG with real alpha channel. Every background pixel must have alpha=0, including any gaps and the cleaver hole. Preserve all the weapon's thick black outlines, very coarse stair-step geometry, silhouette, colors and placement. Keep the weapon itself opaque. Do not redraw details, do not add shadows, and do not paint any new background. The output must be RGBA, not RGB with a checkerboard.",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-cleaver.png",
+      "mode": "RGBA",
+      "dimensions": [1254, 1254],
+      "display_bounds": [87, 136, 1096, 1013],
+      "native_unchanged": true,
+      "sha256": "4c56b36a184ccfba690adf3403c881796674cca20862764c91e70a1fddea5aba"
+    },
+    {
+      "id": "gear-axe",
+      "prompt": "Use case: stylized-concept. Asset type: separate MINIATURE bitmap weapon icon for a match-3 board, readable at 32x32 pixels.\nInput image 1 is the exact weapon identity reference; image 2 is the original game icon style reference; image 3 is the hero/enemy style anchor. Do NOT copy the large weapon with all its detail. REDRAW it as a deliberately simpler compact pictogram for a small board tile.\nSubject: A compact axe. Brown wood shaft angled southwest to northeast, a broad gray axe head on its upper-right side with a pale silver outer cutting edge. One compact muted red binding block below the head recalls its red ribbon; remove trailing ribbons, wood grain, nails and scratches.\nStyle: flat Pronoun Palace-like pixel cartoon. Think a REAL 24x24 pixel sprite enlarged with nearest-neighbor for delivery. Very coarse intentional square pixel blocks, thick uninterrupted almost-black outline of 1-2 logical pixels. No thin lines or tiny features. At most 6-8 opaque colors, TWO flat shades per material, large calm color clusters. Stout, slightly exaggerated proportions so the weapon fills a square tile.\nComposition: a SINGLE centered isolated weapon filling 80% of a square image, consistent 10% clear padding, diagonal southwest-to-northeast, fully visible.\nBackground: genuinely transparent RGBA alpha. No tile, border, badge, lettering, hand, character, shadow, checkerboard or backdrop. Preserve weapon identity and signature colors from image 1. Avoid gradients, soft shading, texture, realistic materials, fine details, anti-aliasing and smooth vector edges.",
+      "references": [
+        "public/art/pronoun-palace/weapons/gear-axe.png",
+        "public/art/pronoun-palace/icons.png",
+        "public/art/pronoun-palace/actors.png"
+      ],
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-5a509caf-617a-4412-842c-6eb0bcdfeb58.png",
+      "alpha_prompt": "Use case: background-extraction. Remove the entire gray-and-white checkerboard background from image 1. Return this EXACT single simplified pixel weapon as a cutout on a completely TRANSPARENT background, PNG with real alpha channel. Every background pixel must have alpha=0, including any gaps and the cleaver hole. Preserve all the weapon's thick black outlines, very coarse stair-step geometry, silhouette, colors and placement. Keep the weapon itself opaque. Do not redraw details, do not add shadows, and do not paint any new background. The output must be RGBA, not RGB with a checkerboard.",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-axe.png",
+      "mode": "RGBA",
+      "dimensions": [1254, 1254],
+      "display_bounds": [100, 131, 1092, 1032],
+      "native_unchanged": true,
+      "sha256": "2927401ebfbd40497606dcec29230ca064b009b2eb6ac2bd062278edc6cbf3ed"
+    },
+    {
+      "id": "gear-rune-sword",
+      "prompt": "Use case: stylized-concept. Asset type: separate MINIATURE bitmap weapon icon for a match-3 board, readable at 32x32 pixels.\nInput image 1 is the exact weapon identity reference; image 2 is the original game icon style reference; image 3 is the hero/enemy style anchor. Do NOT copy the large weapon with all its detail. REDRAW it as a deliberately simpler compact pictogram for a small board tile.\nSubject: A rune sword pointing northeast, with a compact pale lavender blade, off-white edge, ONE thick dark-purple rune mark centered in blade, violet crossguard and pommel, short muted brown-purple grip southwest. No engraving rows, multiple runes or glow.\nStyle: flat Pronoun Palace-like pixel cartoon. Think a REAL 24x24 pixel sprite enlarged with nearest-neighbor for delivery. Very coarse intentional square pixel blocks, thick uninterrupted almost-black outline of 1-2 logical pixels. No thin lines or tiny features. At most 6-8 opaque colors, TWO flat shades per material, large calm color clusters. Stout, slightly exaggerated proportions so the weapon fills a square tile.\nComposition: a SINGLE centered isolated weapon filling 80% of a square image, consistent 10% clear padding, diagonal southwest-to-northeast, fully visible.\nBackground: genuinely transparent RGBA alpha. No tile, border, badge, lettering, hand, character, shadow, checkerboard or backdrop. Preserve weapon identity and signature colors from image 1. Avoid gradients, soft shading, texture, realistic materials, fine details, anti-aliasing and smooth vector edges.",
+      "references": [
+        "public/art/pronoun-palace/weapons/gear-rune-sword.png",
+        "public/art/pronoun-palace/icons.png",
+        "public/art/pronoun-palace/actors.png"
+      ],
+      "native_path": "/Users/max/.codex/generated_images/01a0730e-7239-73b3-9bb2-334d68729293/exec-0df1fcd3-a444-450b-96dc-9d4828f84845.png",
+      "alpha_prompt": "Use case: background-extraction. Remove the entire gray-and-white checkerboard background from image 1. Return this EXACT single simplified pixel weapon as a cutout on a completely TRANSPARENT background, PNG with real alpha channel. Every background pixel must have alpha=0, including any gaps and the cleaver hole. Preserve all the weapon's thick black outlines, very coarse stair-step geometry, silhouette, colors and placement. Keep the weapon itself opaque. Do not redraw details, do not add shadows, and do not paint any new background. The output must be RGBA, not RGB with a checkerboard.",
+      "saved_path": "public/art/pronoun-palace/weapon-miniatures/gear-rune-sword.png",
+      "mode": "RGBA",
+      "dimensions": [1254, 1254],
+      "display_bounds": [114, 103, 1033, 1059],
+      "native_unchanged": true,
+      "sha256": "7e7b86d56da2a493d1ab6444a3f4b73a3b1a74d51ec45bf566da36572978f516"
+    }
+  ]
+}

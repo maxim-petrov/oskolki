@@ -42,3 +42,38 @@ test('each of the five weapons has a distinct transparent PNG and valid measured
     'Different file names must not conceal a reused weapon image',
   );
 });
+
+test('each equipped weapon has a distinct miniature with a valid transparent crop', () => {
+  const art = JSON.parse(
+    readFileSync(new URL('../game/weapon-art.json', import.meta.url), 'utf8'),
+  );
+  const hashes = new Set();
+  for (const weapon of WEAPONS) {
+    const full = art[weapon.id];
+    const mini = full.miniature;
+    assert.equal(
+      mini.src,
+      `/art/pronoun-palace/weapon-miniatures/${weapon.id}.png`,
+    );
+    assert.notEqual(mini.src, full.src);
+    const file = readFileSync(new URL(`../public${mini.src}`, import.meta.url));
+    assert.equal(file.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.equal(file.readUInt32BE(16), mini.width);
+    assert.equal(file.readUInt32BE(20), mini.height);
+    assert.equal(file[25], 6, 'Miniature must have native RGBA transparency');
+    const [x, y, w, h] = mini.bounds;
+    assert.ok([x, y, w, h].every(Number.isInteger));
+    assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0);
+    assert.ok(x + w <= mini.width && y + h <= mini.height);
+    const hash = createHash('sha256').update(file).digest('hex');
+    hashes.add(hash);
+    assert.notEqual(
+      hash,
+      createHash('sha256')
+        .update(readFileSync(new URL(`../public${full.src}`, import.meta.url)))
+        .digest('hex'),
+      'Miniature must be a separate drawing',
+    );
+  }
+  assert.equal(hashes.size, WEAPONS.length);
+});
