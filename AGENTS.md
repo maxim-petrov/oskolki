@@ -11,6 +11,12 @@ Browser prototype of a turn-based match-3 roguelike. Russian interface.
 - Keep .openai/hosting.json project_id unchanged; never store source credentials.
 - Do not import proprietary assets or decompiled implementation from reference games.
 
+## Game design direction
+
+- For combat, item, reward, route or progression changes, read [docs/game-design-v0.2.md](docs/game-design-v0.2.md) and [docs/replayability.md](docs/replayability.md). The latter distinguishes implemented features from long-term hypotheses.
+- Build replayability through finds that change board decisions, mastery of different builds, and meaningful goals after victory. Keep the current 12 core relics available in fresh runs; future unlocks expand options without permanent stat grinding.
+- Content counts, possible seeds and passing engine tests do not establish fun or hundreds of hours of replayability. Record what new decision a feature adds and what remains to be tested with players.
+
 ## Mandatory visual direction
 
 - Read [docs/visual-style.md](docs/visual-style.md) before any artwork, palette, UI or animation-style change. It is the canonical visual contract for both biomes and every screen.
