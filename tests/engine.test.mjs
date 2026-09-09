@@ -305,7 +305,7 @@ test('new openings only enter subsequent runs', () => {
     g.withUnlocks(g.startRun(2), m).flags.includes('run:available:coil'),
   );
 });
-function automatedRun(seed) {
+function automatedRun(seed, preferEquipment = false) {
   let s = g.withUnlocks(g.startRun(seed), allMeta);
   let actions = 0;
   while (!['victory', 'defeat'].includes(s.phase) && actions++ < 300) {
@@ -350,8 +350,16 @@ function automatedRun(seed) {
       ];
       const o = [...s.offers].sort(
         (a, b) =>
-          (order.includes(a.id) ? order.indexOf(a.id) : 99) -
-          (order.includes(b.id) ? order.indexOf(b.id) : 99),
+          (preferEquipment && a.kind === 'equipment'
+            ? -1
+            : order.includes(a.id)
+              ? order.indexOf(a.id)
+              : 99) -
+          (preferEquipment && b.kind === 'equipment'
+            ? -1
+            : order.includes(b.id)
+              ? order.indexOf(b.id)
+              : 99),
       )[0];
       s = g.chooseReward(s, o?.id ?? null, 1).state;
     } else if (s.phase === 'map') {
@@ -390,4 +398,196 @@ test('complete automated routes terminate without corrupting state', () => {
   console.log(
     `Simulation: ${wins}/12 wins with a deterministic look-ahead bot; not a player balance estimate.`,
   );
+});
+
+test('every run starts with basic equipment and a genuinely empty helmet slot', () => {
+  const s = g.startRun();
+  assert.deepEqual(s.equipment, {
+    weapon: 'gear-cutter',
+    helmet: null,
+    clothing: 'gear-shirt',
+    trousers: 'gear-worn-trousers',
+  });
+  assert.equal(s.hp, 40);
+  assert.equal(g.focusMax(s), 6);
+  for (const slot of g.EQUIPMENT_SLOTS)
+    assert.equal(g.equipmentBonus(s, slot), 0);
+  s.equipment.weapon = 'gear-rune-sword';
+  assert.equal(g.startRun().equipment.weapon, 'gear-cutter');
+});
+
+test('gear appears deterministically, progresses by room, and never offers a downgrade', () => {
+  for (const room of [1, 2, 4, 6, 9]) {
+    const a = g.startRun(room),
+      b = g.copy(a);
+    a.room = b.room = room;
+    const offers = g.rewardOffers(a),
+      same = g.rewardOffers(b);
+    assert.deepEqual(offers, same);
+    assert.equal(a.rng, b.rng);
+    assert.equal(offers.length, 4);
+    assert.equal(offers.filter((o) => o.kind === 'equipment').length, 1);
+    assert.equal(new Set(offers.map((o) => o.id)).size, offers.length);
+  }
+  const s = g.startRun();
+  for (const slot of g.EQUIPMENT_SLOTS)
+    s.equipment[slot] = g.EQUIPMENT.find(
+      (o) => o.slot === slot && o.tier === 1,
+    ).id;
+  s.room = 5;
+  assert.deepEqual(g.equipmentOptions(s), []);
+  assert.equal(g.rewardOffers(s).length, 3);
+  s.room = 6;
+  assert.equal(g.equipmentOptions(s).length, 4);
+  assert.ok(g.equipmentOptions(s).every((o) => o.tier === 2));
+  for (const item of g.equipmentOptions(s)) s.equipment[item.slot] = item.id;
+  assert.deepEqual(g.equipmentOptions(s), []);
+});
+
+test('equipment rewards replace only their slot, and invalid or repeated choices are atomic', () => {
+  const s = g.startRun();
+  s.phase = 'reward';
+  s.offers = [g.equipmentById('gear-cleaver')];
+  const before = g.copy(s);
+  assert.ok(g.chooseReward(s, 'gear-rune-sword').error);
+  const r = g.chooseReward(s, 'gear-cleaver').state;
+  assert.equal(r.phase, 'map');
+  assert.equal(r.equipment.weapon, 'gear-cleaver');
+  assert.equal(r.equipment.clothing, s.equipment.clothing);
+  assert.equal(r.equipment.helmet, null);
+  assert.deepEqual(s, before);
+  assert.ok(g.chooseReward(r, 'gear-cleaver').error);
+  r.phase = 'reward';
+  r.offers = [g.equipmentById('gear-cutter')];
+  assert.equal(g.chooseReward(r, 'gear-cutter').state, r);
+  const skipped = g.chooseReward(r, null).state;
+  assert.deepEqual(skipped.equipment, r.equipment);
+});
+
+test('weapon and clothing bonuses change real match results, without changing the board rolls', () => {
+  for (const [family, slot, id, field] of [
+    ['blade', 'weapon', 'gear-cleaver', 'damage'],
+    ['shield', 'clothing', 'gear-jacket', 'block'],
+  ]) {
+    const { s, m } = findState(family);
+    s.enemies[0].hp = s.enemies[0].maxHp = 10000;
+    const enhanced = g.copy(s);
+    enhanced.equipment[slot] = id;
+    const base = applyMove(s, m),
+      upgraded = applyMove(enhanced, m);
+    const firstBase = base.frames[0].state,
+      firstUpgraded = upgraded.frames[0].state;
+    assert.equal(
+      field === 'damage'
+        ? firstUpgraded.stats.damage - firstBase.stats.damage
+        : firstUpgraded.block - firstBase.block,
+      2,
+    );
+    assert.equal(upgraded.state.rng, base.state.rng);
+    assert.deepEqual(upgraded.state.board, base.state.board);
+  }
+});
+
+test('helmets add only the difference in health and cannot be farmed by repeated purchase', () => {
+  let s = g.startRun();
+  s.hp = 20;
+  s.phase = 'shop';
+  s.gold = 200;
+  for (const [id, maxHp, hp] of [
+    ['gear-tin-helmet', 44, 24],
+    ['gear-iron-helmet', 48, 28],
+    ['gear-bronze-helmet', 52, 32],
+  ]) {
+    s.offers = [{ ...g.equipmentById(id), cost: 25 }];
+    s = g.buy(s, id).state;
+    assert.equal(s.maxHp, maxHp);
+    assert.equal(s.hp, hp);
+    assert.equal(g.buy(s, id).state, s);
+    s.offers = [{ ...g.equipmentById(id), cost: 25 }];
+    const gold = s.gold;
+    assert.equal(g.buy(s, id).state, s);
+    assert.equal(s.gold, gold);
+  }
+  s.phase = 'map';
+  s.room = 1;
+  s = g.enterRoom(s, g.nextRooms(s)[0].id).state;
+  assert.equal(s.maxHp, 52);
+  assert.equal(s.equipment.helmet, 'gear-bronze-helmet');
+});
+
+test('trousers expand focus capacity, and matches respect the new cap', () => {
+  const { s, m } = findState('focus');
+  s.equipment.trousers = 'gear-guard-trousers';
+  s.upgrades.focus = 1;
+  assert.equal(g.focusMax(s), 11);
+  s.focus = 10;
+  const r = applyMove(s, m).state;
+  assert.equal(r.focus, 11);
+});
+
+test('shop stocks distinct affordable gear slots and rejects unavailable or unaffordable gear', () => {
+  const s = g.startRun();
+  s.phase = 'map';
+  s.room = 4;
+  const shop = g.enterRoom(s, '5-shop').state;
+  const items = shop.offers.filter((o) => o.kind === 'equipment');
+  assert.equal(items.length, 2);
+  assert.equal(new Set(items.map((o) => o.slot)).size, 2);
+  assert.ok(items.every((o) => o.cost === 25 || o.cost === 40));
+  shop.gold = 0;
+  assert.equal(g.buy(shop, items[0].id).state, shop);
+  shop.gold = items[0].cost;
+  const after = g.buy(shop, items[0].id).state;
+  assert.equal(after.gold, 0);
+  assert.equal(after.equipment[items[0].slot], items[0].id);
+  assert.equal(
+    after.offers.some((o) => o.id === items[0].id),
+    false,
+  );
+});
+
+test('old local saves migrate without changing the run or future randomness', () => {
+  const s = g.startRun(418);
+  s.hp = 17;
+  s.gold = 91;
+  const old = g.copy(s);
+  old.version = 1;
+  delete old.equipment;
+  const raw = JSON.stringify(old);
+  const loaded = g.loadSave(old);
+  assert.deepEqual(loaded, s);
+  assert.equal(JSON.stringify(old), raw);
+  const m = g.validMoves(s.board)[0];
+  assert.deepEqual(applyMove(loaded, m), applyMove(s, m));
+  loaded.equipment.weapon = 'gear-cleaver';
+  assert.deepEqual(g.loadSave(JSON.parse(JSON.stringify(loaded))), loaded);
+  assert.equal(g.loadSave(null), null);
+});
+
+test('save validation rejects missing, unknown or wrongly slotted equipment', () => {
+  for (const gear of [
+    null,
+    {},
+    { ...g.startingEquipment(), weapon: null },
+    { ...g.startingEquipment(), helmet: 'gear-jacket' },
+    { ...g.startingEquipment(), clothing: 'missing' },
+    { ...g.startingEquipment(), extra: 'gear-cutter' },
+  ]) {
+    assert.equal(g.loadSave({ ...g.startRun(), equipment: gear }), null);
+  }
+  const s = g.startRun();
+  s.offers = [{ id: 'missing', kind: 'equipment' }];
+  assert.equal(g.loadSave(s), null);
+});
+
+test('complete routes also work when the player prefers equipment and resumes upgraded saves', () => {
+  let upgrades = 0;
+  for (let seed = 1; seed <= 6; seed++) {
+    const s = automatedRun(seed, true);
+    assert.deepEqual(g.loadSave(JSON.parse(JSON.stringify(s))), s);
+    upgrades += Object.values(s.equipment).filter(
+      (id) => g.equipmentById(id)?.bonus > 0,
+    ).length;
+  }
+  assert.ok(upgrades > 0);
 });

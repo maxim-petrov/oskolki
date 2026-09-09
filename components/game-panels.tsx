@@ -9,6 +9,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { SkinIcon, type SkinIconName } from '@/components/skin-icon';
+import { EquipmentIcon, EquipmentComparison } from '@/components/equipment';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,6 +21,8 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import {
   ACHIEVEMENTS,
+  equipmentById,
+  EQUIPMENT_SLOT_NAMES,
   itemById,
   nextRooms,
   chooseReward,
@@ -58,6 +61,7 @@ export const RoomIcon = ({ kind }: { kind: string }) => {
   );
 };
 export const ItemIcon = ({ id }: { id: string }) => {
+  if (equipmentById(id)) return <EquipmentIcon id={id} size={40} />;
   return (
     <SkinIcon
       name={
@@ -110,6 +114,7 @@ export function RunPanel({
     (s.phase === 'trial' && !!s.trial?.paused);
   const select = (o: Offer) => {
     if (
+      o.kind === 'equipment' ||
       (o.kind === 'skill' && s.skills.length >= 2) ||
       (o.kind === 'modifier' && s.modifiers.length >= 2)
     ) {
@@ -128,7 +133,9 @@ export function RunPanel({
     setPending(null);
   };
   const heading = pending
-    ? 'Что заменить?'
+    ? pending.kind === 'equipment'
+      ? 'Надеть находку?'
+      : 'Что заменить?'
     : (
         {
           reward: 'Выбери находку',
@@ -145,7 +152,9 @@ export function RunPanel({
         } as Record<string, string>
       )[s.phase];
   const description = pending
-    ? `${pending.name}. ${pending.description}`
+    ? pending.kind === 'equipment'
+      ? `${pending.description} ${s.equipment[equipmentById(pending.id)!.slot] ? 'Новая вещь заменит старую до конца забега.' : 'Шлем займёт свободный слот до конца забега.'}`
+      : `${pending.name}. ${pending.description}`
     : (
         {
           reward: 'Одна вещь останется с тобой до конца забега.',
@@ -198,26 +207,47 @@ export function RunPanel({
         <DialogDescription>{description}</DialogDescription>
         {pending ? (
           <>
-            <div className="replacement-list">
-              {(pending.kind === 'skill' ? s.skills : s.modifiers).map(
-                (id, i) => (
-                  <Button
-                    className="replace-card"
-                    variant="outline"
-                    key={id}
-                    onClick={() => replace(i)}
-                    disabled={busy}
-                  >
-                    <ItemIcon id={id} />
-                    <span>
-                      <strong>{itemById(id)?.name}</strong>
-                      <small>{itemById(id)?.description}</small>
-                    </span>
-                    <ArrowRight />
-                  </Button>
-                ),
-              )}
-            </div>
+            {pending.kind === 'equipment' ? (
+              <>
+                <EquipmentComparison game={s} id={pending.id} />
+                <Button
+                  disabled={
+                    busy || (s.phase === 'shop' && s.gold < (pending.cost ?? 0))
+                  }
+                  onClick={() => {
+                    void act(
+                      s.phase === 'shop'
+                        ? buy(s, pending.id)
+                        : chooseReward(s, pending.id),
+                    );
+                    setPending(null);
+                  }}
+                >
+                  Надеть{pending.cost ? ` за ${pending.cost} золота` : ''}
+                </Button>
+              </>
+            ) : (
+              <div className="replacement-list">
+                {(pending.kind === 'skill' ? s.skills : s.modifiers).map(
+                  (id, i) => (
+                    <Button
+                      className="replace-card"
+                      variant="outline"
+                      key={id}
+                      onClick={() => replace(i)}
+                      disabled={busy}
+                    >
+                      <ItemIcon id={id} />
+                      <span>
+                        <strong>{itemById(id)?.name}</strong>
+                        <small>{itemById(id)?.description}</small>
+                      </span>
+                      <ArrowRight />
+                    </Button>
+                  ),
+                )}
+              </div>
+            )}
             <Button variant="ghost" onClick={() => setPending(null)}>
               <ArrowLeft />
               Вернуться к находкам
@@ -227,12 +257,12 @@ export function RunPanel({
           <>
             {(s.phase === 'reward' || s.phase === 'shop') && (
               <div
-                className={`offer-grid ${s.phase === 'shop' ? 'shop-grid' : ''}`}
+                className={`offer-grid ${s.phase === 'shop' ? 'shop-grid' : s.offers.length === 4 ? 'four-offers' : ''}`}
               >
                 {s.offers.map((o) => (
                   <button
                     key={o.id}
-                    className={`offer-card ${o.kind === 'modifier' ? 'modifier-offer' : ''}`}
+                    className={`offer-card ${o.kind === 'modifier' ? 'modifier-offer' : ''} ${o.kind === 'equipment' ? `equipment-offer gear-tier-${equipmentById(o.id)?.tier}` : ''}`}
                     onClick={() => select(o)}
                     disabled={
                       busy ||
@@ -244,18 +274,29 @@ export function RunPanel({
                       <ItemIcon id={o.id} />
                     </span>
                     <span className="offer-kind">
-                      {o.kind === 'relic'
-                        ? 'РЕЛИКВИЯ'
-                        : o.kind === 'modifier'
-                          ? 'ФИШКИ'
-                          : o.kind === 'skill'
-                            ? 'ПРИЁМ'
-                            : o.kind === 'upgrade'
-                              ? 'УЛУЧШЕНИЕ'
-                              : 'ЗЕЛЬЕ'}
+                      {o.kind === 'equipment'
+                        ? EQUIPMENT_SLOT_NAMES[
+                            equipmentById(o.id)!.slot
+                          ].toUpperCase()
+                        : o.kind === 'relic'
+                          ? 'РЕЛИКВИЯ'
+                          : o.kind === 'modifier'
+                            ? 'ФИШКИ'
+                            : o.kind === 'skill'
+                              ? 'ПРИЁМ'
+                              : o.kind === 'upgrade'
+                                ? 'УЛУЧШЕНИЕ'
+                                : 'ЗЕЛЬЕ'}
                     </span>
                     <strong>{o.name}</strong>
                     <p>{o.description}</p>
+                    {o.kind === 'equipment' && (
+                      <span className="equipment-replaces">
+                        {s.equipment[equipmentById(o.id)!.slot]
+                          ? `Вместо: ${equipmentById(s.equipment[equipmentById(o.id)!.slot])?.name}`
+                          : 'Свободный слот шлема'}
+                      </span>
+                    )}
                     <span className="offer-tag">
                       {o.cost ? (
                         <>

@@ -1,0 +1,22 @@
+{
+  "tool": "native image_gen",
+  "asset": "public/art/pronoun-palace/equipment.png",
+  "size": [1254, 1254],
+  "regions_xywh": [
+    [51, 183, 250, 251],
+    [346, 194, 271, 251],
+    [646, 167, 288, 281],
+    [991, 165, 200, 280],
+    [51, 494, 279, 266],
+    [363, 500, 245, 268],
+    [640, 492, 300, 264],
+    [987, 489, 206, 277],
+    [44, 799, 286, 310],
+    [364, 793, 244, 316],
+    [638, 800, 302, 302],
+    [977, 810, 226, 295]
+  ],
+  "source_unmodified": true,
+  "prompt": "Use case: stylized-concept.\nAsset type: one production-ready pixel-art equipment icon sprite atlas for the Russian roguelike “Дворец слов — подвал”.\nPrimary request: Generate one original 1024×1024 PNG image with genuine alpha transparency. Exactly 12 separate equipment objects, arranged as four columns by three rows. No other objects.\nComposition and exact grid: the grid consists of 256×256 pixel square cells. Column centers are x=128,384,640,896. Row centers are y=256,512,768. Thus the grid runs from y=128 to y=896, with transparent 128px margins above and below. Every icon is centered in its own cell and remains within a centered 192×192 box, leaving at least 32px clear margin inside its cell. Similar visual area across all icons; unmistakable silhouettes legible when reduced to 48px. No touching or overlap.\nExact contents, left to right:\nRow 1: a simple red handheld paper cutter utility knife with a small exposed metal blade; a dented brown tin helmet; a plain gray short-sleeved office shirt; worn brown trousers.\nRow 2: a broad iron cleaver with dark brown handle; a reinforced iron helmet; a dark leather jacket; olive reinforced trousers.\nRow 3: an ornate copper rune sword; a bronze crested helmet; a burgundy brigandine coat; dark blue trousers with bronze knee guards.\nStyle/medium: crisp deliberately chunky game pixel art, clean hard square pixels, bold very dark brown near-black stepped outlines, 4–6 discrete shading tones per material, readable forms and sparse detail. Warm sepia, dirty parchment highlights, rusty copper and brown, with restrained teal and muted red highlights. Slightly grim, Isaac-like basement roguelike atmosphere, original designs. Weapons diagonal rising right, clothing and trousers front view, helmets slight three-quarter view. Items should feel solid and modestly worn. Avoid photorealism and smooth painterly shading.\nBackground: completely transparent alpha=0 everywhere outside the objects, including all padding and the gaps between icons. No rendered checkerboard, no colored canvas, no texture behind objects, no floor, no halo, no glow, no cast shadow or shadow outside an icon.\nConstraints: exactly 1024×1024 pixels, one atlas, exactly 12 isolated items, 4 columns × 3 rows in the specified ordering. No text, no letters or readable glyphs, no labels, no cell outlines or borders, no UI, no watermark. Copper sword rune ornament must be abstract pixel marks, not lettering. Preserve genuine transparency in the PNG output.",
+  "note": "Generator returned 1254×1254 instead of requested size. Source pixels retained; measured crops used at render time."
+}

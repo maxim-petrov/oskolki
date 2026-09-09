@@ -42,12 +42,118 @@ export type Room = {
 };
 export type Offer = {
   id: string;
-  kind: 'relic' | 'modifier' | 'skill' | 'upgrade' | 'potion';
+  kind: 'relic' | 'modifier' | 'skill' | 'upgrade' | 'potion' | 'equipment';
   name: string;
   description: string;
   tag: string;
   cost?: number;
 };
+export const EQUIPMENT_SLOTS = [
+  'weapon',
+  'helmet',
+  'clothing',
+  'trousers',
+] as const;
+export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
+export type Equipment = Record<EquipmentSlot, string | null>;
+export const EQUIPMENT_SLOT_NAMES: Record<EquipmentSlot, string> = {
+  weapon: 'Ближний бой',
+  helmet: 'Шлем',
+  clothing: 'Одежда',
+  trousers: 'Штаны',
+};
+export const EQUIPMENT_TIERS = ['Простое', 'Добротное', 'Редкое'] as const;
+export type EquipmentItem = Offer & {
+  kind: 'equipment';
+  slot: EquipmentSlot;
+  tier: 0 | 1 | 2;
+  bonus: number;
+  icon: number;
+};
+const gear = (
+  id: string,
+  slot: EquipmentSlot,
+  tier: 0 | 1 | 2,
+  name: string,
+  bonus: number,
+): EquipmentItem => ({
+  id,
+  kind: 'equipment',
+  slot,
+  tier,
+  name,
+  bonus,
+  icon: tier * 4 + EQUIPMENT_SLOTS.indexOf(slot),
+  tag: EQUIPMENT_TIERS[tier],
+  description:
+    bonus === 0
+      ? 'Простая вещь для первого спуска. Без бонусов.'
+      : {
+          weapon: `+${bonus} урона за каждую комбинацию клинков.`,
+          helmet: `+${bonus} к максимальному здоровью. При замене здоровье растёт на разницу бонусов.`,
+          clothing: `+${bonus} блока за каждую комбинацию щитов.`,
+          trousers: `+${bonus} к запасу фокуса.`,
+        }[slot],
+});
+export const EQUIPMENT: EquipmentItem[] = [
+  gear('gear-cutter', 'weapon', 0, 'Нож для бумаги', 0),
+  gear('gear-tin-helmet', 'helmet', 0, 'Помятый шлем', 4),
+  gear('gear-shirt', 'clothing', 0, 'Старая рубашка', 0),
+  gear('gear-worn-trousers', 'trousers', 0, 'Потёртые штаны', 0),
+  gear('gear-cleaver', 'weapon', 1, 'Железный тесак', 2),
+  gear('gear-iron-helmet', 'helmet', 1, 'Железный шлем', 8),
+  gear('gear-jacket', 'clothing', 1, 'Кожаная куртка', 2),
+  gear('gear-reinforced-trousers', 'trousers', 1, 'Укреплённые штаны', 1),
+  gear('gear-rune-sword', 'weapon', 2, 'Рунный меч', 4),
+  gear('gear-bronze-helmet', 'helmet', 2, 'Шлем хранителя', 12),
+  gear('gear-brigandine', 'clothing', 2, 'Бригантина', 4),
+  gear('gear-guard-trousers', 'trousers', 2, 'Штаны стража', 2),
+];
+export const equipmentById = (id: string | null | undefined) =>
+  EQUIPMENT.find((item) => item.id === id);
+export const startingEquipment = (): Equipment => ({
+  weapon: 'gear-cutter',
+  helmet: null,
+  clothing: 'gear-shirt',
+  trousers: 'gear-worn-trousers',
+});
+export function equipmentBonus(s: State, slot: EquipmentSlot) {
+  return equipmentById(s.equipment[slot])?.bonus ?? 0;
+}
+export function equipmentSummary(item: EquipmentItem | undefined) {
+  if (!item) return 'Без шлема';
+  if (!item.bonus) return 'Без бонусов';
+  return {
+    weapon: `+${item.bonus} урона клинками`,
+    helmet: `+${item.bonus} здоровья`,
+    clothing: `+${item.bonus} блока щитами`,
+    trousers: `+${item.bonus} к запасу фокуса`,
+  }[item.slot];
+}
+export function equipmentOptions(s: State): EquipmentItem[] {
+  const maxTier = s.room >= 6 ? 2 : 1;
+  // One next upgrade per slot; never offer gear that is already worn or weaker.
+  return EQUIPMENT_SLOTS.flatMap((slot) => {
+    const tier = equipmentById(s.equipment[slot])?.tier ?? -1;
+    const next = EQUIPMENT.find(
+      (item) =>
+        item.slot === slot && item.tier === tier + 1 && item.tier <= maxTier,
+    );
+    return next ? [next] : [];
+  });
+}
+export function isEquipment(value: unknown): value is Equipment {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const equipment = value as Equipment;
+  return (
+    Object.keys(equipment).length === 4 &&
+    EQUIPMENT_SLOTS.every(
+      (slot) =>
+        (slot === 'helmet' && equipment[slot] === null) ||
+        equipmentById(equipment[slot])?.slot === slot,
+    )
+  );
+}
 export type Stats = {
   matches: number;
   cascades: number;
@@ -60,7 +166,8 @@ export type Stats = {
   trials: number;
 };
 export type State = {
-  version: 1;
+  version: 2;
+  equipment: Equipment;
   seed: number;
   rng: number;
   serial: number;
@@ -284,7 +391,7 @@ export const SKILLS: Offer[] = [
   },
 ];
 export const itemById = (id: string) =>
-  [...RELICS, ...MODIFIERS, ...SKILLS].find((x) => x.id === id);
+  [...RELICS, ...MODIFIERS, ...SKILLS, ...EQUIPMENT].find((x) => x.id === id);
 export const copy = <T>(s: T): T => JSON.parse(JSON.stringify(s));
 // Mulberry32, adapted from Max's match3-engine/src/engine/rng.ts.
 export function random(s: State): number {
@@ -405,7 +512,7 @@ export function energyMax(s: State) {
   return s.upgrades.spark >= 1 ? 15 : 12;
 }
 export function focusMax(s: State) {
-  return s.upgrades.focus >= 1 ? 9 : 6;
+  return (s.upgrades.focus >= 1 ? 9 : 6) + equipmentBonus(s, 'trousers');
 }
 function heal(s: State, value: number) {
   const actual = Math.min(value, s.maxHp - s.hp);
@@ -494,7 +601,10 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
       }
       if (family === 'blade') {
         poison(s, indices.filter((i) => s.board[i].variant === 'venom').length);
-        const value = count * s.balance.blade + s.upgrades.blade * 2;
+        const value =
+          count * s.balance.blade +
+          s.upgrades.blade * 2 +
+          equipmentBonus(s, 'weapon');
         hit(s, value);
         note(s, `Клинки: ${value} урона`);
         if (s.flags.includes('vessel:armed')) {
@@ -503,7 +613,10 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
         }
       }
       if (family === 'shield') {
-        let block = count * s.balance.shield + s.upgrades.shield * 2;
+        let block =
+          count * s.balance.shield +
+          s.upgrades.shield * 2 +
+          equipmentBonus(s, 'clothing');
         if (s.flags.includes('return:armed')) {
           block += 3;
           s.flags = s.flags.filter((x) => x !== 'return:armed');
@@ -637,7 +750,8 @@ export function startRun(
   balance: Balance = DEFAULT_BALANCE,
 ): State {
   const s: State = {
-    version: 1,
+    version: 2,
+    equipment: startingEquipment(),
     seed,
     rng: seed >>> 0,
     serial: 0,
@@ -988,10 +1102,17 @@ export function consumePotion(input: State): Result {
   ]);
 }
 export function rewardOffers(s: State, strong = false): Offer[] {
+  const gearPool = equipmentOptions(s);
+  const equipment = gearPool.length
+    ? [gearPool[Math.floor(random(s) * gearPool.length)]]
+    : [];
   if (s.room === 1)
-    return [RELICS[0], ...MODIFIERS].filter(
-      (x) => !s.relics.includes(x.id) && !s.modifiers.includes(x.id),
-    );
+    return [
+      ...equipment,
+      ...[RELICS[0], ...MODIFIERS].filter(
+        (x) => !s.relics.includes(x.id) && !s.modifiers.includes(x.id),
+      ),
+    ];
   const pool = [
     ...RELICS.filter(
       (x) =>
@@ -1019,7 +1140,7 @@ export function rewardOffers(s: State, strong = false): Offer[] {
   if (candidate >= 0) offers.push(pool.splice(candidate, 1)[0]);
   while (offers.length < 3 && pool.length)
     offers.push(pool.splice(Math.floor(random(s) * pool.length), 1)[0]);
-  return offers;
+  return [...equipment, ...offers];
 }
 
 export const BASE_RELICS = ['thorns', 'order'];
@@ -1331,6 +1452,24 @@ export function upgradeOptions(s: State) {
   return FAMILIES.filter((f) => s.upgrades[f] < 2).map(upgradeOffer);
 }
 function grant(s: State, offer: Offer, slot?: number): string | undefined {
+  if (offer.kind === 'equipment') {
+    const item = equipmentById(offer.id);
+    if (!item) return 'Неизвестный предмет экипировки.';
+    const previous = equipmentById(s.equipment[item.slot]);
+    if (previous && previous.tier >= item.tier)
+      return 'У тебя уже есть такая же или более сильная вещь.';
+    s.equipment[item.slot] = item.id;
+    if (item.slot === 'helmet') {
+      const difference = item.bonus - (previous?.bonus ?? 0);
+      s.maxHp += difference;
+      s.hp = Math.min(s.maxHp, s.hp + difference);
+    }
+    note(
+      s,
+      `Надето: ${item.name}${previous ? ` вместо «${previous.name}»` : ''}`,
+    );
+    return;
+  }
   if (offer.kind === 'relic') {
     if (s.relics.includes(offer.id)) return 'Эта реликвия уже есть.';
     s.relics.push(offer.id);
@@ -1387,6 +1526,11 @@ function shopOffers(s: State): Offer[] {
       !s.relics.includes(r.id) && s.flags.includes(`run:available:${r.id}`),
   );
   const offers: Offer[] = [];
+  const gearPool = equipmentOptions(s);
+  for (let i = 0; i < 2 && gearPool.length; i++) {
+    const item = gearPool.splice(Math.floor(random(s) * gearPool.length), 1)[0];
+    offers.push({ ...item, cost: [25, 40, 65][item.tier] });
+  }
   for (let i = 0; i < 2 && relicPool.length; i++)
     offers.push({
       ...relicPool.splice(Math.floor(random(s) * relicPool.length), 1)[0],
@@ -1483,7 +1627,8 @@ export function isSave(value: unknown): value is State {
   if (!value || typeof value !== 'object') return false;
   const s = value as State;
   return (
-    s.version === 1 &&
+    s.version === 2 &&
+    isEquipment(s.equipment) &&
     typeof s.runId === 'string' &&
     Number.isFinite(s.rng) &&
     Number.isInteger(s.room) &&
@@ -1499,6 +1644,9 @@ export function isSave(value: unknown): value is State {
         [null, 'venom', 'bomb'].includes(t.variant),
     ) &&
     Number.isFinite(s.hp) &&
+    Number.isFinite(s.maxHp) &&
+    s.maxHp > 0 &&
+    s.hp <= s.maxHp &&
     Number.isFinite(s.energy) &&
     Number.isFinite(s.focus) &&
     s.hp >= 0 &&
@@ -1513,6 +1661,11 @@ export function isSave(value: unknown): value is State {
     Array.isArray(s.skills) &&
     Array.isArray(s.flags) &&
     Array.isArray(s.log) &&
+    Array.isArray(s.offers) &&
+    s.offers.every(
+      (offer) =>
+        offer && (offer.kind !== 'equipment' || !!equipmentById(offer.id)),
+    ) &&
     !!s.stats &&
     !!s.balance &&
     !!s.upgrades &&
@@ -1528,6 +1681,22 @@ export function isSave(value: unknown): value is State {
       'defeat',
     ].includes(s.phase)
   );
+}
+// Keep the existing storage key so an ongoing local run is upgraded in place.
+// Migration is pure and consumes no randomness; malformed gear is never accepted.
+export function loadSave(value: unknown): State | null {
+  if (!value || typeof value !== 'object') return null;
+  const source = value as Record<string, unknown>;
+  const migrated =
+    source.version === 1 && source.equipment === undefined
+      ? {
+          ...source,
+          version: 2,
+          equipment: startingEquipment(),
+          heroPoison: source.heroPoison ?? 0,
+        }
+      : source;
+  return isSave(migrated) ? copy(migrated) : null;
 }
 export function isMeta(value: unknown): value is Meta {
   if (!value || typeof value !== 'object') return false;

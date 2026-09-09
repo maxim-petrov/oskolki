@@ -549,3 +549,196 @@ html[data-skin='palace-cellar'] {
     border-color: #786754;
   }
 }
+
+/* Equipment belongs to the same paper-and-ink interface as the arena. */
+html[data-skin='palace-cellar'] {
+  .equipment-panel {
+    margin: 14px 0 18px;
+  }
+  .equipment-panel .section-label {
+    margin: 0 0 8px;
+  }
+  .equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .equipment-slot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px;
+    min-width: 0;
+    text-align: left;
+    background: #cfc0a5;
+    color: #30241e;
+    border: 2px solid #47372c;
+    box-shadow: 2px 2px 0 #39282038;
+    cursor: pointer;
+  }
+  .equipment-slot:hover {
+    background: #e4d4b7;
+    border-color: #8c463a;
+  }
+  .equipment-slot:focus-visible {
+    outline: 3px solid #8c463a;
+    outline-offset: 2px;
+  }
+  .equipment-slot small,
+  .equipment-slot strong,
+  .equipment-slot em {
+    display: block;
+  }
+  .equipment-slot small {
+    font:
+      11px Arial,
+      sans-serif;
+    color: #695344;
+    margin-bottom: 3px;
+  }
+  .equipment-slot strong {
+    font:
+      bold 14px/1.2 Georgia,
+      serif;
+    overflow-wrap: anywhere;
+  }
+  .equipment-slot em {
+    font:
+      normal 11px/1.35 Arial,
+      sans-serif;
+    margin-top: 5px;
+  }
+  .equipment-slot .gear-rarity {
+    position: absolute;
+    top: 12px;
+    right: 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #705b48;
+  }
+  .gear-tier-1 {
+    border-color: #537278;
+  }
+  .gear-tier-2 {
+    border-color: #80628b;
+  }
+  .gear-tier-1 .gear-rarity {
+    color: #416970;
+  }
+  .gear-tier-2 .gear-rarity {
+    color: #75527f;
+  }
+  .empty-equipment {
+    background: #bcaf99;
+    border-style: dashed;
+    cursor: default;
+  }
+  .empty-equipment:hover {
+    background: #bcaf99;
+    border-color: #47372c;
+  }
+  .empty-gear-mark {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    font-size: 28px;
+    color: #7e6957;
+  }
+  .equipment-icon {
+    display: block;
+    flex: none;
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+  .equipment-comparison {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    margin: 8px 0;
+  }
+  .equipment-comparison > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: #cbbb9f;
+    border: 2px solid #705945;
+    padding: 18px 10px;
+    min-width: 0;
+  }
+  .equipment-comparison small {
+    font:
+      bold 11px Arial,
+      sans-serif;
+    letter-spacing: 0.5px;
+  }
+  .equipment-comparison strong {
+    font-size: 18px;
+  }
+  .equipment-comparison span {
+    font-size: 13px;
+  }
+  .equipment-comparison .equipment-arrow {
+    font-size: 24px;
+  }
+  .equipment-replaces {
+    display: block;
+    font:
+      12px/1.4 Arial,
+      sans-serif;
+    margin-top: 8px;
+    color: #705642;
+  }
+  .offer-grid.four-offers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .four-offers .offer-card {
+    min-height: 0;
+    padding: 18px;
+  }
+  .equipment-offer .offer-icon {
+    width: 52px;
+    height: 52px;
+  }
+  @media (max-width: 640px) {
+    .equipment-slot {
+      flex-direction: row;
+      align-items: center;
+      padding: 8px;
+      gap: 6px;
+    }
+    .equipment-slot .equipment-icon,
+    .equipment-slot .empty-gear-mark {
+      width: 34px;
+      height: 34px;
+    }
+    .equipment-slot .gear-rarity {
+      display: none;
+    }
+    .equipment-slot strong {
+      font-size: 12px;
+    }
+    .equipment-slot small,
+    .equipment-slot em {
+      font-size: 10px;
+    }
+    .offer-grid.four-offers {
+      grid-template-columns: 1fr;
+    }
+    .equipment-comparison {
+      gap: 6px;
+      grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
+    }
+    .equipment-comparison > div {
+      padding: 12px 6px;
+    }
+    .equipment-comparison strong {
+      font-size: 16px;
+    }
+  }
+}

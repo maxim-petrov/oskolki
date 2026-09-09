@@ -51,7 +51,7 @@ import {
 } from '@/components/game-panels';
 import {
   EMPTY_META,
-  isSave,
+  loadSave,
   isMeta,
   updateMeta,
   abandonMeta,
@@ -65,6 +65,7 @@ import {
 } from '@/game/engine';
 import { registerGameTools, gameAction, gameSnapshot } from '@/game/webmcp';
 import { SkinIcon } from '@/components/skin-icon';
+import { EquipmentPanel } from '@/components/equipment';
 import { CombatSprite } from '@/components/combat-sprite';
 import { motionFor, type Motion } from '@/game/motion';
 import { Progress } from '@/components/ui/progress';
@@ -207,8 +208,8 @@ export default function Game() {
       metaRef.current = loadedMeta;
       setMeta(loadedMeta);
       const raw = localStorage.getItem('oskolki.run.v1');
-      const loaded = raw ? JSON.parse(raw) : null;
-      if (isSave(loaded)) {
+      const loaded = loadSave(raw ? JSON.parse(raw) : null);
+      if (loaded) {
         loaded.heroPoison ??= 0;
         if (loaded.trial) loaded.trial.paused = true;
         gameRef.current = loaded;
@@ -814,6 +815,7 @@ export default function Game() {
               <span>Фокус</span>
             </div>
           </div>
+          <EquipmentPanel game={s} onDetail={setDetail} />
           <div className="section-label">
             <span className="eyebrow">ПРИЁМЫ</span>
             <span>{s.cast ? 'Использован' : '1 за ход'}</span>
