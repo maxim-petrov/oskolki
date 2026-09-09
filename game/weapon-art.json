@@ -1,0 +1,32 @@
+{
+  "gear-cutter": {
+    "src": "/art/pronoun-palace/weapons/gear-cutter.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [64, 76, 1158, 1110]
+  },
+  "gear-rusty-dagger": {
+    "src": "/art/pronoun-palace/weapons/gear-rusty-dagger.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [51, 79, 1151, 1126]
+  },
+  "gear-cleaver": {
+    "src": "/art/pronoun-palace/weapons/gear-cleaver.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [30, 80, 1198, 1104]
+  },
+  "gear-axe": {
+    "src": "/art/pronoun-palace/weapons/gear-axe.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [186, 40, 1039, 1193]
+  },
+  "gear-rune-sword": {
+    "src": "/art/pronoun-palace/weapons/gear-rune-sword.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [77, 52, 1132, 1153]
+  }
+}

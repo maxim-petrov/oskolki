@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "generator": "native image_gen",
+  "programmatic_image_edits": false,
+  "bbox_format": "[left, top, right, bottom], right and bottom exclusive; alpha >= 128",
+  "notes": [
+    "All selected images inspected visually and through read-only PNG metadata/alpha checks.",
+    "All selected images have genuine alpha transparency, no rendered checkerboard, and contain one complete weapon.",
+    "Native framing fills roughly 83–96% of the canvas rather than requested 75%; use supplied alpha bounding boxes for display scaling.",
+    "Selected images may have low-alpha edge haze. No programmatic cleanup was applied.",
+    "Each weapon had one initial generation with the supplied style-reference image; all initial images were rejected because they were RGB with a rendered checkerboard. One independent native retry per weapon produced the selected RGBA output."
+  ],
+  "assets": [
+    {
+      "id": "gear-cutter",
+      "path": "public/art/pronoun-palace/weapons/gear-cutter.png",
+      "native_size": [1254, 1254],
+      "mode": "RGBA",
+      "alpha_range": [0, 255],
+      "alpha_128_bbox": [64, 76, 1222, 1186],
+      "fully_transparent_pixels": 1143019,
+      "usable": true,
+      "selected_attempt": 2,
+      "prompt": "Create a transparent PNG game sprite: a red utility paper knife, recognizably a modern red plastic handheld box cutter, with a short exposed light-steel trapezoidal blade at its upper-right tip, one black slider in the red handle, and a small dark lanyard hole near the lower-left end. Compact clean silhouette.\nONE isolated centered weapon on a transparent background, square canvas. The weapon points diagonally from lower-left handle to upper-right tip or head and fills about 75% of the square.\nVery chunky 2D pixel art with only about 40 logical pixels across the weapon, large hard square pixel blocks, bold black stair-step outline, 3–5 flat shades per material, warm sepia and copper plus pale steel and sparse red or teal accents. Extremely simple readable silhouette suitable for a 48px inventory icon.\nActual transparent background, PNG alpha channel. The empty space outside the weapon is transparent. No checkered pattern, no background color, no scene, no floor, no shadow, no glow, no labels or text, no frame, no extra items. No photo textures or fine noise.",
+      "referenced_image_paths": [],
+      "source_path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-6ffc278f-6e4a-4f20-9fcf-13ef94ee075c.png"
+    },
+    {
+      "id": "gear-rusty-dagger",
+      "path": "public/art/pronoun-palace/weapons/gear-rusty-dagger.png",
+      "native_size": [1254, 1254],
+      "mode": "RGBA",
+      "alpha_range": [0, 255],
+      "alpha_128_bbox": [51, 79, 1202, 1205],
+      "fully_transparent_pixels": 1180305,
+      "usable": true,
+      "selected_attempt": 2,
+      "prompt": "Create a transparent PNG game sprite: a short rusted triangular dagger with a broad tapering pointed iron blade, 2 or 3 large rusty copper patches, a simple dark guard, and a stubby handle wrapped in pale dirty beige rags. The dagger must be short and clearly distinct from a long sword.\nONE isolated centered weapon on a transparent background, square canvas. The weapon points diagonally from lower-left handle to upper-right tip or head and fills about 75% of the square.\nVery chunky 2D pixel art with only about 40 logical pixels across the weapon, large hard square pixel blocks, bold black stair-step outline, 3–5 flat shades per material, warm sepia and copper plus pale steel and sparse red or teal accents. Extremely simple readable silhouette suitable for a 48px inventory icon.\nActual transparent background, PNG alpha channel. The empty space outside the weapon is transparent. No checkered pattern, no background color, no scene, no floor, no shadow, no glow, no labels or text, no frame, no extra items. No photo textures or fine noise.",
+      "referenced_image_paths": [],
+      "source_path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-cbbaabd5-b4e7-4e7b-8b5c-e70c917a8bdc.png"
+    },
+    {
+      "id": "gear-cleaver",
+      "path": "public/art/pronoun-palace/weapons/gear-cleaver.png",
+      "native_size": [1254, 1254],
+      "mode": "RGBA",
+      "alpha_range": [0, 255],
+      "alpha_128_bbox": [30, 80, 1228, 1184],
+      "fully_transparent_pixels": 1098192,
+      "usable": true,
+      "selected_attempt": 2,
+      "prompt": "Create a transparent PNG game sprite: a broad rectangular iron cleaver with a straight chopping edge and blunt squared upper corner, a small hole near that corner, pale steel cutting edge and muted dark-steel center, attached to a simple dark wooden grip with two pale rivets. The silhouette must read as a heavy butcher cleaver, not a sword.\nONE isolated centered weapon on a transparent background, square canvas. The weapon points diagonally from lower-left handle to upper-right tip or head and fills about 75% of the square.\nVery chunky 2D pixel art with only about 40 logical pixels across the weapon, large hard square pixel blocks, bold black stair-step outline, 3–5 flat shades per material, warm sepia and copper plus pale steel and sparse red or teal accents. Extremely simple readable silhouette suitable for a 48px inventory icon.\nActual transparent background, PNG alpha channel. The empty space outside the weapon is transparent. No checkered pattern, no background color, no scene, no floor, no shadow, no glow, no labels or text, no frame, no extra items. No photo textures or fine noise.",
+      "referenced_image_paths": [],
+      "source_path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-b714765c-2a23-47dc-bec1-b6eaff0c4288.png"
+    },
+    {
+      "id": "gear-axe",
+      "path": "public/art/pronoun-palace/weapons/gear-axe.png",
+      "native_size": [1254, 1254],
+      "mode": "RGBA",
+      "alpha_range": [0, 255],
+      "alpha_128_bbox": [186, 40, 1225, 1233],
+      "fully_transparent_pixels": 1297229,
+      "usable": true,
+      "selected_attempt": 2,
+      "prompt": "Create a transparent PNG game sprite: a compact single-headed iron axe with a long straight dark wooden handle and a short red leather tie immediately beneath the head. One broad wedge-shaped pale steel cutting head mounted at the upper-right end of the shaft; the single axe blade points toward upper-left with a small blunt rear poll on the right. The lower-left handle end is bare wood. Clear classic one-headed axe silhouette.\nONE isolated centered weapon on a transparent background, square canvas. The weapon points diagonally from lower-left handle to upper-right tip or head and fills about 75% of the square.\nVery chunky 2D pixel art with only about 40 logical pixels across the weapon, large hard square pixel blocks, bold black stair-step outline, 3–5 flat shades per material, warm sepia and copper plus pale steel and sparse red or teal accents. Extremely simple readable silhouette suitable for a 48px inventory icon.\nActual transparent background, PNG alpha channel. The empty space outside the weapon is transparent. No checkered pattern, no background color, no scene, no floor, no shadow, no glow, no labels or text, no frame, no extra items. No photo textures or fine noise.",
+      "referenced_image_paths": [],
+      "source_path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-eb23fdc1-ca77-41bb-8dda-8935efe6b17d.png"
+    },
+    {
+      "id": "gear-rune-sword",
+      "path": "public/art/pronoun-palace/weapons/gear-rune-sword.png",
+      "native_size": [1254, 1254],
+      "mode": "RGBA",
+      "alpha_range": [0, 255],
+      "alpha_128_bbox": [77, 52, 1209, 1205],
+      "fully_transparent_pixels": 1310250,
+      "usable": true,
+      "selected_attempt": 2,
+      "prompt": "Create a transparent PNG game sprite: a long copper rune sword with a tapered straight copper blade, a bright pale copper cutting edge, one restrained teal inset along its central ridge, a simple straight crossguard, and a short dark brown leather handle. Two or three abstract angular rune-like marks are ornament only, not readable writing. Clear long sword silhouette, more refined than the dagger.\nONE isolated centered weapon on a transparent background, square canvas. The weapon points diagonally from lower-left handle to upper-right tip or head and fills about 75% of the square.\nVery chunky 2D pixel art with only about 40 logical pixels across the weapon, large hard square pixel blocks, bold black stair-step outline, 3–5 flat shades per material, warm sepia and copper plus pale steel and sparse red or teal accents. Extremely simple readable silhouette suitable for a 48px inventory icon.\nActual transparent background, PNG alpha channel. The empty space outside the weapon is transparent. No checkered pattern, no background color, no scene, no floor, no shadow, no glow, no labels or text, no frame, no extra items. No photo textures or fine noise.",
+      "referenced_image_paths": [],
+      "source_path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-8fb194a3-e855-4bd1-9f1e-3e38b9f61b93.png"
+    }
+  ]
+}

@@ -65,7 +65,11 @@ import {
 } from '@/game/engine';
 import { registerGameTools, gameAction, gameSnapshot } from '@/game/webmcp';
 import { SkinIcon } from '@/components/skin-icon';
-import { EquipmentPanel } from '@/components/equipment';
+import {
+  EquipmentPanel,
+  EquipmentIcon,
+  WeaponGallery,
+} from '@/components/equipment';
 import { CombatSprite } from '@/components/combat-sprite';
 import { motionFor, type Motion } from '@/game/motion';
 import { Progress } from '@/components/ui/progress';
@@ -84,6 +88,7 @@ import {
   FAMILY_NAMES,
   FAMILIES,
   itemById,
+  equipmentById,
   type Frame,
   type Result,
   type Family,
@@ -985,15 +990,28 @@ export default function Game() {
         onStart={restart}
       />
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <DialogContent className="game-dialog">
+        <DialogContent
+          className={`game-dialog ${equipmentById(detail)?.slot === 'weapon' ? 'weapon-detail-dialog' : ''}`}
+        >
           <div className="panel-emblem">
-            <ItemIcon id={detail ?? ''} />
+            {equipmentById(detail)?.slot === 'weapon' ? (
+              <EquipmentIcon id={detail!} size={120} />
+            ) : (
+              <ItemIcon id={detail ?? ''} />
+            )}
           </div>
           <DialogTitle>{itemById(detail ?? '')?.name}</DialogTitle>
           <DialogDescription>
             {itemById(detail ?? '')?.description}
           </DialogDescription>
           <span className="offer-tag">{itemById(detail ?? '')?.tag}</span>
+          {equipmentById(detail)?.slot === 'weapon' && (
+            <WeaponGallery
+              selectedId={detail!}
+              equippedId={s.equipment.weapon}
+              onSelect={setDetail}
+            />
+          )}
           <Button onClick={() => setDetail(null)}>Вернуться</Button>
         </DialogContent>
       </Dialog>

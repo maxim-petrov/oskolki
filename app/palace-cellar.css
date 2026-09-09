@@ -742,3 +742,72 @@ html[data-skin='palace-cellar'] {
     }
   }
 }
+
+html[data-skin='palace-cellar'] {
+  .weapon-detail-dialog .panel-emblem {
+    width: 136px;
+    height: 136px;
+    margin-bottom: 0;
+  }
+  .weapon-detail-dialog .panel-emblem > .equipment-icon {
+    width: 120px;
+    height: 120px;
+  }
+  .weapon-gallery {
+    margin: 8px 0;
+  }
+  .weapon-gallery .eyebrow {
+    display: block;
+    margin-bottom: 10px;
+  }
+  .weapon-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .weapon-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 4px;
+    min-width: 0;
+    border: 2px solid #806d58;
+    color: #34251e;
+    background: #cbbb9f;
+    cursor: pointer;
+  }
+  .weapon-preview strong {
+    font:
+      bold 12px/1.2 Georgia,
+      serif;
+    overflow-wrap: anywhere;
+  }
+  .weapon-preview small {
+    margin-top: auto;
+    font:
+      10px Arial,
+      sans-serif;
+  }
+  .weapon-preview[aria-pressed='true'] {
+    background: #ecd8ad;
+    border-color: #974735;
+    box-shadow: inset 0 0 0 1px #974735;
+  }
+  .weapon-preview:hover {
+    background: #e4d2b4;
+  }
+  .weapon-preview:focus-visible {
+    outline: 3px solid #8c463a;
+    outline-offset: 2px;
+  }
+  @media (max-width: 480px) {
+    .weapon-gallery-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .weapon-preview .equipment-icon {
+      width: 48px;
+      height: 48px;
+    }
+  }
+}

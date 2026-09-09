@@ -434,6 +434,7 @@ test('gear appears deterministically, progresses by room, and never offers a dow
     s.equipment[slot] = g.EQUIPMENT.find(
       (o) => o.slot === slot && o.tier === 1,
     ).id;
+  s.equipment.weapon = 'gear-axe';
   s.room = 5;
   assert.deepEqual(g.equipmentOptions(s), []);
   assert.equal(g.rewardOffers(s).length, 3);
@@ -590,4 +591,75 @@ test('complete routes also work when the player prefers equipment and resumes up
     ).length;
   }
   assert.ok(upgrades > 0);
+});
+
+test('five weapons progress in order, including improvements within the same quality', () => {
+  const ids = [
+    'gear-cutter',
+    'gear-rusty-dagger',
+    'gear-cleaver',
+    'gear-axe',
+    'gear-rune-sword',
+  ];
+  assert.deepEqual(
+    g.WEAPONS.map((weapon) => weapon.id),
+    ids,
+  );
+  let s = g.startRun();
+  for (let i = 1; i < ids.length; i++) {
+    s.room = i === 4 ? 6 : 2;
+    const next = g.equipmentOptions(s).filter((item) => item.slot === 'weapon');
+    assert.equal(next.length, 1);
+    assert.equal(next[0].id, ids[i]);
+    s.phase = 'reward';
+    s.offers = next;
+    const r = g.chooseReward(s, ids[i]);
+    assert.equal(r.error, undefined);
+    assert.equal(r.state.equipment.weapon, ids[i]);
+    assert.equal(g.equipmentBonus(r.state, 'weapon'), i);
+    assert.deepEqual(g.loadSave(JSON.parse(JSON.stringify(r.state))), r.state);
+    s = r.state;
+  }
+  assert.equal(
+    g.equipmentOptions(s).some((item) => item.slot === 'weapon'),
+    false,
+  );
+});
+
+test('rare sword stays gated, and an existing cleaver save offers the new axe', () => {
+  const old = g.startRun();
+  old.equipment.weapon = 'gear-cleaver';
+  old.room = 4;
+  const loaded = g.loadSave(JSON.parse(JSON.stringify(old)));
+  assert.equal(
+    g.equipmentOptions(loaded).find((item) => item.slot === 'weapon').id,
+    'gear-axe',
+  );
+  loaded.equipment.weapon = 'gear-axe';
+  loaded.room = 5;
+  assert.equal(
+    g.equipmentOptions(loaded).some((item) => item.slot === 'weapon'),
+    false,
+  );
+  loaded.room = 6;
+  assert.equal(
+    g.equipmentOptions(loaded).find((item) => item.slot === 'weapon').id,
+    'gear-rune-sword',
+  );
+});
+
+test('all five weapons use their own match damage bonus and do not amplify spells', () => {
+  const { s, m } = findState('blade');
+  s.enemies[0].hp = s.enemies[0].maxHp = 10000;
+  s.energy = 6;
+  const baseline = applyMove(s, m).frames[0].state.stats.damage;
+  for (const weapon of g.WEAPONS) {
+    const equipped = g.copy(s);
+    equipped.equipment.weapon = weapon.id;
+    assert.equal(
+      applyMove(equipped, m).frames[0].state.stats.damage - baseline,
+      weapon.bonus,
+    );
+    assert.equal(g.castSkill(equipped, 'bolt').state.stats.damage, 12);
+  }
 });

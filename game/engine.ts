@@ -100,7 +100,9 @@ export const EQUIPMENT: EquipmentItem[] = [
   gear('gear-tin-helmet', 'helmet', 0, 'Помятый шлем', 4),
   gear('gear-shirt', 'clothing', 0, 'Старая рубашка', 0),
   gear('gear-worn-trousers', 'trousers', 0, 'Потёртые штаны', 0),
+  gear('gear-rusty-dagger', 'weapon', 0, 'Ржавый кинжал', 1),
   gear('gear-cleaver', 'weapon', 1, 'Железный тесак', 2),
+  gear('gear-axe', 'weapon', 1, 'Боевой топор', 3),
   gear('gear-iron-helmet', 'helmet', 1, 'Железный шлем', 8),
   gear('gear-jacket', 'clothing', 1, 'Кожаная куртка', 2),
   gear('gear-reinforced-trousers', 'trousers', 1, 'Укреплённые штаны', 1),
@@ -109,6 +111,7 @@ export const EQUIPMENT: EquipmentItem[] = [
   gear('gear-brigandine', 'clothing', 2, 'Бригантина', 4),
   gear('gear-guard-trousers', 'trousers', 2, 'Штаны стража', 2),
 ];
+export const WEAPONS = EQUIPMENT.filter((item) => item.slot === 'weapon');
 export const equipmentById = (id: string | null | undefined) =>
   EQUIPMENT.find((item) => item.id === id);
 export const startingEquipment = (): Equipment => ({
@@ -132,13 +135,14 @@ export function equipmentSummary(item: EquipmentItem | undefined) {
 }
 export function equipmentOptions(s: State): EquipmentItem[] {
   const maxTier = s.room >= 6 ? 2 : 1;
-  // One next upgrade per slot; never offer gear that is already worn or weaker.
+  // Quality is a label, not a progression index: weapons have five steps.
+  // Keep one next improvement per slot, including stronger weapons of the same quality.
   return EQUIPMENT_SLOTS.flatMap((slot) => {
-    const tier = equipmentById(s.equipment[slot])?.tier ?? -1;
-    const next = EQUIPMENT.find(
+    const bonus = equipmentById(s.equipment[slot])?.bonus ?? -1;
+    const next = EQUIPMENT.filter(
       (item) =>
-        item.slot === slot && item.tier === tier + 1 && item.tier <= maxTier,
-    );
+        item.slot === slot && item.bonus > bonus && item.tier <= maxTier,
+    ).sort((a, b) => a.bonus - b.bonus)[0];
     return next ? [next] : [];
   });
 }
@@ -1456,7 +1460,7 @@ function grant(s: State, offer: Offer, slot?: number): string | undefined {
     const item = equipmentById(offer.id);
     if (!item) return 'Неизвестный предмет экипировки.';
     const previous = equipmentById(s.equipment[item.slot]);
-    if (previous && previous.tier >= item.tier)
+    if (previous && previous.bonus >= item.bonus)
       return 'У тебя уже есть такая же или более сильная вещь.';
     s.equipment[item.slot] = item.id;
     if (item.slot === 'helmet') {

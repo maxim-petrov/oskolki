@@ -1,7 +1,9 @@
 'use client';
 import { useId } from 'react';
+import weaponArt from '@/game/weapon-art.json';
 import { PalaceCutout } from '@/components/palace-cutout';
 import {
+  WEAPONS,
   EQUIPMENT_SLOTS,
   EQUIPMENT_SLOT_NAMES,
   EQUIPMENT_TIERS,
@@ -35,9 +37,22 @@ export function EquipmentIcon({
   const uid = useId().replace(/:/g, '');
   const item = equipmentById(id);
   if (!item) return null;
-  // The atlas is cropped by source coordinates, keeping the original pixels.
-  const [x, y, width, height] = REGIONS[item.icon];
-  const extent = Math.max(width, height) + 16;
+  // Each weapon uses its own PNG; other gear uses measured atlas regions.
+  const art = (
+    weaponArt as Record<
+      string,
+      {
+        src: string;
+        width: number;
+        height: number;
+        bounds: number[];
+      }
+    >
+  )[id];
+  const [x, y, width, height] = art?.bounds ?? REGIONS[item.icon];
+  const extent = art
+    ? Math.ceil(Math.max(width, height) * 1.08)
+    : Math.max(width, height) + 16;
   return (
     <svg
       aria-hidden="true"
@@ -54,9 +69,9 @@ export function EquipmentIcon({
         <PalaceCutout id={`gear-alpha-${uid}`} bounds={[x, y, width, height]} />
       </defs>
       <image
-        href="/art/pronoun-palace/equipment.png"
-        width={1254}
-        height={1254}
+        href={art?.src ?? '/art/pronoun-palace/equipment.png'}
+        width={art?.width ?? 1254}
+        height={art?.height ?? 1254}
         clipPath={`url(#gear-${uid})`}
         filter={`url(#gear-alpha-${uid})`}
       />
@@ -150,5 +165,38 @@ export function EquipmentComparison({ game, id }: { game: State; id: string }) {
         <span>{equipmentSummary(item)}</span>
       </div>
     </div>
+  );
+}
+
+export function WeaponGallery({
+  selectedId,
+  equippedId,
+  onSelect,
+}: {
+  selectedId: string;
+  equippedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <section className="weapon-gallery" aria-label="Пять видов оружия">
+      <p className="eyebrow">ОРУЖИЕ · {WEAPONS.length} ВИДОВ</p>
+      <div className="weapon-gallery-grid">
+        {WEAPONS.map((weapon) => (
+          <button
+            type="button"
+            key={weapon.id}
+            className={`weapon-preview gear-tier-${weapon.tier}`}
+            aria-pressed={selectedId === weapon.id}
+            onClick={() => onSelect(weapon.id)}
+          >
+            <EquipmentIcon id={weapon.id} size={64} />
+            <strong>{weapon.name}</strong>
+            <small>
+              {weapon.id === equippedId ? 'Надето' : `+${weapon.bonus} к урону`}
+            </small>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
