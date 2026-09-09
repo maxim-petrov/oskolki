@@ -4,6 +4,7 @@ import {
   itemById,
   itemForRun,
   ENEMY_CATALOG,
+  HEROES,
   RELICS,
   MODIFIERS,
   SKILLS,
@@ -81,6 +82,12 @@ export function RunJournal({ meta, game }: { meta: Meta; game: State }) {
                   : 'Прерван'}{' '}
               · комната {r.room} · seed {r.seed}
               {r.modified ? ' · проверка' : ''}
+              {' · '}
+              {HEROES.find((h) => h.id === (r.hero ?? 'wanderer'))?.name}
+              {r.difficulty === 1 ? ' · Напряжение I' : ''}
+              {r.ending
+                ? ` · ${ENEMY_CATALOG[r.ending as keyof typeof ENEMY_CATALOG]?.name ?? r.ending}`
+                : ''}
             </summary>
             <p>
               {equipmentById(r.weapon)?.name} ·{' '}

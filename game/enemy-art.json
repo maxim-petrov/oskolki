@@ -106,5 +106,11 @@
     "width": 1254,
     "height": 1254,
     "bounds": [83, 243, 995, 824]
+  },
+  "redactor": {
+    "src": "/art/pronoun-palace/enemies/redactor.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [95, 172, 1119, 947]
   }
 }

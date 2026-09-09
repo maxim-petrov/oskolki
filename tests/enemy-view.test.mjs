@@ -19,6 +19,7 @@ const kinds = [
   'censor',
   ...g.ARCHIVE_ENEMY_KINDS,
   'tide-keeper',
+  'redactor',
 ];
 const compare = (a, b) => a.localeCompare(b);
 function enemy(kind) {
@@ -35,7 +36,7 @@ function enemy(kind) {
   };
 }
 
-test('sixteen enemies and two bosses each own a distinct transparent native PNG', () => {
+test('sixteen enemies and three bosses each own a distinct transparent native PNG', () => {
   assert.deepEqual(Object.keys(art).sort(compare), [...kinds].sort(compare));
   const hashes = new Set();
   for (const key of kinds) {
@@ -57,7 +58,7 @@ test('sixteen enemies and two bosses each own a distinct transparent native PNG'
     );
     hashes.add(createHash('sha256').update(data).digest('hex'));
   }
-  assert.equal(hashes.size, 18);
+  assert.equal(hashes.size, kinds.length);
 });
 
 test('all enemy combat poses use their own artwork, while old saved enemies keep their atlas', () => {
@@ -102,5 +103,27 @@ test('live enemy identity, second boss phase and displayed intentions survive sa
     }
     state.round = 1;
     assert.equal(JSON.stringify(state), snapshot);
+  }
+});
+
+test('the Warden holds all five equipped weapons in six measured poses without replacing the original hero', async () => {
+  const { WardenArt, WARDEN_FRAMES } =
+    await import('../components/warden-art.tsx');
+  // Use the real equipment catalog rather than assuming historical item IDs.
+  const ids = g.EQUIPMENT.filter((e) => e.slot === 'weapon').map((e) => e.id);
+  assert.equal(ids.length, 5);
+  for (const pose of Object.keys(WARDEN_FRAMES)) {
+    const pictures = ids.map((weaponId) =>
+      render(WardenArt, { pose, weaponId }),
+    );
+    assert.equal(
+      new Set(pictures.map((s) => s.match(/data-weapon-id="([^"]+)/)?.[1]))
+        .size,
+      5,
+    );
+    for (const s of pictures) {
+      assert.match(s, /warden-poses\.png/);
+      assert.doesNotMatch(s, /undefined|NaN/);
+    }
   }
 });

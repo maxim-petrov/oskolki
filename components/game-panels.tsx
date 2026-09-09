@@ -1,5 +1,6 @@
 /* eslint-disable nextjs/no-img-element -- Room artwork keeps its original native pixels. */
 'use client';
+import { ProgressionGoals } from '@/components/progression';
 import { RunRecap, RunJournal } from '@/components/run-journal';
 import { useState } from 'react';
 import { RewardActions, SealConfirmation } from '@/components/journey-rewards';
@@ -33,6 +34,9 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import {
   ACHIEVEMENTS,
+  HEROES,
+  canEnterForbidden,
+  type HeroId,
   equipmentById,
   EQUIPMENT_SLOT_NAMES,
   itemById,
@@ -437,6 +441,26 @@ export function RunPanel({
             )}
             {s.phase === 'event' && (
               <div className="route-options">
+                {s.room === 17 && (s.rulesVersion ?? 0) >= 4 && (
+                  <button
+                    className="route-card"
+                    disabled={busy || !canEnterForbidden(s)}
+                    onClick={() => void act(eventChoice(s, 'forbidden'))}
+                  >
+                    <SkinIcon name="crown" size={44} />
+                    <div>
+                      <strong>
+                        Пропуск в Запретный отдел · −6 макс. здоровья
+                      </strong>
+                      <p>
+                        {s.flags.includes('run:alternate-access')
+                          ? 'Заменяет финального Хранителя на Редактора. Текущее здоровье уменьшится только до нового максимума. Насос останется непочиненным.'
+                          : 'Откроется после первой обычной победы. Этот спуск продолжится к Хранителю.'}
+                      </p>
+                    </div>
+                    <ArrowRight />
+                  </button>
+                )}
                 <button
                   className="route-card"
                   disabled={busy || (s.room === 17 ? s.gold < 30 : s.hp <= 5)}
@@ -507,6 +531,7 @@ export function RunPanel({
             {['victory', 'defeat'].includes(s.phase) && (
               <>
                 <RunRecap game={s} />
+                <ProgressionGoals meta={meta} />
                 <div className="end-stats">
                   <div>
                     <strong>
@@ -567,6 +592,7 @@ export function Discoveries({
           новые метки открываются через освоение приёмов и появляются со
           следующего забега.
         </DialogDescription>
+        <ProgressionGoals meta={meta} />
         <RunJournal meta={meta} game={game} />
         <div className="discovery-list">
           {ACHIEVEMENTS.map((a) => {
@@ -597,6 +623,9 @@ export type Preset =
   | 'editor'
   | 'runes';
 export function SettingsPanel({
+  meta,
+  currentHero = 'wanderer',
+  currentDifficulty = 0,
   open,
   onClose,
   balance,
@@ -609,8 +638,19 @@ export function SettingsPanel({
   balance: Balance;
   currentSeed: number;
   onAnimation: (ms: number) => void;
-  onStart: (b: Balance, p: Preset, seed?: number) => void;
+  meta: Meta;
+  currentHero?: HeroId;
+  currentDifficulty?: 0 | 1;
+  onStart: (
+    b: Balance,
+    p: Preset,
+    seed?: number,
+    hero?: HeroId,
+    difficulty?: 0 | 1,
+  ) => void;
 }) {
+  const [hero, setHero] = useState<HeroId>(currentHero);
+  const [difficulty, setDifficulty] = useState<0 | 1>(currentDifficulty);
   const [settings, setSettings] = useState(balance);
   const [preset, setPreset] = useState<Preset>('normal');
   const [seed, setSeed] = useState('');
@@ -631,6 +671,32 @@ export function SettingsPanel({
           Скорость анимации меняется сразу. Остальные параметры применяются в
           новом забеге.
         </DialogDescription>
+        <fieldset className="run-journal">
+          <legend>Герой и сложность</legend>
+          {HEROES.map((h) => (
+            <label key={h.id} style={{ display: 'block', marginBottom: 12 }}>
+              <input
+                type="radio"
+                name="hero"
+                checked={hero === h.id}
+                disabled={h.id === 'warden' && !meta.wins}
+                onChange={() => setHero(h.id)}
+              />{' '}
+              <strong>{h.name}</strong> — {h.description}
+              {h.id === 'warden' && !meta.wins ? ' После первой победы.' : ''}
+            </label>
+          ))}
+          <label>
+            <input
+              type="checkbox"
+              checked={difficulty === 1}
+              disabled={!meta.wins}
+              onChange={(e) => setDifficulty(e.target.checked ? 1 : 0)}
+            />{' '}
+            Напряжение I: все удары врагов +2. Доступно после первой победы;
+            отдельная отметка прохождения.
+          </label>
+        </fieldset>
         <div className="settings-controls">
           {sliders.map(([key, label, min, max, step]) => (
             <div key={key} className="setting-row">
@@ -723,7 +789,13 @@ export function SettingsPanel({
             disabled={!seedValid}
             onClick={() => {
               if (!seedValid) return;
-              onStart(settings, preset, seed ? Number(seed) : undefined);
+              onStart(
+                settings,
+                preset,
+                seed ? Number(seed) : undefined,
+                hero,
+                difficulty,
+              );
               onClose();
             }}
           >

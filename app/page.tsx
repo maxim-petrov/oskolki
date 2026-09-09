@@ -55,6 +55,9 @@ import {
 } from '@/components/game-panels';
 import {
   EMPTY_META,
+  startAdventure,
+  HEROES,
+  type HeroId,
   loadSave,
   isMeta,
   updateMeta,
@@ -68,6 +71,7 @@ import {
   type Balance,
 } from '@/game/engine';
 import { registerGameTools, gameAction, gameSnapshot } from '@/game/webmcp';
+import { ActiveHeroRules } from '@/components/progression';
 import { ActiveSeal } from '@/components/journey-rewards';
 import { SkinIcon } from '@/components/skin-icon';
 import {
@@ -197,14 +201,19 @@ export default function Game() {
     b: Balance = gameRef.current.balance,
     preset: Preset = 'normal',
     manualSeed?: number,
+    hero: HeroId = gameRef.current.hero ?? 'wanderer',
+    difficulty: 0 | 1 = gameRef.current.difficulty ?? 0,
   ) => {
     const prev = gameRef.current;
     const nextMeta = abandonMeta(metaRef.current, prev);
     metaRef.current = nextMeta;
     setMeta(nextMeta);
-    let next = withUnlocks(
-      startRun(manualSeed ?? Date.now() >>> 0, b),
+    let next = startAdventure(
+      manualSeed ?? Date.now() >>> 0,
+      b,
       nextMeta,
+      hero,
+      difficulty,
     );
     next = configureRun(next, preset);
     next.runId = crypto.randomUUID();
@@ -591,7 +600,9 @@ export default function Game() {
             <div className="fighter hero">
               <CombatSprite state={s} motion={motion} actor="hero" />
               <div className="fighter-caption">
-                <strong>Странник</strong>
+                <strong>
+                  {HEROES.find((h) => h.id === (s.hero ?? 'wanderer'))?.name}
+                </strong>
                 <span className="health-number">
                   <SkinIcon name="heart" size={22} />
                   {s.hp} / {s.maxHp}
@@ -701,6 +712,7 @@ export default function Game() {
               Подсказка
             </Button>
           </div>
+          <ActiveHeroRules game={s} />
           <ArchiveMechanics game={s} />
           <div
             className={`board-section ${editing ? 'is-editing' : ''} ${game.phase === 'trial' && (game.trial?.paused || modalOpen) ? 'trial-paused' : ''}`}
@@ -1072,7 +1084,7 @@ export default function Game() {
         meta={meta}
         busy={busy}
         act={play}
-        restart={() => restart()}
+        restart={() => setSettingsOpen(true)}
       />
       <Discoveries
         game={game}
@@ -1081,6 +1093,9 @@ export default function Game() {
         meta={meta}
       />
       <SettingsPanel
+        meta={meta}
+        currentHero={game.hero}
+        currentDifficulty={game.difficulty}
         key={settingsOpen ? 'open' : 'closed'}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

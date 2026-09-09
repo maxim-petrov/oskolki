@@ -178,6 +178,9 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
           : s.rulesVersion === 2
             ? 'v0.2'
             : 'classic',
+    hero: s.hero ?? 'wanderer',
+    difficulty: s.difficulty ?? 0,
+    redaction: s.redaction ?? null,
     seal: s.seal ?? null,
     rewardSource: s.rewardSource ?? null,
     canRerollTreasure: canRerollTreasure(s),

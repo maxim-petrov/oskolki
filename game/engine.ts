@@ -48,6 +48,7 @@ export type EnemyKind =
   | (typeof NEW_ENEMY_KINDS)[number]
   | (typeof ARCHIVE_ENEMY_KINDS)[number]
   | 'tide-keeper'
+  | 'redactor'
   | 'censor'
   | 'raider'
   | 'armored'
@@ -59,6 +60,13 @@ export const ENEMY_CATALOG: Record<
   EnemyKind,
   { name: string; hp: number; damage: number; tactic: string }
 > = {
+  redactor: {
+    name: 'Редактор',
+    hp: 120,
+    damage: 8,
+    tactic:
+      'Ставит запрет на одно семейство на 2 хода, затем удар 8 и удар 14. Группа запрещённого семейства даёт ему 6 блока перед её эффектом. Правка снимает запрет. При половине здоровья удары сильнее на 2.',
+  },
   'reed-crab': {
     name: 'Картотечный краб',
     hp: 28,
@@ -208,7 +216,8 @@ export const ENEMY_CATALOG: Record<
   },
 };
 export function bossPhase(e: Enemy): 1 | 2 {
-  return ['censor', 'tide-keeper'].includes(e.kind) && e.hp <= e.maxHp / 2
+  return ['censor', 'tide-keeper', 'redactor'].includes(e.kind) &&
+    e.hp <= e.maxHp / 2
     ? 2
     : 1;
 }
@@ -223,9 +232,11 @@ export type EnemyIntent = {
     | 'heal'
     | 'pierce'
     | 'ink'
-    | 'siphon';
+    | 'siphon'
+    | 'redact';
   value: number;
   text: string;
+  family?: Family;
 };
 export type Balance = {
   health: number;
@@ -587,10 +598,28 @@ export type DamageEvent = {
   room: number;
   round: number;
 };
+export type HeroId = 'wanderer' | 'warden';
+export const HEROES = [
+  {
+    id: 'wanderer' as const,
+    name: 'Странник',
+    description:
+      '40 здоровья. Начинает каждый бой с 3 энергией. Неиспользованный блок исчезает.',
+  },
+  {
+    id: 'warden' as const,
+    name: 'Страж',
+    description:
+      '48 здоровья. До 4 блока переносится между ходами. Каждый бой начинается без энергии.',
+  },
+];
 export type RunRecord = {
   id: string;
   seed: number;
   outcome: 'victory' | 'defeat' | 'abandoned';
+  hero?: HeroId;
+  ending?: string;
+  difficulty?: 0 | 1;
   modified: boolean;
   rules: number;
   room: number;
@@ -606,6 +635,9 @@ export type RunRecord = {
 export type State = {
   version: 2;
   rulesVersion?: 2 | 3 | 4;
+  hero?: HeroId;
+  difficulty?: 0 | 1;
+  redaction?: { family: Family; expires: number };
   damageEvents?: DamageEvent[];
   chronicle?: string[];
   weaponQuality?: 0 | 1 | 2;
@@ -1303,6 +1335,16 @@ function resolve(
         if (family === 'focus')
           s.stats.focusGroups = (s.stats.focusGroups ?? 0) + 1;
       }
+      if ((s.rulesVersion ?? 0) >= 4 && s.redaction?.family === family) {
+        const boss = s.enemies.find((e) => e.kind === 'redactor' && e.hp > 0);
+        if (boss) {
+          boss.block += 6;
+          note(
+            s,
+            `Запрещённое семейство ${FAMILY_NAMES[family]}: Редактор получает 6 блока.`,
+          );
+        }
+      }
       if (count >= 5) {
         s.stats.big++;
         if (s.relics.includes('thread') && once(s, 'battle:thread')) heal(s, 3);
@@ -1454,6 +1496,7 @@ function resolve(
 }
 export function intent(s: State, e: Enemy): EnemyIntent {
   const damage = (bonus = 0, round = s.round) => {
+    const pressure = (s.rulesVersion ?? 0) >= 4 && s.difficulty === 1 ? 2 : 0;
     const rage =
       Math.max(
         0,
@@ -1461,7 +1504,7 @@ export function intent(s: State, e: Enemy): EnemyIntent {
       ) * 2;
     return Math.max(
       0,
-      Math.round((e.damage + bonus) * s.balance.enemyPower) + rage,
+      Math.round((e.damage + bonus) * s.balance.enemyPower) + rage + pressure,
     );
   };
   const attack = (bonus = 0): EnemyIntent => ({
@@ -1492,6 +1535,18 @@ export function intent(s: State, e: Enemy): EnemyIntent {
     text: `Нанесёт кляксы: ${Math.min(value, 6 - s.board.filter((t) => t.ink).length)}`,
   });
   switch (e.kind) {
+    case 'redactor': {
+      if (cycle === 1) {
+        const family = FAMILIES[Math.floor((s.round - 1) / 3) % 4];
+        return {
+          type: 'redact',
+          value: 6,
+          family,
+          text: `Запрет: ${FAMILY_NAMES[family]}. Группа даёт боссу 6 блока; правка снимает.`,
+        };
+      }
+      return attack((cycle === 0 ? 6 : 0) + (bossPhase(e) === 2 ? 2 : 0));
+    }
     case 'reed-crab':
       return odd ? block(8) : attack();
     case 'ink-eel':
@@ -1595,6 +1650,7 @@ function checkFinish(s: State) {
   if (s.hp <= 0) {
     s.hp = 0;
     s.phase = 'defeat';
+    delete s.redaction;
     delete s.tide;
     note(s, 'Странник пал. Следующий путь будет другим.');
   } else if (s.phase === 'battle' && s.enemies.every((e) => e.hp <= 0)) {
@@ -1630,6 +1686,7 @@ function checkFinish(s: State) {
     if ((s.rulesVersion ?? 0) >= 3 && s.phase === 'victory')
       delete s.rewardSource;
     delete s.tide;
+    delete s.redaction;
     s.board.forEach((t) => delete t.ink);
     if (s.roomKind === 'boss' && s.room === 10 && (s.rulesVersion ?? 0) < 3) {
       heal(s, Math.ceil(s.maxHp / 2));
@@ -1959,6 +2016,10 @@ export function endTurn(input: State): Result {
       }
       note(s, 'Собери отмеченные корнями фишки до следующего ответа.');
     }
+    if (action.type === 'redact' && action.family) {
+      s.redaction = { family: action.family, expires: s.round + 2 };
+      note(s, action.text);
+    }
     if (action.type === 'block') e.block = action.value;
     if (action.type === 'drain') {
       s.energy = Math.max(0, s.energy - action.value);
@@ -2020,7 +2081,7 @@ export function endTurn(input: State): Result {
             ? 'guard'
             : action.type === 'pierce'
               ? 'attack'
-              : ['drain', 'ink', 'siphon'].includes(action.type)
+              : ['drain', 'ink', 'siphon', 'redact'].includes(action.type)
                 ? 'cast'
                 : (action.type as CombatCue['type']),
         target:
@@ -2032,8 +2093,12 @@ export function endTurn(input: State): Result {
   checkFinish(s);
   if (s.phase === 'battle') {
     s.round++;
+    if (s.redaction && s.round > s.redaction.expires) delete s.redaction;
     if (s.tide?.turns === 0) startTide(s);
-    s.block = hasSeal(s, 'enduring-record') ? Math.min(6, s.block) : 0;
+    s.block = Math.min(
+      s.block,
+      hasSeal(s, 'enduring-record') ? 6 : s.hero === 'warden' ? 4 : 0,
+    );
     s.moved = false;
     s.cast = false;
     s.consumed = false;
@@ -2123,6 +2188,10 @@ export function castSkill(
   if (id === 'blood') hit(s, damage(8 + bonus));
   if (id === 'seal') hit(s, damage(16 + bonus + rune));
   if (id === 'edit') {
+    if (s.redaction) {
+      delete s.redaction;
+      note(s, 'Правка сняла запрет Редактора.');
+    }
     if ((s.rulesVersion ?? 0) >= 4) {
       s.stats.edits = (s.stats.edits ?? 0) + 1;
       if (s.relics.includes('carbon') && once(s, 'turn:carbon'))
@@ -2359,6 +2428,7 @@ export type Meta = {
   best: number;
   wins: number;
   finished: string[];
+  marks?: string[];
   history?: RunRecord[];
   seen?: string[];
 };
@@ -2378,6 +2448,11 @@ function rememberRun(m: Meta, s: State, outcome: RunRecord['outcome']) {
     outcome,
     modified: s.modified,
     rules: s.rulesVersion ?? 0,
+    hero: s.hero ?? 'wanderer',
+    difficulty: s.difficulty ?? 0,
+    ...(outcome === 'victory'
+      ? { ending: s.enemies[0]?.kind ?? 'tide-keeper' }
+      : {}),
     room: s.room,
     path: [...s.path],
     weapon: s.equipment.weapon,
@@ -2453,6 +2528,18 @@ export function updateMeta(input: Meta, s: State): Meta {
       if (s.phase === 'victory') {
         m.streak++;
         m.wins++;
+        if ((s.rulesVersion ?? 0) >= 4)
+          m.marks = [
+            ...new Set([
+              ...(m.marks ?? []),
+              `${s.hero ?? 'wanderer'}:${s.enemies[0]?.kind ?? 'tide-keeper'}`,
+              ...(s.difficulty === 1
+                ? [
+                    `hard:${s.hero ?? 'wanderer'}:${s.enemies[0]?.kind ?? 'tide-keeper'}`,
+                  ]
+                : []),
+            ]),
+          ];
         m.best = Math.max(m.best, m.streak);
       } else m.streak = 0;
     }
@@ -2495,7 +2582,51 @@ export function withUnlocks(s: State, m: Meta) {
   s.flags.push(
     ...availableRelics(m, s.rulesVersion).map((id) => `run:available:${id}`),
   );
+  if (
+    (s.rulesVersion ?? 0) >= 4 &&
+    m.wins > 0 &&
+    !s.flags.includes('run:alternate-access')
+  ) {
+    s.flags.push('run:alternate-access');
+    const pump = s.journey?.nodes.find(
+      (n) => n.depth === 17 && n.kind === 'event',
+    );
+    if (pump)
+      pump.description +=
+        ' Ещё здесь можно отдать 6 максимального здоровья за проход к Редактору вместо Хранителя.';
+  }
   return s;
+}
+export function startAdventure(
+  seed: number,
+  balance: Balance,
+  meta: Meta,
+  hero: HeroId = 'wanderer',
+  difficulty: 0 | 1 = 0,
+): State {
+  const s = withUnlocks(startRun(seed, balance), meta);
+  s.hero = meta.wins > 0 && hero === 'warden' ? 'warden' : 'wanderer';
+  s.difficulty = meta.wins > 0 && difficulty === 1 ? 1 : 0;
+  if (s.hero === 'warden') {
+    s.maxHp += 8;
+    s.hp += 8;
+    s.energy = 0;
+  }
+  note(
+    s,
+    `${HEROES.find((h) => h.id === s.hero)!.name}. ${s.difficulty ? 'Напряжение I: удары врагов сильнее на 2.' : 'Обычная сложность.'}`,
+  );
+  return s;
+}
+export function canEnterForbidden(s: State) {
+  return (
+    (s.rulesVersion ?? 0) >= 4 &&
+    s.phase === 'event' &&
+    s.room === 17 &&
+    s.flags.includes('run:alternate-access') &&
+    s.maxHp > 6 &&
+    !!s.journey
+  );
 }
 export function nextRooms(s: State): Room[] {
   if ((s.rulesVersion ?? 0) >= 3 && s.journey) {
@@ -2956,6 +3087,13 @@ function validJourneySave(s: State): boolean {
         !n.roster.every((e) => Object.hasOwn(ENEMY_CATALOG, e)))
     )
       return false;
+    if (
+      n.roster?.includes('redactor') &&
+      ((s.rulesVersion ?? 0) < 4 ||
+        n.depth !== 20 ||
+        !s.flags.includes('run:forbidden'))
+    )
+      return false;
     const expected =
       n.depth === 20
         ? []
@@ -3154,6 +3292,7 @@ export function enterRoom(input: State, id: string): Result {
   }
   s.heroPoison = 0;
   delete s.tide;
+  delete s.redaction;
   s.board.forEach((t) => {
     delete t.ink;
     delete t.root;
@@ -3162,7 +3301,7 @@ export function enterRoom(input: State, id: string): Result {
   s.path.push(room.name);
   s.round = 1;
   s.block = 0;
-  s.energy = 3;
+  s.energy = s.hero === 'warden' ? 0 : 3;
   s.focus = 0;
   s.cast = false;
   s.moved = false;
@@ -3458,6 +3597,29 @@ export function rest(input: State, choice: string): Result {
 }
 export function eventChoice(input: State, choice: string): Result {
   if (input.phase !== 'event') return result(input);
+  if (choice === 'forbidden') {
+    if (!canEnterForbidden(input))
+      return result(
+        input,
+        [],
+        'Проход доступен в насосной после первой победы. Нужно больше 6 максимального здоровья.',
+      );
+    const s = copy(input);
+    s.maxHp -= 6;
+    s.hp = Math.min(s.hp, s.maxHp);
+    s.flags.push('run:forbidden');
+    const final = s.journey!.nodes.find((n) => n.depth === 20)!;
+    final.name = 'Запретный отдел — Редактор';
+    final.roster = ['redactor'];
+    final.description =
+      'Альтернативный финал. Запрет семейств: правка, пробивание и смена комбинаций помогут пройти.';
+    s.phase = 'map';
+    note(
+      s,
+      'Цена пропуска: −6 максимального здоровья до конца спуска. Финал заменён на Запретный отдел.',
+    );
+    return result(s);
+  }
   if (input.room === 17 && !['repair', 'supplies'].includes(choice))
     return result(input, [], 'Почини насос или забери припасы.');
   const s = copy(input);
@@ -3525,6 +3687,19 @@ export function isSave(value: unknown): value is State {
   const s = value as State;
   return (
     s.version === 2 &&
+    (s.hero === undefined ||
+      ((s.rulesVersion ?? 0) >= 4 && HEROES.some((h) => h.id === s.hero))) &&
+    (s.difficulty === undefined ||
+      ((s.rulesVersion ?? 0) >= 4 && [0, 1].includes(s.difficulty))) &&
+    (s.redaction === undefined ||
+      ((s.rulesVersion ?? 0) >= 4 &&
+        s.redaction !== null &&
+        FAMILIES.includes(s.redaction.family) &&
+        Number.isInteger(s.redaction.expires) &&
+        s.redaction.expires >= s.round &&
+        s.phase === 'battle' &&
+        Array.isArray(s.enemies) &&
+        s.enemies.some((e) => e.kind === 'redactor' && e.hp > 0))) &&
     (s.damageEvents === undefined || validDamageEvents(s.damageEvents)) &&
     (s.chronicle === undefined ||
       (Array.isArray(s.chronicle) &&
@@ -3648,6 +3823,13 @@ export function isMeta(value: unknown): value is Meta {
   const m = value as Meta;
   return (
     m.version === 1 &&
+    (m.marks === undefined ||
+      (Array.isArray(m.marks) &&
+        m.marks.every(
+          (x) =>
+            typeof x === 'string' &&
+            /^(hard:)?(wanderer|warden):(tide-keeper|redactor)$/.test(x),
+        ))) &&
     Array.isArray(m.unlocked) &&
     m.unlocked.every((x) => ACHIEVEMENTS.some((a) => a.id === x)) &&
     Number.isInteger(m.streak) &&

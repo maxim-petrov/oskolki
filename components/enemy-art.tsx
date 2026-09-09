@@ -20,7 +20,7 @@ export function EnemyArt({ enemy, pose }: { enemy: Enemy; pose: Pose }) {
   const source = art[enemy.kind];
   if (!source) return <PalaceActorArt hero={false} pose={pose} />;
   const [x, y, width, height] = source.bounds;
-  const boss = ['censor', 'tide-keeper'].includes(enemy.kind);
+  const boss = ['censor', 'tide-keeper', 'redactor'].includes(enemy.kind);
   const scale = Math.min(
     (boss ? 354 : 314) / width,
     (boss ? 326 : 286) / height,

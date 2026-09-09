@@ -1,4 +1,5 @@
 'use client';
+import { WardenArt } from './warden-art';
 import type { CSSProperties } from 'react';
 import { EnemyArt } from './enemy-art';
 import { bossPhase } from '@/game/engine';
@@ -27,7 +28,7 @@ export function CombatSprite({
     actor === 'hero' ? undefined : state.enemies.find((e) => e.id === actor);
   return (
     <div
-      className={`sprite-root ${actor === 'hero' ? 'hero-sprite' : 'enemy-sprite'} ${pose === 'death' ? 'is-dead' : ''} ${enemy && ['censor', 'tide-keeper'].includes(enemy.kind) && bossPhase(enemy) === 2 ? 'boss-enraged' : ''}`}
+      className={`sprite-root ${actor === 'hero' ? 'hero-sprite' : 'enemy-sprite'} ${pose === 'death' ? 'is-dead' : ''} ${enemy && ['censor', 'tide-keeper', 'redactor'].includes(enemy.kind) && bossPhase(enemy) === 2 ? 'boss-enraged' : ''}`}
       aria-hidden="true"
       style={{ '--beat': `${motion?.duration ?? 600}ms` } as CSSProperties}
     >
@@ -38,6 +39,8 @@ export function CombatSprite({
       >
         {enemy ? (
           <EnemyArt enemy={enemy} pose={pose} />
+        ) : state.hero === 'warden' ? (
+          <WardenArt pose={pose} weaponId={state.equipment.weapon} />
         ) : (
           <ActorArt
             hero={actor === 'hero'}

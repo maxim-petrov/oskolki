@@ -20,6 +20,7 @@ export function EnemyIntentLabel({
 }) {
   const action = intent(state, enemy);
   const Icon = {
+    redact: Gem,
     attack: Sword,
     pierce: Sword,
     block: Shield,
