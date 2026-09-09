@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "generator": "native image_gen edit",
+  "source_path": "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/actors.png",
+  "source_dimensions": [1024, 1536],
+  "source_mode": "RGBA",
+  "path": "public/art/pronoun-palace/actors-weaponless.png",
+  "dimensions": [1024, 1536],
+  "mode": "RGB",
+  "usable": true,
+  "status": "used_with_original_sprite_alpha_mask",
+  "alpha_check": {
+    "has_alpha": false,
+    "transparent_pixels": 0,
+    "bbox_alpha_128": null,
+    "rendered_checkerboard": true
+  },
+  "exact_prompt": "Remove the background from this image and return a transparent PNG.\nKeep the twelve pixel-art characters exactly unchanged, with the same shapes, colors, black outlines, positions and dimensions. Preserve the exact 1024×1536 portrait canvas. Only the background must become transparent.\nThe gray-and-white grid is a background to remove, including the small gaps inside poses and between limbs. Export real RGBA transparency: background alpha=0, character pixels opaque. Do not draw a transparency pattern into the picture. Do not add, remove, move or redraw any character detail. Keep the top six human poses weaponless, exactly as in the attached image. Keep all six purple enemy poses unchanged.",
+  "programmatic_image_edits": false,
+  "retry_limit": 1,
+  "retries_used": 1,
+  "coordinate_system": "absolute pixels of 1024×1536 output; top-left origin; bbox right and bottom exclusive",
+  "coordinate_notes": [
+    "No alpha bounding boxes can be measured because native output has no alpha channel.",
+    "Hero bounds below are read-only RGB pixel measurements of dark outlines: all RGB channels <70 in a separate region for each pose.",
+    "Weapon grip and foot anchor coordinates are visually estimated integer pixels, approximate tolerance 4px; these are proposed attachment points, not exact semantic measurements.",
+    "All six red blades, black weapon handles and the strike slash arc appear removed. Hurt-frame chest damage particles remain.",
+    "All twelve poses and their overall placement are visually preserved. Exact identity of unaffected sprite pixels is not guaranteed by the generative edit."
+  ],
+  "heroes": [
+    {
+      "id": "idle",
+      "row": 0,
+      "column": 0,
+      "bbox_dark_outline": [89, 44, 267, 385],
+      "weapon_grip": [120, 285],
+      "feet": [
+        [111, 382],
+        [191, 382]
+      ],
+      "ground_anchor": [151, 384]
+    },
+    {
+      "id": "windup",
+      "row": 0,
+      "column": 1,
+      "bbox_dark_outline": [376, 94, 597, 385],
+      "weapon_grip": [416, 153],
+      "feet": [
+        [398, 382],
+        [516, 382]
+      ],
+      "ground_anchor": [457, 384]
+    },
+    {
+      "id": "strike",
+      "row": 0,
+      "column": 2,
+      "bbox_dark_outline": [672, 121, 921, 385],
+      "weapon_grip": [903, 258],
+      "feet": [
+        [691, 382],
+        [826, 382]
+      ],
+      "ground_anchor": [759, 384]
+    },
+    {
+      "id": "guard",
+      "row": 1,
+      "column": 0,
+      "bbox_dark_outline": [61, 444, 257, 742],
+      "weapon_grip": [227, 576],
+      "feet": [
+        [86, 739],
+        [187, 739]
+      ],
+      "ground_anchor": [137, 741]
+    },
+    {
+      "id": "hurt",
+      "row": 1,
+      "column": 1,
+      "bbox_dark_outline": [392, 471, 604, 742],
+      "weapon_grip": [424, 642],
+      "feet": [
+        [417, 739],
+        [540, 739]
+      ],
+      "ground_anchor": [479, 741]
+    },
+    {
+      "id": "collapsed",
+      "row": 1,
+      "column": 2,
+      "bbox_dark_outline": [644, 627, 1006, 747],
+      "weapon_grip": [864, 731],
+      "feet": [
+        [662, 733],
+        [711, 699]
+      ],
+      "ground_anchor": [823, 741]
+    }
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-1d5a82b8-09cc-4c9a-bc6d-d049683930cd.png",
+      "prompt": "Use case: precise-object-edit.\nEdit target: the attached portrait pixel-art sprite atlas, original size 1024×1536, with exactly twelve sprites in three columns and four rows.\nMake a surgical weapon-removal edit only. Preserve the original canvas, aspect ratio, sprite scale, pixel-art style, palette, all twelve poses, and every sprite's exact coordinates. Keep the six purple filing-cabinet enemies in rows 3 and 4 completely unchanged. Preserve the hero's black messy hair, glasses, face, gray office shirt, black tie and badge, olive trousers, shoes, body proportions and pose in each of the six frames.\nOnly modify the six human hero frames in the top two rows:\n1. TOP LEFT, idle: remove the complete red knife AND its black handle below the lowered hand. Reconstruct the closed bare fist at precisely its current position, around source coordinate (119,284), and restore the trouser pixels or transparent space behind the removed knife.\n2. TOP MIDDLE, windup: remove the complete red knife AND black handle above the raised fist. Keep a closed empty fist at precisely its current position around (416,153). Restore transparent space where the upward knife was.\n3. TOP RIGHT, strike: remove the complete horizontal red knife AND black handle to the right of the outstretched hand. Also remove the entire red slash arc and red glow around that blade. Keep the outstretched arm and closed empty fist at precisely (904,257). Restore true transparent space to the right of the fist.\n4. SECOND ROW LEFT, guard: remove the complete upward red knife AND its black handle between the hero's hands. Preserve the two hands and all arm/torso positions, with closed empty gripping fists where they were, around (224,576). Restore the clothing or transparent space behind the removed blade.\n5. SECOND ROW MIDDLE, hurt: remove the complete lowered red knife AND its black handle below the leftmost hanging hand. Keep that bare hand as a closed fist at precisely (421,639). Preserve the other hand pressed to the chest, facial expression and unrelated red damage particles near the chest. Restore the clothing or true transparent space behind the knife.\n6. SECOND ROW RIGHT, collapsed: remove the entire red knife lying on the floor AND its entire black handle, around source region x=891…990,y=731…758. Preserve the collapsed body and empty front fist around (866,730). Restore transparent space where the discarded knife was.\nImportant invariants: no red blades or black weapon grips remain anywhere in these six hero frames. Do not move, rescale, redraw or re-pose any body, hand, foot, hair, face, clothing, badge or enemy. No replacement weapon. No new objects, no labels, no text, no grid, no frame. Maintain all existing empty spacing and alignments.\nOutput: exactly the same portrait 1024×1536 canvas if possible. PNG with genuine alpha transparency: the original transparent background and all newly cleared regions must remain genuinely transparent. Do not paint a checkerboard, black background, white background, halos or shadows. Preserve all unaffected pixels as closely as possible. Deliver only the edited sprite atlas.",
+      "referenced_image_paths": [
+        "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/actors.png"
+      ],
+      "dimensions": [1024, 1536],
+      "mode": "RGB",
+      "usable": false,
+      "rejection_reason": "Rendered checkerboard background, no alpha channel."
+    },
+    {
+      "attempt": 2,
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-6402b094-3939-4e8b-8aeb-3a6309160988.png",
+      "prompt": "Remove the background from this image and return a transparent PNG.\nKeep the twelve pixel-art characters exactly unchanged, with the same shapes, colors, black outlines, positions and dimensions. Preserve the exact 1024×1536 portrait canvas. Only the background must become transparent.\nThe gray-and-white grid is a background to remove, including the small gaps inside poses and between limbs. Export real RGBA transparency: background alpha=0, character pixels opaque. Do not draw a transparency pattern into the picture. Do not add, remove, move or redraw any character detail. Keep the top six human poses weaponless, exactly as in the attached image. Keep all six purple enemy poses unchanged.",
+      "referenced_image_paths": [
+        "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-1d5a82b8-09cc-4c9a-bc6d-d049683930cd.png"
+      ],
+      "dimensions": [1024, 1536],
+      "mode": "RGB",
+      "usable": false,
+      "rejection_reason": "Targeted background extraction retry retained rendered checkerboard, no alpha channel."
+    }
+  ],
+  "source_output": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-6402b094-3939-4e8b-8aeb-3a6309160988.png",
+  "rendering": "The native RGB edit has no alpha channel. At runtime, the existing original RGBA atlas supplies an alpha mask, clipped to the body and eroded by 2 source pixels to avoid background seams. Former exposed knife regions are excluded. Weapons use their own unmodified RGBA PNGs and hands are drawn in front. No bitmap was edited programmatically."
+}

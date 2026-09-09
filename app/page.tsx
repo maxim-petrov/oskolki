@@ -71,6 +71,7 @@ import {
   WeaponGallery,
 } from '@/components/equipment';
 import { CombatSprite } from '@/components/combat-sprite';
+import { BoardTileArt } from '@/components/board-tile-art';
 import { motionFor, type Motion } from '@/game/motion';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -703,7 +704,7 @@ export default function Game() {
                       <button
                         key={i}
                         className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.root ? 'rooted' : ''}`}
-                        aria-label={`${FAMILY_NAMES[t.family]}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
+                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
                         aria-pressed={selected === i}
                         onPointerDown={(e) => pointerDown(e, i)}
                         onPointerMove={dragMove}
@@ -720,7 +721,12 @@ export default function Game() {
                           }
                         }}
                       >
-                        <SkinIcon name={t.variant ?? t.family} size={56} />
+                        <BoardTileArt
+                          family={t.family}
+                          variant={t.variant}
+                          weaponId={s.equipment.weapon}
+                          size={56}
+                        />
                         {t.root && (
                           <span
                             className="root-mark"
@@ -729,10 +735,8 @@ export default function Game() {
                             <Sprout size={12} />
                           </span>
                         )}
-                        {t.variant && (
-                          <span className="family-mark">
-                            {t.family === 'blade' ? 'Ⅰ' : 'ϟ'}
-                          </span>
+                        {t.variant && t.family !== 'blade' && (
+                          <span className="family-mark">ϟ</span>
                         )}
                       </button>
                     );
@@ -770,7 +774,11 @@ export default function Game() {
               {FAMILIES.map((f) => {
                 return (
                   <span key={f} className={`legend-${f}`}>
-                    <SkinIcon name={f} size={23} />
+                    <BoardTileArt
+                      family={f}
+                      weaponId={s.equipment.weapon}
+                      size={23}
+                    />
                     {FAMILY_NAMES[f]}
                   </span>
                 );
@@ -866,7 +874,11 @@ export default function Game() {
                         aria-label={`Превратить в ${FAMILY_NAMES[f]}`}
                         onClick={() => setEditing(f)}
                       >
-                        <SkinIcon name={f} size={28} />
+                        <BoardTileArt
+                          family={f}
+                          weaponId={s.equipment.weapon}
+                          size={28}
+                        />
                       </button>
                     );
                   })}

@@ -744,6 +744,44 @@ html[data-skin='palace-cellar'] {
 }
 
 html[data-skin='palace-cellar'] {
+  .board-weapon-art {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: var(--weapon-icon-size);
+    height: var(--weapon-icon-size);
+  }
+  .board-weapon-art > .equipment-icon {
+    width: 100%;
+    height: 100%;
+    filter: none;
+  }
+  .tile > .board-weapon-art {
+    width: 78%;
+    height: 78%;
+  }
+  .board-weapon-art .weapon-variant {
+    position: absolute;
+    right: -8%;
+    bottom: -8%;
+    width: 42%;
+    height: 42%;
+    min-width: 16px;
+    min-height: 16px;
+    background: #ded1ad;
+    border: 2px solid #49372b;
+  }
+  .board-weapon-art .variant-venom {
+    background: #c3cb93;
+  }
+  .board-weapon-art .weapon-variant > .palace-icon {
+    display: block;
+    width: 100%;
+    height: 100%;
+    filter: none;
+  }
   .weapon-detail-dialog .panel-emblem {
     width: 136px;
     height: 136px;

@@ -2,23 +2,21 @@
 import { useId } from 'react';
 import type { Pose } from '@/game/motion';
 import { PalaceCutout } from '@/components/palace-cutout';
+import { HeldWeaponArt } from '@/components/held-weapon-art';
+import heroArt from '@/game/hero-art.json';
 
 type Frame = {
   crop: [number, number, number, number];
   feet: [number, number];
-  exclude?: [number, number, number, number];
+  exclude?: [number, number, number, number] | string;
+  hand?: [number, number];
+  angle?: number;
+  handClip?: [number, number, number, number];
 };
 // Native pixel coordinates and body ground anchors, including detached effects.
 // All poses share a fixed source scale so a raised weapon never shrinks the body.
 const FRAMES: Record<'hero' | 'rival', Record<Pose, Frame>> = {
-  hero: {
-    idle: { crop: [86, 42, 180, 342], feet: [153.8, 384] },
-    windup: { crop: [374, 83, 224, 301], feet: [463.2, 384] },
-    strike: { crop: [672, 121, 332, 263], feet: [775.7, 384] },
-    guard: { crop: [59, 444, 213, 297], feet: [139.4, 741] },
-    hurt: { crop: [391, 471, 212, 270], feet: [484.6, 741] },
-    death: { crop: [645, 626, 360, 134], feet: [780, 741] },
-  },
+  hero: heroArt.frames as Record<Pose, Frame>,
   rival: {
     idle: { crop: [40, 797, 247, 308], feet: [152.9, 1105] },
     windup: {
@@ -37,13 +35,33 @@ const FRAMES: Record<'hero' | 'rival', Record<Pose, Frame>> = {
   },
 };
 
-export function PalaceActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
+export function PalaceActorArt({
+  hero,
+  pose,
+  weaponId = 'gear-cutter',
+}: {
+  hero: boolean;
+  pose: Pose;
+  weaponId?: string | null;
+}) {
   const id = useId().replace(/:/g, '');
   const {
     crop: [x, y, width, height],
     feet: [ax, ay],
     exclude,
+    hand,
+    angle,
+    handClip,
   } = FRAMES[hero ? 'hero' : 'rival'][pose];
+  const src = hero ? heroArt.src : '/art/pronoun-palace/actors.png';
+  const sourceWidth = hero ? heroArt.width : 1024;
+  const sourceHeight = hero ? heroArt.height : 1536;
+  const excludedPath =
+    typeof exclude === 'string'
+      ? exclude
+      : exclude
+        ? `M${exclude[0]} ${exclude[1]}h${exclude[2]}v${exclude[3]}h${-exclude[2]}Z`
+        : '';
   return (
     <svg
       className={`sprite-art palace-actor pose-${pose}`}
@@ -56,21 +74,83 @@ export function PalaceActorArt({ hero, pose }: { hero: boolean; pose: Pose }) {
         <clipPath id={`palace-frame-${id}`}>
           <path
             clipRule="evenodd"
-            d={`M${x} ${y}h${width}v${height}h${-width}Z${exclude ? ` M${exclude[0]} ${exclude[1]}h${exclude[2]}v${exclude[3]}h${-exclude[2]}Z` : ''}`}
+            d={`M${x} ${y}h${width}v${height}h${-width}Z ${excludedPath}`}
           />
         </clipPath>
         <PalaceCutout
           id={`palace-alpha-${id}`}
           bounds={[x, y, width, height]}
         />
+        {hero && (
+          <>
+            {/* The native edit supplies the colors, the existing RGBA source
+                supplies the silhouette. Keep both source bitmaps untouched. */}
+            <filter
+              id={`palace-body-alpha-${id}`}
+              filterUnits="userSpaceOnUse"
+              x={x}
+              y={y}
+              width={width}
+              height={height}
+              colorInterpolationFilters="sRGB"
+            >
+              <feComponentTransfer>
+                <feFuncA type="discrete" tableValues="0 1" />
+              </feComponentTransfer>
+              <feMorphology operator="erode" radius="2" />
+            </filter>
+            <mask
+              id={`palace-body-mask-${id}`}
+              maskUnits="userSpaceOnUse"
+              x={x}
+              y={y}
+              width={width}
+              height={height}
+              style={{ maskType: 'alpha' }}
+            >
+              <image
+                href={heroArt.maskSrc}
+                width={1024}
+                height={1536}
+                filter={`url(#palace-body-alpha-${id})`}
+                clipPath={`url(#palace-frame-${id})`}
+              />
+            </mask>
+          </>
+        )}
+        {handClip && (
+          <clipPath id={`palace-hand-${id}`}>
+            <rect
+              x={handClip[0]}
+              y={handClip[1]}
+              width={handClip[2]}
+              height={handClip[3]}
+            />
+          </clipPath>
+        )}
       </defs>
       <image
-        href="/art/pronoun-palace/actors.png"
-        width={1024}
-        height={1536}
+        href={src}
+        width={sourceWidth}
+        height={sourceHeight}
         clipPath={`url(#palace-frame-${id})`}
         filter={`url(#palace-alpha-${id})`}
+        mask={hero ? `url(#palace-body-mask-${id})` : undefined}
       />
+      {hero && hand && (
+        <>
+          <HeldWeaponArt weaponId={weaponId} hand={hand} angle={angle ?? 0} />
+          {/* Draw the original fingers over the grip, keeping the weapon in the fist. */}
+          <image
+            href={src}
+            width={sourceWidth}
+            height={sourceHeight}
+            clipPath={`url(#palace-hand-${id})`}
+            filter={`url(#palace-alpha-${id})`}
+            mask={`url(#palace-body-mask-${id})`}
+          />
+        </>
+      )}
     </svg>
   );
 }

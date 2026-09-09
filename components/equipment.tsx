@@ -1,6 +1,6 @@
 'use client';
 import { useId } from 'react';
-import weaponArt from '@/game/weapon-art.json';
+import { weaponArtById } from '@/game/weapon-art';
 import { PalaceCutout } from '@/components/palace-cutout';
 import {
   WEAPONS,
@@ -38,17 +38,7 @@ export function EquipmentIcon({
   const item = equipmentById(id);
   if (!item) return null;
   // Each weapon uses its own PNG; other gear uses measured atlas regions.
-  const art = (
-    weaponArt as Record<
-      string,
-      {
-        src: string;
-        width: number;
-        height: number;
-        bounds: number[];
-      }
-    >
-  )[id];
+  const art = item.slot === 'weapon' ? weaponArtById(id) : null;
   const [x, y, width, height] = art?.bounds ?? REGIONS[item.icon];
   const extent = art
     ? Math.ceil(Math.max(width, height) * 1.08)

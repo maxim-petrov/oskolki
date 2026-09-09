@@ -1,0 +1,54 @@
+{
+  "src": "/art/pronoun-palace/actors-weaponless.png",
+  "width": 1024,
+  "height": 1536,
+  "frames": {
+    "idle": {
+      "crop": [86, 42, 180, 342],
+      "feet": [153.8, 384],
+      "hand": [118, 285],
+      "angle": 36,
+      "handClip": [105, 266, 28, 34]
+    },
+    "windup": {
+      "crop": [374, 83, 224, 301],
+      "feet": [463.2, 384],
+      "hand": [418, 149],
+      "angle": -48,
+      "handClip": [397, 134, 36, 35],
+      "exclude": "M424 130L468 83H495V105L441 155L426 154Z"
+    },
+    "strike": {
+      "crop": [672, 121, 250, 263],
+      "feet": [775.7, 384],
+      "hand": [902, 258],
+      "angle": 0,
+      "handClip": [881, 243, 36, 30],
+      "exclude": "M895 121H922V238H895Z"
+    },
+    "guard": {
+      "crop": [59, 444, 213, 297],
+      "feet": [139.4, 741],
+      "hand": [226, 575],
+      "angle": -62,
+      "handClip": [209, 559, 32, 34],
+      "exclude": "M242 487H275V553L239 568L233 560Z"
+    },
+    "hurt": {
+      "crop": [391, 471, 212, 270],
+      "feet": [484.6, 741],
+      "hand": [423, 642],
+      "angle": 38,
+      "handClip": [410, 624, 28, 31]
+    },
+    "death": {
+      "crop": [645, 626, 360, 120],
+      "feet": [780, 741],
+      "hand": [888, 742],
+      "angle": 8,
+      "handClip": [835, 715, 45, 25],
+      "exclude": "M882 734L1005 741V760H882Z"
+    }
+  },
+  "maskSrc": "/art/pronoun-palace/actors.png"
+}

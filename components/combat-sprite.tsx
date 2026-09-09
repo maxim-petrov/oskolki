@@ -32,7 +32,11 @@ export function CombatSprite({
         key={id}
         className={`sprite-action action-${kind} stage-${stage} pose-${pose}`}
       >
-        <ActorArt hero={actor === 'hero'} pose={pose} />
+        <ActorArt
+          hero={actor === 'hero'}
+          pose={pose}
+          weaponId={state.equipment.weapon}
+        />
         {guarding && (
           <div className={`ward ${effects.blocked ? 'ward-impact' : ''}`}>
             <Shield size={52} strokeWidth={1} />
