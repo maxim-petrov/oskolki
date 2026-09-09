@@ -1079,3 +1079,27 @@ html[data-skin='palace-cellar'] {
     transform: translateY(-2px);
   }
 }
+
+.run-recap,
+.run-journal {
+  padding: 12px;
+  border: 3px solid var(--palace-ink);
+  background: var(--palace-paper);
+  color: var(--palace-ink);
+  text-align: left;
+}
+.run-recap p,
+.run-journal p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+.run-recap details,
+.run-journal details {
+  padding: 8px 0;
+}
+.run-recap summary,
+.run-journal summary {
+  cursor: pointer;
+  font-weight: bold;
+}

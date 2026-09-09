@@ -580,9 +580,34 @@ export type Stats = {
   shieldGroups?: number;
   focusGroups?: number;
 };
+export type DamageEvent = {
+  source: string;
+  amount: number;
+  blocked: number;
+  room: number;
+  round: number;
+};
+export type RunRecord = {
+  id: string;
+  seed: number;
+  outcome: 'victory' | 'defeat' | 'abandoned';
+  modified: boolean;
+  rules: number;
+  room: number;
+  path: string[];
+  weapon: string | null;
+  relics: string[];
+  modifiers: string[];
+  seal?: SealId;
+  stats: Stats;
+  damageEvents: DamageEvent[];
+  log: string[];
+};
 export type State = {
   version: 2;
   rulesVersion?: 2 | 3 | 4;
+  damageEvents?: DamageEvent[];
+  chronicle?: string[];
   weaponQuality?: 0 | 1 | 2;
   streams?: Record<'map' | 'encounters' | 'loot', number>;
   journey?: {
@@ -936,6 +961,8 @@ export function random(
 }
 function note(s: State, message: string) {
   s.log = [message, ...s.log].slice(0, 8);
+  if ((s.rulesVersion ?? 0) >= 4)
+    s.chronicle = [message, ...(s.chronicle ?? [])].slice(0, 80);
 }
 function once(s: State, key: string) {
   if (s.flags.includes(key)) return false;
@@ -1201,12 +1228,25 @@ function startTide(s: State) {
     cleared: false,
   };
 }
-function hurtHero(s: State, value: number, piercing = false) {
+function recordDamage(s: State, source: string, amount: number, blocked = 0) {
+  if ((s.rulesVersion ?? 0) < 4 || (!amount && !blocked)) return;
+  s.damageEvents = [
+    ...(s.damageEvents ?? []),
+    { source, amount, blocked, room: s.room, round: s.round },
+  ].slice(-20);
+}
+function hurtHero(
+  s: State,
+  value: number,
+  piercing = false,
+  source = 'Опасность поля',
+) {
   const blocked = piercing ? 0 : Math.min(s.block, value);
   s.block -= blocked;
   s.stats.blocked += blocked;
   const damage = Math.min(s.hp, value - blocked);
   s.hp -= damage;
+  recordDamage(s, source, damage, blocked);
   return damage;
 }
 function resolve(
@@ -1383,7 +1423,7 @@ function resolve(
       note(s, `Бомба разрушила ${collateral.size} фишек`);
     }
     if (inkDamage) {
-      hurtHero(s, inkDamage, true);
+      hurtHero(s, inkDamage, true, 'Собранные кляксы');
       note(s, `Собранные кляксы: −${inkDamage} здоровья сквозь защиту.`);
     }
     frames.push({
@@ -1826,7 +1866,7 @@ export function endTurn(input: State): Result {
     if (s.tide.turns === 0 && !s.tide.cleared) {
       const value = tideDamage(s);
       const blocked = Math.min(s.block, value);
-      const damage = hurtHero(s, value);
+      const damage = hurtHero(s, value, false, 'Прилив');
       note(s, `Прилив: ${damage} урона, ${blocked} в блок.`);
       frames.push({
         state: copy(s),
@@ -1841,6 +1881,7 @@ export function endTurn(input: State): Result {
     }
   }
   if (s.heroPoison > 0) {
+    recordDamage(s, 'Яд', Math.min(s.hp, s.heroPoison));
     s.hp -= s.heroPoison;
     note(s, `Яд: ${s.heroPoison} урона сквозь блок`);
     s.heroPoison--;
@@ -1890,6 +1931,7 @@ export function endTurn(input: State): Result {
       const absorb = Math.min(s.block, damage);
       s.block -= absorb;
       s.stats.blocked += absorb;
+      recordDamage(s, 'Корни', Math.min(s.hp, damage - absorb), absorb);
       s.hp -= damage - absorb;
       rooted.forEach((t) => delete t.root);
       note(s, `Корни: ${damage - absorb} урона`);
@@ -1931,6 +1973,7 @@ export function endTurn(input: State): Result {
         action.type === 'pierce' ? 0 : Math.min(s.block, action.value);
       s.block -= blocked;
       s.stats.blocked += blocked;
+      recordDamage(s, e.name, Math.min(s.hp, action.value - blocked), blocked);
       s.hp -= action.value - blocked;
       note(s, `${e.name}: ${action.value - blocked} урона, ${blocked} в блок`);
       if (
@@ -2049,6 +2092,7 @@ export function castSkill(
   s.stats.skills++;
   s.energy -= cost[0];
   s.focus -= cost[1];
+  recordDamage(s, `Жертва: ${itemById(id)?.name ?? id}`, cost[2]);
   s.hp -= cost[2];
   if (cost[2]) {
     s.stats.sacrifices++;
@@ -2315,6 +2359,8 @@ export type Meta = {
   best: number;
   wins: number;
   finished: string[];
+  history?: RunRecord[];
+  seen?: string[];
 };
 export const EMPTY_META: Meta = {
   version: 1,
@@ -2324,8 +2370,56 @@ export const EMPTY_META: Meta = {
   wins: 0,
   finished: [],
 };
+function rememberRun(m: Meta, s: State, outcome: RunRecord['outcome']) {
+  if ((s.rulesVersion ?? 0) < 4) return;
+  const r: RunRecord = {
+    id: s.runId,
+    seed: s.seed,
+    outcome,
+    modified: s.modified,
+    rules: s.rulesVersion ?? 0,
+    room: s.room,
+    path: [...s.path],
+    weapon: s.equipment.weapon,
+    relics: [...s.relics],
+    modifiers: [...s.modifiers],
+    ...(s.seal ? { seal: s.seal } : {}),
+    stats: copy(s.stats),
+    damageEvents: copy(s.damageEvents ?? []),
+    log: [...(s.chronicle ?? s.log)],
+  };
+  m.history = [r, ...(m.history ?? []).filter((x) => x.id !== r.id)].slice(
+    0,
+    30,
+  );
+}
+export function defeatExplanation(
+  s: Pick<State, 'damageEvents' | 'phase'>,
+): string {
+  if (s.phase !== 'defeat') return '';
+  const last = [...(s.damageEvents ?? [])].reverse().find((e) => e.amount > 0);
+  return last
+    ? `Последний урон: ${last.source}, ${last.amount} здоровья, ${last.blocked} поглощено блоком. Комната ${last.room}, ход ${last.round}.`
+    : 'В этом старом сохранении источник последнего урона не записан.';
+}
 export function updateMeta(input: Meta, s: State): Meta {
   const m = copy(input);
+  if ((s.rulesVersion ?? 0) >= 4 && !s.modified)
+    m.seen = [
+      ...new Set([
+        ...(m.seen ?? []),
+        ...s.enemies.map((e) => `enemy:${e.kind}`),
+        ...[
+          ...s.relics,
+          ...s.modifiers,
+          ...s.skills,
+          ...Object.values(s.equipment),
+          ...s.offers.map((o) => o.id),
+        ]
+          .filter(Boolean)
+          .map((id) => `item:${id}`),
+      ]),
+    ];
   const checks: Record<string, boolean> = {
     'three-edits': (s.rulesVersion ?? 0) >= 4 && (s.stats.edits ?? 0) >= 3,
     'poison-finish':
@@ -2354,6 +2448,7 @@ export function updateMeta(input: Meta, s: State): Meta {
     !m.finished.includes(s.runId)
   ) {
     m.finished.push(s.runId);
+    rememberRun(m, s, s.phase as 'victory' | 'defeat');
     if (!s.modified) {
       if (s.phase === 'victory') {
         m.streak++;
@@ -2373,6 +2468,7 @@ export function abandonMeta(input: Meta, s: State) {
   ) {
     m.streak = 0;
     m.finished.push(s.runId);
+    rememberRun(m, s, 'abandoned');
   }
   return m;
 }
@@ -3376,6 +3472,7 @@ export function eventChoice(input: State, choice: string): Result {
   }
   if (choice === 'relic') {
     if (s.hp <= 5) return result(input, [], 'Нужно больше 5 здоровья.');
+    recordDamage(s, 'Тайник: цена находки', 5);
     s.hp -= 5;
     s.phase = 'reward';
     if ((s.rulesVersion ?? 0) >= 3) s.rewardSource = 'event';
@@ -3401,6 +3498,7 @@ export function tickTrial(input: State, seconds: number): Result {
   s.trial!.remaining = Math.max(0, s.trial!.remaining - seconds);
   if (s.trial!.remaining === 0) {
     const cost = Math.max(0, 6 - Math.floor(s.trial!.protection / 6));
+    recordDamage(s, 'Закрывшийся шлюз', Math.min(cost, s.hp - 1));
     s.hp = Math.max(1, s.hp - cost);
     s.trial = null;
     s.phase = 'map';
@@ -3408,11 +3506,30 @@ export function tickTrial(input: State, seconds: number): Result {
   }
   return result(s);
 }
+function validDamageEvents(value: unknown): value is DamageEvent[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= 20 &&
+    value.every(
+      (e) =>
+        e &&
+        typeof e.source === 'string' &&
+        [e.amount, e.blocked, e.room, e.round].every(
+          (n) => Number.isInteger(n) && n >= 0,
+        ),
+    )
+  );
+}
 export function isSave(value: unknown): value is State {
   if (!value || typeof value !== 'object') return false;
   const s = value as State;
   return (
     s.version === 2 &&
+    (s.damageEvents === undefined || validDamageEvents(s.damageEvents)) &&
+    (s.chronicle === undefined ||
+      (Array.isArray(s.chronicle) &&
+        s.chronicle.length <= 80 &&
+        s.chronicle.every((x) => typeof x === 'string'))) &&
     isEquipment(s.equipment) &&
     (s.rulesVersion === undefined ||
       s.rulesVersion === 2 ||
@@ -3537,7 +3654,30 @@ export function isMeta(value: unknown): value is Meta {
     m.streak >= 0 &&
     Number.isInteger(m.best) &&
     Number.isInteger(m.wins) &&
-    Array.isArray(m.finished)
+    Array.isArray(m.finished) &&
+    m.finished.every((x) => typeof x === 'string') &&
+    (m.seen === undefined ||
+      (Array.isArray(m.seen) && m.seen.every((x) => typeof x === 'string'))) &&
+    (m.history === undefined ||
+      (Array.isArray(m.history) &&
+        m.history.length <= 30 &&
+        m.history.every(
+          (r) =>
+            r &&
+            typeof r.id === 'string' &&
+            Number.isInteger(r.seed) &&
+            ['victory', 'defeat', 'abandoned'].includes(r.outcome) &&
+            typeof r.modified === 'boolean' &&
+            Number.isInteger(r.room) &&
+            Array.isArray(r.path) &&
+            r.path.every((x) => typeof x === 'string') &&
+            Array.isArray(r.relics) &&
+            Array.isArray(r.modifiers) &&
+            !!r.stats &&
+            Array.isArray(r.log) &&
+            r.log.every((x) => typeof x === 'string') &&
+            validDamageEvents(r.damageEvents),
+        )))
   );
 }
 

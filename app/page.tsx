@@ -1075,6 +1075,7 @@ export default function Game() {
         restart={() => restart()}
       />
       <Discoveries
+        game={game}
         open={discoveries}
         onClose={() => setDiscoveries(false)}
         meta={meta}

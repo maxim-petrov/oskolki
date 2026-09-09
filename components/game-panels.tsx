@@ -1,5 +1,6 @@
 /* eslint-disable nextjs/no-img-element -- Room artwork keeps its original native pixels. */
 'use client';
+import { RunRecap, RunJournal } from '@/components/run-journal';
 import { useState } from 'react';
 import { RewardActions, SealConfirmation } from '@/components/journey-rewards';
 import { ArchiveEntrance } from '@/components/archive-mechanics';
@@ -505,6 +506,7 @@ export function RunPanel({
             )}
             {['victory', 'defeat'].includes(s.phase) && (
               <>
+                <RunRecap game={s} />
                 <div className="end-stats">
                   <div>
                     <strong>
@@ -545,6 +547,7 @@ export function RunPanel({
   );
 }
 export function Discoveries({
+  game,
   open,
   onClose,
   meta,
@@ -552,6 +555,7 @@ export function Discoveries({
   open: boolean;
   onClose: () => void;
   meta: Meta;
+  game: State;
 }) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -563,6 +567,7 @@ export function Discoveries({
           новые метки открываются через освоение приёмов и появляются со
           следующего забега.
         </DialogDescription>
+        <RunJournal meta={meta} game={game} />
         <div className="discovery-list">
           {ACHIEVEMENTS.map((a) => {
             const done = meta.unlocked.includes(a.id);
