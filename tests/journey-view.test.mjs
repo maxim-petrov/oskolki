@@ -86,7 +86,7 @@ test('rendered map only enables the next rooms and its selected destination butt
   );
   assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 1);
   assert.ok(html.includes('Зал Главного цензора'));
-  assert.ok(html.includes('2 · Можно идти'));
+  assert.ok(html.includes('2 · I · Можно идти'));
   assert.ok(html.includes('Ты здесь'));
   assert.ok(html.includes('Идти сюда'));
   assert.ok(html.includes('paper-tunnels.png'));

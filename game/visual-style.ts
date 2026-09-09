@@ -54,13 +54,64 @@ export const ROOM_BACKGROUNDS = [
     name: 'Зал Цензора',
     alt: 'Тронный зал подвала с колоннами и бордовыми знамёнами',
   },
+  {
+    id: 'archive-gateway',
+    name: 'Затопленный порог',
+    alt: 'Бирюзовая вода под каменной дорожкой, арка и тёплые фонари',
+  },
+  {
+    id: 'archive-stacks',
+    name: 'Промокшие рукописи',
+    alt: 'Затонувшие книжные стеллажи и зелёные перила над каналом',
+  },
+  {
+    id: 'archive-pumps',
+    name: 'Угриный канал',
+    alt: 'Бронзовые трубы и насосы над бирюзовым каналом',
+  },
+  {
+    id: 'archive-stacks',
+    name: 'Якорная галерея',
+    alt: 'Перекошенные полки затопленного архива за пустым мостиком',
+  },
+  {
+    id: 'archive-refuge',
+    name: 'Плавучая лавка',
+    alt: 'Сухое укрытие с ящиками и тёплыми лампами среди тёмной воды',
+  },
+  {
+    id: 'archive-pumps',
+    name: 'Глубинные огни',
+    alt: 'Старая насосная с бронзовыми вентилями и зелёной водой',
+  },
+  {
+    id: 'archive-pumps',
+    name: 'Сердце насосной',
+    alt: 'Насосы, цистерны и затворы подземного водохранилища',
+  },
+  {
+    id: 'archive-stacks',
+    name: 'Чернильная заводь',
+    alt: 'Утонувшая библиотека с листами бумаги над водой',
+  },
+  {
+    id: 'archive-refuge',
+    name: 'Сухой причал',
+    alt: 'Тёплая стоянка с фонарями, тентом и сухими припасами',
+  },
+  {
+    id: 'archive-depths',
+    name: 'Сердце архива',
+    alt: 'Огромная круглая дверь архива с бирюзовым светом над каменной платформой',
+  },
 ].map((room) => ({
   ...room,
   src: `/art/pronoun-palace/backgrounds/${room.id}.png`,
 }));
 export function roomBackground(depth: number) {
   return (
-    ROOM_BACKGROUNDS[Math.min(9, Math.max(0, Math.trunc(depth) - 1))] ??
-    ROOM_BACKGROUNDS[0]
+    ROOM_BACKGROUNDS[
+      Math.min(ROOM_BACKGROUNDS.length - 1, Math.max(0, Math.trunc(depth) - 1))
+    ] ?? ROOM_BACKGROUNDS[0]
   );
 }

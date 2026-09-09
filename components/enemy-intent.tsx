@@ -1,4 +1,14 @@
-import { Sword, Shield, Sprout, Skull, Zap, Heart, Flame } from 'lucide-react';
+import {
+  Sword,
+  Shield,
+  Sprout,
+  Skull,
+  Zap,
+  Heart,
+  Flame,
+  Droplet,
+  Gem,
+} from 'lucide-react';
 import { intent, ENEMY_CATALOG, type State, type Enemy } from '@/game/engine';
 
 export function EnemyIntentLabel({
@@ -16,6 +26,8 @@ export function EnemyIntentLabel({
     roots: Sprout,
     poison: Skull,
     drain: Zap,
+    ink: Droplet,
+    siphon: Gem,
     heal: Heart,
     prepare: Flame,
   }[action.type];

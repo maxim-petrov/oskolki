@@ -5,6 +5,7 @@ export type Tile = {
   id: number;
   family: Family;
   variant: Variant;
+  ink?: true;
   root?: { owner: number; expires: number };
 };
 export type Enemy = {
@@ -29,8 +30,24 @@ export const NEW_ENEMY_KINDS = [
   'mirror',
   'safe',
 ] as const;
+export const ARCHIVE_ENEMY_KINDS = [
+  'reed-crab',
+  'ink-eel',
+  'leech',
+  'ink-scribe',
+  'anchor',
+  'lantern-fish',
+] as const;
+export const TOTAL_ROOMS = 20;
+export const BIOMES = [
+  { id: 'cellar', name: 'Подвал', firstRoom: 1, lastRoom: 10 },
+  { id: 'archive', name: 'Затопленный архив', firstRoom: 11, lastRoom: 20 },
+] as const;
+export const biomeAt = (depth: number) => BIOMES[depth > 10 ? 1 : 0];
 export type EnemyKind =
   | (typeof NEW_ENEMY_KINDS)[number]
+  | (typeof ARCHIVE_ENEMY_KINDS)[number]
+  | 'tide-keeper'
   | 'censor'
   | 'raider'
   | 'armored'
@@ -42,6 +59,50 @@ export const ENEMY_CATALOG: Record<
   EnemyKind,
   { name: string; hp: number; damage: number; tactic: string }
 > = {
+  'reed-crab': {
+    name: 'Картотечный краб',
+    hp: 28,
+    damage: 7,
+    tactic: 'Закрывает ящики на 8 блока, затем хватает клешнёй.',
+  },
+  'ink-eel': {
+    name: 'Чернильный угорь',
+    hp: 24,
+    damage: 5,
+    tactic: 'Первый удар и каждый второй после него проходят сквозь защиту.',
+  },
+  leech: {
+    name: 'Буквоед',
+    hp: 25,
+    damage: 6,
+    tactic: 'Крадёт до 2 фокуса и лечится на столько же, затем кусает.',
+  },
+  'ink-scribe': {
+    name: 'Мокрый писарь',
+    hp: 28,
+    damage: 6,
+    tactic:
+      'Чередует 3 кляксы и удар. Собранная клякса ранит на 1. Матч фокуса смывает все кляксы.',
+  },
+  anchor: {
+    name: 'Якорный смотритель',
+    hp: 34,
+    damage: 7,
+    tactic: 'Готовит удар на 12, бьёт, затем набирает 6 блока.',
+  },
+  'lantern-fish': {
+    name: 'Фонарный удильщик',
+    hp: 28,
+    damage: 6,
+    tactic: 'Два хода атакует, на третий восстанавливает до 6 здоровья.',
+  },
+  'tide-keeper': {
+    name: 'Хранитель прилива',
+    hp: 108,
+    damage: 7,
+    tactic:
+      'Кляксы, подготовка, тяжёлый удар. При половине здоровья прилив усиливается до 6, удар — до 16.',
+  },
   raider: {
     name: 'Костяной налётчик',
     hp: 18,
@@ -147,7 +208,9 @@ export const ENEMY_CATALOG: Record<
   },
 };
 export function bossPhase(e: Enemy): 1 | 2 {
-  return e.kind === 'censor' && e.hp <= e.maxHp / 2 ? 2 : 1;
+  return ['censor', 'tide-keeper'].includes(e.kind) && e.hp <= e.maxHp / 2
+    ? 2
+    : 1;
 }
 export type EnemyIntent = {
   type:
@@ -158,7 +221,9 @@ export type EnemyIntent = {
     | 'prepare'
     | 'drain'
     | 'heal'
-    | 'pierce';
+    | 'pierce'
+    | 'ink'
+    | 'siphon';
   value: number;
   text: string;
 };
@@ -329,6 +394,7 @@ export type State = {
   maxHp: number;
   block: number;
   heroPoison: number;
+  tide?: { row: number; turns: number; cleared: boolean };
   energy: number;
   focus: number;
   gold: number;
@@ -720,6 +786,35 @@ function collapse(s: State, removed: Set<number>) {
   }
   s.board = next;
 }
+export function tideDamage(s: State) {
+  const base = s.enemies.some(
+    (e) => e.kind === 'tide-keeper' && e.hp > 0 && bossPhase(e) === 2,
+  )
+    ? 6
+    : 4;
+  return base - (s.flags.includes('run:sluice') ? 2 : 0);
+}
+function startTide(s: State) {
+  // Every fresh warning has at least one legal matching response on this board.
+  const rows = [
+    ...new Set(
+      validMoves(s.board).flatMap((m) => m.cells.map((i) => Math.floor(i / 6))),
+    ),
+  ].sort((a, b) => a - b);
+  s.tide = {
+    row: rows[Math.floor(random(s) * rows.length)] ?? 0,
+    turns: 3,
+    cleared: false,
+  };
+}
+function hurtHero(s: State, value: number, piercing = false) {
+  const blocked = piercing ? 0 : Math.min(s.block, value);
+  s.block -= blocked;
+  s.stats.blocked += blocked;
+  const damage = Math.min(s.hp, value - blocked);
+  s.hp -= damage;
+  return damage;
+}
 function resolve(s: State, frames: Frame[], manual: boolean) {
   let wave = 0;
   while (true) {
@@ -741,6 +836,23 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
       (indices) => s.board[indices[0]].family === 'shield',
     );
     const removed = new Set(matches.flat());
+    if (
+      s.tide &&
+      !s.tide.cleared &&
+      [...removed].some((i) => Math.floor(i / 6) === s.tide!.row)
+    ) {
+      s.tide.cleared = true;
+      note(s, 'Сток открыт — этот прилив не нанесёт урона.');
+    }
+    // A focus match cleans the whole wave first, independent of group order.
+    if (
+      matches.some((indices) => s.board[indices[0]].family === 'focus') &&
+      s.board.some((t) => t.ink)
+    ) {
+      s.board.forEach((t) => delete t.ink);
+      note(s, 'Фокус смыл все кляксы.');
+    }
+    const inkDamage = [...removed].filter((i) => s.board[i].ink).length;
     const collateral = new Set<number>();
     for (const indices of matches) {
       s.stats.matches++;
@@ -822,6 +934,10 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
       }
       note(s, `Бомба разрушила ${collateral.size} фишек`);
     }
+    if (inkDamage) {
+      hurtHero(s, inkDamage, true);
+      note(s, `Собранные кляксы: −${inkDamage} здоровья сквозь защиту.`);
+    }
     frames.push({
       state: copy(s),
       cells: [...removed, ...collateral],
@@ -834,6 +950,7 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
     });
     collateral.forEach((i) => removed.add(i));
     collapse(s, removed);
+    if (s.hp <= 0) break;
   }
   if (!validMoves(s.board).length) {
     newBoard(s);
@@ -874,7 +991,48 @@ export function intent(s: State, e: Enemy): EnemyIntent {
   });
   const odd = s.round % 2 === 1;
   const cycle = s.round % 3;
+  const ink = (value: number): EnemyIntent => ({
+    type: 'ink',
+    value: Math.min(value, 6 - s.board.filter((t) => t.ink).length),
+    text: `Нанесёт кляксы: ${Math.min(value, 6 - s.board.filter((t) => t.ink).length)}`,
+  });
   switch (e.kind) {
+    case 'reed-crab':
+      return odd ? block(8) : attack();
+    case 'ink-eel':
+      return odd
+        ? {
+            type: 'pierce',
+            value: damage(),
+            text: 'Сквозь защиту: ' + damage(),
+          }
+        : attack();
+    case 'leech':
+      return odd
+        ? {
+            type: 'siphon',
+            value: Math.min(2, s.focus),
+            text: `Украдёт фокус: ${Math.min(2, s.focus)} → лечение`,
+          }
+        : attack();
+    case 'ink-scribe':
+      return odd ? ink(3) : attack();
+    case 'anchor':
+      return cycle === 1 ? prepare(5) : cycle === 2 ? attack(5) : block(6);
+    case 'lantern-fish':
+      return cycle === 0
+        ? {
+            type: 'heal',
+            value: Math.min(6, e.maxHp - Math.max(0, e.hp - e.poison)),
+            text: 'Восстановит до 6 здоровья',
+          }
+        : attack();
+    case 'tide-keeper': {
+      const furious =
+        bossPhase({ ...e, hp: Math.max(0, e.hp - e.poison) }) === 2;
+      if (cycle === 1) return ink(furious ? 5 : 3);
+      return cycle === 2 ? prepare(furious ? 9 : 5) : attack(furious ? 9 : 5);
+    }
     case 'paper-rat':
       return attack(odd ? 0 : 2);
     case 'stapler':
@@ -942,17 +1100,30 @@ function checkFinish(s: State) {
   if (s.hp <= 0) {
     s.hp = 0;
     s.phase = 'defeat';
+    delete s.tide;
     note(s, 'Странник пал. Следующий путь будет другим.');
   } else if (s.phase === 'battle' && s.enemies.every((e) => e.hp <= 0)) {
     s.gold += s.roomKind === 'boss' ? 40 : s.roomKind === 'elite' ? 30 : 15;
     if (s.roomKind === 'elite' && !s.flags.includes('run:elite'))
       s.flags.push('run:elite');
-    s.phase = s.roomKind === 'boss' ? 'victory' : 'reward';
+    s.phase =
+      s.roomKind === 'boss' && s.room === TOTAL_ROOMS ? 'victory' : 'reward';
     s.offers = rewardOffers(s);
+    delete s.tide;
+    s.board.forEach((t) => delete t.ink);
+    if (s.roomKind === 'boss' && s.room === 10) {
+      heal(s, Math.ceil(s.maxHp / 2));
+      s.potions = Math.min(2, s.potions + 1);
+      s.heroPoison = 0;
+      note(
+        s,
+        'Цензор повержен. Перед спуском: +50% максимального здоровья и зелье (до 2). Снаряжение остаётся с тобой.',
+      );
+    }
     note(
       s,
       s.phase === 'victory'
-        ? `${s.enemies[0]?.name ?? 'Босс'} повержен. Подвал пройден.`
+        ? `${s.enemies[0]?.name ?? 'Босс'} повержен. Оба биома пройдены.`
         : 'Комната очищена. Выбери награду.',
     );
   } else if (
@@ -1091,6 +1262,25 @@ export function endTurn(input: State): Result {
   if (input.phase !== 'battle') return result(input);
   const s = copy(input);
   const frames: Frame[] = [];
+  if (s.tide) {
+    s.tide.turns--;
+    if (s.tide.turns === 0 && !s.tide.cleared) {
+      const value = tideDamage(s);
+      const blocked = Math.min(s.block, value);
+      const damage = hurtHero(s, value);
+      note(s, `Прилив: ${damage} урона, ${blocked} в блок.`);
+      frames.push({
+        state: copy(s),
+        cells: Array.from({ length: 6 }, (_, i) => s.tide!.row * 6 + i),
+        label: 'Прилив',
+        cue: { actor: 'status', type: 'attack', target: 'hero' },
+      });
+      if (s.hp <= 0) {
+        checkFinish(s);
+        return result(s, frames);
+      }
+    }
+  }
   if (s.heroPoison > 0) {
     s.hp -= s.heroPoison;
     note(s, `Яд: ${s.heroPoison} урона сквозь блок`);
@@ -1181,6 +1371,22 @@ export function endTurn(input: State): Result {
     }
     if (action.type === 'prepare')
       note(s, `${e.name}: ${action.text.toLowerCase()} на следующий ход`);
+    if (action.type === 'ink') {
+      const choices = s.board.filter((t) => !t.ink);
+      for (let i = 0; i < action.value; i++) {
+        const index = Math.floor(random(s) * choices.length);
+        choices.splice(index, 1)[0].ink = true;
+      }
+      note(s, `${e.name}: ${action.value} клякс. Матч фокуса смоет их все.`);
+    }
+    if (action.type === 'siphon') {
+      s.focus -= action.value;
+      e.hp = Math.min(e.maxHp, e.hp + action.value);
+      note(
+        s,
+        `${e.name} украл ${action.value} фокуса и восстановил до ${action.value} здоровья.`,
+      );
+    }
     frames.push({
       state: copy(s),
       cells: [],
@@ -1194,7 +1400,7 @@ export function endTurn(input: State): Result {
             ? 'guard'
             : action.type === 'pierce'
               ? 'attack'
-              : action.type === 'drain'
+              : ['drain', 'ink', 'siphon'].includes(action.type)
                 ? 'cast'
                 : (action.type as CombatCue['type']),
         target:
@@ -1206,6 +1412,7 @@ export function endTurn(input: State): Result {
   checkFinish(s);
   if (s.phase === 'battle') {
     s.round++;
+    if (s.tide?.turns === 0) startTide(s);
     s.block = 0;
     s.moved = false;
     s.cast = false;
@@ -1516,7 +1723,7 @@ export function nextRooms(s: State): Room[] {
 }
 // The map and room-entry validation share the same route definitions.
 export function roomsAtDepth(n: number): Room[] {
-  if (!Number.isInteger(n) || n < 1 || n > 10) return [];
+  if (!Number.isInteger(n) || n < 1 || n > TOTAL_ROOMS) return [];
   if (n === 1)
     return [
       {
@@ -1556,6 +1763,72 @@ export function roomsAtDepth(n: number): Room[] {
       .map((key) => ENEMY_CATALOG[key].name + ': ' + ENEMY_CATALOG[key].tactic)
       .join(' '),
   });
+  if (n > 10) {
+    switch (n) {
+      case 11:
+        return [encounter('11-battle', 'battle', 'Затопленный порог')];
+      case 12:
+        return [
+          encounter('12-battle', 'battle', 'Промокшие рукописи'),
+          encounter('12-elite', 'elite', 'Гнездо буквоедов'),
+        ];
+      case 13:
+        return [
+          encounter('13-battle', 'battle', 'Угриный канал'),
+          mk(
+            'event',
+            'Сухой тайник',
+            'Припасы или реликвия под уцелевшей полкой.',
+          ),
+        ];
+      case 14:
+        return [
+          encounter('14-battle', 'battle', 'Якорная галерея'),
+          encounter('14-elite', 'elite', 'Мокрая канцелярия'),
+        ];
+      case 15:
+        return [
+          mk(
+            'shop',
+            'Плавучая лавка Саввы',
+            'Новые товары и скидки. Пополни запасы перед глубинами.',
+          ),
+        ];
+      case 16:
+        return [
+          encounter('16-battle', 'battle', 'Огни под водой'),
+          encounter('16-elite', 'elite', 'Утонувший каталог'),
+        ];
+      case 17:
+        return [
+          mk(
+            'event',
+            'Сердце насосной',
+            'Почини насос за 30 золота: прилив навсегда слабее на 2 в этом забеге. Или забери припасы.',
+          ),
+          mk(
+            'trial',
+            'Аварийный шлюз',
+            'Открой затвор за 45 секунд: 18 энергии и 30 урона.',
+          ),
+        ];
+      case 18:
+        return [
+          encounter('18-battle', 'battle', 'Чернильная заводь'),
+          encounter('18-elite', 'elite', 'Караул глубин'),
+        ];
+      case 19:
+        return [
+          mk(
+            'rest',
+            'Сухой причал',
+            'Последняя передышка перед Хранителем прилива.',
+          ),
+        ];
+      case 20:
+        return [encounter('20-boss', 'boss', 'Сердце затопленного архива')];
+    }
+  }
   if (n === 10) return [encounter('10-boss', 'boss', 'Зал Главного цензора')];
   if (n === 6)
     return [
@@ -1600,7 +1873,7 @@ export type RouteNode = Room & {
   status: 'visited' | 'current' | 'available' | 'future' | 'skipped';
 };
 export function routeMap(s: State): RouteNode[][] {
-  return Array.from({ length: 10 }, (_, index) => {
+  return Array.from({ length: TOTAL_ROOMS }, (_, index) => {
     const depth = index + 1;
     const rooms = roomsAtDepth(depth);
     const visited = s.path?.[index];
@@ -1647,6 +1920,17 @@ const ROOM_ENEMIES: Record<string, EnemyKind[]> = {
   '8-battle': ['candle'],
   '8-elite': ['safe', 'mirror'],
   '10-boss': ['censor'],
+  '11-battle': ['reed-crab'],
+  '12-battle': ['ink-scribe'],
+  '12-elite': ['leech', 'moth'],
+  '13-battle': ['ink-eel'],
+  '14-battle': ['anchor'],
+  '14-elite': ['ink-scribe', 'stapler'],
+  '16-battle': ['lantern-fish'],
+  '16-elite': ['librarian', 'leech'],
+  '18-battle': ['ink-scribe', 'ink-slime'],
+  '18-elite': ['mirror', 'anchor'],
+  '20-boss': ['tide-keeper'],
 };
 
 export function enterRoom(input: State, id: string): Result {
@@ -1657,6 +1941,11 @@ export function enterRoom(input: State, id: string): Result {
   const s = copy(input);
   s.room++;
   s.heroPoison = 0;
+  delete s.tide;
+  s.board.forEach((t) => {
+    delete t.ink;
+    delete t.root;
+  });
   s.roomKind = room.kind;
   s.path.push(room.name);
   s.round = 1;
@@ -1682,6 +1971,7 @@ export function enterRoom(input: State, id: string): Result {
     );
     s.target = s.enemies[0].id;
     newBoard(s);
+    if (s.room > 10) startTide(s);
     note(s, `${room.name}. Враги показывают намерения.`);
   } else if (room.kind === 'shop') {
     s.phase = 'shop';
@@ -1876,7 +2166,18 @@ export function rest(input: State, choice: string): Result {
 }
 export function eventChoice(input: State, choice: string): Result {
   if (input.phase !== 'event') return result(input);
+  if (input.room === 17 && !['repair', 'supplies'].includes(choice))
+    return result(input, [], 'Почини насос или забери припасы.');
   const s = copy(input);
+  if (choice === 'repair') {
+    if (s.room !== 17 || s.gold < 30 || s.flags.includes('run:sluice'))
+      return result(input, [], 'Насос можно починить здесь за 30 золота.');
+    s.gold -= 30;
+    s.flags.push('run:sluice');
+    s.phase = 'map';
+    note(s, 'Насос работает. Каждый прилив до конца забега слабее на 2.');
+    return result(s);
+  }
   if (choice === 'relic') {
     if (s.hp <= 5) return result(input, [], 'Нужно больше 5 здоровья.');
     s.hp -= 5;
@@ -1920,7 +2221,20 @@ export function isSave(value: unknown): value is State {
     Number.isFinite(s.rng) &&
     Number.isInteger(s.room) &&
     s.room >= 1 &&
-    s.room <= 10 &&
+    s.room <= TOTAL_ROOMS &&
+    (s.room <= 10 || s.phase !== 'battle' || s.tide !== undefined) &&
+    (s.tide === undefined ||
+      (s.tide !== null &&
+        typeof s.tide === 'object' &&
+        s.room > 10 &&
+        s.phase === 'battle' &&
+        Number.isInteger(s.tide.row) &&
+        s.tide.row >= 0 &&
+        s.tide.row < 6 &&
+        Number.isInteger(s.tide.turns) &&
+        s.tide.turns >= 1 &&
+        s.tide.turns <= 3 &&
+        typeof s.tide.cleared === 'boolean')) &&
     Array.isArray(s.board) &&
     s.board.length === 36 &&
     s.board.every(
@@ -1928,8 +2242,10 @@ export function isSave(value: unknown): value is State {
         t &&
         FAMILIES.includes(t.family) &&
         Number.isFinite(t.id) &&
-        [null, 'venom', 'bomb'].includes(t.variant),
+        [null, 'venom', 'bomb'].includes(t.variant) &&
+        (t.ink === undefined || t.ink === true),
     ) &&
+    s.board.filter((t) => t.ink).length <= 6 &&
     Number.isFinite(s.hp) &&
     Number.isFinite(s.maxHp) &&
     s.maxHp > 0 &&

@@ -40,10 +40,12 @@ export function Merchant({
   text,
   onTalk,
   busy,
+  archive = false,
 }: {
   text: string;
   onTalk: (text: string) => void;
   busy: boolean;
+  archive?: boolean;
 }) {
   return (
     <section className="merchant" aria-label="Разговор с торговцем">
@@ -62,7 +64,13 @@ export function Merchant({
             <button
               key={topic.id}
               disabled={busy}
-              onClick={() => onTalk(topic.answer)}
+              onClick={() =>
+                onTalk(
+                  archive && topic.id === 'road'
+                    ? 'Дальше удильщики и утонувший каталог. В насосной можно запустить насос за 30 монет: приливы станут слабее на 2. Перед Хранителем есть сухой причал. Кляксы смывай фокусом, а воду отводи матчем в отмеченной строке.'
+                    : topic.answer,
+                )
+              }
             >
               {topic.question}
             </button>

@@ -14,7 +14,12 @@ const art = JSON.parse(
 );
 const render = (component, props) =>
   renderToStaticMarkup(createElement(component, props));
-const kinds = [...g.NEW_ENEMY_KINDS, 'censor'];
+const kinds = [
+  ...g.NEW_ENEMY_KINDS,
+  'censor',
+  ...g.ARCHIVE_ENEMY_KINDS,
+  'tide-keeper',
+];
 const compare = (a, b) => a.localeCompare(b);
 function enemy(kind) {
   const d = g.ENEMY_CATALOG[kind];
@@ -30,7 +35,7 @@ function enemy(kind) {
   };
 }
 
-test('ten enemies and a separate boss each own a distinct transparent native PNG', () => {
+test('sixteen enemies and two bosses each own a distinct transparent native PNG', () => {
   assert.deepEqual(Object.keys(art).sort(compare), [...kinds].sort(compare));
   const hashes = new Set();
   for (const key of kinds) {
@@ -52,7 +57,7 @@ test('ten enemies and a separate boss each own a distinct transparent native PNG
     );
     hashes.add(createHash('sha256').update(data).digest('hex'));
   }
-  assert.equal(hashes.size, 11);
+  assert.equal(hashes.size, 18);
 });
 
 test('all enemy combat poses use their own artwork, while old saved enemies keep their atlas', () => {
@@ -75,12 +80,16 @@ test('live enemy identity, second boss phase and displayed intentions survive sa
   for (const key of kinds) {
     let state = g.startRun();
     state.enemies = [enemy(key)];
-    if (key === 'censor') state.enemies[0].hp = 39;
+    if (['censor', 'tide-keeper'].includes(key))
+      state.enemies[0].hp = state.enemies[0].maxHp / 2;
     state = g.loadSave(JSON.parse(JSON.stringify(state)));
     const snapshot = JSON.stringify(state);
     const html = render(CombatSprite, { state, actor: 1, motion: null });
     assert.ok(html.includes(art[key].src));
-    assert.equal(html.includes('boss-enraged'), key === 'censor');
+    assert.equal(
+      html.includes('boss-enraged'),
+      ['censor', 'tide-keeper'].includes(key),
+    );
     for (const round of [1, 2, 3]) {
       state.round = round;
       const action = g.intent(state, state.enemies[0]);

@@ -100,8 +100,8 @@ test('old saved shops keep their full prices without retroactively rolling disco
   assert.match(merchantGreeting(loaded.seed, false), /обычной цене/);
 });
 
-test('full map exposes exactly the legal next rooms and only one final boss', () => {
-  for (let depth = 1; depth <= 10; depth++) {
+test('full map exposes exactly the legal next rooms and one boss per biome', () => {
+  for (let depth = 1; depth <= 20; depth++) {
     const s = g.startRun(42);
     s.room = depth;
     s.phase = 'map';
@@ -111,7 +111,7 @@ test('full map exposes exactly the legal next rooms and only one final boss', ()
     );
     const snapshot = JSON.stringify(s),
       nodes = g.routeMap(s).flat();
-    assert.equal(g.routeMap(s).length, 10);
+    assert.equal(g.routeMap(s).length, 20);
     assert.equal(nodes.filter((n) => n.status === 'current').length, 1);
     assert.equal(nodes.filter((n) => n.status === 'visited').length, depth - 1);
     assert.deepEqual(
@@ -120,7 +120,10 @@ test('full map exposes exactly the legal next rooms and only one final boss', ()
     );
     assert.deepEqual(
       nodes.filter((n) => n.kind === 'boss').map((n) => [n.depth, n.id]),
-      [[10, '10-boss']],
+      [
+        [10, '10-boss'],
+        [20, '20-boss'],
+      ],
     );
     for (const node of nodes.filter((n) => n.status !== 'available'))
       assert.equal(g.enterRoom(s, node.id).state, s);
@@ -128,7 +131,7 @@ test('full map exposes exactly the legal next rooms and only one final boss', ()
     assert.deepEqual(g.routeMap(save(s)), g.routeMap(s));
   }
   assert.deepEqual(g.roomsAtDepth(0), []);
-  assert.deepEqual(g.roomsAtDepth(11), []);
+  assert.deepEqual(g.roomsAtDepth(21), []);
 });
 
 test('a won fight offers rewards first, then opens its real next map choices, with no repeat entry', () => {
@@ -226,14 +229,14 @@ test('merchant conversations and purchases quote actual terms without consuming 
   assert.equal(JSON.stringify(s), before);
 });
 
-test('ten distinct locations are tied to room depth and survive alternate routes and save/resume', () => {
-  assert.equal(ROOM_BACKGROUNDS.length, 10);
-  assert.equal(new Set(ROOM_BACKGROUNDS.map((r) => r.src)).size, 10);
+test('fifteen distinct locations are tied to room depth and survive alternate routes and save/resume', () => {
+  assert.equal(ROOM_BACKGROUNDS.length, 20);
+  assert.equal(new Set(ROOM_BACKGROUNDS.map((r) => r.src)).size, 15);
   assert.equal(roomBackground(1).id, 'entrance');
   assert.equal(roomBackground(5).id, 'market');
   assert.equal(roomBackground(9).id, 'campfire');
   assert.equal(roomBackground(10).id, 'throne');
-  for (let depth = 2; depth <= 10; depth++) {
+  for (let depth = 2; depth <= 20; depth++) {
     const s = g.startRun(42);
     s.phase = 'map';
     s.room = depth - 1;

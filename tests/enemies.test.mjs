@@ -186,8 +186,9 @@ test('censor switches phases at half health, binds three tiles and restores the 
 });
 
 test('killing the final boss clears its board threats and finishes the run exactly once', () => {
-  const s = fixture('censor');
-  s.room = 10;
+  const s = fixture('tide-keeper');
+  s.room = 20;
+  s.tide = { row: 0, turns: 3, cleared: false };
   s.roomKind = 'boss';
   s.energy = 12;
   s.enemies[0].hp = 10;
@@ -197,8 +198,8 @@ test('killing the final boss clears its board threats and finishes the run exact
   assert.equal(r.gold, s.gold + 40);
   assert.equal(r.board[0].root, undefined);
   assert.equal(g.endTurn(r).state, r);
-  assert.equal(g.enterRoom(r, '10-boss').state, r);
-  assert.ok(r.log.some((line) => line.includes('Главный цензор повержен')));
+  assert.equal(g.enterRoom(r, '20-boss').state, r);
+  assert.ok(r.log.some((line) => line.includes('Хранитель прилива повержен')));
   const meta = g.updateMeta(g.EMPTY_META, r);
   assert.deepEqual(g.updateMeta(meta, r), meta);
 });

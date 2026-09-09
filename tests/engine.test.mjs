@@ -394,7 +394,7 @@ test('complete automated routes terminate without corrupting state', () => {
     const s = automatedRun(seed);
     if (s.phase === 'victory') {
       wins++;
-      assert.equal(s.room, 10);
+      assert.equal(s.room, 20);
     }
   }
   assert.ok(wins > 0, `expected at least one complete victory; wins=${wins}`);
@@ -673,7 +673,7 @@ test('alternate routes through new elite pairs and the archive can finish a full
     const s = automatedRun(seed, true, true);
     if (s.phase === 'victory') {
       wins++;
-      assert.equal(s.enemies[0].kind, 'censor');
+      assert.equal(s.enemies[0].kind, 'tide-keeper');
     }
     assert.deepEqual(g.loadSave(JSON.parse(JSON.stringify(s))), s);
   }

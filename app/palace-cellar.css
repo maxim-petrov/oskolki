@@ -850,7 +850,7 @@ html[data-skin='palace-cellar'] {
   }
 }
 
-/* Eleven distinct native sprites share the existing combat ground and cues. */
+/* Distinct native sprites share the existing combat ground and cues. */
 html[data-skin='palace-cellar'] {
   .cellar-enemy-art {
     image-rendering: pixelated;
@@ -1358,4 +1358,167 @@ html[data-skin='palace-cellar'] .run-dialog > .run-seed button {
   background: #cdbc98;
   color: #533c28;
   border-color: #8c6b46;
+}
+
+html[data-skin='palace-cellar'] {
+  .biome-archive .topbar {
+    border-bottom-color: #4b9d99;
+  }
+  .biome-archive .build-tag,
+  .biome-archive .turn-badge {
+    background: #245b59;
+    color: #e8f6db;
+    border-color: #73b3a3;
+  }
+  .biome-archive .arena {
+    border-color: #527e76;
+  }
+  .biome-archive .board-frame {
+    border-color: #84b0a1;
+    box-shadow:
+      0 0 0 3px #192b2b,
+      7px 8px 0 #101b21;
+  }
+  .biome-archive .path-list li.current {
+    color: #285b55;
+  }
+  .destination-biome {
+    display: block;
+    margin-bottom: 4px;
+    color: #44665e;
+    font-size: 14px;
+  }
+  .archive-mechanics {
+    margin: 0 0 12px;
+    border: 2px solid #648e87;
+    background: #172c30;
+    color: #def1e5;
+    box-shadow: 3px 3px 0 #111c20;
+  }
+  .tide-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #234448;
+  }
+  .tide-notice > svg {
+    flex-shrink: 0;
+    color: #93e4df;
+    margin-top: 2px;
+  }
+  .tide-notice strong {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .tide-notice p,
+  .ink-notice p {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 3px 0 0;
+  }
+  .tide-cleared {
+    background: #2d4837;
+  }
+  .tide-cleared > svg {
+    color: #b1e295;
+  }
+  .ink-notice {
+    display: flex;
+    gap: 8px;
+    padding: 9px 14px;
+    align-items: center;
+  }
+  .ink-notice > svg {
+    color: #c7baf4;
+    flex-shrink: 0;
+  }
+  .ink-notice p {
+    flex: 1;
+  }
+  .ink-notice p svg {
+    display: inline;
+    color: #dabafa;
+    vertical-align: text-bottom;
+  }
+  .ink-notice b {
+    align-self: flex-start;
+    padding-top: 4px;
+    font-size: 14px;
+    white-space: nowrap;
+    color: #ddd0ff;
+  }
+  .pump-benefit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    margin: 0;
+    padding: 0 14px 10px;
+    color: #bfdfa7;
+  }
+  .tile.tide-row {
+    box-shadow:
+      inset 0 -6px 0 #63e1e9,
+      inset 0 0 0 2px #3d8b9a;
+  }
+  .tile.inked {
+    outline: 2px dashed #d2b6ff;
+    outline-offset: -5px;
+  }
+  .ink-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: #33243f;
+    color: #debfff;
+    border: 1px solid #b591d3;
+    padding: 1px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .ink-mark svg {
+    width: 14px;
+    height: 14px;
+    filter: none;
+  }
+  .archive-entrance {
+    padding: 18px;
+    margin: 12px 0;
+    background: #213e40;
+    color: #e8eedc;
+    border: 3px solid #699889;
+    box-shadow: 4px 4px 0 #302b27;
+  }
+  .archive-entrance .eyebrow {
+    color: #a4dace;
+  }
+  .archive-entrance h3 {
+    font-size: 24px;
+    font-weight: 800;
+    margin: 4px 0 10px;
+  }
+  .archive-entrance p {
+    font-size: 16px;
+    line-height: 1.55;
+    margin: 8px 0 0;
+  }
+  .enemy-intent.intent-ink,
+  .enemy-intent.intent-siphon {
+    color: #594071;
+  }
+  @media (max-width: 620px) {
+    .tide-notice,
+    .ink-notice {
+      padding: 10px;
+    }
+    .archive-entrance {
+      padding: 14px;
+    }
+  }
 }

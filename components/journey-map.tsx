@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUp, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RoomIcon } from '@/components/room-icon';
-import { routeMap, nextRooms, type State } from '@/game/engine';
+import {
+  routeMap,
+  nextRooms,
+  TOTAL_ROOMS,
+  biomeAt,
+  type State,
+} from '@/game/engine';
 import { roomBackground } from '@/game/visual-style';
 
 const statusText = {
@@ -16,7 +22,7 @@ const statusText = {
 };
 const position = (depth: number, index: number, count: number) => ({
   x: ((index + 0.5) / count) * 100,
-  y: (10 - depth) * 84 + 12,
+  y: (TOTAL_ROOMS - depth) * 84 + 12,
 });
 export function NextStops({ game }: { game: State }) {
   return (
@@ -52,7 +58,7 @@ export function JourneyMap({
     if (el)
       el.scrollTop = Math.max(
         0,
-        (9 - game.room) * 84 - el.clientHeight / 2 + 48,
+        (TOTAL_ROOMS - 1 - game.room) * 84 - el.clientHeight / 2 + 48,
       );
   }, [game.room, game.runId]);
   return (
@@ -68,19 +74,19 @@ export function JourneyMap({
         </span>
         <span>
           <ArrowUp size={14} />
-          Путь к боссу
+          Два биома · два босса
         </span>
       </div>
       <section
         className="map-scroll"
         ref={scroll}
         tabIndex={0}
-        aria-label="Карта крипты. Десять комнат, босс наверху. Прокрути, чтобы увидеть весь путь."
+        aria-label="Карта двух биомов. Двадцать комнат, боссы в десятой и двадцатой. Прокрути, чтобы увидеть весь путь."
       >
-        <div className="map-paper">
+        <div className="map-paper" style={{ height: TOTAL_ROOMS * 84 }}>
           <svg
             className="map-paths"
-            viewBox="0 0 1000 840"
+            viewBox={`0 0 1000 ${TOTAL_ROOMS * 84}`}
             preserveAspectRatio="none"
             aria-hidden="true"
           >
@@ -127,7 +133,8 @@ export function JourneyMap({
                   <RoomIcon kind={node.kind} />
                   <span>
                     <small>
-                      {node.depth} · {statusText[node.status]}
+                      {node.depth} · {node.depth > 10 ? 'II' : 'I'} ·{' '}
+                      {statusText[node.status]}
                     </small>
                     <strong>{node.name}</strong>
                   </span>
@@ -148,6 +155,9 @@ export function JourneyMap({
             className="map-destination-art"
           />
           <div>
+            <small className="destination-biome">
+              {biomeAt(selected.depth).name}
+            </small>
             <strong>{selected.name}</strong>
             <p>{selected.description}</p>
           </div>

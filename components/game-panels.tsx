@@ -1,6 +1,8 @@
 /* eslint-disable nextjs/no-img-element -- Room artwork keeps its original native pixels. */
 'use client';
 import { useState } from 'react';
+import { ArchiveEntrance } from '@/components/archive-mechanics';
+import { biomeAt, TOTAL_ROOMS } from '@/game/engine';
 import { RoomIcon } from '@/components/room-icon';
 import { RunSeed } from '@/components/run-seed';
 import { JourneyMap, NextStops } from '@/components/journey-map';
@@ -96,10 +98,13 @@ export function RunPanel({
   restart: () => void;
 }) {
   const [pending, setPending] = useState<Offer | null>(null);
-  const [speech, setSpeech] = useState<{ runId: string; text: string } | null>(
-    null,
-  );
-  const say = (text: string) => setSpeech({ runId: s.runId, text });
+  const [speech, setSpeech] = useState<{
+    runId: string;
+    room: number;
+    text: string;
+  } | null>(null);
+  const say = (text: string) =>
+    setSpeech({ runId: s.runId, room: s.room, text });
   const purchase = (offer: Offer, slot?: number) => {
     const result = buy(s, offer.id, slot);
     say(
@@ -136,16 +141,24 @@ export function RunPanel({
       : 'Что заменить?'
     : (
         {
-          reward: 'Выбери находку',
+          reward: s.room === 10 ? 'Цензор повержен' : 'Выбери находку',
           map: 'Куда дальше?',
-          shop: 'Торговец у переправы',
-          rest: 'У тлеющего костра',
-          event: s.room === 3 ? 'Забытый алтарь' : 'Тайник странника',
+          shop: s.room > 10 ? 'Плавучая лавка Саввы' : 'Торговец у переправы',
+          rest: s.room > 10 ? 'Сухой причал' : 'У тлеющего костра',
+          event:
+            s.room === 17
+              ? 'Сердце насосной'
+              : s.room === 3
+                ? 'Забытый алтарь'
+                : 'Тайник странника',
           trial:
             s.trial?.remaining === 45
-              ? 'Закрывающийся шлюз'
+              ? s.room > 10
+                ? 'Аварийный шлюз'
+                : 'Закрывающийся шлюз'
               : 'Испытание на паузе',
-          victory: 'Крипта пройдена',
+          victory:
+            s.room === TOTAL_ROOMS ? 'Оба биома пройдены' : 'Подвал пройден',
           defeat: 'Твой путь оборвался',
         } as Record<string, string>
       )[s.phase];
@@ -156,13 +169,15 @@ export function RunPanel({
     : (
         {
           reward: 'Одна вещь останется с тобой до конца забега.',
-          map: `Комната ${s.room + 1} из 10. Выбирай риск, который готов принять.`,
+          map: `Комната ${s.room + 1} из ${TOTAL_ROOMS}. Выбирай риск, который готов принять.`,
           shop: `У тебя ${s.gold} золота. Ассортимент не обновляется.`,
           rest: 'Выбери восстановление здоровья или усиление поля.',
           event:
-            s.room === 3
-              ? 'Камень просит немного крови. В нише мерцает находка.'
-              : 'Кто-то оставил здесь припасы и старый сундук.',
+            s.room === 17
+              ? 'Насос ещё можно спасти. Его работа ослабит приливы до конца забега.'
+              : s.room === 3
+                ? 'Камень просит немного крови. В нише мерцает находка.'
+                : 'Кто-то оставил здесь припасы и старый сундук.',
           trial:
             'Собери 18 энергии из совпадений и нанеси 30 урона преграде. Таймер — 45 секунд.',
           victory: `${s.enemies[0]?.name ?? 'Босс'} пал. Найденные открытия доступны в следующем забеге.`,
@@ -174,7 +189,7 @@ export function RunPanel({
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         showCloseButton={false}
-        className={`game-dialog run-dialog ${s.phase}-dialog ${pending ? 'pending-dialog' : ''}`}
+        className={`game-dialog run-dialog biome-${biomeAt(s.room).id} ${s.phase}-dialog ${pending ? 'pending-dialog' : ''}`}
       >
         <div className="panel-emblem">
           {pending ? (
@@ -195,22 +210,25 @@ export function RunPanel({
         </div>
         <span className="eyebrow">
           {s.phase === 'victory'
-            ? 'ПЕРВЫЙ СПУСК ЗАВЕРШЁН'
+            ? 'СПУСК ЗАВЕРШЁН'
             : s.phase === 'defeat'
               ? `КОМНАТА ${s.room} · ХОД ${s.round}`
-              : 'ОСКОЛКИ · КРИПТА'}
+              : `ОСКОЛКИ · ${biomeAt(s.room).name.toUpperCase()}`}
         </span>
         <DialogTitle>{heading}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
+        <ArchiveEntrance game={s} />
         {['victory', 'defeat'].includes(s.phase) && <RunSeed seed={s.seed} />}
         {s.phase === 'shop' && (
           <Merchant
+            archive={s.room > 10}
             text={
-              speech?.runId === s.runId
+              speech?.runId === s.runId && speech.room === s.room
                 ? speech.text
                 : merchantGreeting(
                     s.seed,
                     s.offers.some((o) => !!o.discount),
+                    s.room > 10,
                   )
             }
             onTalk={say}
@@ -382,13 +400,23 @@ export function RunPanel({
               <div className="route-options">
                 <button
                   className="route-card"
-                  disabled={s.hp <= 5}
-                  onClick={() => void act(eventChoice(s, 'relic'))}
+                  disabled={busy || (s.room === 17 ? s.gold < 30 : s.hp <= 5)}
+                  onClick={() =>
+                    void act(eventChoice(s, s.room === 17 ? 'repair' : 'relic'))
+                  }
                 >
                   <SkinIcon name="relic" size={44} />
                   <div>
-                    <strong>Открыть тайник</strong>
-                    <p>Потерять 5 здоровья и выбрать сильную находку.</p>
+                    <strong>
+                      {s.room === 17
+                        ? 'Починить насос · 30 золота'
+                        : 'Открыть тайник'}
+                    </strong>
+                    <p>
+                      {s.room === 17
+                        ? 'Каждый прилив до конца забега наносит на 2 урона меньше. Работает и против босса.'
+                        : 'Потерять 5 здоровья и выбрать сильную находку.'}
+                    </p>
                   </div>
                   <ArrowRight />
                 </button>
@@ -441,7 +469,12 @@ export function RunPanel({
               <>
                 <div className="end-stats">
                   <div>
-                    <strong>{s.room}/10</strong>
+                    <strong>
+                      {s.room}/
+                      {s.phase === 'victory' && s.room === 10
+                        ? 10
+                        : TOTAL_ROOMS}
+                    </strong>
                     <span>Комнат</span>
                   </div>
                   <div>

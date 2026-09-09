@@ -1,5 +1,8 @@
 import { VISUAL_STYLE } from './visual-style';
 import {
+  biomeAt,
+  TOTAL_ROOMS,
+  tideDamage,
   move,
   endTurn,
   castSkill,
@@ -151,6 +154,9 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
     phase: s.phase,
     seed: s.seed >>> 0,
     room: s.room,
+    totalRooms: TOTAL_ROOMS,
+    biome: biomeAt(s.room),
+    tide: s.tide ? { ...s.tide, damage: tideDamage(s) } : null,
     round: s.round,
     busy,
     hp: s.hp,
@@ -243,7 +249,7 @@ export function registerGameTools(
       name: 'perform_game_action',
       title: 'Выполнить действие в игре',
       description:
-        'Execute one action in the current local game and update the visible interface. Read read_game first. shift needs axis/line/amount; cast needs equipped skill id (or edit), optionally index/family; select_target needs enemy target; choose_reward needs offer id or null to skip, and slot 0/1 when replacing; enter_room/buy/rest/event need id; rest id is heal or up-blade/up-shield/up-spark/up-focus; event id is relic or supplies; pause_trial needs paused. end_turn, potion and leave_shop take no other parameters. Does not start or reset runs.',
+        'Execute one action in the current local game and update the visible interface. Read read_game first. shift needs axis/line/amount; cast needs equipped skill id (or edit), optionally index/family; select_target needs enemy target; choose_reward needs offer id or null to skip, and slot 0/1 when replacing; enter_room/buy/rest/event need id; rest id is heal or up-blade/up-shield/up-spark/up-focus; event id is relic or supplies; in room 17 use repair (30 gold, reduces tides by 2) or supplies; pause_trial needs paused. end_turn, potion and leave_shop take no other parameters. Does not start or reset runs.',
       inputSchema: actionSchema,
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: act,

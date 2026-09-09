@@ -1,6 +1,8 @@
 /* eslint-disable react/react-compiler, nextjs/no-img-element -- This event-driven renderer is not React Compiler compiled; refs bridge asynchronous frame replay and WebMCP to React state. */
 'use client';
 import { roomBackground, ROOM_BACKGROUNDS } from '@/game/visual-style';
+import { ArchiveMechanics } from '@/components/archive-mechanics';
+import { biomeAt, TOTAL_ROOMS } from '@/game/engine';
 import { RunSeed } from '@/components/run-seed';
 import { useRef, useState, useEffect, type PointerEvent } from 'react';
 import {
@@ -25,6 +27,7 @@ import {
   Pause,
   BookOpen,
   Sprout,
+  Droplet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -405,20 +408,24 @@ export default function Game() {
       );
   }, [ready]);
   return (
-    <main className="game-shell">
+    <main className={`game-shell biome-${biomeAt(s.room).id}`}>
       <header className="topbar">
         <div className="brand">
           <SkinIcon name="crown" size={40} />
           <h1>ОСКОЛКИ</h1>
           <span className="build-tag">
-            {s.modified ? 'ПРОВЕРКА БАЛАНСА' : 'ПЕРВЫЙ СПУСК'}
+            {s.modified
+              ? 'ПРОВЕРКА БАЛАНСА'
+              : `БИОМ ${s.room > 10 ? 'II' : 'I'}`}
           </span>
         </div>
         <div className="header-run">
           <Flame size={16} />
-          <span>Крипта</span>
+          <span>{biomeAt(s.room).name}</span>
           <span className="divider">/</span>
-          <span>Комната {s.room} из 10</span>
+          <span>
+            Комната {s.room} из {TOTAL_ROOMS}
+          </span>
         </div>
         <RunSeed seed={s.seed} />
         <div className="header-actions">
@@ -465,22 +472,22 @@ export default function Game() {
       <div className="game-layout">
         <aside className="journey">
           <p className="eyebrow">ТВОЙ ПУТЬ</p>
-          <h2>
-            В глубину
-            <br />
-            крипты
-          </h2>
+          <h2>{biomeAt(s.room).name}</h2>
           <p className="muted journey-copy">
             Каждая находка
             <br />
             меняет следующий ход.
           </p>
           <ol className="path-list">
-            {ROOM_BACKGROUNDS.map((background, i) => {
+            {ROOM_BACKGROUNDS.slice(
+              biomeAt(s.room).firstRoom - 1,
+              biomeAt(s.room).lastRoom,
+            ).map((background, localIndex) => {
+              const i = localIndex + biomeAt(s.room).firstRoom - 1;
               const name = s.path[i] ?? background.name;
               return (
                 <li
-                  key={name}
+                  key={i}
                   className={
                     i + 1 === s.room
                       ? 'current'
@@ -492,7 +499,7 @@ export default function Game() {
                   <span className="path-dot">
                     {i + 1 < s.room ? (
                       <Check size={12} />
-                    ) : i === 9 ? (
+                    ) : (i + 1) % 10 === 0 ? (
                       <Crown size={14} />
                     ) : (
                       i + 1
@@ -533,7 +540,7 @@ export default function Game() {
             <div className="arena-caption">
               <span className="eyebrow">
                 {s.roomKind === 'boss'
-                  ? 'БОСС · ГЛАВНЫЙ ЦЕНЗОР'
+                  ? `БОСС · ${s.enemies[0]?.name.toUpperCase()}`
                   : roomBackground(s.room).name.toUpperCase()}
               </span>
               <span className="turn-badge">
@@ -569,7 +576,7 @@ export default function Game() {
             <div className={`enemies count-${s.enemies.length}`}>
               {s.enemies.map((e) => (
                 <button
-                  className={`fighter enemy ${e.kind === 'censor' ? 'enemy-boss' : ''} ${e.hp <= 0 ? 'fallen' : ''} ${s.target === e.id ? 'targeted' : ''}`}
+                  className={`fighter enemy ${['censor', 'tide-keeper'].includes(e.kind) ? 'enemy-boss' : ''} ${e.hp <= 0 ? 'fallen' : ''} ${s.target === e.id ? 'targeted' : ''}`}
                   key={e.id}
                   aria-label={`Цель: ${e.name}, ${e.hp} здоровья`}
                   onClick={() => !busy && setGame({ ...game, target: e.id })}
@@ -579,7 +586,7 @@ export default function Game() {
                   <CombatSprite state={s} motion={motion} actor={e.id} />
                   <div className="fighter-caption">
                     <strong>{e.name}</strong>
-                    {e.kind === 'censor' && (
+                    {['censor', 'tide-keeper'].includes(e.kind) && (
                       <span className="boss-phase">
                         <Crown size={12} aria-hidden="true" /> Босс · Фаза{' '}
                         {bossPhase(e)} из 2
@@ -655,6 +662,7 @@ export default function Game() {
               Подсказка
             </Button>
           </div>
+          <ArchiveMechanics game={s} />
           <div
             className={`board-section ${editing ? 'is-editing' : ''} ${game.phase === 'trial' && (game.trial?.paused || modalOpen) ? 'trial-paused' : ''}`}
           >
@@ -694,8 +702,8 @@ export default function Game() {
                     return (
                       <button
                         key={i}
-                        className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.root ? 'rooted' : ''}`}
-                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
+                        className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? 'tide-row' : ''}`}
+                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / 6) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / 6) + 1}, столбец ${(i % 6) + 1}`}
                         aria-pressed={selected === i}
                         onPointerDown={(e) => pointerDown(e, i)}
                         onPointerMove={dragMove}
@@ -718,6 +726,14 @@ export default function Game() {
                           weaponId={s.equipment.weapon}
                           size={56}
                         />
+                        {t.ink && (
+                          <span
+                            className="ink-mark"
+                            title="Клякса: −1 здоровья при сборе. Матч фокуса смывает все."
+                          >
+                            <Droplet size={14} fill="currentColor" />
+                          </span>
+                        )}
                         {t.root && (
                           <span
                             className="root-mark"
@@ -952,7 +968,7 @@ export default function Game() {
       </div>
       <footer className="game-footer">
         <span>
-          <Footprints size={14} /> Один биом. Много способов пройти.
+          <Footprints size={14} /> Два биома. Двадцать комнат. Твоя сборка.
         </span>
         <span>Выбери фишку + ← ↑ ↓ → · Пробел — завершить ход</span>
       </footer>
@@ -1057,6 +1073,13 @@ export default function Game() {
               Щиты защищают до следующего хода. Фокус позволяет превратить
               выбранную фишку в нужный тип. Враг действует после кнопки
               «Завершить ход».
+            </p>
+            <p>
+              После Цензора путь продолжается в Затопленном архиве. Прилив раз в
+              3 хода ударяет перед врагами: матч в отмеченной строке отменяет
+              его, блок поглощает урон. Клякса на собранной фишке ранит на 1
+              сквозь блок. Любой матч фокуса сначала смывает все кляксы, в том
+              числе в том же каскаде.
             </p>
           </div>
           <Button onClick={() => setHelp(false)}>Всё понятно</Button>
