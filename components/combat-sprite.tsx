@@ -1,5 +1,7 @@
 'use client';
 import type { CSSProperties } from 'react';
+import { EnemyArt } from './enemy-art';
+import { bossPhase } from '@/game/engine';
 import { ActorArt } from './actor-art';
 import { Shield, Sparkles } from 'lucide-react';
 import { impactFor, poseFor, type Actor, type Motion } from '@/game/motion';
@@ -21,9 +23,11 @@ export function CombatSprite({
   const id = motion?.id ?? 0,
     stage = motion?.stage ?? 'idle';
   const guarding = pose === 'guard';
+  const enemy =
+    actor === 'hero' ? undefined : state.enemies.find((e) => e.id === actor);
   return (
     <div
-      className={`sprite-root ${actor === 'hero' ? 'hero-sprite' : 'enemy-sprite'} ${pose === 'death' ? 'is-dead' : ''}`}
+      className={`sprite-root ${actor === 'hero' ? 'hero-sprite' : 'enemy-sprite'} ${pose === 'death' ? 'is-dead' : ''} ${enemy?.kind === 'censor' && bossPhase(enemy) === 2 ? 'boss-enraged' : ''}`}
       aria-hidden="true"
       style={{ '--beat': `${motion?.duration ?? 600}ms` } as CSSProperties}
     >
@@ -32,11 +36,15 @@ export function CombatSprite({
         key={id}
         className={`sprite-action action-${kind} stage-${stage} pose-${pose}`}
       >
-        <ActorArt
-          hero={actor === 'hero'}
-          pose={pose}
-          weaponId={state.equipment.weapon}
-        />
+        {enemy ? (
+          <EnemyArt enemy={enemy} pose={pose} />
+        ) : (
+          <ActorArt
+            hero={actor === 'hero'}
+            pose={pose}
+            weaponId={state.equipment.weapon}
+          />
+        )}
         {guarding && (
           <div className={`ward ${effects.blocked ? 'ward-impact' : ''}`}>
             <Shield size={52} strokeWidth={1} />

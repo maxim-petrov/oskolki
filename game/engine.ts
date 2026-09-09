@@ -14,8 +14,153 @@ export type Enemy = {
   maxHp: number;
   block: number;
   poison: number;
-  kind: 'raider' | 'armored' | 'cultist' | 'poisoner' | 'rooter' | 'boss';
+  kind: EnemyKind;
   damage: number;
+};
+export const NEW_ENEMY_KINDS = [
+  'paper-rat',
+  'stapler',
+  'moth',
+  'eraser',
+  'bell',
+  'ink-slime',
+  'librarian',
+  'candle',
+  'mirror',
+  'safe',
+] as const;
+export type EnemyKind =
+  | (typeof NEW_ENEMY_KINDS)[number]
+  | 'censor'
+  | 'raider'
+  | 'armored'
+  | 'cultist'
+  | 'poisoner'
+  | 'rooter'
+  | 'boss';
+export const ENEMY_CATALOG: Record<
+  EnemyKind,
+  { name: string; hp: number; damage: number; tactic: string }
+> = {
+  raider: {
+    name: 'Костяной налётчик',
+    hp: 18,
+    damage: 6,
+    tactic: 'Атакует каждый ход.',
+  },
+  armored: {
+    name: 'Латный страж',
+    hp: 22,
+    damage: 8,
+    tactic: 'Чередует защиту и атаку.',
+  },
+  cultist: {
+    name: 'Служитель праха',
+    hp: 14,
+    damage: 4,
+    tactic: 'Атакует каждый ход.',
+  },
+  poisoner: {
+    name: 'Отравитель',
+    hp: 18,
+    damage: 3,
+    tactic: 'Чередует удар и яд.',
+  },
+  rooter: {
+    name: 'Корневик',
+    hp: 18,
+    damage: 5,
+    tactic: 'Связывает фишки, затем атакует.',
+  },
+  boss: {
+    name: 'Привратник',
+    hp: 70,
+    damage: 6,
+    tactic: 'Готовит сильный удар раз в три хода.',
+  },
+  'paper-rat': {
+    name: 'Бумажная крыса',
+    hp: 18,
+    damage: 4,
+    tactic: 'Чередует укус и более сильный наскок.',
+  },
+  stapler: {
+    name: 'Скобогрыз',
+    hp: 22,
+    damage: 8,
+    tactic: 'Смыкает панцирь на 6 блока, затем кусает.',
+  },
+  moth: {
+    name: 'Книжная моль',
+    hp: 18,
+    damage: 5,
+    tactic: 'Похищает 2 энергии, затем атакует.',
+  },
+  eraser: {
+    name: 'Ластик-вышибала',
+    hp: 24,
+    damage: 5,
+    tactic: 'Готовит удар на 9, затем наносит обычный удар.',
+  },
+  bell: {
+    name: 'Гулкий звонарь',
+    hp: 22,
+    damage: 5,
+    tactic: 'Раскачивается один ход, затем бьёт на 11.',
+  },
+  'ink-slime': {
+    name: 'Чернильная жижа',
+    hp: 22,
+    damage: 4,
+    tactic: 'Чередует удар и 2 яда сквозь защиту.',
+  },
+  librarian: {
+    name: 'Слепой архивариус',
+    hp: 24,
+    damage: 5,
+    tactic: 'Связывает 2 фишки. Собери их до следующего ответа.',
+  },
+  candle: {
+    name: 'Огарок',
+    hp: 26,
+    damage: 6,
+    tactic: 'После двух атак восстанавливает 4 здоровья.',
+  },
+  mirror: {
+    name: 'Кривое зеркало',
+    hp: 22,
+    damage: 6,
+    tactic: 'Набирает 5 блока, затем бьёт сквозь защиту.',
+  },
+  safe: {
+    name: 'Сейф-страж',
+    hp: 30,
+    damage: 8,
+    tactic: 'Набирает 10 блока, затем дважды атакует.',
+  },
+  censor: {
+    name: 'Главный цензор',
+    hp: 78,
+    damage: 6,
+    tactic:
+      'Две фазы. При половине здоровья и ниже связывает фишки и усиливает тяжёлую печать.',
+  },
+};
+export function bossPhase(e: Enemy): 1 | 2 {
+  return e.kind === 'censor' && e.hp <= e.maxHp / 2 ? 2 : 1;
+}
+export type EnemyIntent = {
+  type:
+    | 'attack'
+    | 'block'
+    | 'roots'
+    | 'poison'
+    | 'prepare'
+    | 'drain'
+    | 'heal'
+    | 'pierce';
+  value: number;
+  text: string;
 };
 export type Balance = {
   health: number;
@@ -693,25 +838,97 @@ function resolve(s: State, frames: Frame[], manual: boolean) {
     note(s, 'Ходов нет — поле бесплатно перемешано');
   }
 }
-export function intent(s: State, e: Enemy) {
-  const rage =
-    Math.max(
+export function intent(s: State, e: Enemy): EnemyIntent {
+  const damage = (bonus = 0, round = s.round) => {
+    const rage =
+      Math.max(
+        0,
+        round - (s.roomKind === 'boss' ? 16 : s.roomKind === 'elite' ? 12 : 8),
+      ) * 2;
+    return Math.max(
       0,
-      s.round - (s.roomKind === 'boss' ? 16 : s.roomKind === 'elite' ? 12 : 8),
-    ) * 2;
-  if (e.kind === 'rooter' && s.round % 2 === 1)
-    return { type: 'roots', value: 2, text: 'Корни: 2 фишки' };
-  if (e.kind === 'poisoner' && s.round % 2 === 0)
-    return { type: 'poison', value: 2, text: 'Наложит 2 яда' };
-  if (e.kind === 'boss' && s.round % 3 === 2)
-    return { type: 'prepare', value: 0, text: 'Готовит сильный удар' };
-  if (e.kind === 'armored' && s.round % 2 === 1)
-    return { type: 'block', value: 8, text: 'Защита 8' };
-  const value =
-    Math.round(e.damage * s.balance.enemyPower) +
-    rage +
-    (e.kind === 'boss' && s.round % 3 === 0 ? 6 : 0);
-  return { type: 'attack', value, text: `Удар ${value}` };
+      Math.round((e.damage + bonus) * s.balance.enemyPower) + rage,
+    );
+  };
+  const attack = (bonus = 0): EnemyIntent => ({
+    type: 'attack',
+    value: damage(bonus),
+    text: 'Удар ' + damage(bonus),
+  });
+  const block = (value: number): EnemyIntent => ({
+    type: 'block',
+    value,
+    text: 'Защита ' + value,
+  });
+  const roots = (value: number): EnemyIntent => ({
+    type: 'roots',
+    value,
+    text: 'Свяжет фишки: ' + value,
+  });
+  const prepare = (bonus: number): EnemyIntent => ({
+    type: 'prepare',
+    value: damage(bonus, s.round + 1),
+    text: 'Готовит удар ' + damage(bonus, s.round + 1),
+  });
+  const odd = s.round % 2 === 1;
+  const cycle = s.round % 3;
+  switch (e.kind) {
+    case 'paper-rat':
+      return attack(odd ? 0 : 2);
+    case 'stapler':
+      return odd ? block(6) : attack();
+    case 'moth':
+      return odd
+        ? {
+            type: 'drain',
+            value: Math.min(2, s.energy),
+            text: 'Похитит энергию: ' + Math.min(2, s.energy),
+          }
+        : attack();
+    case 'eraser':
+      return cycle === 1 ? prepare(4) : attack(cycle === 2 ? 4 : 0);
+    case 'bell':
+      return odd ? prepare(6) : attack(6);
+    case 'ink-slime':
+    case 'poisoner':
+      return !odd
+        ? { type: 'poison', value: 2, text: 'Наложит 2 яда' }
+        : attack();
+    case 'librarian':
+    case 'rooter':
+      return odd ? roots(2) : attack();
+    case 'candle':
+      return cycle === 0
+        ? {
+            type: 'heal',
+            value: Math.min(4, e.maxHp - Math.max(0, e.hp - e.poison)),
+            text: 'Восстановит до 4 здоровья',
+          }
+        : attack();
+    case 'mirror':
+      return odd
+        ? block(5)
+        : {
+            type: 'pierce',
+            value: damage(),
+            text: 'Сквозь защиту: ' + damage(),
+          };
+    case 'safe':
+      return cycle === 1 ? block(10) : attack();
+    case 'censor': {
+      const furious =
+        bossPhase({ ...e, hp: Math.max(0, e.hp - e.poison) }) === 2;
+      if (cycle === 2) return prepare(furious ? 10 : 6);
+      if (cycle === 0) return attack(furious ? 10 : 6);
+      return furious ? roots(3) : attack();
+    }
+    case 'boss':
+      return cycle === 2 ? prepare(6) : attack(cycle === 0 ? 6 : 0);
+    case 'armored':
+      return odd ? block(8) : attack();
+    default:
+      return attack();
+  }
 }
 function result(s: State, frames: Frame[] = [], error?: string): Result {
   return { state: s, frames, error };
@@ -733,7 +950,7 @@ function checkFinish(s: State) {
     note(
       s,
       s.phase === 'victory'
-        ? 'Привратник повержен. Крипта пройдена.'
+        ? `${s.enemies[0]?.name ?? 'Босс'} повержен. Подвал пройден.`
         : 'Комната очищена. Выбери награду.',
     );
   } else if (
@@ -810,32 +1027,21 @@ export function startRun(
   newBoard(s);
   return s;
 }
-function makeEnemy(s: State, kind: Enemy['kind'], hp: number): Enemy {
+function makeEnemy(
+  s: State,
+  kind: EnemyKind,
+  hp = ENEMY_CATALOG[kind].hp,
+): Enemy {
+  const definition = ENEMY_CATALOG[kind];
   return {
     id: ++s.serial,
     kind,
     hp,
     maxHp: hp,
-    name: {
-      raider: 'Костяной налётчик',
-      armored: 'Латный страж',
-      cultist: 'Служитель праха',
-      poisoner: 'Отравитель',
-      rooter: 'Корневик',
-      boss: 'Привратник',
-    }[kind],
+    name: definition.name,
     block: 0,
     poison: 0,
-    damage:
-      kind === 'cultist'
-        ? 4
-        : kind === 'poisoner'
-          ? 3
-          : kind === 'rooter'
-            ? 5
-            : kind === 'armored'
-              ? 8
-              : 6,
+    damage: definition.damage,
   };
 }
 export function move(
@@ -899,6 +1105,8 @@ export function endTurn(input: State): Result {
   }
   for (const e of s.enemies) {
     if (e.hp <= 0) continue;
+    // Snapshot the displayed intent before this enemy's status tick.
+    const action = intent(s, e);
     if (e.poison > 0) {
       const damage = Math.min(e.hp, e.poison);
       e.hp -= damage;
@@ -935,15 +1143,14 @@ export function endTurn(input: State): Result {
       });
       if (s.hp <= 0) break;
     }
-    const action = intent(s, e);
     e.block = 0;
     if (action.type === 'poison') {
       s.heroPoison = (s.heroPoison ?? 0) + action.value;
-      note(s, 'Герой отравлен: +2 яда');
+      note(s, `Герой отравлен: +${action.value} яда`);
     }
     if (action.type === 'roots') {
       const candidates = s.board.filter((t) => !t.root);
-      for (let n = 0; n < 2 && candidates.length; n++) {
+      for (let n = 0; n < action.value && candidates.length; n++) {
         const t = candidates.splice(
           Math.floor(random(s) * candidates.length),
           1,
@@ -953,25 +1160,42 @@ export function endTurn(input: State): Result {
       note(s, 'Собери отмеченные корнями фишки до следующего ответа.');
     }
     if (action.type === 'block') e.block = action.value;
-    if (action.type === 'attack') {
-      const blocked = Math.min(s.block, action.value);
+    if (action.type === 'drain') {
+      s.energy = Math.max(0, s.energy - action.value);
+      note(s, `${e.name}: −${action.value} энергии`);
+    }
+    if (action.type === 'heal') {
+      e.hp = Math.min(e.maxHp, e.hp + action.value);
+      note(s, `${e.name}: +${action.value} здоровья`);
+    }
+    if (action.type === 'attack' || action.type === 'pierce') {
+      const blocked =
+        action.type === 'pierce' ? 0 : Math.min(s.block, action.value);
       s.block -= blocked;
       s.stats.blocked += blocked;
       s.hp -= action.value - blocked;
       note(s, `${e.name}: ${action.value - blocked} урона, ${blocked} в блок`);
     }
-    if (action.type === 'prepare') note(s, 'Привратник поднимает топор…');
+    if (action.type === 'prepare')
+      note(s, `${e.name}: ${action.text.toLowerCase()} на следующий ход`);
     frames.push({
       state: copy(s),
       cells: [],
-      label: action.type === 'attack' ? `${e.name} атакует` : action.text,
+      label: ['attack', 'pierce'].includes(action.type)
+        ? `${e.name} атакует`
+        : action.text,
       cue: {
         actor: e.id,
         type:
           action.type === 'block'
             ? 'guard'
-            : (action.type as CombatCue['type']),
-        target: 'hero',
+            : action.type === 'pierce'
+              ? 'attack'
+              : action.type === 'drain'
+                ? 'cast'
+                : (action.type as CombatCue['type']),
+        target:
+          action.type === 'heal' || action.type === 'block' ? e.id : 'hero',
       },
     });
     if (s.hp <= 0) break;
@@ -1286,6 +1510,7 @@ export function withUnlocks(s: State, m: Meta) {
 }
 export function nextRooms(s: State): Room[] {
   const n = s.room + 1;
+  if (n > 10) return [];
   const mk = (kind: Room['kind'], name: string, description: string): Room => ({
     id: `${n}-${kind}`,
     kind,
@@ -1308,34 +1533,24 @@ export function nextRooms(s: State): Room[] {
         'Восстанови здоровье или улучши семейство фишек.',
       ),
     ];
-  if (n === 10)
-    return [
-      mk(
-        'boss',
-        'Привратник',
-        'Босс: удар 6 → подготовка → удар 12. Победа завершит забег.',
-      ),
-    ];
+  const encounter = (id: string, kind: Room['kind'], name: string): Room => ({
+    id,
+    kind,
+    name,
+    description: ROOM_ENEMIES[id]
+      .map((key) => ENEMY_CATALOG[key].name + ': ' + ENEMY_CATALOG[key].tactic)
+      .join(' '),
+  });
+  if (n === 10) return [encounter('10-boss', 'boss', 'Зал Главного цензора')];
   if (n === 6)
     return [
-      mk(
-        'battle',
-        'Лаборатория ядов',
-        'Отравитель чередует обычный удар и яд.',
-      ),
-      {
-        ...mk(
-          'battle',
-          'Проросшие своды',
-          'Корневик помечает фишки. Собери их до следующего ответа.',
-        ),
-        id: `${n}-rooter`,
-      },
+      encounter('6-battle', 'battle', 'Чернильный сток'),
+      encounter('6-rooter', 'battle', 'Запретный архив'),
     ];
   if (n === 3)
     return [
       mk('event', 'Забытый алтарь', 'Неизвестная реликвия за часть здоровья.'),
-      mk('battle', 'Костяной дозор', 'Обычный бой. Золото и выбор награды.'),
+      encounter('3-battle', 'battle', 'Изъеденная библиотека'),
     ];
   if (n === 7)
     return [
@@ -1350,27 +1565,34 @@ export function nextRooms(s: State): Room[] {
         'Припасы, оставленные тем, кто шёл до тебя.',
       ),
     ];
-  if (n === 4 || n === 8)
+  if (n === 4)
     return [
-      mk(
-        'battle',
-        'Старые катакомбы',
-        'Один противник. Более безопасный путь.',
-      ),
-      mk(
-        'elite',
-        'Зал двух стражей',
-        'Два противника. Больше золота и сильная награда.',
-      ),
+      encounter('4-battle', 'battle', 'Комната исправлений'),
+      encounter('4-elite', 'elite', 'Тревожный караул'),
+    ];
+  if (n === 8)
+    return [
+      encounter('8-battle', 'battle', 'Свечной коридор'),
+      encounter('8-elite', 'elite', 'Хранилище отражений'),
     ];
   return [
-    mk('battle', 'Костяной дозор', 'Быстрый противник. Удар каждый ход.'),
-    {
-      ...mk('battle', 'Латный караул', 'Страж чередует защиту и атаку.'),
-      id: `${n}-armored`,
-    },
+    encounter('2-battle', 'battle', 'Бумажные норы'),
+    encounter('2-armored', 'battle', 'Скреплённый проход'),
   ];
 }
+const ROOM_ENEMIES: Record<string, EnemyKind[]> = {
+  '2-battle': ['paper-rat'],
+  '2-armored': ['stapler'],
+  '3-battle': ['moth'],
+  '4-battle': ['eraser'],
+  '4-elite': ['bell', 'paper-rat'],
+  '6-battle': ['ink-slime'],
+  '6-rooter': ['librarian'],
+  '8-battle': ['candle'],
+  '8-elite': ['safe', 'mirror'],
+  '10-boss': ['censor'],
+};
+
 export function enterRoom(input: State, id: string): Result {
   if (input.phase !== 'map')
     return result(input, [], 'Сначала заверши текущую комнату.');
@@ -1395,26 +1617,13 @@ export function enterRoom(input: State, id: string): Result {
   if (['battle', 'elite', 'boss'].includes(room.kind)) {
     s.phase = 'battle';
     const scale = Math.floor(s.room / 3) * 3;
-    if (room.kind === 'boss') s.enemies = [makeEnemy(s, 'boss', 70)];
-    else if (room.kind === 'elite')
-      s.enemies = [
-        makeEnemy(s, 'raider', 18 + scale),
-        makeEnemy(s, 'cultist', 14 + scale),
-      ];
-    else
-      s.enemies = [
-        makeEnemy(
-          s,
-          id.endsWith('rooter')
-            ? 'rooter'
-            : s.room === 6
-              ? 'poisoner'
-              : id.endsWith('armored')
-                ? 'armored'
-                : 'raider',
-          (id.endsWith('armored') ? 22 : 18) + scale,
-        ),
-      ];
+    s.enemies = ROOM_ENEMIES[id].map((kind) =>
+      makeEnemy(
+        s,
+        kind,
+        ENEMY_CATALOG[kind].hp + (room.kind === 'boss' ? 0 : scale),
+      ),
+    );
     s.target = s.enemies[0].id;
     newBoard(s);
     note(s, `${room.name}. Враги показывают намерения.`);
@@ -1658,7 +1867,17 @@ export function isSave(value: unknown): value is State {
     s.focus >= 0 &&
     Array.isArray(s.enemies) &&
     s.enemies.every(
-      (e) => Number.isFinite(e.hp) && Number.isFinite(e.damage),
+      (e) =>
+        e &&
+        Object.hasOwn(ENEMY_CATALOG, e.kind) &&
+        Number.isFinite(e.hp) &&
+        e.hp >= 0 &&
+        Number.isFinite(e.maxHp) &&
+        e.maxHp > 0 &&
+        e.hp <= e.maxHp &&
+        Number.isFinite(e.damage) &&
+        e.damage >= 0 &&
+        Number.isFinite(e.id),
     ) &&
     Array.isArray(s.relics) &&
     Array.isArray(s.modifiers) &&

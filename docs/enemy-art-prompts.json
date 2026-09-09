@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "generator": "native image_gen",
+  "method": "one independent text-only native generation per asset",
+  "programmatic_bitmap_edits": false,
+  "asset_count": 11,
+  "ordinary_enemy_count": 10,
+  "final_boss_count": 1,
+  "bbox_format": "[left, top, right, bottom] in native output pixels, threshold alpha >=128; right and bottom exclusive",
+  "notes": [
+    "All outputs inspected visually and with read-only Pillow metadata/alpha analysis.",
+    "All 11 native files are 1254×1254 RGBA PNGs with real alpha transparency and complete silhouettes.",
+    "No retry was required.",
+    "Use the supplied visible alpha bounds when sizing different silhouettes; native framing is more variable than the requested central 75%.",
+    "Minor low-alpha edge haze may exist outside the recorded visible bounds. No bitmap cleanup, resizing, cropping or other programmatic edit was applied."
+  ],
+  "assets": [
+    {
+      "id": "paper-rat",
+      "suggested_filename": "paper-rat.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-c3947c07-e48c-4358-9542-224dfafb67a9.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1164167,
+        "bbox_at_threshold_128": [51, 266, 1234, 1013]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A low scurrying rat made entirely from crumpled warm parchment, red pinprick eyes, angular folded paper ears, four tiny claw-like paper feet and a long curling folded-paper tail. Its nose points left; long low rat silhouette. No text on the paper.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/paper-rat.png"
+    },
+    {
+      "id": "stapler",
+      "suggested_filename": "stapler.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-22be480e-507e-4ca8-89ff-50808b7a1698.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 967689,
+        "bbox_at_threshold_128": [113, 199, 1172, 1093]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A squat walking iron office stapler monster, its hinged staple jaws slightly open toward the left like a crocodile mouth, dark steel top, light metal lower jaw, visible large rivets, two stubby sturdy legs. Obvious horizontal stapler shape, not an animal wearing armor.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/stapler.png"
+    },
+    {
+      "id": "ink-slime",
+      "suggested_filename": "ink-slime.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-8b1e8edc-7bff-4b1b-aed1-af60d7ee0a38.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1028384,
+        "bbox_at_threshold_128": [117, 229, 1140, 1065]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A round squat dark teal inkblot monster with two large cream eyes looking left, uneven lumpy dome, two dripping arms and a scalloped puddle-shaped lower body. The puddle edge is part of the creature itself; no separate floor puddle or shadow. Friendly-sinister blob silhouette.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/ink-slime.png"
+    },
+    {
+      "id": "eraser",
+      "suggested_filename": "eraser.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-b3077738-80d3-4db9-9e99-4d40efd9d4c2.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1068649,
+        "bbox_at_threshold_128": [228, 169, 1023, 1090]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A chunky upright worn dusty-pink rectangular eraser brute, a large bite missing from its upper-left edge, little stubby arms, two short legs, scowling tiny dark eyes carved into the pink rubber. A visibly heavy block silhouette with cream worn edge, not a humanoid in a costume.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/eraser.png"
+    },
+    {
+      "id": "bell",
+      "suggested_filename": "bell.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-228bd6b5-6431-4bd6-9a27-fc15efc6cb11.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1042389,
+        "bbox_at_threshold_128": [174, 86, 1085, 1181]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A brass alarm-bell creature with a broad flared bell body, tiny top knob, two angry dark slit eyes on the left-facing side of the brass dome, visible hanging clapper between two short legs. Tarnished ochre and copper metal, broad triangular bell silhouette.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/bell.png"
+    },
+    {
+      "id": "moth",
+      "suggested_filename": "moth.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-3b1c9711-e3df-49ec-8a86-c5dcd3309edb.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1019913,
+        "bbox_at_threshold_128": [134, 93, 1150, 1121]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A paper-wing moth creature hovering in a still battle pose, compact olive body, little curled antennae and four large folded-page wings like torn book leaves. Cream and dusty-olive wing panels, blank paper with no writing. Wings open enough for a broad moth silhouette; head turned left.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/moth.png"
+    },
+    {
+      "id": "librarian",
+      "suggested_filename": "librarian.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-ccddd485-1b7c-4f95-9c2b-14b6835605b6.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1124039,
+        "bbox_at_threshold_128": [311, 164, 998, 1142]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A short hooded bookkeeper creature with a featureless faceless cream oval mask beneath a large deep-purple hood, a ragged purple cloak, small dark feet and hands holding a stack of three muted ochre and olive books against its chest. The books have blank spines. Hunched cloak silhouette turned toward the left.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/librarian.png"
+    },
+    {
+      "id": "candle",
+      "suggested_filename": "candle.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-036bcea3-d9f7-4e6b-960f-45de09274370.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1026450,
+        "bbox_at_threshold_128": [188, 126, 1068, 1141]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A stout melted-candle goblin with a low thick cream wax body, lumpy melted wax arms, stubby wax feet and two small orange flame-shaped glowing eyes looking left. One short black wick on its head, without a separate top flame. The eye flames stay inside the silhouette. Bulbous wax-goblin silhouette.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/candle.png"
+    },
+    {
+      "id": "mirror",
+      "suggested_filename": "mirror.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-eaef2602-0648-4ec6-a7e7-cb636c736f81.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 1170971,
+        "bbox_at_threshold_128": [225, 72, 1039, 1176]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A small standing oval mirror monster with a cracked mirror surface, a sinister simple red ghost face reflected inside it, an ornate tarnished copper frame, little frame-arms and two short curved frame-legs. The frame is a distinct upright oval; the whole creature faces three-quarter left. Cracks are sparse bold pixel lines. No reflected scene.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/mirror.png"
+    },
+    {
+      "id": "safe",
+      "suggested_filename": "safe.png",
+      "role": "enemy",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-c3070e90-97a7-4f92-bc3d-36fa92da2b6d.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 892062,
+        "bbox_at_threshold_128": [47, 213, 1207, 1119]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: A stout iron vault golem, squat square olive-gray safe body with a round combination dial in the belly, small angry cream eyes above the dial, two enormous blocky metal fists and two short heavy metal feet. Thick riveted edges. The whole square-bodied monster faces three-quarter left. No digits or writing on dial.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/safe.png"
+    },
+    {
+      "id": "censor",
+      "suggested_filename": "censor.png",
+      "role": "final_boss",
+      "path": "/Users/max/.codex/generated_images/01a0853e-1e0e-7df1-9594-e019d7f0a908/exec-161e5d14-0afc-42ff-9e75-109b5fce91e7.png",
+      "dimensions": [1254, 1254],
+      "format": "PNG",
+      "mode": "RGBA",
+      "alpha": {
+        "range": [0, 255],
+        "fully_transparent_pixels": 815034,
+        "bbox_at_threshold_128": [48, 115, 1210, 1144]
+      },
+      "visual_validation": {
+        "usable": true,
+        "one_complete_character": true,
+        "facing": "three-quarter left",
+        "rendered_checkerboard": false,
+        "cropped_silhouette": false
+      },
+      "prompt": "Create one original full-body idle-battle enemy sprite for the whimsical sinister office-stationery cellar roguelike “Дворец слов — подвал”.\nSubject: The final boss “Главный цензор”: an original enormous broad throne-like crowned bureaucrat made of black ink and worn dark stone, sitting as one massive creature-body beneath a jagged tarnished-gold crown. Ragged burgundy robe over huge black ink shoulders, a severe blank parchment mask with narrow dark eye slits, heavy stone feet visible below the robe. It holds an enormous red office rubber-stamp weapon in its forward hand on the left. Parchment mask, restrained gold trim, wide heavy imposing silhouette, clearly larger and more powerful than ordinary monsters. No text or stamped letters, no separate throne furniture or background objects; the throne-like mass is part of this single boss character.\nPose and framing: face LEFT in a clear three-quarter view. Exactly one complete creature centered in a SQUARE canvas. Its entire silhouette, including every limb, tail, wing, crown and held object, must fit inside the central 75% of the canvas, with generous empty transparent padding on every side. Show the complete creature and all feet. No cropping. One coherent battle sprite, not an atlas, not multiple views.\nStyle: deliberately LOW-RESOLUTION CHUNKY pixel art. Imagine a native visual grid of approximately 72 pixels across the whole sprite, enlarged with nearest-neighbor square pixels. Fat black staircase outlines, large connected flat color clusters, 3–5 discrete shades per material, sparse readable detail. Hard square pixel steps. Muted warm cellar colors: cream, ochre, dusty olive, copper; restrained teal, red or purple accents according to the creature. Whimsical and slightly sinister basement-game feeling, original design, no copyrighted character likenesses. The silhouette must remain obvious at inventory-scale sizes and visibly differ from generic humanoids.\nOutput a PNG with a REAL RGBA transparent background. All empty space around and within the creature must be truly transparent. No drawn checkerboard, no colored background, no ground, no floor, no cast shadow, no halo, no outer glow, no scene, no text, no letters, no labels, no watermark or frame. No smooth vector curves, no painterly texture, no photorealism, no gradients, no fine noisy stippling. Only the isolated pixel-art creature.",
+      "referenced_image_paths": [],
+      "generation_attempts": 1,
+      "project_path": "public/art/pronoun-palace/enemies/censor.png"
+    }
+  ]
+}

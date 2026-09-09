@@ -305,7 +305,7 @@ test('new openings only enter subsequent runs', () => {
     g.withUnlocks(g.startRun(2), m).flags.includes('run:available:coil'),
   );
 });
-function automatedRun(seed, preferEquipment = false) {
+function automatedRun(seed, preferEquipment = false, alternate = false) {
   let s = g.withUnlocks(g.startRun(seed), allMeta);
   let actions = 0;
   while (!['victory', 'defeat'].includes(s.phase) && actions++ < 300) {
@@ -365,7 +365,10 @@ function automatedRun(seed, preferEquipment = false) {
     } else if (s.phase === 'map') {
       const routes = g.nextRooms(s);
       const r =
-        routes.find((x) => x.kind === 'event') ??
+        (alternate
+          ? (routes.find((x) => x.kind === 'elite') ??
+            routes.filter((x) => x.kind === 'battle').at(-1))
+          : routes.find((x) => x.kind === 'event')) ??
         routes.find((x) => x.kind === 'battle') ??
         routes[0];
       s = g.enterRoom(s, r.id).state;
@@ -662,4 +665,20 @@ test('all five weapons use their own match damage bonus and do not amplify spell
     );
     assert.equal(g.castSkill(equipped, 'bolt').state.stats.damage, 12);
   }
+});
+
+test('alternate routes through new elite pairs and the archive can finish a full saved run', () => {
+  let wins = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const s = automatedRun(seed, true, true);
+    if (s.phase === 'victory') {
+      wins++;
+      assert.equal(s.enemies[0].kind, 'censor');
+    }
+    assert.deepEqual(g.loadSave(JSON.parse(JSON.stringify(s))), s);
+  }
+  assert.ok(wins > 0);
+  console.log(
+    'Alternate route simulation: ' + wins + '/12 wins with a look-ahead bot.',
+  );
 });

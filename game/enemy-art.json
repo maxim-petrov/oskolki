@@ -1,0 +1,68 @@
+{
+  "paper-rat": {
+    "src": "/art/pronoun-palace/enemies/paper-rat.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [51, 266, 1183, 747]
+  },
+  "stapler": {
+    "src": "/art/pronoun-palace/enemies/stapler.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [113, 199, 1059, 894]
+  },
+  "ink-slime": {
+    "src": "/art/pronoun-palace/enemies/ink-slime.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [117, 229, 1023, 836]
+  },
+  "eraser": {
+    "src": "/art/pronoun-palace/enemies/eraser.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [228, 169, 795, 921]
+  },
+  "bell": {
+    "src": "/art/pronoun-palace/enemies/bell.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [174, 86, 911, 1095]
+  },
+  "moth": {
+    "src": "/art/pronoun-palace/enemies/moth.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [134, 93, 1016, 1028]
+  },
+  "librarian": {
+    "src": "/art/pronoun-palace/enemies/librarian.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [311, 164, 687, 978]
+  },
+  "candle": {
+    "src": "/art/pronoun-palace/enemies/candle.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [188, 126, 880, 1015]
+  },
+  "safe": {
+    "src": "/art/pronoun-palace/enemies/safe.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [47, 213, 1160, 906]
+  },
+  "censor": {
+    "src": "/art/pronoun-palace/enemies/censor.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [48, 115, 1162, 1029]
+  },
+  "mirror": {
+    "src": "/art/pronoun-palace/enemies/mirror.png",
+    "width": 1254,
+    "height": 1254,
+    "bounds": [225, 72, 814, 1104]
+  }
+}

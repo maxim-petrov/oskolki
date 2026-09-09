@@ -6,7 +6,6 @@ import {
   Sword,
   Shield,
   Zap,
-  Skull,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
@@ -70,6 +69,7 @@ import {
   EquipmentIcon,
   WeaponGallery,
 } from '@/components/equipment';
+import { EnemyIntentLabel } from '@/components/enemy-intent';
 import { CombatSprite } from '@/components/combat-sprite';
 import { BoardTileArt } from '@/components/board-tile-art';
 import { motionFor, type Motion } from '@/game/motion';
@@ -83,7 +83,7 @@ import {
   shifted,
   groups,
   validMoves,
-  intent,
+  bossPhase,
   energyMax,
   focusMax,
   FAMILY_NAMES,
@@ -573,27 +573,22 @@ export default function Game() {
             <div className={`enemies count-${s.enemies.length}`}>
               {s.enemies.map((e) => (
                 <button
-                  className={`fighter enemy ${e.hp <= 0 ? 'fallen' : ''} ${s.target === e.id ? 'targeted' : ''}`}
+                  className={`fighter enemy ${e.kind === 'censor' ? 'enemy-boss' : ''} ${e.hp <= 0 ? 'fallen' : ''} ${s.target === e.id ? 'targeted' : ''}`}
                   key={e.id}
                   aria-label={`Цель: ${e.name}, ${e.hp} здоровья`}
                   onClick={() => !busy && setGame({ ...game, target: e.id })}
                   disabled={e.hp <= 0 || busy}
                 >
-                  <span className="enemy-intent">
-                    {intent(s, e).type === 'attack' ? (
-                      <Sword size={14} />
-                    ) : intent(s, e).type === 'roots' ? (
-                      <Sprout size={14} />
-                    ) : intent(s, e).type === 'poison' ? (
-                      <Skull size={14} />
-                    ) : (
-                      <Shield size={14} />
-                    )}{' '}
-                    {intent(s, e).text}
-                  </span>
+                  <EnemyIntentLabel state={s} enemy={e} />
                   <CombatSprite state={s} motion={motion} actor={e.id} />
                   <div className="fighter-caption">
                     <strong>{e.name}</strong>
+                    {e.kind === 'censor' && (
+                      <span className="boss-phase">
+                        <Crown size={12} aria-hidden="true" /> Босс · Фаза{' '}
+                        {bossPhase(e)} из 2
+                      </span>
+                    )}
                     <span className="health-number">
                       {e.hp} / {e.maxHp}
                       {e.poison > 0 && (
