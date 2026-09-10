@@ -1,0 +1,239 @@
+{
+  "generator": "Built-in image_gen",
+  "generatedAt": "2026-09-10",
+  "requestCount": 5,
+  "processing": "Native generation outputs copied byte-for-byte; no image modification.",
+  "assets": [
+    {
+      "name": "office-hub.png",
+      "source": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-20064e94-af60-47fc-88d6-0a4133a070ed.png",
+      "path": "/private/tmp/office-hub-assets/office-hub.png",
+      "prompt": "Use case: stylized-concept\nAsset type: opaque PNG 2D game office hub background, landscape approximately 1536x864, 16:9.\nInput images: actors.png is the binding reference for the simple chunky cartoon drawing, especially the glasses hero and purple filing cabinet; arena.png is supporting reference only for quiet background staging and an open lower floor. Create an ORIGINAL indoor office, not either reference scene.\nPrimary request: flat Pronoun Palace-like pixel cartoon of a quiet grey/olive ordinary office. Front-facing theatre-like cutaway room: a back wall occupies the upper 50 percent; flat floor extends through the lower half. Use chunky stepped outlines noticeably lighter than the character's black outline, broad simple silhouettes, two or three completely flat shades per material, no microtexture.\nLayout: a boss-office door in the back wall centered at x=80% of image width; leave a clearly open route from the foreground to that door. A filing cabinet against the left back wall. A simple analog wall clock stopped at 18:00 (minute hand straight up at twelve, hour hand straight down at six; no numerals). One muted pink window. Exactly THREE simple office desks: hero desk centered approximately x=22% y=59%, two colleague desks centered at x=47% and x=63% y=45%. Keep each desk compact and clearly separate; a few simple monitor/folder shapes can identify workstations. No chairs or objects stretching into the foreground. The bottom 35% MUST remain a broad empty walkable flat floor spanning nearly the entire width, with no furniture, clutter, cables or papers along the bottom edge.\nPalette: muted grey paper, grey olive furniture, subdued grey lavender, one dusty pink window; all low contrast scenery.\nConstraints: no people or creatures, no text, labels, signage, logos, watermark, UI, game board, top or spinning toy. No gradients, painterly surface, realistic texture, dither noise, soft shadows, light rays, atmospheric haze, bloom, glow, reflections, fancy perspective, detailed ruined buildings or fantasy dungeon. Hard square pixel steps only, nearest-neighbor look, no antialiased curves. Entire image fully opaque. This is a clean finished game background, not an illustration in a frame.",
+      "sourceImageRole": "Style references only",
+      "references": [
+        "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/actors.png",
+        "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/arena.png"
+      ],
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "hasAlpha": false,
+      "sha256": "962b6d87c896c1fb3e16abc1278411035da0b513c70d9d504b5db5591b1260f4",
+      "nativeBytesUnchanged": true,
+      "crops": [
+        {
+          "name": "office-hub",
+          "boundsXYWH": [0, 0, 1672, 941]
+        }
+      ],
+      "validation": {
+        "opaque": true,
+        "peopleAbsent": true,
+        "threeDesks": true,
+        "openLowerFloor": true,
+        "clock1800": true,
+        "strictFlatShading": false,
+        "notes": "Composition meets requested three desks, clear foreground and right door. Slight surface texture and shading remain in output, so it is not perfectly flat-shaded."
+      }
+    },
+    {
+      "name": "colleagues.png",
+      "source": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-c5a13286-f375-4218-842c-11492ab332e5.png",
+      "path": "/private/tmp/office-hub-assets/colleagues.png",
+      "prompt": "Use case: stylized-concept\nAsset type: genuine transparent PNG sprite atlas, landscape 1536x1024 approximately, exactly TWO separated full-body ordinary office coworkers in a single row.\nInput images: actors.png is the binding STYLE reference, especially the original standing glasses hero: match its large simple head, small face marks, slender slightly slouching office-worker body, chunky feet, thick continuous nearly black stepped contour and a few flat shades. Do not copy the black/glowing background. arena.png is secondary palette/mood reference only, do not draw environment.\nPrimary request: two ORIGINAL unarmed everyday adult office coworkers standing at rest, facing directly front, full body visible from hair to feet. Left half: a woman with an olive cardigan holding one plain folder close to her torso. Right half: a man in a dusty lavender office shirt holding one plain coffee mug. Simple tired neutral faces with only a few thick pixels; slightly asymmetric cartoon silhouettes. Match both characters' scale and proportions to the glasses hero, not chibi babies and not tall detailed anime humans. Clothing muted, two or three large completely flat shades per material. Shoes simple chunky black/dark shapes.\nComposition: two separate sprites at x=25% and x=75%, same baseline and similar full-body height. Entire bodies and held objects contained within their halves with abundant transparent margins, no intersection, at least 15% of atlas width clear between silhouettes.\nConstraints: true transparent alpha background, including all space between limbs and around bodies. No checkerboard pattern painted into image, no opaque background, no floor, no contact shadows, glow or ground. Exactly two characters and no other cast. No labels, numerals, text, UI, logos or watermark. No props beyond the folder and mug. No weapons. No gradients, realistic material texture, tiny detailing or painted pixel art; thick square stepped near-black contour and flat chunky pixels.",
+      "sourceImageRole": "Style references only",
+      "references": [
+        "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/actors.png",
+        "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/arena.png"
+      ],
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "hasAlpha": false,
+      "sha256": "d715ffb3e90f7eb8db34cd660cc704562791d15145a08514b3484377af32ebcc",
+      "nativeBytesUnchanged": true,
+      "crops": [
+        {
+          "name": "woman",
+          "selectionCellXYWH": [0, 0, 768, 1024],
+          "visibleDarkContourBoundsXYWH": [219, 129, 357, 822],
+          "thresholdSensitivityBounds": {
+            "32": [219, 129, 357, 822],
+            "50": [219, 129, 357, 822],
+            "64": [219, 129, 357, 822]
+          },
+          "boundingMethod": "Bounds of pixels with all RGB channels <50 within selection cell. These are visual contour measurements, not alpha bounds; output has no alpha."
+        },
+        {
+          "name": "man",
+          "selectionCellXYWH": [768, 0, 768, 1024],
+          "visibleDarkContourBoundsXYWH": [933, 84, 349, 867],
+          "thresholdSensitivityBounds": {
+            "32": [933, 84, 349, 867],
+            "50": [933, 84, 349, 867],
+            "64": [933, 84, 349, 867]
+          },
+          "boundingMethod": "Bounds of pixels with all RGB channels <50 within selection cell. These are visual contour measurements, not alpha bounds; output has no alpha."
+        }
+      ],
+      "validation": {
+        "genuineTransparency": false,
+        "paintedCheckerboard": true,
+        "readyForUse": false,
+        "notes": "Rejected transparency: native image is RGB and contains a visibly painted/distorted checkerboard. No alpha cleanup or other image edits performed."
+      }
+    },
+    {
+      "name": "spinning-top.png",
+      "source": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-32997ac2-b9db-44cb-bde0-d61dc772b34b.png",
+      "path": "/private/tmp/office-hub-assets/spinning-top.png",
+      "prompt": "Use case: stylized-concept\nAsset type: genuine transparent PNG horizontal animation sprite atlas, exactly FOUR frames in one row, same sized equal square cells, no labels.\nInput images: actors.png is the binding reference for bold simple black stepped outlines and flat graphic pixel cartoon; arena.png is a supporting muted palette reference only. Do not reproduce background or characters.\nPrimary request: four animation frames of the SAME small WOODEN SPINNING TOP toy rotating upright around its vertical spindle axis. Each frame shows the same single object with the same shape, size, center, vertical axis, floor-tip baseline and fixed view angle, progressing evenly through a 360-degree spin. This is NOT a set of four different tops. A short upper wooden spindle, simple broad rounded/conical ochre wood body tapering to one bottom tip. ONE red stripe is painted vertically on the body's surface so its changing visible position communicates four rotation orientations (front, side, back largely hidden, opposite side). No wobble, no tilting, no tumbling, no changing camera.\nDrawing: extremely simple logical 24x24-pixel object in each frame, upscaled with perfectly hard square steps to make a production atlas. Thick continuous near-black stepped outline, flat muted ochre wood #dbc295 and one darker ochre shadow patch, one muted red stripe #a52e2a. No wood grain, highlights, surface lines or texture. All four cells use identical effective pixel size. Isolated silhouette fills around 70% of its cell height with transparent padding.\nComposition: horizontal strip, each frame fully contained in its own equal cell, generous transparent space between all four tops; four separate readable shapes. Genuine transparent alpha background everywhere outside object silhouettes including between cells.\nConstraints: no ground, floor line, contact shadow, motion lines, circles, sparkles, extra objects, text, labels, numbers, watermark, UI or visible checkerboard. No gradients, antialiasing, light glow or painted texture. Upright vertical rotation only. Preserve same toy identity throughout.",
+      "sourceImageRole": "Style references only",
+      "references": [
+        "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/actors.png",
+        "/Users/max/dev/gamedev/oskolki-pixel-original/public/art/pronoun-palace/arena.png"
+      ],
+      "width": 2172,
+      "height": 724,
+      "mode": "RGB",
+      "hasAlpha": false,
+      "sha256": "8a4549c581956f9bf54816fd097293cc4a277d81f07e85595ace0f9458322a2b",
+      "nativeBytesUnchanged": true,
+      "crops": [
+        {
+          "name": "frame-0-front",
+          "selectionCellXYWH": [0, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [91, 136, 360, 459],
+          "thresholdSensitivityBounds": {
+            "32": [91, 136, 360, 459],
+            "50": [91, 136, 360, 459],
+            "64": [90, 136, 361, 460]
+          },
+          "boundingMethod": "Bounds of pixels with all RGB channels <50 within selection cell. These are visual contour measurements, not alpha bounds; output has no alpha."
+        },
+        {
+          "name": "frame-1-right",
+          "selectionCellXYWH": [543, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [636, 136, 360, 459],
+          "thresholdSensitivityBounds": {
+            "32": [636, 136, 360, 459],
+            "50": [636, 136, 360, 459],
+            "64": [635, 136, 361, 460]
+          },
+          "boundingMethod": "Bounds of pixels with all RGB channels <50 within selection cell. These are visual contour measurements, not alpha bounds; output has no alpha."
+        },
+        {
+          "name": "frame-2-back",
+          "selectionCellXYWH": [1086, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [1176, 136, 360, 459],
+          "thresholdSensitivityBounds": {
+            "32": [1176, 136, 360, 459],
+            "50": [1176, 136, 360, 459],
+            "64": [1176, 136, 360, 459]
+          },
+          "boundingMethod": "Bounds of pixels with all RGB channels <50 within selection cell. These are visual contour measurements, not alpha bounds; output has no alpha."
+        },
+        {
+          "name": "frame-3-left",
+          "selectionCellXYWH": [1629, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [1720, 136, 361, 459],
+          "thresholdSensitivityBounds": {
+            "32": [1720, 136, 361, 459],
+            "50": [1720, 136, 361, 459],
+            "64": [1719, 136, 362, 460]
+          },
+          "boundingMethod": "Bounds of pixels with all RGB channels <50 within selection cell. These are visual contour measurements, not alpha bounds; output has no alpha."
+        }
+      ],
+      "validation": {
+        "genuineTransparency": false,
+        "paintedCheckerboard": true,
+        "readyForUse": false,
+        "notes": "Rejected transparency: native image is RGB and contains a visibly painted/distorted checkerboard. No alpha cleanup or other image edits performed."
+      }
+    }
+  ],
+  "initialGenerationCount": 3,
+  "authorizedCorrectionCount": 2,
+  "edits": [
+    {
+      "name": "colleagues-transparency-attempt.png",
+      "input": "/private/tmp/office-hub-assets/colleagues.png",
+      "prompt": "Use case: background-extraction. Edit the attached existing sprite atlas ONLY to REMOVE ALL of the painted grey-and-white checkerboard background and export the two characters as a genuine TRANSPARENT PNG with an actual alpha channel (RGBA). This is a production background-removal correction, not a redesign. Preserve the two original coworkers exactly: every body, face, hair, glasses, outfit, folder, mug, thick black pixel contour, placement, scale, colours and full-body silhouette unchanged. Preserve the original 1536x1024 canvas and two separated sprites. All space outside the two complete character silhouettes MUST have alpha zero, including margins, gap between characters, between legs and holes around arms and ponytail. Do not draw a checkerboard or a white/black/coloured replacement background. Do not add any background, ground, shadow, aura, edge glow, text or labels. Return the isolated original characters with genuine empty transparent pixels. Keep every existing dark outline opaque and crisp.",
+      "source": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-d4a2a36d-815c-4e64-ae17-db7aecfc0e7d.png",
+      "path": "/private/tmp/office-hub-assets/colleagues-transparency-attempt.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "hasAlpha": false,
+      "sha256": "aa985db05cfda7a92ec2b522a9f5e1791c366c958c2380623d4b2e97fc74966d",
+      "validation": {
+        "genuineTransparency": false,
+        "paintedCheckerboard": true,
+        "readyForUse": false,
+        "nativeBytesUnchanged": true,
+        "notes": "Single authorized built-in background extraction attempt still returned RGB with painted checkerboard. No further attempt or programmatic image edit was performed."
+      },
+      "crops": [
+        {
+          "selectionCellXYWH": [0, 0, 768, 1024],
+          "visibleDarkContourBoundsXYWH": [219, 130, 358, 821],
+          "boundingMethod": "Measured dark contour; not alpha bounds because native RGB export has no alpha."
+        },
+        {
+          "selectionCellXYWH": [768, 0, 768, 1024],
+          "visibleDarkContourBoundsXYWH": [934, 84, 349, 867],
+          "boundingMethod": "Measured dark contour; not alpha bounds because native RGB export has no alpha."
+        }
+      ]
+    },
+    {
+      "name": "spinning-top-transparency-attempt.png",
+      "input": "/private/tmp/office-hub-assets/spinning-top.png",
+      "prompt": "Use case: background-extraction. Edit the attached existing four-frame spinning-top sprite strip ONLY to REMOVE ALL of the painted grey checkerboard background and export the four original tops as a genuine TRANSPARENT PNG with an actual alpha channel (RGBA). This is a production background-removal correction, not a redraw. Preserve all four original wooden toy silhouettes, black stepped outlines, ochre fills, red stripe rotation states, fixed vertical axis, relative placement, equal spacing, size and baseline exactly. Preserve the existing horizontal strip and original 2172x724 canvas. Make every pixel outside the four complete silhouettes have alpha zero. No visible checkerboard pattern may remain, no simulated transparency pattern, and no white/black/grey or other replacement background. Do not add motion trails, ground, contact shadows, text or labels. Keep all toy outlines fully opaque. Return exactly these same four animation frames on true empty transparent pixels.",
+      "source": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-f54e3fc5-1c26-4451-8698-f411cfaac742.png",
+      "path": "/private/tmp/office-hub-assets/spinning-top-transparency-attempt.png",
+      "width": 2172,
+      "height": 724,
+      "mode": "RGB",
+      "hasAlpha": false,
+      "sha256": "032b48f97b2f55dd8d656c06f69c6a0ac810b144122bbda62976b6eb2939a3d1",
+      "validation": {
+        "genuineTransparency": false,
+        "paintedCheckerboard": true,
+        "readyForUse": false,
+        "nativeBytesUnchanged": true,
+        "notes": "Single authorized built-in background extraction attempt still returned RGB with painted checkerboard. No further attempt or programmatic image edit was performed."
+      },
+      "crops": [
+        {
+          "selectionCellXYWH": [0, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [90, 136, 361, 459],
+          "boundingMethod": "Measured dark contour; not alpha bounds because native RGB export has no alpha."
+        },
+        {
+          "selectionCellXYWH": [543, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [636, 136, 360, 459],
+          "boundingMethod": "Measured dark contour; not alpha bounds because native RGB export has no alpha."
+        },
+        {
+          "selectionCellXYWH": [1086, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [1176, 136, 359, 459],
+          "boundingMethod": "Measured dark contour; not alpha bounds because native RGB export has no alpha."
+        },
+        {
+          "selectionCellXYWH": [1629, 0, 543, 724],
+          "visibleDarkContourBoundsXYWH": [1720, 136, 361, 459],
+          "boundingMethod": "Measured dark contour; not alpha bounds because native RGB export has no alpha."
+        }
+      ]
+    }
+  ],
+  "integration": {
+    "nativePixelsChanged": false,
+    "transparency": "RGB source; presentation clip paths exclude the failed generated checkerboard. No claim of native alpha.",
+    "bounds": "game/office-art.json",
+    "method": "Closed near-black outline traced with an exterior flood fill; horizontal spans merged into SVG clip paths. Original source images are not re-encoded.",
+    "renderCheck": "outputs/office-art-comparison.png"
+  }
+}

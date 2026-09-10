@@ -1660,6 +1660,63 @@
         1059
       ],
       "prompt_source": "docs/weapon-miniature-prompts.json#gear-rune-sword"
+    },
+    {
+      "id": "office-office-hub",
+      "category": "office",
+      "kind": "background",
+      "saved_path": "public/art/pronoun-palace/office/office-hub.png",
+      "native_path": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-20064e94-af60-47fc-88d6-0a4133a070ed.png",
+      "width": 1672,
+      "height": 941,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "mode": "RGB",
+      "sha256": "962b6d87c896c1fb3e16abc1278411035da0b513c70d9d504b5db5591b1260f4",
+      "native_unchanged": true,
+      "geometry": "game/office-art.json",
+      "prompt_source": "docs/office-art-prompts.json",
+      "alpha_export": "Opaque background"
+    },
+    {
+      "id": "office-colleagues",
+      "category": "office",
+      "kind": "clipped-native-atlas",
+      "saved_path": "public/art/pronoun-palace/office/colleagues.png",
+      "native_path": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-c5a13286-f375-4218-842c-11492ab332e5.png",
+      "width": 1536,
+      "height": 1024,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGB",
+      "sha256": "d715ffb3e90f7eb8db34cd660cc704562791d15145a08514b3484377af32ebcc",
+      "native_unchanged": true,
+      "geometry": "game/office-art.json",
+      "prompt_source": "docs/office-art-prompts.json",
+      "alpha_export": "Generator failed alpha twice; original RGB displayed through measured closed-outline clip paths. See office-story-v01.md."
+    },
+    {
+      "id": "office-spinning-top",
+      "category": "office",
+      "kind": "clipped-native-atlas",
+      "saved_path": "public/art/pronoun-palace/office/spinning-top.png",
+      "native_path": "/Users/max/.codex/generated_images/01a08b8a-891b-7682-b1e0-ce30c4725610/exec-32997ac2-b9db-44cb-bde0-d61dc772b34b.png",
+      "width": 2172,
+      "height": 724,
+      "dimensions": [
+        2172,
+        724
+      ],
+      "mode": "RGB",
+      "sha256": "8a4549c581956f9bf54816fd097293cc4a277d81f07e85595ace0f9458322a2b",
+      "native_unchanged": true,
+      "geometry": "game/office-art.json",
+      "prompt_source": "docs/office-art-prompts.json",
+      "alpha_export": "Generator failed alpha twice; original RGB displayed through measured closed-outline clip paths. See office-story-v01.md."
     }
   ]
 }

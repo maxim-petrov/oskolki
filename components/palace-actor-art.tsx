@@ -39,10 +39,12 @@ export function PalaceActorArt({
   hero,
   pose,
   weaponId = 'gear-cutter',
+  unarmed = false,
 }: {
   hero: boolean;
   pose: Pose;
   weaponId?: string | null;
+  unarmed?: boolean;
 }) {
   const id = useId().replace(/:/g, '');
   const {
@@ -137,7 +139,7 @@ export function PalaceActorArt({
         filter={`url(#palace-alpha-${id})`}
         mask={hero ? `url(#palace-body-mask-${id})` : undefined}
       />
-      {hero && hand && (
+      {hero && hand && !unarmed && (
         <>
           <HeldWeaponArt weaponId={weaponId} hand={hand} angle={angle ?? 0} />
           {/* Draw the original fingers over the grip, keeping the weapon in the fist. */}

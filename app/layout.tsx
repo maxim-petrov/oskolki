@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 import './palace.css';
 import './palace-cellar.css';
+import './office.css';
 import { VISUAL_STYLE } from '@/game/visual-style';
 export const metadata: Metadata = {
-  title: 'Осколки — в глубину крипты',
+  title: 'Осколки — Дворец слов',
   description:
-    'Тактический match-3 рогалик. Собери поле, которое сражается по твоим правилам.',
+    'Рабочий день ещё не закончился. Исследуй офис и комнаты за дверью босса в тактическом match-3 рогалике.',
 };
 export default function RootLayout({
   children,

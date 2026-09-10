@@ -609,7 +609,7 @@ export function RunPanel({
                       : `Достижения: ${meta.unlocked.length}/${ACHIEVEMENTS.length}. Серия побед: ${meta.streak}. Лучшая: ${meta.best}.`}
                 </p>
                 <Button className="panel-main-action" onClick={restart}>
-                  Новый спуск <RotateCcw />
+                  Вернуться в офис <RotateCcw />
                 </Button>
               </>
             )}
@@ -683,8 +683,10 @@ export function SettingsPanel({
   screenShake = 100,
   onScreenShake,
   onStart,
+  mode = 'run',
 }: {
   open: boolean;
+  mode?: 'run' | 'preferences';
   onClose: () => void;
   balance: Balance;
   currentSeed: number;
@@ -724,69 +726,75 @@ export function SettingsPanel({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="game-dialog settings-dialog">
-        <DialogTitle>Настройки</DialogTitle>
+        <DialogTitle>
+          {mode === 'run' ? 'Перед неизвестностью' : 'Настройки'}
+        </DialogTitle>
         <DialogDescription>
-          Скорость анимации и сила тряски меняются сразу. Остальные параметры
-          применяются в новом забеге.
+          {mode === 'run'
+            ? 'Выбери, с чем отправиться за дверь. Открытия из прошлых спусков сохранятся.'
+            : 'Скорость анимации и сила тряски меняются сразу. Они не влияют на баланс и открытия.'}
         </DialogDescription>
-        <fieldset className="run-journal">
-          <legend>Режим спуска</legend>
-          <label>
-            Испытание{' '}
-            <select
-              value={challenge ?? ''}
-              onChange={(e) => {
-                setChallenge(
-                  (e.target.value || undefined) as ChallengeId | undefined,
-                );
-                if (e.target.value) {
-                  setHero('wanderer');
-                  setDifficulty(0);
-                  setPreset('normal');
-                }
-              }}
-            >
-              <option value="">Обычный спуск</option>
-              {CHALLENGES.map((c) => (
-                <option key={c.id} value={c.id} disabled={!meta.wins}>
-                  {c.name}
-                  {meta.wins ? '' : ' · после победы'}
-                </option>
-              ))}
-            </select>
-          </label>
-          {challenge && (
-            <p>
-              {CHALLENGES.find((c) => c.id === challenge)?.description} Герой и
-              обычная сложность заданы условиями. Испытания имеют собственные
-              отметки, не меняют обычную серию и не открывают предметы.
-            </p>
-          )}
-
-          {HEROES.map((h) => (
-            <label key={h.id} style={{ display: 'block', marginBottom: 12 }}>
-              <input
-                type="radio"
-                name="hero"
-                checked={hero === h.id}
-                disabled={!!challenge || (h.id === 'warden' && !meta.wins)}
-                onChange={() => setHero(h.id)}
-              />{' '}
-              <strong>{h.name}</strong> — {h.description}
-              {h.id === 'warden' && !meta.wins ? ' После первой победы.' : ''}
+        {mode === 'run' && (
+          <fieldset className="run-journal">
+            <legend>Режим спуска</legend>
+            <label>
+              Испытание{' '}
+              <select
+                value={challenge ?? ''}
+                onChange={(e) => {
+                  setChallenge(
+                    (e.target.value || undefined) as ChallengeId | undefined,
+                  );
+                  if (e.target.value) {
+                    setHero('wanderer');
+                    setDifficulty(0);
+                    setPreset('normal');
+                  }
+                }}
+              >
+                <option value="">Обычный спуск</option>
+                {CHALLENGES.map((c) => (
+                  <option key={c.id} value={c.id} disabled={!meta.wins}>
+                    {c.name}
+                    {meta.wins ? '' : ' · после победы'}
+                  </option>
+                ))}
+              </select>
             </label>
-          ))}
-          <label>
-            <input
-              type="checkbox"
-              checked={difficulty === 1}
-              disabled={!!challenge || !meta.wins}
-              onChange={(e) => setDifficulty(e.target.checked ? 1 : 0)}
-            />{' '}
-            Напряжение I: все удары врагов +2. Доступно после первой победы;
-            отдельная отметка прохождения.
-          </label>
-        </fieldset>
+            {challenge && (
+              <p>
+                {CHALLENGES.find((c) => c.id === challenge)?.description} Герой
+                и обычная сложность заданы условиями. Испытания имеют
+                собственные отметки, не меняют обычную серию и не открывают
+                предметы.
+              </p>
+            )}
+
+            {HEROES.map((h) => (
+              <label key={h.id} style={{ display: 'block', marginBottom: 12 }}>
+                <input
+                  type="radio"
+                  name="hero"
+                  checked={hero === h.id}
+                  disabled={!!challenge || (h.id === 'warden' && !meta.wins)}
+                  onChange={() => setHero(h.id)}
+                />{' '}
+                <strong>{h.name}</strong> — {h.description}
+                {h.id === 'warden' && !meta.wins ? ' После первой победы.' : ''}
+              </label>
+            ))}
+            <label>
+              <input
+                type="checkbox"
+                checked={difficulty === 1}
+                disabled={!!challenge || !meta.wins}
+                onChange={(e) => setDifficulty(e.target.checked ? 1 : 0)}
+              />{' '}
+              Напряжение I: все удары врагов +2. Доступно после первой победы;
+              отдельная отметка прохождения.
+            </label>
+          </fieldset>
+        )}
         <div className="settings-controls">
           <div className="setting-row">
             <span>
@@ -806,110 +814,120 @@ export function SettingsPanel({
               движения в системе отключает эффект.
             </small>
           </div>
-          {sliders.map(([key, label, min, max, step]) => (
-            <div key={key} className="setting-row">
-              <span>
-                {label}
-                <b>{settings[key]}</b>
-              </span>
-              <Slider
-                aria-label={label}
-                value={[settings[key]]}
-                min={min}
-                max={max}
-                step={step}
-                onValueChange={(v) => {
-                  const n = (v as number[])[0];
-                  setSettings((p) => ({ ...p, [key]: n }));
-                  if (key === 'animation') onAnimation(n);
-                }}
-              />
+          {sliders
+            .filter(([key]) => mode === 'run' || key === 'animation')
+            .map(([key, label, min, max, step]) => (
+              <div key={key} className="setting-row">
+                <span>
+                  {label}
+                  <b>{settings[key]}</b>
+                </span>
+                <Slider
+                  aria-label={label}
+                  value={[settings[key]]}
+                  min={min}
+                  max={max}
+                  step={step}
+                  onValueChange={(v) => {
+                    const n = (v as number[])[0];
+                    setSettings((p) => ({ ...p, [key]: n }));
+                    if (key === 'animation') onAnimation(n);
+                  }}
+                />
+              </div>
+            ))}
+        </div>
+        {mode === 'run' && (
+          <>
+            <span className="eyebrow">СТАРТОВАЯ СБОРКА</span>
+            <div className="preset-options">
+              {(
+                [
+                  'normal',
+                  'shields',
+                  'poison',
+                  'editor',
+                  'runes',
+                  'cascades',
+                ] as Preset[]
+              ).map((p) => (
+                <Button
+                  variant="outline"
+                  key={p}
+                  disabled={!!challenge}
+                  aria-pressed={preset === p}
+                  onClick={() => setPreset(p)}
+                >
+                  {
+                    {
+                      normal: 'Обычная',
+                      shields: 'Щиты',
+                      poison: 'Кинжал и яд',
+                      editor: 'Топор и правка',
+                      runes: 'Рунный разряд',
+                      cascades: 'Каскады',
+                    }[p]
+                  }
+                </Button>
+              ))}
             </div>
-          ))}
-        </div>
-        <span className="eyebrow">СТАРТОВАЯ СБОРКА</span>
-        <div className="preset-options">
-          {(
-            [
-              'normal',
-              'shields',
-              'poison',
-              'editor',
-              'runes',
-              'cascades',
-            ] as Preset[]
-          ).map((p) => (
-            <Button
-              variant="outline"
-              key={p}
-              disabled={!!challenge}
-              aria-pressed={preset === p}
-              onClick={() => setPreset(p)}
-            >
-              {
-                {
-                  normal: 'Обычная',
-                  shields: 'Щиты',
-                  poison: 'Кинжал и яд',
-                  editor: 'Топор и правка',
-                  runes: 'Рунный разряд',
-                  cascades: 'Каскады',
-                }[p]
-              }
-            </Button>
-          ))}
-        </div>
-        <label className="seed-control" htmlFor="run-seed">
-          Seed — номер забега{' '}
-          <Input
-            id="run-seed"
-            value={seed}
-            onChange={(e) => setSeed(e.target.value)}
-            placeholder="Случайный seed"
-            aria-invalid={!seedValid}
-            aria-describedby="seed-explanation"
-            inputMode="numeric"
-          />
-        </label>
-        <div className="seed-current">
-          <Button
-            variant="outline"
-            onClick={() => setSeed(String(currentSeed >>> 0))}
-          >
-            Использовать текущий: {currentSeed >>> 0}
-          </Button>
-          <p
-            id="seed-explanation"
-            className={seedValid ? 'panel-note' : 'seed-error'}
-          >
-            {seedValid
-              ? 'Одинаковый seed, открытия, настройки и решения повторяют поле, находки и скидки.'
-              : 'Введи целое число от 0 до 4294967295.'}
-          </p>
-        </div>
-        <p className="panel-note">
-          Забеги с изменённым балансом, готовой сборкой или заданным номером не
-          влияют на открытия и серию побед. Текущий незавершённый забег
-          закончится.
-        </p>
+            <label className="seed-control" htmlFor="run-seed">
+              Seed — номер забега{' '}
+              <Input
+                id="run-seed"
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
+                placeholder="Случайный seed"
+                aria-invalid={!seedValid}
+                aria-describedby="seed-explanation"
+                inputMode="numeric"
+              />
+            </label>
+            <div className="seed-current">
+              <Button
+                variant="outline"
+                onClick={() => setSeed(String(currentSeed >>> 0))}
+              >
+                Использовать текущий: {currentSeed >>> 0}
+              </Button>
+              <p
+                id="seed-explanation"
+                className={seedValid ? 'panel-note' : 'seed-error'}
+              >
+                {seedValid
+                  ? 'Одинаковый seed, открытия, настройки и решения повторяют поле, находки и скидки.'
+                  : 'Введи целое число от 0 до 4294967295.'}
+              </p>
+            </div>
+            <p className="panel-note">
+              Забеги с изменённым балансом, готовой сборкой или заданным номером
+              не влияют на открытия и серию побед.
+            </p>
+          </>
+        )}
         <div className="settings-actions">
-          <Button
-            className="panel-main-action"
-            disabled={!seedValid}
-            onClick={() => {
-              if (!seedValid) return;
-              onStart(
-                settings,
-                challenge ? 'normal' : preset,
-                seed ? Number(seed) : undefined,
-                hero,
-                difficulty,
-                challenge,
-              );
-              onClose();
-            }}
-          >
-            Начать с этими настройками <ArrowRight />
+          {mode === 'run' && (
+            <Button
+              className="panel-main-action"
+              disabled={!seedValid}
+              onClick={() => {
+                if (!seedValid) return;
+                onStart(
+                  settings,
+                  challenge ? 'normal' : preset,
+                  seed ? Number(seed) : undefined,
+                  hero,
+                  difficulty,
+                  challenge,
+                );
+                onClose();
+              }}
+            >
+              Войти в первую комнату <ArrowRight />
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>
+            Вернуться
           </Button>
           <Button
             variant="ghost"

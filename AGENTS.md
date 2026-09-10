@@ -25,3 +25,8 @@ Browser prototype of a turn-based match-3 roguelike. Russian interface.
 - Use flat Pronoun Palace-like pixel cartoons: thick stepped dark contours, simple silhouettes, few flat shades, quiet backgrounds and light paper UI. Do not substitute detailed/painterly pixel art or realistic dungeon scenes.
 - Isaac / Slay the Spire references guide mechanics only. Historical palette experiments are superseded by the visual contract.
 - Use shared `--palace-*` tokens for extension UI. Do not apply global sepia, brightness or saturation filters to reconcile drifting art. Keep genuine PNG transparency, measured sprite bounds and weapon grips.
+
+## Office and story shell
+
+- Read [docs/office-story-v01.md](docs/office-story-v01.md) for hub, menu or narrative changes. The office is the waking world between expeditions; the boss door leads to the existing rooms, defeat returns to the desk and spinning top.
+- Office position/dialogue memories must stay separate from seeded combat. Preserve old active saves, idempotent defeat/progression, explicit confirmation before abandoning a run, and paused trial time in menus.

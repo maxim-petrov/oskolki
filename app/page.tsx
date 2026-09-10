@@ -1,5 +1,14 @@
 /* eslint-disable react/react-compiler, nextjs/no-img-element -- This event-driven renderer is not React Compiler compiled; refs bridge asynchronous frame replay and WebMCP to React state. */
 'use client';
+import { GameMenu, OfficeHub } from '@/components/office-hub';
+import {
+  OFFICE_SAVE_KEY,
+  emptyOffice,
+  readOffice,
+  wakeFromRun,
+  continueDestination,
+  type OfficeMemory,
+} from '@/game/office';
 import { TurnBudget } from '@/components/turn-budget';
 import {
   tactical,
@@ -129,6 +138,14 @@ import {
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 export default function Game() {
+  const [screen, setScreen] = useState<'menu' | 'office' | 'run'>('menu');
+  const [office, setOffice] = useState<OfficeMemory>(emptyOffice);
+  const officeRef = useRef(office);
+  officeRef.current = office;
+  const [hasRun, setHasRun] = useState(false);
+  const [settingsMode, setSettingsMode] = useState<'run' | 'preferences'>(
+    'preferences',
+  );
   const [game, setGame] = useState(() => startRun());
   const [motion, setMotion] = useState<Motion | null>(null);
   const [screenShake, setScreenShake] = useState(100);
@@ -154,6 +171,13 @@ export default function Game() {
   gameRef.current = game;
   const [ready, setReady] = useState(false);
   const modalOpen =
+    help ||
+    settingsOpen ||
+    discoveries ||
+    restartConfirm ||
+    !!detail ||
+    screen !== 'run';
+  const officeBlocked =
     help || settingsOpen || discoveries || restartConfirm || !!detail;
   const saveMessageRef = useRef(false);
   const [preview, setPreview] = useState<{
@@ -171,7 +195,7 @@ export default function Game() {
   const s = frame?.state ?? game;
   const size = boardSize(s.board);
   const selectedCell = Math.min(selected, s.board.length - 1);
-  const active = ['battle', 'trial'].includes(game.phase);
+  const active = screen === 'run' && ['battle', 'trial'].includes(game.phase);
   const board = preview
     ? shifted(s.board, preview.axis, preview.line, preview.amount)
     : s.board;
@@ -241,7 +265,9 @@ export default function Game() {
     challenge?: ChallengeId,
   ) => {
     const prev = gameRef.current;
-    const nextMeta = abandonMeta(metaRef.current, prev);
+    const nextMeta = hasRun
+      ? abandonMeta(metaRef.current, prev)
+      : metaRef.current;
     metaRef.current = nextMeta;
     setMeta(nextMeta);
     let next = startAdventure(
@@ -257,6 +283,15 @@ export default function Game() {
     if (manualSeed !== undefined) next.modified = true;
     gameRef.current = next;
     setGame(next);
+    setHasRun(true);
+    setOffice((o) => ({
+      ...o,
+      inRun: true,
+      runId: next.runId,
+      discoveredDoor: true,
+      introduced: true,
+    }));
+    setScreen('run');
     setEditing(null);
     setEditFirst(null);
     setFrame(null);
@@ -283,6 +318,16 @@ export default function Game() {
       setMeta(loadedMeta);
       const raw = localStorage.getItem('oskolki.run.v1');
       const loaded = loadSave(raw ? JSON.parse(raw) : null);
+      let rawOffice: unknown = null;
+      try {
+        rawOffice = JSON.parse(localStorage.getItem(OFFICE_SAVE_KEY) ?? 'null');
+      } catch {
+        /* Keep valid run if only office data is corrupt. */
+      }
+      const loadedOffice = readOffice(rawOffice, loaded);
+      setOffice(loadedOffice);
+      officeRef.current = loadedOffice;
+      setHasRun(!!loaded);
       if (loaded) {
         loaded.heroPoison ??= 0;
         if (loaded.trial) loaded.trial.paused = true;
@@ -301,7 +346,7 @@ export default function Game() {
     setReady(true);
   }, []);
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !hasRun) return;
     const old = metaRef.current;
     const updated = updateMeta(old, game);
     const fresh = updated.unlocked.filter((x) => !old.unlocked.includes(x));
@@ -324,7 +369,93 @@ export default function Game() {
         );
       }
     }
-  }, [game, ready]);
+  }, [game, ready, hasRun]);
+  const changeOffice = (next: OfficeMemory) => {
+    officeRef.current = next;
+    setOffice(next);
+  };
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      localStorage.setItem(OFFICE_SAVE_KEY, JSON.stringify(office));
+    } catch {
+      setMessage(
+        'Не удалось сохранить офис. Прогресс доступен до закрытия вкладки.',
+      );
+    }
+  }, [office, ready]);
+  useEffect(() => {
+    if (!ready || !hasRun || busy || game.phase !== 'defeat') return;
+    const awakened = wakeFromRun(officeRef.current, game);
+    if (awakened !== officeRef.current) {
+      changeOffice(awakened);
+      setScreen('office');
+      setSettingsOpen(false);
+      setDetail(null);
+      setRestartConfirm(false);
+      setMessage('Ты снова за своим столом. Юла продолжает крутиться.');
+    }
+  }, [game, ready, hasRun, busy]);
+  const openMenu = () => {
+    if (busyRef.current) return;
+    if (gameRef.current.phase === 'trial')
+      setGame((g) => pauseTrial(g, true).state);
+    cancelDrag();
+    setEditing(null);
+    setEditFirst(null);
+    setScreen('menu');
+  };
+  const returnToOffice = () => {
+    if (busyRef.current) return;
+    if (hasRun && !['victory', 'defeat'].includes(gameRef.current.phase)) {
+      const nextMeta = abandonMeta(metaRef.current, gameRef.current);
+      metaRef.current = nextMeta;
+      setMeta(nextMeta);
+      // Removing the active run prevents a reload from reviving an abandoned expedition.
+      try {
+        localStorage.setItem('oskolki.meta.v1', JSON.stringify(nextMeta));
+        localStorage.removeItem('oskolki.run.v1');
+      } catch {
+        setMessage('Не удалось сохранить возвращение в офис.');
+      }
+      setHasRun(false);
+    }
+    changeOffice({
+      ...officeRef.current,
+      inRun: false,
+      position: { x: 220, y: 458 },
+    });
+    setRestartConfirm(false);
+    setSettingsOpen(false);
+    setScreen('office');
+  };
+  const requestOffice = () => {
+    if (
+      hasRun &&
+      officeRef.current.inRun &&
+      !['victory', 'defeat'].includes(gameRef.current.phase)
+    )
+      setRestartConfirm(true);
+    else returnToOffice();
+  };
+  useEffect(() => {
+    const pauseOnEscape = (e: KeyboardEvent) => {
+      if (
+        e.key !== 'Escape' ||
+        e.defaultPrevented ||
+        screen !== 'run' ||
+        officeBlocked ||
+        busyRef.current ||
+        editing ||
+        preview
+      )
+        return;
+      e.preventDefault();
+      openMenu();
+    };
+    window.addEventListener('keydown', pauseOnEscape);
+    return () => window.removeEventListener('keydown', pauseOnEscape);
+  });
   useEffect(() => {
     if (!newDiscovery) return;
     const id = setTimeout(() => setNewDiscovery(''), 5000);
@@ -455,6 +586,7 @@ export default function Game() {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || modalOpen || busyRef.current || !active) return;
       if (e.key === 'Escape') {
+        if (!editing && !preview) return;
         e.preventDefault();
         setEditing(null);
         setEditFirst(null);
@@ -523,672 +655,739 @@ export default function Game() {
       );
   }, [ready]);
   return (
-    <main
-      className={`game-shell biome-${biomeAt(s.room).id}${active ? ' battle-active' : ''}${shake ? ' boss-impact' : ''}`}
-      data-screen-shake={screenShake > 0 ? 'on' : 'off'}
-      style={
-        shake
-          ? ({
-              '--shake-distance': `${Math.round((shake.pixels * screenShake) / 100)}px`,
-              '--shake-duration': `${shake.duration}ms`,
-            } as CSSProperties)
-          : undefined
-      }
-    >
-      <header className="topbar">
-        <div className="brand">
-          <SkinIcon name="crown" size={40} />
-          <h1>ОСКОЛКИ</h1>
-          <span className="build-tag">
-            {s.modified
-              ? 'ПРОВЕРКА БАЛАНСА'
-              : `БИОМ ${s.room > 10 ? 'II' : 'I'}`}
-          </span>
-        </div>
-        <div className="header-run">
-          <Flame size={16} />
-          <span>{biomeAt(s.room).name}</span>
-          <span className="divider">/</span>
-          <span>
-            Комната {s.room} из {TOTAL_ROOMS}
-          </span>
-        </div>
-        <RunSeed seed={s.seed} />
-        <div className="header-actions">
-          <span className="gold">
-            <SkinIcon name="coin" size={30} />
-            {s.gold}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Открытия"
-            onClick={() => setDiscoveries(true)}
-          >
-            <BookOpen />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Настройки баланса"
-            onClick={() => setSettingsOpen(true)}
-            disabled={busy}
-          >
-            <Settings2 />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Как играть"
-            onClick={() => setHelp(true)}
-          >
-            <CircleHelp />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Новый забег"
-            disabled={busy}
-            onClick={() => setRestartConfirm(true)}
-          >
-            <RotateCcw />
-          </Button>
-        </div>
-      </header>
-      <div className="game-layout">
-        <aside className="journey">
-          <p className="eyebrow">ТВОЙ ПУТЬ</p>
-          <h2>{biomeAt(s.room).name}</h2>
-          <p className="muted journey-copy">
-            Каждая находка
-            <br />
-            меняет следующий ход.
-          </p>
-          <ol className="path-list">
-            {ROOM_BACKGROUNDS.slice(
-              biomeAt(s.room).firstRoom - 1,
-              biomeAt(s.room).lastRoom,
-            ).map((background, localIndex) => {
-              const i = localIndex + biomeAt(s.room).firstRoom - 1;
-              const name = s.path[i] ?? background.name;
-              return (
-                <li
-                  key={i}
-                  className={
-                    i + 1 === s.room
-                      ? 'current'
-                      : i + 1 < s.room
-                        ? 'complete'
-                        : ''
-                  }
-                >
-                  <span className="path-dot">
-                    {i + 1 < s.room ? (
-                      <Check size={12} />
-                    ) : (i + 1) % 10 === 0 ? (
-                      <Crown size={14} />
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                  <span>{name}</span>
-                </li>
-              );
-            })}
-          </ol>
-          <div className="journey-bottom">
-            <span className="eyebrow">СТРАННИК</span>
-            <p>Сбалансированный герой</p>
-            <span className="muted">В начале боя +3 энергии</span>
-            <p className="streak-line">
-              Серия побед <b>{meta.streak}</b>
-              <small>Лучшая: {meta.best}</small>
-            </p>
-          </div>
-        </aside>
-        <section className="play-area" aria-label="Поле боя">
-          <div
-            className={`arena ${s.enemies.length > 2 ? 'squad-arena' : ''} ${motion ? `beat-${motion.cue.type} beat-${motion.stage}` : ''}`}
-          >
-            <img
-              className="arena-bg room-background"
-              src={roomBackground(s.room).src}
-              alt={roomBackground(s.room).alt}
-            />
-            <div className="arena-shade" />
-            <div className="arena-dust" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-            </div>
-            <div className="arena-caption">
-              <span className="eyebrow">
-                {s.roomKind === 'boss'
-                  ? `БОСС · ${s.enemies[0]?.name.toUpperCase()}`
-                  : roomBackground(s.room).name.toUpperCase()}
-              </span>
-              <span className="turn-badge">
-                {s.phase === 'trial'
-                  ? `${Math.ceil(s.trial?.remaining ?? 0)} сек.`
-                  : `Ход ${s.round}`}
+    <>
+      {screen === 'menu' && (
+        <GameMenu
+          ready={ready}
+          resumable={office.introduced}
+          inRun={hasRun && continueDestination(office, game) === 'run'}
+          onContinue={() =>
+            setScreen(continueDestination(office, hasRun ? game : null))
+          }
+          onOffice={requestOffice}
+          onSettings={() => {
+            setSettingsMode('preferences');
+            setSettingsOpen(true);
+          }}
+          onJournal={() => setDiscoveries(true)}
+          onHelp={() => setHelp(true)}
+        />
+      )}
+      {screen === 'office' && (
+        <OfficeHub
+          office={office}
+          onChange={changeOffice}
+          blocked={officeBlocked}
+          lastRun={hasRun ? game : null}
+          onDepart={() => {
+            setSettingsMode('run');
+            setSettingsOpen(true);
+          }}
+          onMenu={openMenu}
+        />
+      )}
+      {screen === 'run' && (
+        <main
+          className={`game-shell biome-${biomeAt(s.room).id}${active ? ' battle-active' : ''}${shake ? ' boss-impact' : ''}`}
+          data-screen-shake={screenShake > 0 ? 'on' : 'off'}
+          style={
+            shake
+              ? ({
+                  '--shake-distance': `${Math.round((shake.pixels * screenShake) / 100)}px`,
+                  '--shake-duration': `${shake.duration}ms`,
+                } as CSSProperties)
+              : undefined
+          }
+        >
+          <header className="topbar">
+            <div className="brand">
+              <SkinIcon name="crown" size={40} />
+              <h1>ОСКОЛКИ</h1>
+              <span className="build-tag">
+                {s.modified
+                  ? 'ПРОВЕРКА БАЛАНСА'
+                  : `БИОМ ${s.room > 10 ? 'II' : 'I'}`}
               </span>
             </div>
-            <div className="fighter hero">
-              <CombatSprite state={s} motion={motion} actor="hero" />
-              <div className="fighter-caption">
-                <strong>
-                  {HEROES.find((h) => h.id === (s.hero ?? 'wanderer'))?.name}
-                </strong>
-                <span className="health-number">
-                  <SkinIcon name="heart" size={22} />
-                  {s.hp} / {s.maxHp}
-                  {s.heroPoison > 0 && (
-                    <span className="poison-number"> · яд {s.heroPoison}</span>
-                  )}
-                </span>
-                <Progress
-                  value={(s.hp / s.maxHp) * 100}
-                  className="health-bar"
-                  aria-label="Здоровье героя"
-                />
-              </div>
-              {s.block > 0 && (
-                <span className="block-orb">
-                  <Shield size={15} />
-                  {s.block}
-                </span>
-              )}
+            <div className="header-run">
+              <Flame size={16} />
+              <span>{biomeAt(s.room).name}</span>
+              <span className="divider">/</span>
+              <span>
+                Комната {s.room} из {TOTAL_ROOMS}
+              </span>
             </div>
-            <div className={`enemies count-${s.enemies.length}`}>
-              {s.enemies.map((e) => (
-                <button
-                  className={`fighter enemy ${['censor', 'tide-keeper'].includes(e.kind) ? 'enemy-boss' : ''} ${e.hp <= 0 ? 'fallen' : ''} ${s.target === e.id ? 'targeted' : ''}`}
-                  key={e.id}
-                  aria-label={`Цель: ${e.name}, ${e.hp} здоровья`}
-                  onClick={() => !busy && setGame({ ...game, target: e.id })}
-                  disabled={e.hp <= 0 || busy}
-                >
-                  <EnemyIntentLabel state={s} enemy={e} />
-                  <CombatSprite state={s} motion={motion} actor={e.id} />
-                  <div className="fighter-caption">
-                    <strong>{e.name}</strong>
-                    {['censor', 'tide-keeper'].includes(e.kind) && (
-                      <span className="boss-phase">
-                        <Crown size={12} aria-hidden="true" /> Босс · Фаза{' '}
-                        {bossPhase(e)} из 2
-                      </span>
-                    )}
-                    <span className="health-number">
-                      {e.hp} / {e.maxHp}
-                      {e.poison > 0 && (
-                        <span className="poison-number"> · яд {e.poison}</span>
-                      )}
-                      {e.block > 0 && ` · блок ${e.block}`}
-                    </span>
-                    <Progress
-                      value={(Math.max(0, e.hp) / e.maxHp) * 100}
-                      className="health-bar enemy-health"
-                      aria-label="Здоровье врага"
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
-            {s.phase === 'trial' && s.trial && (
-              <div className="trial-target">
-                <Timer size={24} />
-                <strong>Закрывающийся шлюз</strong>
-                <div>
-                  <Zap size={15} />
-                  <span>Механизм</span>
-                  <b>{Math.min(18, s.trial.energy)} / 18</b>
-                </div>
-                <Progress
-                  value={Math.min(100, (s.trial.energy / 18) * 100)}
-                  aria-label="Энергия механизма"
-                />
-                <div>
-                  <Sword size={15} />
-                  <span>Преграда</span>
-                  <b>{Math.min(30, s.trial.damage)} / 30</b>
-                </div>
-                <Progress
-                  value={Math.min(100, (s.trial.damage / 30) * 100)}
-                  aria-label="Разрушение преграды"
-                />
-              </div>
-            )}
-            {frame && (
-              <div
-                className="combat-flash"
-                key={`${frame.label}-${s.stats.matches}`}
-              >
-                {frame.label}
-              </div>
-            )}
-          </div>
-          <div className="board-heading">
-            <div>
-              <span className={`phase-dot ${busy ? 'resolving' : ''}`} />
-              <strong>
-                {busy
-                  ? 'Комбинация сработала'
-                  : !canShift(s)
-                    ? tactical(s)
-                      ? 'Действия закончились'
-                      : 'Сдвиг использован'
-                    : 'Твой ход'}
-              </strong>
-            </div>
-            <Button
-              variant="ghost"
-              className="hint-button"
-              onClick={hint}
-              disabled={busy || !active}
-            >
-              <Lightbulb size={15} />
-              Подсказка
-            </Button>
-          </div>
-          <TurnBudget game={s} />
-          <ActiveHeroRules game={s} />
-          <ArchiveMechanics game={s} />
-          <div
-            style={{ '--board-size': size } as CSSProperties}
-            className={`board-section ${editing ? 'is-editing' : ''} ${game.phase === 'trial' && (game.trial?.paused || modalOpen) ? 'trial-paused' : ''}`}
-          >
-            <div className="board-frame">
-              <div className="arrow-row top-arrows">
-                <span />
-                {Array.from({ length: size }, (_, i) => (
-                  <button
-                    key={i}
-                    aria-label={`Столбец ${i + 1} вверх`}
-                    onClick={() => doMove('col', i, -1)}
-                    disabled={busy || !canShift(s) || lineLocked(s, 'col', i)}
-                  >
-                    <ChevronUp />
-                  </button>
-                ))}
-                <span />
-              </div>
-              <div className="board-body">
-                <div className="side-arrows">
-                  {Array.from({ length: size }, (_, i) => (
-                    <button
-                      key={i}
-                      aria-label={`Строка ${i + 1} влево`}
-                      onClick={() => doMove('row', i, -1)}
-                      disabled={busy || !canShift(s) || lineLocked(s, 'row', i)}
-                    >
-                      <ChevronLeft />
-                    </button>
-                  ))}
-                </div>
-                <fieldset
-                  className="board"
-                  aria-label={`Поле ${size} на ${size}. Выбери фишку и используй стрелки или перетащи её.`}
-                >
-                  {board.map((t, i) => {
-                    return (
-                      <button
-                        key={i}
-                        className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${editing && editFirst === i ? 'edit-first' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.locked ? 'sealed-tile' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / size) === s.tide.row ? 'tide-row' : ''}`}
-                        aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : t.variant === 'spiked' ? ', шип: 1 урона при сборе' : t.variant === 'marked' ? ', помета: 3 блока раз за ход' : ''}${t.locked ? ', печать: строка и столбец заблокированы' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / size) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / size) + 1}, столбец ${(i % size) + 1}`}
-                        aria-pressed={selected === i}
-                        onPointerDown={(e) => pointerDown(e, i)}
-                        onPointerMove={dragMove}
-                        onPointerUp={dragEnd}
-                        onPointerCancel={cancelDrag}
-                        onLostPointerCapture={cancelDrag}
-                        onClick={(e) => {
-                          if (e.detail === 0) {
-                            setSelected(i);
-                            if (editing) selectEditCell(i);
-                          }
-                        }}
-                      >
-                        <BoardTileArt
-                          family={t.family}
-                          variant={t.variant}
-                          weaponId={s.equipment.weapon}
-                          size={56}
-                        />
-                        {t.locked && (
-                          <span className="lock-mark" aria-hidden="true">
-                            ×
-                          </span>
-                        )}
-                        {t.ink && (
-                          <span
-                            className="ink-mark"
-                            title="Клякса: −1 здоровья при сборе. Матч фокуса смывает все."
-                          >
-                            <Droplet size={14} fill="currentColor" />
-                          </span>
-                        )}
-                        {t.root && (
-                          <span
-                            className="root-mark"
-                            aria-label="Корни: собери до следующего ответа"
-                          >
-                            <Sprout size={12} />
-                          </span>
-                        )}
-                        {t.variant && t.family !== 'blade' && (
-                          <span className="family-mark">ϟ</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </fieldset>
-                <div className="side-arrows">
-                  {Array.from({ length: size }, (_, i) => (
-                    <button
-                      key={i}
-                      aria-label={`Строка ${i + 1} вправо`}
-                      onClick={() => doMove('row', i, 1)}
-                      disabled={busy || !canShift(s) || lineLocked(s, 'row', i)}
-                    >
-                      <ChevronRight />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="arrow-row bottom-arrows">
-                <span />
-                {Array.from({ length: size }, (_, i) => (
-                  <button
-                    key={i}
-                    aria-label={`Столбец ${i + 1} вниз`}
-                    onClick={() => doMove('col', i, 1)}
-                    disabled={busy || !canShift(s) || lineLocked(s, 'col', i)}
-                  >
-                    <ChevronDown />
-                  </button>
-                ))}
-                <span />
-              </div>
-            </div>
-            <div className="board-legend">
-              {FAMILIES.map((f) => {
-                return (
-                  <span key={f} className={`legend-${f}`}>
-                    <BoardTileArt
-                      family={f}
-                      weaponId={s.equipment.weapon}
-                      size={23}
-                    />
-                    {FAMILY_NAMES[f]}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-          {(game.rulesVersion ?? 0) < 3 && (
-            <p className="rules-notice">
-              Этот забег идёт по прежним правилам. Связанные ветки, кладовые и
-              печати Цензора доступны в новом спуске.
-            </p>
-          )}
-          {(game.rulesVersion ?? 0) >= 2 &&
-            !busy &&
-            active &&
-            !modalOpen &&
-            !game.trial?.paused && <MovePreview game={game} move={preview} />}
-          <div className="turn-controls">
-            <output className="move-message">
-              {editing
-                ? `${hasSeal(game, 'double-edit') ? (editFirst === null ? 'Выбери первую из двух фишек' : 'Выбери вторую фишку; Esc — отмена') : 'Выбери фишку'} → ${FAMILY_NAMES[editing]}`
-                : message}
-            </output>
-          </div>
-        </section>
-        <aside className="loadout">
-          <div className="resource-row">
-            <div className="resource energy">
-              <SkinIcon name="spark" size={40} />
-              <strong>
-                {s.energy}
-                <small>/{energyMax(s)}</small>
-              </strong>
-              <span>Энергия</span>
-            </div>
-            <div className="resource focus">
-              <SkinIcon name="focus" size={40} />
-              <strong>
-                {s.focus}
-                <small>/{focusMax(s)}</small>
-              </strong>
-              <span>Фокус</span>
-            </div>
-          </div>
-          <EquipmentPanel game={s} onDetail={setDetail} />
-          {s.seal && (
-            <ActiveSeal seal={itemById(s.seal)!} onDetail={setDetail} />
-          )}
-          <div className="section-label">
-            <span className="eyebrow">ПРИЁМЫ</span>
-            <span>
-              {tactical(s) && s.phase === 'battle'
-                ? '1 действие + ресурс'
-                : s.cast
-                  ? 'Использован'
-                  : '1 за ход'}
-            </span>
-          </div>
-          <div className="skills">
-            {[
-              ...s.skills,
-              ...((s.rulesVersion ?? 0) >= 4 && s.relics.includes('binding')
-                ? ['binding']
-                : []),
-            ].map((id) => (
-              <Button
-                key={id}
-                variant="outline"
-                className="skill-card"
-                disabled={busy || !canCast(game, id)}
-                onClick={() => void play(castSkill(game, id, selectedCell))}
-              >
-                <span className="skill-icon">
-                  <ItemIcon id={id} />
-                </span>
-                <span>
-                  <strong>{itemById(id)?.name}</strong>
-                  <small>
-                    {itemForRun(s, id)?.description}
-                    {id === 'binding' &&
-                      ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона с учётом защиты цели; останется ${bindingPreview(s).remainingBlock} блока.`}
-                  </small>
-                </span>
+            <RunSeed seed={s.seed} />
+            <div className="header-actions">
+              <Button variant="outline" disabled={busy} onClick={openMenu}>
+                Меню
               </Button>
-            ))}
-            <div className={`edit-skill ${editing ? 'active' : ''}`}>
+              <span className="gold">
+                <SkinIcon name="coin" size={30} />
+                {s.gold}
+              </span>
               <Button
                 variant="ghost"
-                className="edit-trigger"
-                disabled={busy || !canCast(s, 'edit') || !active}
-                onClick={() => {
-                  setPreview(null);
-                  gesture.current = null;
-                  setEditing(editing ? null : 'blade');
-                  setEditFirst(null);
-                }}
+                size="icon"
+                aria-label="Открытия"
+                onClick={() => setDiscoveries(true)}
               >
-                <SkinIcon name="focus" size={32} />
-                <span>
-                  <strong>Правка поля</strong>
-                  <small>
-                    {hasSeal(game, 'double-edit')
-                      ? '3 фокуса · замени две разные фишки вместе'
-                      : '3 фокуса · замени одну фишку'}
-                  </small>
-                </span>
+                <BookOpen />
               </Button>
-              {editing && (
-                <div className="family-choices">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Настройки"
+                onClick={() => {
+                  setSettingsMode('preferences');
+                  setSettingsOpen(true);
+                }}
+                disabled={busy}
+              >
+                <Settings2 />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Как играть"
+                onClick={() => setHelp(true)}
+              >
+                <CircleHelp />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Новый забег"
+                disabled={busy}
+                onClick={requestOffice}
+              >
+                <RotateCcw />
+              </Button>
+            </div>
+          </header>
+          <div className="game-layout">
+            <aside className="journey">
+              <p className="eyebrow">ТВОЙ ПУТЬ</p>
+              <h2>{biomeAt(s.room).name}</h2>
+              <p className="muted journey-copy">
+                Каждая находка
+                <br />
+                меняет следующий ход.
+              </p>
+              <ol className="path-list">
+                {ROOM_BACKGROUNDS.slice(
+                  biomeAt(s.room).firstRoom - 1,
+                  biomeAt(s.room).lastRoom,
+                ).map((background, localIndex) => {
+                  const i = localIndex + biomeAt(s.room).firstRoom - 1;
+                  const name = s.path[i] ?? background.name;
+                  return (
+                    <li
+                      key={i}
+                      className={
+                        i + 1 === s.room
+                          ? 'current'
+                          : i + 1 < s.room
+                            ? 'complete'
+                            : ''
+                      }
+                    >
+                      <span className="path-dot">
+                        {i + 1 < s.room ? (
+                          <Check size={12} />
+                        ) : (i + 1) % 10 === 0 ? (
+                          <Crown size={14} />
+                        ) : (
+                          i + 1
+                        )}
+                      </span>
+                      <span>{name}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div className="journey-bottom">
+                <span className="eyebrow">СТРАННИК</span>
+                <p>Сбалансированный герой</p>
+                <span className="muted">В начале боя +3 энергии</span>
+                <p className="streak-line">
+                  Серия побед <b>{meta.streak}</b>
+                  <small>Лучшая: {meta.best}</small>
+                </p>
+              </div>
+            </aside>
+            <section className="play-area" aria-label="Поле боя">
+              <div
+                className={`arena ${s.enemies.length > 2 ? 'squad-arena' : ''} ${motion ? `beat-${motion.cue.type} beat-${motion.stage}` : ''}`}
+              >
+                <img
+                  className="arena-bg room-background"
+                  src={roomBackground(s.room).src}
+                  alt={roomBackground(s.room).alt}
+                />
+                <div className="arena-shade" />
+                <div className="arena-dust" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div className="arena-caption">
+                  <span className="eyebrow">
+                    {s.roomKind === 'boss'
+                      ? `БОСС · ${s.enemies[0]?.name.toUpperCase()}`
+                      : roomBackground(s.room).name.toUpperCase()}
+                  </span>
+                  <span className="turn-badge">
+                    {s.phase === 'trial'
+                      ? `${Math.ceil(s.trial?.remaining ?? 0)} сек.`
+                      : `Ход ${s.round}`}
+                  </span>
+                </div>
+                <div className="fighter hero">
+                  <CombatSprite state={s} motion={motion} actor="hero" />
+                  <div className="fighter-caption">
+                    <strong>
+                      {
+                        HEROES.find((h) => h.id === (s.hero ?? 'wanderer'))
+                          ?.name
+                      }
+                    </strong>
+                    <span className="health-number">
+                      <SkinIcon name="heart" size={22} />
+                      {s.hp} / {s.maxHp}
+                      {s.heroPoison > 0 && (
+                        <span className="poison-number">
+                          {' '}
+                          · яд {s.heroPoison}
+                        </span>
+                      )}
+                    </span>
+                    <Progress
+                      value={(s.hp / s.maxHp) * 100}
+                      className="health-bar"
+                      aria-label="Здоровье героя"
+                    />
+                  </div>
+                  {s.block > 0 && (
+                    <span className="block-orb">
+                      <Shield size={15} />
+                      {s.block}
+                    </span>
+                  )}
+                </div>
+                <div className={`enemies count-${s.enemies.length}`}>
+                  {s.enemies.map((e) => (
+                    <button
+                      className={`fighter enemy ${['censor', 'tide-keeper'].includes(e.kind) ? 'enemy-boss' : ''} ${e.hp <= 0 ? 'fallen' : ''} ${s.target === e.id ? 'targeted' : ''}`}
+                      key={e.id}
+                      aria-label={`Цель: ${e.name}, ${e.hp} здоровья`}
+                      onClick={() =>
+                        !busy && setGame({ ...game, target: e.id })
+                      }
+                      disabled={e.hp <= 0 || busy}
+                    >
+                      <EnemyIntentLabel state={s} enemy={e} />
+                      <CombatSprite state={s} motion={motion} actor={e.id} />
+                      <div className="fighter-caption">
+                        <strong>{e.name}</strong>
+                        {['censor', 'tide-keeper'].includes(e.kind) && (
+                          <span className="boss-phase">
+                            <Crown size={12} aria-hidden="true" /> Босс · Фаза{' '}
+                            {bossPhase(e)} из 2
+                          </span>
+                        )}
+                        <span className="health-number">
+                          {e.hp} / {e.maxHp}
+                          {e.poison > 0 && (
+                            <span className="poison-number">
+                              {' '}
+                              · яд {e.poison}
+                            </span>
+                          )}
+                          {e.block > 0 && ` · блок ${e.block}`}
+                        </span>
+                        <Progress
+                          value={(Math.max(0, e.hp) / e.maxHp) * 100}
+                          className="health-bar enemy-health"
+                          aria-label="Здоровье врага"
+                        />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {s.phase === 'trial' && s.trial && (
+                  <div className="trial-target">
+                    <Timer size={24} />
+                    <strong>Закрывающийся шлюз</strong>
+                    <div>
+                      <Zap size={15} />
+                      <span>Механизм</span>
+                      <b>{Math.min(18, s.trial.energy)} / 18</b>
+                    </div>
+                    <Progress
+                      value={Math.min(100, (s.trial.energy / 18) * 100)}
+                      aria-label="Энергия механизма"
+                    />
+                    <div>
+                      <Sword size={15} />
+                      <span>Преграда</span>
+                      <b>{Math.min(30, s.trial.damage)} / 30</b>
+                    </div>
+                    <Progress
+                      value={Math.min(100, (s.trial.damage / 30) * 100)}
+                      aria-label="Разрушение преграды"
+                    />
+                  </div>
+                )}
+                {frame && (
+                  <div
+                    className="combat-flash"
+                    key={`${frame.label}-${s.stats.matches}`}
+                  >
+                    {frame.label}
+                  </div>
+                )}
+              </div>
+              <div className="board-heading">
+                <div>
+                  <span className={`phase-dot ${busy ? 'resolving' : ''}`} />
+                  <strong>
+                    {busy
+                      ? 'Комбинация сработала'
+                      : !canShift(s)
+                        ? tactical(s)
+                          ? 'Действия закончились'
+                          : 'Сдвиг использован'
+                        : 'Твой ход'}
+                  </strong>
+                </div>
+                <Button
+                  variant="ghost"
+                  className="hint-button"
+                  onClick={hint}
+                  disabled={busy || !active}
+                >
+                  <Lightbulb size={15} />
+                  Подсказка
+                </Button>
+              </div>
+              <TurnBudget game={s} />
+              <ActiveHeroRules game={s} />
+              <ArchiveMechanics game={s} />
+              <div
+                style={{ '--board-size': size } as CSSProperties}
+                className={`board-section ${editing ? 'is-editing' : ''} ${game.phase === 'trial' && (game.trial?.paused || modalOpen) ? 'trial-paused' : ''}`}
+              >
+                <div className="board-frame">
+                  <div className="arrow-row top-arrows">
+                    <span />
+                    {Array.from({ length: size }, (_, i) => (
+                      <button
+                        key={i}
+                        aria-label={`Столбец ${i + 1} вверх`}
+                        onClick={() => doMove('col', i, -1)}
+                        disabled={
+                          busy || !canShift(s) || lineLocked(s, 'col', i)
+                        }
+                      >
+                        <ChevronUp />
+                      </button>
+                    ))}
+                    <span />
+                  </div>
+                  <div className="board-body">
+                    <div className="side-arrows">
+                      {Array.from({ length: size }, (_, i) => (
+                        <button
+                          key={i}
+                          aria-label={`Строка ${i + 1} влево`}
+                          onClick={() => doMove('row', i, -1)}
+                          disabled={
+                            busy || !canShift(s) || lineLocked(s, 'row', i)
+                          }
+                        >
+                          <ChevronLeft />
+                        </button>
+                      ))}
+                    </div>
+                    <fieldset
+                      className="board"
+                      aria-label={`Поле ${size} на ${size}. Выбери фишку и используй стрелки или перетащи её.`}
+                    >
+                      {board.map((t, i) => {
+                        return (
+                          <button
+                            key={i}
+                            className={`tile tile-${t.family} ${selected === i ? 'selected' : ''} ${editing && editFirst === i ? 'edit-first' : ''} ${marked.includes(i) ? 'matched' : ''} ${t.variant ? 'variant' : ''} ${t.locked ? 'sealed-tile' : ''} ${t.root ? 'rooted' : ''} ${t.ink ? 'inked' : ''} ${s.tide && !s.tide.cleared && Math.floor(i / size) === s.tide.row ? 'tide-row' : ''}`}
+                            aria-label={`${FAMILY_NAMES[t.family]}${t.family === 'blade' ? `: ${equipmentById(s.equipment.weapon)?.name ?? 'Нож для бумаги'}` : ''}${t.variant === 'bomb' ? ', бомба' : t.variant === 'venom' ? ', яд' : t.variant === 'spiked' ? ', шип: 1 урона при сборе' : t.variant === 'marked' ? ', помета: 3 блока раз за ход' : ''}${t.locked ? ', печать: строка и столбец заблокированы' : ''}${t.ink ? ', клякса: минус 1 здоровья при сборе, фокус смывает' : ''}${s.tide && !s.tide.cleared && Math.floor(i / size) === s.tide.row ? ', строка прилива' : ''}, строка ${Math.floor(i / size) + 1}, столбец ${(i % size) + 1}`}
+                            aria-pressed={selected === i}
+                            onPointerDown={(e) => pointerDown(e, i)}
+                            onPointerMove={dragMove}
+                            onPointerUp={dragEnd}
+                            onPointerCancel={cancelDrag}
+                            onLostPointerCapture={cancelDrag}
+                            onClick={(e) => {
+                              if (e.detail === 0) {
+                                setSelected(i);
+                                if (editing) selectEditCell(i);
+                              }
+                            }}
+                          >
+                            <BoardTileArt
+                              family={t.family}
+                              variant={t.variant}
+                              weaponId={s.equipment.weapon}
+                              size={56}
+                            />
+                            {t.locked && (
+                              <span className="lock-mark" aria-hidden="true">
+                                ×
+                              </span>
+                            )}
+                            {t.ink && (
+                              <span
+                                className="ink-mark"
+                                title="Клякса: −1 здоровья при сборе. Матч фокуса смывает все."
+                              >
+                                <Droplet size={14} fill="currentColor" />
+                              </span>
+                            )}
+                            {t.root && (
+                              <span
+                                className="root-mark"
+                                aria-label="Корни: собери до следующего ответа"
+                              >
+                                <Sprout size={12} />
+                              </span>
+                            )}
+                            {t.variant && t.family !== 'blade' && (
+                              <span className="family-mark">ϟ</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </fieldset>
+                    <div className="side-arrows">
+                      {Array.from({ length: size }, (_, i) => (
+                        <button
+                          key={i}
+                          aria-label={`Строка ${i + 1} вправо`}
+                          onClick={() => doMove('row', i, 1)}
+                          disabled={
+                            busy || !canShift(s) || lineLocked(s, 'row', i)
+                          }
+                        >
+                          <ChevronRight />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="arrow-row bottom-arrows">
+                    <span />
+                    {Array.from({ length: size }, (_, i) => (
+                      <button
+                        key={i}
+                        aria-label={`Столбец ${i + 1} вниз`}
+                        onClick={() => doMove('col', i, 1)}
+                        disabled={
+                          busy || !canShift(s) || lineLocked(s, 'col', i)
+                        }
+                      >
+                        <ChevronDown />
+                      </button>
+                    ))}
+                    <span />
+                  </div>
+                </div>
+                <div className="board-legend">
                   {FAMILIES.map((f) => {
                     return (
-                      <button
-                        key={f}
-                        className={`tile-${f} ${editing === f ? 'chosen' : ''}`}
-                        aria-label={`Превратить в ${FAMILY_NAMES[f]}`}
-                        onClick={() => setEditing(f)}
-                      >
+                      <span key={f} className={`legend-${f}`}>
                         <BoardTileArt
                           family={f}
                           weaponId={s.equipment.weapon}
-                          size={28}
+                          size={23}
                         />
-                      </button>
+                        {FAMILY_NAMES[f]}
+                      </span>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="potion"
-            disabled={
-              busy || s.consumed || !s.potions || s.hp === s.maxHp || !active
-            }
-            onClick={() => void play(consumePotion(game))}
-          >
-            <SkinIcon name="potion" size={36} />
-            <span>
-              Лечебное зелье <small>+8 здоровья</small>
-            </span>
-            <b>×{s.potions}</b>
-          </Button>
-          <div className="section-label relic-label">
-            <span className="eyebrow">РЕЛИКВИИ</span>
-            <span>{s.relics.length}</span>
-          </div>
-          {s.relics.length ? (
-            <div className="relic-list">
-              {s.relics.map((id) => (
-                <button key={id} onClick={() => setDetail(id)}>
-                  <ItemIcon id={id} />
-                  <span>{itemById(id)?.name}</span>
-                  <CircleHelp size={12} />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-relics">
-              <SkinIcon name="relic" size={42} />
-              <p>
-                Первая находка
-                <br />
-                ждёт за этим боем.
-              </p>
-            </div>
-          )}
-          {s.modifiers.length > 0 && (
-            <>
-              <div className="section-label">
-                <span className="eyebrow">МОДИФИКАТОРЫ ПОЛЯ</span>
-                <span>{s.modifiers.length}/2</span>
               </div>
-              <div className="modifier-list">
-                {s.modifiers.map((id) => (
-                  <button key={id} onClick={() => setDetail(id)}>
-                    <ItemIcon id={id} />
-                    <span>{itemById(id)?.name}</span>
-                  </button>
+              {(game.rulesVersion ?? 0) < 3 && (
+                <p className="rules-notice">
+                  Этот забег идёт по прежним правилам. Связанные ветки, кладовые
+                  и печати Цензора доступны в новом спуске.
+                </p>
+              )}
+              {(game.rulesVersion ?? 0) >= 2 &&
+                !busy &&
+                active &&
+                !modalOpen &&
+                !game.trial?.paused && (
+                  <MovePreview game={game} move={preview} />
+                )}
+              <div className="turn-controls">
+                <output className="move-message">
+                  {editing
+                    ? `${hasSeal(game, 'double-edit') ? (editFirst === null ? 'Выбери первую из двух фишек' : 'Выбери вторую фишку; Esc — отмена') : 'Выбери фишку'} → ${FAMILY_NAMES[editing]}`
+                    : message}
+                </output>
+              </div>
+            </section>
+            <aside className="loadout">
+              <div className="resource-row">
+                <div className="resource energy">
+                  <SkinIcon name="spark" size={40} />
+                  <strong>
+                    {s.energy}
+                    <small>/{energyMax(s)}</small>
+                  </strong>
+                  <span>Энергия</span>
+                </div>
+                <div className="resource focus">
+                  <SkinIcon name="focus" size={40} />
+                  <strong>
+                    {s.focus}
+                    <small>/{focusMax(s)}</small>
+                  </strong>
+                  <span>Фокус</span>
+                </div>
+              </div>
+              <EquipmentPanel game={s} onDetail={setDetail} />
+              {s.seal && (
+                <ActiveSeal seal={itemById(s.seal)!} onDetail={setDetail} />
+              )}
+              <div className="section-label">
+                <span className="eyebrow">ПРИЁМЫ</span>
+                <span>
+                  {tactical(s) && s.phase === 'battle'
+                    ? '1 действие + ресурс'
+                    : s.cast
+                      ? 'Использован'
+                      : '1 за ход'}
+                </span>
+              </div>
+              <div className="skills">
+                {[
+                  ...s.skills,
+                  ...((s.rulesVersion ?? 0) >= 4 && s.relics.includes('binding')
+                    ? ['binding']
+                    : []),
+                ].map((id) => (
+                  <Button
+                    key={id}
+                    variant="outline"
+                    className="skill-card"
+                    disabled={busy || !canCast(game, id)}
+                    onClick={() => void play(castSkill(game, id, selectedCell))}
+                  >
+                    <span className="skill-icon">
+                      <ItemIcon id={id} />
+                    </span>
+                    <span>
+                      <strong>{itemById(id)?.name}</strong>
+                      <small>
+                        {itemForRun(s, id)?.description}
+                        {id === 'binding' &&
+                          ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона с учётом защиты цели; останется ${bindingPreview(s).remainingBlock} блока.`}
+                      </small>
+                    </span>
+                  </Button>
+                ))}
+                <div className={`edit-skill ${editing ? 'active' : ''}`}>
+                  <Button
+                    variant="ghost"
+                    className="edit-trigger"
+                    disabled={busy || !canCast(s, 'edit') || !active}
+                    onClick={() => {
+                      setPreview(null);
+                      gesture.current = null;
+                      setEditing(editing ? null : 'blade');
+                      setEditFirst(null);
+                    }}
+                  >
+                    <SkinIcon name="focus" size={32} />
+                    <span>
+                      <strong>Правка поля</strong>
+                      <small>
+                        {hasSeal(game, 'double-edit')
+                          ? '3 фокуса · замени две разные фишки вместе'
+                          : '3 фокуса · замени одну фишку'}
+                      </small>
+                    </span>
+                  </Button>
+                  {editing && (
+                    <div className="family-choices">
+                      {FAMILIES.map((f) => {
+                        return (
+                          <button
+                            key={f}
+                            className={`tile-${f} ${editing === f ? 'chosen' : ''}`}
+                            aria-label={`Превратить в ${FAMILY_NAMES[f]}`}
+                            onClick={() => setEditing(f)}
+                          >
+                            <BoardTileArt
+                              family={f}
+                              weaponId={s.equipment.weapon}
+                              size={28}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="potion"
+                disabled={
+                  busy ||
+                  s.consumed ||
+                  !s.potions ||
+                  s.hp === s.maxHp ||
+                  !active
+                }
+                onClick={() => void play(consumePotion(game))}
+              >
+                <SkinIcon name="potion" size={36} />
+                <span>
+                  Лечебное зелье <small>+8 здоровья</small>
+                </span>
+                <b>×{s.potions}</b>
+              </Button>
+              <div className="section-label relic-label">
+                <span className="eyebrow">РЕЛИКВИИ</span>
+                <span>{s.relics.length}</span>
+              </div>
+              {s.relics.length ? (
+                <div className="relic-list">
+                  {s.relics.map((id) => (
+                    <button key={id} onClick={() => setDetail(id)}>
+                      <ItemIcon id={id} />
+                      <span>{itemById(id)?.name}</span>
+                      <CircleHelp size={12} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-relics">
+                  <SkinIcon name="relic" size={42} />
+                  <p>
+                    Первая находка
+                    <br />
+                    ждёт за этим боем.
+                  </p>
+                </div>
+              )}
+              {s.modifiers.length > 0 && (
+                <>
+                  <div className="section-label">
+                    <span className="eyebrow">МОДИФИКАТОРЫ ПОЛЯ</span>
+                    <span>{s.modifiers.length}/2</span>
+                  </div>
+                  <div className="modifier-list">
+                    {s.modifiers.map((id) => (
+                      <button key={id} onClick={() => setDetail(id)}>
+                        <ItemIcon id={id} />
+                        <span>{itemById(id)?.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {Object.values(s.upgrades).some((x) => x > 0) && (
+                <div className="upgrade-pips">
+                  {FAMILIES.filter((f) => s.upgrades[f] > 0).map((f) => (
+                    <span key={f}>
+                      {FAMILY_NAMES[f]} +{s.upgrades[f]}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="battle-log">
+                <span className="eyebrow">ХОД БОЯ</span>
+                {s.log.slice(0, 4).map((line, i) => (
+                  <p key={`${i}-${line}`} className={i === 0 ? 'latest' : ''}>
+                    {line}
+                  </p>
                 ))}
               </div>
-            </>
-          )}
-          {Object.values(s.upgrades).some((x) => x > 0) && (
-            <div className="upgrade-pips">
-              {FAMILIES.filter((f) => s.upgrades[f] > 0).map((f) => (
-                <span key={f}>
-                  {FAMILY_NAMES[f]} +{s.upgrades[f]}
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="battle-log">
-            <span className="eyebrow">ХОД БОЯ</span>
-            {s.log.slice(0, 4).map((line, i) => (
-              <p key={`${i}-${line}`} className={i === 0 ? 'latest' : ''}>
-                {line}
-              </p>
-            ))}
+            </aside>
           </div>
-        </aside>
-      </div>
-      <footer className="game-footer">
-        <span>
-          <Footprints size={14} /> Два биома. Двадцать комнат. Твоя сборка.
-        </span>
-        <span>
-          Выбери фишку + ← ↑ ↓ →
-          {' · Esc — отменить перетаскивание · Пробел — завершить ход'}
-        </span>
-      </footer>
-      {active && !modalOpen && !game.trial?.paused && (
-        <section className="battle-actions" aria-label="Управление ходом">
-          <div className="battle-actions-inner">
-            {tactical(s) && s.phase === 'battle' && (
-              <output className="action-counter">
-                Действия: {actionLeft(s)} / {actionMax(s)}
-                {s.relics.includes('borrowed-time') && (
-                  <small>В конце: −2 здоровья</small>
-                )}
-              </output>
-            )}
-            <span className="turn-shortcut">
-              Пробел — {game.phase === 'trial' ? 'пауза' : 'завершить ход'}
+          <footer className="game-footer">
+            <span>
+              <Footprints size={14} /> Два биома. Двадцать комнат. Твоя сборка.
             </span>
-            <Button
-              className="end-turn"
-              aria-keyshortcuts="Space"
-              onClick={() =>
-                void play(
-                  game.phase === 'trial'
-                    ? pauseTrial(game, true)
-                    : endTurn(game),
-                )
-              }
-              disabled={busy}
+            <span>
+              Выбери фишку + ← ↑ ↓ →
+              {' · Esc — отменить перетаскивание · Пробел — завершить ход'}
+            </span>
+          </footer>
+          {active && !modalOpen && !game.trial?.paused && (
+            <section className="battle-actions" aria-label="Управление ходом">
+              <div className="battle-actions-inner">
+                {tactical(s) && s.phase === 'battle' && (
+                  <output className="action-counter">
+                    Действия: {actionLeft(s)} / {actionMax(s)}
+                    {s.relics.includes('borrowed-time') && (
+                      <small>В конце: −2 здоровья</small>
+                    )}
+                  </output>
+                )}
+                <span className="turn-shortcut">
+                  Пробел — {game.phase === 'trial' ? 'пауза' : 'завершить ход'}
+                </span>
+                <Button
+                  className="end-turn"
+                  aria-keyshortcuts="Space"
+                  onClick={() =>
+                    void play(
+                      game.phase === 'trial'
+                        ? pauseTrial(game, true)
+                        : endTurn(game),
+                    )
+                  }
+                  disabled={busy}
+                >
+                  {game.phase === 'trial' ? 'Пауза' : 'Завершить ход'}{' '}
+                  {game.phase === 'trial' ? (
+                    <Pause size={17} />
+                  ) : (
+                    <ArrowRight size={17} />
+                  )}
+                </Button>
+              </div>
+            </section>
+          )}
+          {newDiscovery && (
+            <button
+              className="discovery-toast"
+              onClick={() => {
+                setDiscoveries(true);
+                setNewDiscovery('');
+              }}
             >
-              {game.phase === 'trial' ? 'Пауза' : 'Завершить ход'}{' '}
-              {game.phase === 'trial' ? (
-                <Pause size={17} />
-              ) : (
-                <ArrowRight size={17} />
-              )}
-            </Button>
-          </div>
-        </section>
+              <Gem size={20} />
+              <span>{newDiscovery}</span>
+              <ArrowRight size={15} />
+            </button>
+          )}
+          {screen === 'run' && (
+            <RunPanel
+              key={`${game.runId}:${game.phase}:${game.room}`}
+              game={game}
+              meta={meta}
+              busy={busy}
+              act={play}
+              restart={returnToOffice}
+            />
+          )}
+        </main>
       )}
-      {newDiscovery && (
-        <button
-          className="discovery-toast"
-          onClick={() => {
-            setDiscoveries(true);
-            setNewDiscovery('');
-          }}
-        >
-          <Gem size={20} />
-          <span>{newDiscovery}</span>
-          <ArrowRight size={15} />
-        </button>
-      )}
-      <RunPanel
-        key={`${game.runId}:${game.phase}:${game.room}`}
-        game={game}
-        meta={meta}
-        busy={busy}
-        act={play}
-        restart={() => setSettingsOpen(true)}
-      />
       <Discoveries
         game={game}
         open={discoveries}
@@ -1196,6 +1395,7 @@ export default function Game() {
         meta={meta}
       />
       <SettingsPanel
+        mode={settingsMode}
         meta={meta}
         currentHero={game.hero}
         currentDifficulty={game.difficulty}
@@ -1241,26 +1441,36 @@ export default function Game() {
       </Dialog>
       <AlertDialog open={restartConfirm} onOpenChange={setRestartConfirm}>
         <AlertDialogContent className="game-dialog">
-          <AlertDialogTitle>Начать новый спуск?</AlertDialogTitle>
+          <AlertDialogTitle>Вернуться к рабочему столу?</AlertDialogTitle>
           <AlertDialogDescription>
             Текущий незавершённый забег закончится. Открытия сохранятся, обычная
             серия побед сбросится.
           </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel>Продолжить этот</AlertDialogCancel>
-            <AlertDialogAction onClick={() => restart()}>
-              Новый спуск
+            <AlertDialogAction onClick={returnToOffice}>
+              Вернуться в офис
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <Dialog open={help} onOpenChange={setHelp}>
         <DialogContent className="game-dialog">
-          <DialogTitle>Как пройти крипту</DialogTitle>
+          <DialogTitle>Как выбраться из офиса</DialogTitle>
           <DialogDescription>
             Собирай комбинации, читай намерения врагов и строй свою сборку.
           </DialogDescription>
           <div className="help-copy">
+            <p>
+              В офисе ходи стрелками или WASD. Нажми E рядом со столом, коллегой
+              или дверью. Можно просто нажать на нужное место — герой подойдёт
+              сам. Дверь босса ведёт в комнаты. После поражения ты проснёшься за
+              столом; открытия сохранятся.
+            </p>
+            <p>
+              Меню сохраняет текущий спуск. Esc открывает его, а во время правки
+              или перетаскивания сначала отменяет выбранное действие.
+            </p>
             <p>
               Перетащи фишку вдоль строки или столбца. Двигается вся линия;
               вышедшие за край фишки возвращаются с другой стороны.
@@ -1300,6 +1510,6 @@ export default function Game() {
           <Button onClick={() => setHelp(false)}>Всё понятно</Button>
         </DialogContent>
       </Dialog>
-    </main>
+    </>
   );
 }
