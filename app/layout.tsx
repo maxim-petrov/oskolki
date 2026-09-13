@@ -3,6 +3,7 @@ import './globals.css';
 import './palace.css';
 import './palace-cellar.css';
 import './office.css';
+import './figma-level.css';
 import { VISUAL_STYLE } from '@/game/visual-style';
 export const metadata: Metadata = {
   title: 'Осколки — Дворец слов',

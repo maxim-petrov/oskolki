@@ -1,0 +1,736 @@
+/* Figma v2, 1672 × 941. Deliberately scoped to this branch's single-room scene. */
+.figma-level {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #101e27;
+  overflow: hidden;
+  color: #f2efdf;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+.level-viewport {
+  width: min(100vw, calc(100dvh * 1672 / 941));
+  aspect-ratio: 1672 / 941;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.level-scene {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1672px;
+  height: 941px;
+  transform-origin: top left;
+  --foreground-x: 0px;
+  --foreground-y: 0px;
+}
+.figma-level img {
+  user-select: none;
+  -webkit-user-drag: none;
+  max-width: none;
+}
+.figma-level button {
+  font-family: inherit;
+  touch-action: manipulation;
+}
+.figma-level button:focus-visible {
+  outline: 3px solid #9beaff;
+  outline-offset: 4px;
+}
+.level-cutout {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+.level-cutout img {
+  position: absolute;
+  max-width: none;
+}
+.level-background {
+  position: absolute;
+  left: -25px;
+  top: -14px;
+  width: 1722px;
+  height: 969px;
+  pointer-events: none;
+}
+.level-shadow {
+  position: absolute;
+  top: 677px;
+  width: 274px;
+  pointer-events: none;
+}
+.hero-shadow {
+  left: 74px;
+  height: 21px;
+}
+.enemy-shadow {
+  left: 1273px;
+  height: 28px;
+  transform: scaleX(-1);
+}
+.level-actor {
+  position: absolute;
+  transform-origin: 50% 90%;
+  z-index: 2;
+  transition:
+    transform 100ms,
+    opacity 200ms;
+  pointer-events: none;
+}
+.level-actor > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.level-hero {
+  left: 107px;
+  top: 338px;
+  width: 228px;
+  height: 364px;
+}
+.level-enemy {
+  left: 1227px;
+  top: 366px;
+  width: 366px;
+  height: 366px;
+}
+.level-hero.pose-windup {
+  transform: translateX(-10px) rotate(-3deg);
+}
+.level-hero.pose-strike {
+  transform: translateX(45px) rotate(3deg);
+}
+.level-enemy.pose-windup {
+  transform: translateX(10px) rotate(3deg);
+}
+.level-enemy.pose-strike {
+  transform: translateX(-35px) rotate(-3deg);
+}
+.level-actor.pose-hurt {
+  animation: level-hit 250ms steps(3);
+}
+.level-actor.pose-guard {
+  transform: translateY(3px);
+}
+.level-actor.pose-death {
+  opacity: 0.25;
+  transform: translateY(24px) rotate(12deg);
+}
+.level-damage {
+  position: absolute;
+  left: 42%;
+  top: -30px;
+  color: #ff8874;
+  font-size: 48px;
+  font-weight: 900;
+  -webkit-text-stroke: 1.5px #1b2021;
+  text-shadow: 3px 4px #101d27;
+  animation: level-number 300ms ease-out both;
+}
+.level-damage.gain {
+  color: #a9e8ff;
+}
+.level-board-frame {
+  position: absolute;
+  left: 542px;
+  top: 123px;
+  width: 588px;
+  height: 588px;
+  z-index: 3;
+  pointer-events: none;
+}
+.level-board-frame img {
+  width: 100%;
+  height: 100%;
+}
+.level-board {
+  position: absolute;
+  left: 573px;
+  top: 156px;
+  width: 527px;
+  height: 527px;
+  display: grid;
+  grid-template-rows: repeat(8, 1fr);
+  gap: 10px;
+  z-index: 4;
+}
+.level-board-row {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 10px;
+  min-height: 0;
+}
+.level-board [role='gridcell'] {
+  min-width: 0;
+  min-height: 0;
+}
+.figma-level .level-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  touch-action: none;
+  transition:
+    transform 110ms,
+    filter 110ms;
+}
+.level-tile:hover:not(:disabled),
+.level-tile.is-selected {
+  transform: translateY(-2px);
+  filter: brightness(1.12);
+}
+.level-tile.is-selected::after,
+.level-tile.is-matched::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 2px solid #c5f0fd;
+  border-radius: 5px;
+  pointer-events: none;
+}
+.level-tile.is-matched {
+  transform: scale(1.05);
+  filter: brightness(1.35);
+}
+.level-tile.is-editable {
+  outline: 1px dashed #a0c685;
+  outline-offset: 2px;
+}
+.level-tile:disabled {
+  opacity: 1;
+}
+.level-tap-controls {
+  position: absolute;
+  left: 704px;
+  top: 703px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+.level-tap-controls button {
+  width: 60px;
+  height: 38px;
+  font-size: 24px;
+  background: #183544;
+  border: 2px solid #7996a3;
+  color: #d9edf2;
+}
+.level-health-hud {
+  position: absolute;
+  left: 33px;
+  top: 16px;
+  width: 439px;
+  height: 166px;
+  z-index: 5;
+}
+.hud-base {
+  width: 100%;
+  height: 100%;
+}
+.level-heart,
+.level-drop {
+  display: block;
+  position: absolute;
+}
+.level-heart {
+  top: 33.12%;
+  width: 9.61%;
+  height: 25.07%;
+  clip-path: polygon(
+    0 18%,
+    18% 0,
+    39% 0,
+    50% 12%,
+    61% 0,
+    83% 0,
+    100% 18%,
+    100% 49%,
+    54% 100%,
+    46% 100%,
+    0 49%
+  );
+}
+.level-drop {
+  top: 64.03%;
+  width: 5.64%;
+  height: 20%;
+  clip-path: polygon(
+    50% 0,
+    100% 45%,
+    100% 78%,
+    72% 100%,
+    28% 100%,
+    0 78%,
+    0 45%
+  );
+}
+.empty-resource {
+  filter: grayscale(1) brightness(0.3);
+}
+.resource-fill {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.level-resource-caption {
+  position: absolute;
+  left: 163px;
+  top: 163px;
+  font-size: 18px;
+  font-weight: 700;
+  text-shadow: 2px 2px #0b1921;
+  white-space: nowrap;
+  display: flex;
+  gap: 20px;
+}
+.level-resource-caption span {
+  color: #a5e7f9;
+}
+.level-hero-buffs {
+  position: absolute;
+  top: 217px;
+  left: 115px;
+  display: flex;
+  gap: 20px;
+  z-index: 5;
+  font-size: 21px;
+  text-shadow: 2px 2px #132734;
+}
+.level-hero-buffs b {
+  color: #bbf0fb;
+  margin-left: 6px;
+}
+.level-round {
+  position: absolute;
+  top: 35px;
+  left: 1372px;
+  width: 267px;
+  height: 91px;
+  z-index: 5;
+}
+.level-round img {
+  width: 100%;
+  height: 100%;
+}
+.level-round > span {
+  position: absolute;
+  left: 43px;
+  right: 33px;
+  top: 26px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  background: #d4c6a8;
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -1.5px;
+  color: #0c2535;
+}
+.level-enemy-token {
+  position: absolute;
+  top: 106px;
+  left: 1467px;
+  width: 78px;
+  height: 78px;
+  z-index: 5;
+}
+.level-enemy-info {
+  position: absolute;
+  left: 1260px;
+  top: 267px;
+  width: 300px;
+  text-align: center;
+  z-index: 5;
+}
+.level-enemy-name {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 23px;
+  font-weight: bold;
+  text-shadow: 2px 2px #152936;
+}
+.level-enemy-health {
+  position: relative;
+  height: 22px;
+  background: #18262d;
+  border: 2px solid #0b1921;
+  box-shadow: 0 2px #769099;
+}
+.level-enemy-health > span {
+  display: block;
+  height: 100%;
+  background: #b96353;
+  transition: width 180ms;
+}
+.level-enemy-health b {
+  position: absolute;
+  inset: 0;
+  font-size: 15px;
+  line-height: 18px;
+  color: #fff4e4;
+  text-shadow: 1px 1px #241c1a;
+}
+.level-intent {
+  display: block;
+  font-size: 19px;
+  margin-top: 9px;
+  color: #f0d5b6;
+  text-shadow: 2px 2px #13242c;
+}
+.level-top-controls {
+  position: absolute;
+  left: 650px;
+  top: 32px;
+  display: flex;
+  gap: 12px;
+  z-index: 10;
+}
+.level-top-controls button {
+  padding: 7px 12px;
+  color: #dceaf0;
+  background: #152d3ae6;
+  border: 1px solid #6d8794;
+  border-radius: 3px;
+  font-size: 18px;
+}
+.level-top-controls kbd {
+  font-size: 13px;
+  color: #9ebbc8;
+  padding-left: 6px;
+}
+.level-foreground {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  filter: blur(4px);
+  will-change: transform;
+}
+.level-foreground-left {
+  left: -127px;
+  top: 411px;
+  width: 760px;
+  height: 694px;
+  transform: translate(var(--foreground-x), var(--foreground-y));
+}
+.level-foreground-right {
+  left: 1203px;
+  top: 469px;
+  width: 593px;
+  height: 556px;
+  transform: translate(
+    calc(var(--foreground-x) * 0.8),
+    calc(var(--foreground-y) * 0.8)
+  );
+}
+.level-feedback {
+  position: absolute;
+  left: 430px;
+  top: 745px;
+  width: 810px;
+  z-index: 10;
+  text-align: center;
+  font-size: 18px;
+  color: #ebf3ee;
+  text-shadow: 1px 2px 2px #0a1a22;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.level-feedback.is-preview {
+  color: #d7f7a1;
+  font-weight: bold;
+}
+.level-actionbar {
+  position: absolute;
+  left: 348px;
+  top: 771px;
+  width: 963px;
+  height: 140px;
+  z-index: 11;
+}
+.level-actions-label {
+  position: absolute;
+  left: 64px;
+  top: 40px;
+  width: 102px;
+  height: 23px;
+  background: #345268;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 23px;
+  text-align: center;
+}
+.level-action-pips {
+  position: absolute;
+  left: 65px;
+  top: 69px;
+  width: 170px;
+  height: 42px;
+  display: flex;
+  gap: 4px;
+  background: #102e40;
+}
+.level-action-pips .level-cutout {
+  width: 30px;
+  height: 42px;
+  flex: none;
+}
+.figma-level .level-ability {
+  position: absolute;
+  top: 26px;
+  width: 80px;
+  height: 104px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  transition:
+    transform 110ms,
+    filter 110ms;
+}
+.level-ability:hover:not(:disabled),
+.level-ability:focus-visible {
+  transform: translateY(-6px);
+  filter: brightness(1.15);
+}
+.level-ability.unavailable {
+  filter: grayscale(0.9) brightness(0.58);
+}
+.level-ability.armed {
+  outline: 3px solid #bcf888;
+  outline-offset: 1px;
+}
+.figma-level .level-end-turn {
+  position: absolute;
+  left: 739px;
+  top: 46px;
+  width: 191px;
+  height: 56px;
+  border: 0;
+  background: #07582e;
+  color: #edf5df;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-weight: 900;
+  font-size: 21px;
+  text-shadow: 2px 2px #00241b;
+}
+.level-end-turn kbd {
+  background: #143b50;
+  border: 2px solid #51758b;
+  box-shadow: 2px 3px #031622;
+  padding: 1px 5px;
+  font-size: 21px;
+}
+.level-end-turn:hover:not(:disabled) {
+  filter: brightness(1.25);
+}
+.level-end-turn:disabled {
+  filter: grayscale(0.8) brightness(0.55);
+}
+.level-ability-tooltip {
+  position: absolute;
+  z-index: 20;
+  left: 550px;
+  top: 616px;
+  width: 570px;
+  padding: 18px 25px;
+  background: #142d3cf7;
+  border: 2px solid #91a9b6;
+  box-shadow: 4px 5px #071b28;
+  display: grid;
+  gap: 5px;
+  font-size: 23px;
+  text-align: center;
+  pointer-events: none;
+}
+.level-ability-tooltip strong {
+  color: #f3dfb6;
+}
+.level-ability-tooltip small {
+  font-size: 18px;
+  color: #94c8dc;
+}
+.level-edit-picker {
+  position: absolute;
+  z-index: 21;
+  left: 601px;
+  top: 690px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #143044;
+  border: 2px solid #99b3b7;
+}
+.level-edit-picker button {
+  background: transparent;
+  padding: 0;
+  width: 54px;
+  height: 54px;
+  border: 0;
+}
+.level-edit-picker [aria-pressed='true'] {
+  outline: 3px solid #d6f7a3;
+}
+.level-edit-picker .level-edit-cancel {
+  width: 104px;
+  font-size: 21px;
+}
+.level-outcome {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #07121bc4;
+}
+.level-outcome section {
+  width: 680px;
+  padding: 44px;
+  text-align: center;
+  background: #d8cbae;
+  color: #102938;
+  border: 5px solid #142a36;
+  box-shadow: 12px 14px #051723;
+}
+.level-outcome h1 {
+  font:
+    900 42px/1.1 'Trebuchet MS',
+    sans-serif;
+  margin: 16px 0;
+}
+.level-outcome p {
+  font-size: 23px;
+  line-height: 1.4;
+}
+.level-outcome .level-result-numbers {
+  font-size: 19px;
+  margin: 22px 0;
+}
+.level-eyebrow {
+  font-size: 17px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.level-outcome button {
+  margin-top: 14px;
+  background: #196044;
+  border: 3px solid #103c2c;
+  color: #fff6dc;
+  padding: 16px 24px;
+  font-size: 24px;
+  font-weight: bold;
+}
+.level-dialog {
+  background: #ded1b8 !important;
+  color: #122c3b !important;
+  border: 4px solid #173a4d !important;
+  border-radius: 2px !important;
+  box-shadow: 8px 10px #071927 !important;
+  max-height: 90dvh;
+  overflow: auto;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+.level-dialog h2 {
+  font:
+    900 28px/1.15 'Trebuchet MS',
+    sans-serif;
+}
+.level-dialog p {
+  color: #364650;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.level-dialog > button:not([data-slot='dialog-close']) {
+  background: #b9b6a7;
+  border: 2px solid #577080;
+  padding: 12px 20px;
+  font-size: 17px;
+  font-weight: bold;
+  border-radius: 0;
+}
+.level-dialog > .level-dialog-primary {
+  background: #22694f !important;
+  color: #fff4d9;
+  border-color: #163e31 !important;
+}
+.level-parallax-setting {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  font-size: 16px;
+  padding: 18px 0;
+}
+.level-parallax-setting input {
+  grid-column: 1/-1;
+  width: 100%;
+  accent-color: #22694f;
+}
+.level-help-families {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.level-help-families > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.level-help-families .level-cutout {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.level-help-families b {
+  display: block;
+}
+.level-help-families span {
+  font-size: 14px;
+}
+@keyframes level-hit {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(-9px);
+  }
+  65% {
+    transform: translateX(7px);
+  }
+}
+@keyframes level-number {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-12px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .figma-level *,
+  .figma-level *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .level-foreground {
+    transform: none !important;
+  }
+}

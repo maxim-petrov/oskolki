@@ -20,6 +20,8 @@ Browser prototype of a turn-based match-3 roguelike. Russian interface.
 
 ## Mandatory visual direction
 
+- **Branch exception — `feat/figma-office-level`:** the latest user-requested reference is [Figma 0:3](https://www.figma.com/design/oQUqsv6j6kx8QhyIJ5GP04/Untitled?node-id=0-3). Read [docs/figma-office-level.md](docs/figma-office-level.md) for this isolated one-room implementation. Its `/` route deliberately uses the exact supplied artwork and layout; do not convert it back to Pronoun Palace. The existing campaign is preserved at `/campaign` and continues to follow the contract below. Keep experimental state separate from campaign saves.
+
 - Read [docs/visual-style.md](docs/visual-style.md) before any artwork, palette, UI or animation-style change. It is the canonical visual contract for both biomes and every screen.
 - Preserve the original hero and purple filing-cabinet enemy in `public/art/pronoun-palace/actors.png` as the visual anchors. Compare new assets with them at actual gameplay size.
 - Use flat Pronoun Palace-like pixel cartoons: thick stepped dark contours, simple silhouettes, few flat shades, quiet backgrounds and light paper UI. Do not substitute detailed/painterly pixel art or realistic dungeon scenes.

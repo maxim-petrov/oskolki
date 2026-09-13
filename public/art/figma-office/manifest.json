@@ -1,0 +1,144 @@
+{
+  "source": "https://www.figma.com/design/oQUqsv6j6kx8QhyIJ5GP04/Untitled?node-id=0-3",
+  "frame": "0:3",
+  "frameSize": [
+    1672,
+    941
+  ],
+  "exportedOn": "2026-09-13",
+  "method": "Figma get_design_context; original exported bytes; CSS-only display crops",
+  "assets": [
+    {
+      "file": "imgBackground.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/3c604633-0845-4740-8fe0-d57e45c9bdc7.png",
+      "sha256": "1f317e45755afe21ae94c6cd67f1d6b4ae9b5c568f3d2f86cee13f631085bdce",
+      "bytes": 508396,
+      "size": [
+        1024,
+        577
+      ]
+    },
+    {
+      "file": "imgImage34.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/aefdd29a-ce38-4ccb-9870-972dfe7916ef.png",
+      "sha256": "9db5b977ece52d997021c1b3d68eb3911ea71aea7bcc71ed352d72f6b4df52d1",
+      "bytes": 1241748,
+      "size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "imgImage37.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/5407d309-00d8-426d-8f79-f77a3908086f.png",
+      "sha256": "63499dc5913e6e3332e08b75b86846ae8e8cec6f6d37b5559df0f5141c09b222",
+      "bytes": 1335592,
+      "size": [
+        2041,
+        770
+      ]
+    },
+    {
+      "file": "imgImage39.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/d5318fd0-d919-4175-9a87-1fcced7ed10d.png",
+      "sha256": "c07de249a91bd7991219687add9d69f8cb67fc1bda5e7630b513bc2e5eaa12e4",
+      "bytes": 934088,
+      "size": [
+        2172,
+        724
+      ]
+    },
+    {
+      "file": "imgImage41.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/02284853-4703-4fbd-9a48-68a2c6bcfc8d.png",
+      "sha256": "c6b52634ad108dd929a399b920291c46d34bc8a1ea629c3377dd1109c675c36c",
+      "bytes": 755518,
+      "size": [
+        1151,
+        1367
+      ]
+    },
+    {
+      "file": "imgForeground.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/c595a849-07c4-41b3-b26b-50f326b001e8.png",
+      "sha256": "ef8d3f6eb573e16330e8e45691decc66e20798c0d41e6fc396cf280939c85f0c",
+      "bytes": 583473,
+      "size": [
+        1672,
+        941
+      ]
+    },
+    {
+      "file": "imgForeground1.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/7980a1e9-26b9-42f2-b202-90bd4bb88a66.png",
+      "sha256": "77b793e6ff2bda3a2deec5c46688888888eb443cecb0b6b92c0a0cf7e5f901d9",
+      "bytes": 477401,
+      "size": [
+        1672,
+        941
+      ]
+    },
+    {
+      "file": "imgImage54.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/e786c27c-e54f-4ddb-8009-24cea017ab33.png",
+      "sha256": "4a1be01cc82d3a2d0e3d252ef68c624d140440f67b7c0631e52478b2d61ea639",
+      "bytes": 1218950,
+      "size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "imgImage58.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/6203ce48-dfa2-46f8-9d6f-57b016803ba2.png",
+      "sha256": "eea59ca398064bc2d18df9965ccdbd1cd4e478fa51627ebebe9b171b6036da85",
+      "bytes": 1254818,
+      "size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "imgSubtract.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/0bf7843c-cba5-45bc-befe-8d41fb7bb972.png",
+      "sha256": "71342d0fdf66132bb6a7bb351dc7b78a0335f3cf14c7701f1ae48466887f0ee6",
+      "bytes": 76660,
+      "size": [
+        534,
+        183
+      ]
+    },
+    {
+      "file": "imgImage125.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/cdb4b3c4-8e8d-4a40-bbfc-76c8da25ed91.png",
+      "sha256": "8b3a537a1f6964f784e7d09d20ee4e918ef02976db7947a2b6c0c1521ce4e67f",
+      "bytes": 914748,
+      "size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "imgImage126.png",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/065624f2-bd18-424c-8d4a-8b8bc0236873.png",
+      "sha256": "b357b4c3b53bd57e9d3cf456bf0f63129863743cdedefa1c820688f4b83bc27e",
+      "bytes": 1150601,
+      "size": [
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "imgVector1.svg",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/f9acb647-0d2a-46b0-b064-f29857609981.svg",
+      "sha256": "820df7a0fee37a68623ade4ca94235a69c8077ffea8b5b74b8958122e34c9169",
+      "bytes": 397
+    },
+    {
+      "file": "imgVector2.svg",
+      "sourceUrl": "https://www.figma.com/api/mcp/asset/7a35e7a1-2c9b-4338-bf48-06da6d20ec14.svg",
+      "sha256": "cf0c3f8ba006034b3a0af7e5df3fddf5a01a0646094cfb834e82e38264eb3857",
+      "bytes": 386
+    }
+  ]
+}
