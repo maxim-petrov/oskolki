@@ -34,6 +34,8 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import {
+  workshopOffers,
+  buyWorkshop,
   ACHIEVEMENTS,
   HEROES,
   CHALLENGES,
@@ -61,7 +63,33 @@ import {
   type Offer,
   type Balance,
 } from '@/game/engine';
+const INTERACTION_ICONS: Record<string, string> = {
+  'ring-clasp': 'M8 9h16v14H8Z M3 16h10m6 0h10M5 12l-4 4 4 4m22-8 4 4-4 4',
+  'mirror-signature': 'M6 4h20v24H6Z M11 8l10 10M11 14l8 8',
+  'defective-copy': 'M8 8h12v16H8Z M13 4h12v16M11 13h2m2 0h2M12 19h4',
+  'ash-register': 'M6 4h20v24H6Z M10 9h12M10 14h8m-8 5h4M21 21l-3 5h6Z',
+  imprint: 'M9 5h14v7H9Z M12 12v7h8v-7M6 20h20v5H6Z',
+  'row-rupture': 'M4 5h24v6H4Zm0 16h24v6H4ZM2 16h9l4-4 3 8 3-4h9',
+  defer:
+    'M6 4h20M6 28h20M9 4c0 7 7 8 7 12s-7 5-7 12M23 4c0 7-7 8-7 12s7 5 7 12',
+};
 export const ItemIcon = ({ id }: { id: string }) => {
+  if (INTERACTION_ICONS[id])
+    return (
+      <svg
+        width="34"
+        height="34"
+        viewBox="0 0 32 32"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d={INTERACTION_ICONS[id]} />
+      </svg>
+    );
   if (
     [
       'tape',
@@ -125,6 +153,7 @@ export function RunPanel({
   act: (r: Result) => Promise<void>;
   restart: () => void;
 }) {
+  const [workshopPending, setWorkshopPending] = useState(false);
   const [pending, setPending] = useState<Offer | null>(null);
   const [speech, setSpeech] = useState<{
     runId: string;
@@ -302,14 +331,21 @@ export function RunPanel({
               />
             ) : pending.kind === 'equipment' ? (
               <>
-                <EquipmentComparison game={s} id={pending.id} />
+                <EquipmentComparison
+                  game={s}
+                  id={pending.id}
+                  quality={pending.quality}
+                />
                 {s.phase === 'shop' && <ShopPrice offer={pending} />}
                 <Button
                   disabled={
                     busy || (s.phase === 'shop' && s.gold < (pending.cost ?? 0))
                   }
                   onClick={() => {
-                    if (s.phase === 'shop') purchase(pending);
+                    if (workshopPending) {
+                      void act(buyWorkshop(s, pending.id));
+                      setWorkshopPending(false);
+                    } else if (s.phase === 'shop') purchase(pending);
                     else void act(chooseReward(s, pending.id));
                     setPending(null);
                   }}
@@ -339,7 +375,13 @@ export function RunPanel({
                 )}
               </div>
             )}
-            <Button variant="ghost" onClick={() => setPending(null)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPending(null);
+                setWorkshopPending(false);
+              }}
+            >
               <ArrowLeft />
               Вернуться к находкам
             </Button>
@@ -398,6 +440,37 @@ export function RunPanel({
                     </button>
                   ))}
               </div>
+            )}
+            {s.phase === 'shop' && workshopOffers(s).length > 0 && (
+              <section
+                className="workshop-panel"
+                aria-label="Мастерская оружия"
+              >
+                <h3>Мастерская Саввы</h3>
+                <p>
+                  Сменить тип оружия · 28 монет. Качество сохранится. Одна
+                  переделка за визит.
+                </p>
+                <div className="upgrade-grid">
+                  {workshopOffers(s).map((o) => (
+                    <Button
+                      variant="outline"
+                      key={o.id}
+                      disabled={busy || s.gold < 28}
+                      onClick={() => {
+                        setWorkshopPending(true);
+                        setPending(o);
+                      }}
+                    >
+                      <EquipmentIcon id={o.id} size={32} />
+                      <span>
+                        <strong>{o.name}</strong>
+                        <small>{o.tag}</small>
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </section>
             )}
             {s.phase === 'reward' && (
               <RewardActions game={s} busy={busy} act={act} />

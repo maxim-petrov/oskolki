@@ -1,7 +1,14 @@
 import { VISUAL_STYLE } from './visual-style';
 import {
+  previewEndTurn,
+  acceptContract,
+  canAcceptContract,
+  buyWorkshop,
+  workshopOffers,
+  toggleInsurance,
   tactical,
   boardSize,
+  matchRules,
   minimumMatch,
   actionLeft,
   actionMax,
@@ -41,6 +48,9 @@ import {
 } from './engine';
 
 const actions = [
+  'accept_contract',
+  'buy_workshop',
+  'toggle_insurance',
   'shift',
   'cast',
   'end_turn',
@@ -62,18 +72,21 @@ export const actionSchema = {
   properties: {
     action: { type: 'string', enum: actions },
     axis: { type: 'string', enum: ['row', 'col'] },
-    line: { type: 'integer', minimum: 0, maximum: 5 },
-    amount: { type: 'integer', minimum: -5, maximum: 5 },
+    line: { type: 'integer', minimum: 0, maximum: 6 },
+    amount: { type: 'integer', minimum: -6, maximum: 6 },
     id: { type: ['string', 'null'] },
     slot: { type: 'integer', minimum: 0, maximum: 1 },
-    index: { type: 'integer', minimum: 0, maximum: 35 },
-    secondIndex: { type: 'integer', minimum: 0, maximum: 35 },
+    index: { type: 'integer', minimum: 0, maximum: 48 },
+    secondIndex: { type: 'integer', minimum: 0, maximum: 48 },
     family: { type: 'string', enum: FAMILIES },
     target: { type: 'integer' },
     paused: { type: 'boolean' },
   },
 };
 const fields: Record<string, string[]> = {
+  accept_contract: [],
+  buy_workshop: ['id'],
+  toggle_insurance: [],
   shift: ['axis', 'line', 'amount'],
   cast: ['id', 'index', 'family', 'secondIndex'],
   end_turn: [],
@@ -116,15 +129,31 @@ export function gameAction(s: State, input: unknown): Result {
     if (s.phase !== phase) throw Error(`Действие доступно только в ${phase}.`);
   };
   switch (p.action) {
+    case 'accept_contract':
+      return acceptContract(s);
+    case 'buy_workshop':
+      return buyWorkshop(s, id());
+    case 'toggle_insurance':
+      return toggleInsurance(s);
     case 'shift': {
       if (p.axis !== 'row' && p.axis !== 'col')
         throw Error('Ось: row или col.');
-      const amount = integer('amount', -5, 5);
+      const amount = integer(
+        'amount',
+        1 - boardSize(s.board),
+        boardSize(s.board) - 1,
+      );
       if (!amount) throw Error('Сдвиг не может быть нулевым.');
-      return move(s, p.axis, integer('line', 0, 5), amount);
+      return move(
+        s,
+        p.axis,
+        integer('line', 0, boardSize(s.board) - 1),
+        amount,
+      );
     }
     case 'cast': {
-      const index = p.index === undefined ? 0 : integer('index', 0, 35);
+      const index =
+        p.index === undefined ? 0 : integer('index', 0, s.board.length - 1);
       const family = p.family ?? 'blade';
       if (!FAMILIES.includes(family as Family))
         throw Error('Неизвестное семейство.');
@@ -133,7 +162,9 @@ export function gameAction(s: State, input: unknown): Result {
         id(),
         index,
         family as Family,
-        p.secondIndex === undefined ? undefined : integer('secondIndex', 0, 35),
+        p.secondIndex === undefined
+          ? undefined
+          : integer('secondIndex', 0, s.board.length - 1),
       );
     }
     case 'end_turn':
@@ -180,15 +211,17 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
   return {
     phase: s.phase,
     rulesVersion:
-      s.rulesVersion === 5
-        ? 'v0.3-tactics'
-        : s.rulesVersion === 4
-          ? 'v0.2-stage3'
-          : s.rulesVersion === 3
-            ? 'v0.2-stage2'
-            : s.rulesVersion === 2
-              ? 'v0.2'
-              : 'classic',
+      s.rulesVersion === 6
+        ? 'v0.4-interactions'
+        : s.rulesVersion === 5
+          ? 'v0.3-tactics'
+          : s.rulesVersion === 4
+            ? 'v0.2-stage3'
+            : s.rulesVersion === 3
+              ? 'v0.2-stage2'
+              : s.rulesVersion === 2
+                ? 'v0.2'
+                : 'classic',
     hero: s.hero ?? 'wanderer',
     challenge: s.challenge ?? null,
     difficulty: s.difficulty ?? 0,
@@ -200,6 +233,14 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
     canRerollTreasure: canRerollTreasure(s),
     map: routeMap(s),
     weapon: equipmentForRun(s, s.equipment.weapon),
+    endTurnPreview:
+      s.equipment.trousers === 'gear-collateral-belt'
+        ? previewEndTurn(s)
+        : null,
+    interactions: s.effectState ?? null,
+    workshop: s.phase === 'shop' ? workshopOffers(s) : [],
+    eliteContract: s.eliteContract ?? null,
+    canAcceptContract: canAcceptContract(s),
     runeReady: s.flags.includes('turn:rune-armed'),
     restOptions: s.phase === 'rest' ? restOptions(s) : [],
     seed: s.seed >>> 0,
@@ -258,13 +299,13 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
       canShift(s) &&
       ['battle', 'trial'].includes(s.phase) &&
       !s.trial?.paused
-        ? validMoves(s.board, minimumMatch(s))
+        ? validMoves(s.board, minimumMatch(s), matchRules(s).ring)
             .filter(
               (m) =>
                 !lineLocked(s, m.axis, m.line) &&
                 (!tactical(s) ||
                   s.phase === 'trial' ||
-                  shiftCost(s, m.amount) <= actionLeft(s)),
+                  shiftCost(s, m.amount, m.axis) <= actionLeft(s)),
             )
             .map(({ axis, line, amount }) => ({
               axis,

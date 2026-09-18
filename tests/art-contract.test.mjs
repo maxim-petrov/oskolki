@@ -41,7 +41,10 @@ test('archived equipment atlas is intact and active equipment renders as vectors
       );
   }
   const items = EQUIPMENT.filter((item) => item.slot !== 'weapon');
-  assert.equal(new Set(items.map((item) => item.icon)).size, items.length);
+  assert.equal(
+    new Set(items.filter((i) => !i.since).map((item) => item.icon)).size,
+    items.filter((i) => !i.since).length,
+  );
   for (const item of items) {
     const html = renderToStaticMarkup(
       createElement(EquipmentIcon, { id: item.id }),

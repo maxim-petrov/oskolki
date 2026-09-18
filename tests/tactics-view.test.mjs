@@ -83,7 +83,7 @@ test('all support and board-control intentions have icons and readable explanati
 test('public game controls expose AP, match threshold and real hidden routes; unknown doors resolve through normal entry', () => {
   let s = g.startRun(42);
   const first = gameSnapshot(s, false);
-  assert.equal(first.rulesVersion, 'v0.3-tactics');
+  assert.equal(first.rulesVersion, 'v0.4-interactions');
   assert.deepEqual(first.actions, { left: 3, max: 3 });
   assert.equal(first.boardSize, 6);
   assert.equal(first.minimumMatch, 3);
@@ -119,4 +119,54 @@ test('public game controls expose AP, match threshold and real hidden routes; un
   const entered = gameAction(s, { action: 'enter_room', id });
   assert.equal(entered.error, undefined);
   assert.equal(entered.state.roomKind, raw.kind);
+});
+
+test('rules-6 UI and structured actions expose the same belt forecast, ring rules and workshop choices', async () => {
+  const { InteractionStatus } =
+    await import('../components/interaction-status.tsx');
+  let s = g.startRun(42);
+  s.equipment.trousers = 'gear-collateral-belt';
+  s.relics = ['ring-clasp', 'defective-copy'];
+  s.effectState.companion = 2;
+  const before = g.copy(s),
+    snapshot = gameSnapshot(s, false),
+    html = render(InteractionStatus, {
+      game: s,
+      busy: false,
+      act: () => {
+        throw Error('render cannot act');
+      },
+    });
+  assert.match(html, /Кольцо/);
+  assert.match(html, /Копия 2\/3/);
+  assert.match(html, /Ответ:/);
+  assert.deepEqual(snapshot.endTurnPreview, g.previewEndTurn(s));
+  assert.deepEqual(s, before);
+  s = gameAction(s, { action: 'toggle_insurance' }).state;
+  assert.equal(s.effectState.insurance, false);
+  const icons = [...g.INTERACTION_RELIC_IDS, ...g.INTERACTION_SKILL_IDS].map(
+    (id) => render(ItemIcon, { id }),
+  );
+  assert.equal(new Set(icons).size, 7);
+  assert.ok(icons.every((h) => h.includes('<svg') && !h.includes('<image')));
+});
+test('structured actions accept the seventh row and cell on a warped 7x7 board', () => {
+  const s = g.startRun(42);
+  s.board = Array.from({ length: 49 }, (_, i) => ({
+    id: 100 + i,
+    family: g.FAMILIES[((i % 7) + Math.floor(i / 7)) % 4],
+    variant: null,
+  }));
+  s.serial = 200;
+  s.boardWarp = { size: 7, expires: 3 };
+  s.skills = ['row-rupture'];
+  s.focus = 6;
+  assert.equal(
+    gameAction(s, { action: 'shift', axis: 'row', line: 6, amount: 1 }).error,
+    undefined,
+  );
+  assert.equal(
+    gameAction(s, { action: 'cast', id: 'row-rupture', index: 48 }).error,
+    undefined,
+  );
 });

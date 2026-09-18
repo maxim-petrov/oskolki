@@ -35,12 +35,20 @@ export function EquipmentIcon({
       strokeLinejoin="round"
       fill="#e6eaf0"
     >
-      {item.slot === 'helmet' ? (
+      {item.id === 'gear-collateral-belt' ? (
+        <>
+          <path d="M3 12h26v9H3Z" />
+          <path d="M12 10h8v13h-8Z M16 15h7" />
+        </>
+      ) : item.slot === 'helmet' ? (
         <path d="M5 22V15a11 11 0 0 1 22 0v7h-8v5h-6v-5ZM16 5v12" />
       ) : item.slot === 'clothing' ? (
         <path d="m11 4-8 8 5 5 3-3v14h10V14l3 3 5-5-8-8-5 5Z" />
       ) : (
         <path d="M8 4h16l2 24h-8l-2-15-2 15H6Z M8 9h16" />
+      )}
+      {item.id === 'gear-courier-jacket' && (
+        <path d="m11 18 10-7M10 19h7v6h-7Z" fill={TINT.blue} />
       )}
       {Array.from({ length: item.tier }, (_, i) => (
         <path
@@ -112,9 +120,17 @@ export function EquipmentPanel({
   );
 }
 
-export function EquipmentComparison({ game, id }: { game: State; id: string }) {
+export function EquipmentComparison({
+  game,
+  id,
+  quality,
+}: {
+  game: State;
+  id: string;
+  quality?: 0 | 1 | 2;
+}) {
   const offer = game.offers.find((o) => o.id === id);
-  const item = equipmentForRun(game, id, offer?.quality);
+  const item = equipmentForRun(game, id, quality ?? offer?.quality);
   if (!item) return null;
   const old = equipmentForRun(game, game.equipment[item.slot]);
   return (
@@ -130,6 +146,7 @@ export function EquipmentComparison({ game, id }: { game: State; id: string }) {
         )}
         <strong>{old?.name ?? 'Без шлема'}</strong>
         <span>{equipmentSummary(old)}</span>
+        {old?.behavior && <small>{old.description}</small>}
       </div>
       <span className="equipment-arrow" aria-hidden="true">
         →
@@ -139,6 +156,7 @@ export function EquipmentComparison({ game, id }: { game: State; id: string }) {
         <EquipmentIcon id={item.id} size={64} />
         <strong>{item.name}</strong>
         <span>{equipmentSummary(item)}</span>
+        {item.behavior && <small>{item.description}</small>}
       </div>
     </div>
   );
@@ -156,10 +174,20 @@ export function WeaponGallery({
   onSelect: (id: string) => void;
 }) {
   return (
-    <section className="weapon-gallery" aria-label="Пять видов оружия">
-      <p className="eyebrow">ОРУЖИЕ · {WEAPONS.length} ВИДОВ</p>
+    <section className="weapon-gallery" aria-label="Виды оружия">
+      <p className="eyebrow">
+        ОРУЖИЕ ·{' '}
+        {
+          WEAPONS.filter(
+            (w) => !w.since || (game?.rulesVersion ?? 0) >= w.since,
+          ).length
+        }{' '}
+        ВИДОВ
+      </p>
       <div className="weapon-gallery-grid">
-        {WEAPONS.map((weapon) => (
+        {WEAPONS.filter(
+          (w) => !w.since || (game?.rulesVersion ?? 0) >= w.since,
+        ).map((weapon) => (
           <button
             type="button"
             key={weapon.id}

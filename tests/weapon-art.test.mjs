@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { WEAPONS } from '../game/engine.ts';
+import { WEAPONS as ALL_WEAPONS } from '../game/engine.ts';
+
+const WEAPONS = ALL_WEAPONS.filter((w) => !w.since);
 
 test('each of the five weapons has a distinct transparent PNG and valid measured crop', () => {
   const art = JSON.parse(

@@ -614,7 +614,7 @@ test('classic saves: five weapons progress in order, including improvements with
     'gear-rune-sword',
   ];
   assert.deepEqual(
-    g.WEAPONS.map((weapon) => weapon.id),
+    g.WEAPONS.filter((w) => !w.since).map((weapon) => weapon.id),
     ids,
   );
   let s = classic();
@@ -666,7 +666,7 @@ test('classic saves: all five weapons use their own match damage bonus and do no
   s.enemies[0].hp = s.enemies[0].maxHp = 10000;
   s.energy = 6;
   const baseline = applyMove(s, m).frames[0].state.stats.damage;
-  for (const weapon of g.WEAPONS) {
+  for (const weapon of g.WEAPONS.filter((w) => !w.since)) {
     const equipped = g.copy(s);
     equipped.equipment.weapon = weapon.id;
     assert.equal(

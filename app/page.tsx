@@ -9,10 +9,12 @@ import {
   continueDestination,
   type OfficeMemory,
 } from '@/game/office';
+import { InteractionStatus } from '@/components/interaction-status';
 import { TurnBudget } from '@/components/turn-budget';
 import {
   tactical,
   boardSize,
+  matchRules,
   minimumMatch,
   actionLeft,
   actionMax,
@@ -93,6 +95,7 @@ import {
   pauseTrial,
   tickTrial,
   canCast,
+  skillReason,
   bindingPreview,
   configureRun,
   type Meta,
@@ -200,7 +203,8 @@ export default function Game() {
     ? shifted(s.board, preview.axis, preview.line, preview.amount)
     : s.board;
   const marked =
-    frame?.cells ?? (preview ? groups(board, minimumMatch(s)).flat() : []);
+    frame?.cells ??
+    (preview ? groups(board, minimumMatch(s), matchRules(s).ring).flat() : []);
   const shake = screenShake > 0 && !modalOpen ? bossShakeFor(motion) : null;
   const changeScreenShake = (value: number) => {
     setScreenShake(value);
@@ -566,13 +570,13 @@ export default function Game() {
     if (chosen) doMove(chosen.axis, chosen.line, chosen.amount);
   };
   const hint = () => {
-    const m = validMoves(game.board, minimumMatch(game))
+    const m = validMoves(game.board, minimumMatch(game), matchRules(game).ring)
       .filter(
         (m) =>
           !lineLocked(game, m.axis, m.line) &&
           (!tactical(game) ||
             game.phase === 'trial' ||
-            shiftCost(game, m.amount) <= actionLeft(game)),
+            shiftCost(game, m.amount, m.axis) <= actionLeft(game)),
       )
       .sort((a, b) => b.cells.length - a.cells.length)[0];
     if (m) {
@@ -985,6 +989,7 @@ export default function Game() {
                   <ActiveHeroRules game={s} />
                 </div>
               </details>
+              <InteractionStatus game={s} busy={busy} act={play} />
               <ArchiveMechanics game={s} />
               <div
                 style={{ '--board-size': size } as CSSProperties}
@@ -1275,7 +1280,7 @@ export default function Game() {
                   variant="outline"
                   className="skill-card"
                   aria-label={`${itemById(id)?.name}. ${itemForRun(s, id)?.description}`}
-                  title={`${itemById(id)?.name}. ${itemForRun(s, id)?.description}${id === 'binding' ? ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона; останется ${bindingPreview(s).remainingBlock} блока.` : ''}`}
+                  title={`${skillReason(s, id) ?? itemById(id)?.name}. ${itemForRun(s, id)?.description}${id === 'binding' ? ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона; останется ${bindingPreview(s).remainingBlock} блока.` : ''}`}
                   disabled={busy || !canCast(game, id)}
                   onClick={() => void play(castSkill(game, id, selectedCell))}
                 >

@@ -1,3 +1,20 @@
+import {
+  findMatchGroups,
+  type MatchGroup,
+  type MatchSource,
+} from './match-rules.ts';
+import {
+  validContext,
+  validPacket,
+  attackStrikes,
+  scaledPacket,
+  type AttackProfile,
+  type AttackPacket,
+  type EffectContext,
+  type EffectSource,
+  type CombatEvent,
+} from './combat-events.ts';
+
 // Pure deterministic game state. Rendering only replays the returned frames.
 export type Family = 'blade' | 'shield' | 'spark' | 'focus';
 export type Variant = 'venom' | 'bomb' | 'spiked' | 'marked' | null;
@@ -22,6 +39,8 @@ export type Enemy = {
   powerReady?: number;
   summons?: number;
   summoned?: true;
+  deferred?: { intent: EnemyIntent; skip: boolean; phase: number };
+  delayUsed?: true;
 };
 export const NEW_ENEMY_KINDS = [
   'paper-rat',
@@ -322,6 +341,8 @@ export type EquipmentItem = Offer & {
   slot: EquipmentSlot;
   tier: 0 | 1 | 2;
   bonus: number;
+  behavior?: string;
+  since?: number;
   icon: number;
 };
 const gear = (
@@ -365,6 +386,34 @@ export const EQUIPMENT: EquipmentItem[] = [
   gear('gear-brigandine', 'clothing', 2, 'Бригантина', 4),
   gear('gear-guard-trousers', 'trousers', 2, 'Штаны стража', 2),
 ];
+EQUIPMENT.push(
+  {
+    ...gear('gear-ruler', 'weapon', 1, 'Резак по линейке', 0),
+    since: 6,
+    behavior: 'geometry',
+  },
+  {
+    ...gear('gear-cash-hammer', 'weapon', 1, 'Кассовый молоток', 0),
+    since: 6,
+    behavior: 'overkill',
+  },
+  {
+    ...gear('gear-collateral-belt', 'trousers', 1, 'Залоговый пояс', 0),
+    since: 6,
+    behavior: 'insurance',
+    tag: 'Золото → защита',
+    description:
+      'Включённая страховка платит 2 монеты за предотвращённую потерю здоровья после блока. До 4 здоровья за ход. Не покрывает жертвы, сделки и Заемное время. Заменяет запас фокуса прежних штанов.',
+  },
+  {
+    ...gear('gear-courier-jacket', 'clothing', 1, 'Куртка курьера', 0),
+    since: 6,
+    behavior: 'axis-discount',
+    tag: 'Смена оси',
+    description:
+      'Первая смена оси ручного сдвига за ход стоит на 1 действие меньше, но минимум 1. Первый сдвиг без скидки. Правка не меняет память оси. Заменяет бонус блока прежней одежды.',
+  },
+);
 export const WEAPONS = EQUIPMENT.filter((item) => item.slot === 'weapon');
 export const equipmentById = (id: string | null | undefined) =>
   EQUIPMENT.find((item) => item.id === id);
@@ -383,6 +432,7 @@ export function equipmentSummary(item: EquipmentItem | undefined) {
   if (!item) return 'Без шлема';
   if (item.slot === 'weapon' && item.quality !== undefined)
     return `Качество ${item.quality}/2 · ${WEAPON_RULES[item.id].short}`;
+  if (item.behavior) return item.tag;
   if (!item.bonus) return 'Без бонусов';
   return {
     weapon: `+${item.bonus} урона клинками`,
@@ -395,6 +445,16 @@ export const WEAPON_RULES: Record<
   string,
   { short: string; description: string }
 > = {
+  'gear-ruler': {
+    short: 'Форма группы меняет удар',
+    description:
+      'Горизонталь: 60% D каждому врагу. Вертикаль: D выбранной цели сквозь блок. Пересечение: D выбранной и 30% остальным без пробивания. Спутник без геометрии: D одной цели.',
+  },
+  'gear-cash-hammer': {
+    short: '−2 урона; избыток → золото',
+    description:
+      'Наносит max(0, D−2) урона. Избыток после блока и здоровья даёт до 5 монет за исходного врага. Только первичный удар; призывы, яд и копии не платят.',
+  },
   'gear-cutter': {
     short: 'До 2 урона сквозь блок',
     description:
@@ -451,8 +511,62 @@ export function equipmentForRun(
       }
     : offer;
 }
+type Capability =
+  | 'poison'
+  | 'destruction'
+  | 'energy-payment'
+  | 'health-payment';
+const CAPABILITIES: Partial<Record<string, Capability[]>> = {
+  'gear-rusty-dagger': ['poison'],
+  venom: ['poison'],
+  bomb: ['destruction'],
+  'row-rupture': ['destruction'],
+  bolt: ['energy-payment'],
+  guard: ['energy-payment'],
+  seal: ['energy-payment', 'health-payment'],
+  blood: ['health-payment'],
+  imprint: ['energy-payment'],
+  defer: ['energy-payment'],
+};
+export function buildCapabilities(s: State): Set<Capability> {
+  return new Set(
+    [s.equipment.weapon ?? '', ...s.modifiers, ...s.skills].flatMap(
+      (id) => CAPABILITIES[id] ?? [],
+    ),
+  );
+}
+export function itemNature(id: string): 'transformative' | 'numeric' {
+  const item = itemById(id);
+  return (item?.kind === 'equipment' &&
+    !equipmentById(id)?.behavior &&
+    equipmentById(id)?.slot !== 'weapon') ||
+    item?.kind === 'upgrade'
+    ? 'numeric'
+    : 'transformative';
+}
 export function itemRequirement(s: State, id: string): string | undefined {
   if ((s.rulesVersion ?? 0) < 3) return;
+  if (interactions(s)) {
+    const capability = (
+      ['lens', 'vessel'].includes(id)
+        ? 'health-payment'
+        : ['toxin', 'heart', 'bookmark'].includes(id)
+          ? 'poison'
+          : ['conductor', 'ash-register'].includes(id)
+            ? 'destruction'
+            : id === 'return'
+              ? 'energy-payment'
+              : undefined
+    ) as Capability | undefined;
+    if (capability && !buildCapabilities(s).has(capability))
+      return {
+        poison: 'Нужен источник яда.',
+        destruction: 'Нужно разрушение фишек: бомбы или Разрыв строки.',
+        'energy-payment': 'Нужен приём с оплатой энергией.',
+        'health-payment': 'Нужен приём с оплатой здоровьем.',
+      }[capability];
+    return;
+  }
   if (
     ['lens', 'vessel'].includes(id) &&
     !s.skills.some((id) => ['blood', 'seal'].includes(id))
@@ -466,8 +580,17 @@ export function itemRequirement(s: State, id: string): string | undefined {
     return 'Нужен источник яда: ржавый кинжал или ядовитые клинки.';
   if (id === 'conductor' && !s.modifiers.includes('bomb'))
     return 'Нужна пороховая искра — модификатор с бомбами.';
-  if (id === 'return' && !s.skills.includes('bolt'))
-    return 'Нужен приём за 6 энергии: Разряд.';
+  if (
+    id === 'return' &&
+    !(interactions(s)
+      ? s.skills.some((id) =>
+          ['bolt', 'guard', 'seal', 'imprint', 'defer'].includes(id),
+        )
+      : s.skills.includes('bolt'))
+  )
+    return interactions(s)
+      ? 'Нужен приём с оплатой энергией.'
+      : 'Нужен приём за 6 энергии: Разряд.';
 }
 export function offerForRun(s: State, offer: Offer): Offer {
   if ((s.rulesVersion ?? 0) < 3 || !['skill', 'relic'].includes(offer.kind))
@@ -500,6 +623,17 @@ export function itemForRun(s: State, id: string): Offer | undefined {
       ...item,
       description:
         'Приём за 1 действие: потратить до 8 блока и нанести вдвое больше урона выбранной цели. Энергия не нужна.',
+    };
+  if (interactions(s) && item && ['prism', 'lamp', 'return'].includes(id))
+    item = {
+      ...item,
+      description: {
+        prism:
+          'Первые три каскадные волны каждого оплаченного сдвига дают 2, 1, 1 энергию. Исходная волна не считается.',
+        lamp: 'Первый реальный перелив за ход наносит 4 + до 4 потерянной энергии урона.',
+        return:
+          'Потратив суммарно 6 энергии за ход, заряжает следующие щиты на +3 блока. Один раз за ход; жертвы и бесплатные копии не считаются.',
+      }[id]!,
     };
   const requirement = itemRequirement(s, id);
   if (item && requirement)
@@ -562,13 +696,26 @@ export function equipmentOptions(s: State): EquipmentItem[] {
   if ((s.rulesVersion ?? 0) >= 2) {
     const quality: 0 | 1 | 2 = s.room >= 11 ? 2 : s.room >= 5 ? 1 : 0;
     const weapons = WEAPONS.filter(
-      (w) => w.id !== s.equipment.weapon || quality > (s.weaponQuality ?? 0),
+      (w) =>
+        (!w.since || (s.rulesVersion ?? 0) >= w.since) &&
+        (w.id !== s.equipment.weapon || quality > (s.weaponQuality ?? 0)),
     ).map((w) => weaponOffer(w.id, quality));
     const armor = EQUIPMENT_SLOTS.filter((slot) => slot !== 'weapon').flatMap(
       (slot) => {
         const bonus = equipmentBonus(s, slot);
+        if (interactions(s))
+          return EQUIPMENT.filter(
+            (item) =>
+              item.slot === slot &&
+              item.id !== s.equipment[slot] &&
+              item.tier <= maxTier &&
+              (item.behavior ||
+                equipmentById(s.equipment[slot])?.behavior ||
+                item.bonus > (s.equipment[slot] ? bonus : -1)),
+          );
         const next = EQUIPMENT.find(
           (item) =>
+            !item.since &&
             item.slot === slot &&
             item.tier <= maxTier &&
             item.bonus > (s.equipment[slot] ? bonus : -1),
@@ -584,7 +731,10 @@ export function equipmentOptions(s: State): EquipmentItem[] {
     const bonus = equipmentById(s.equipment[slot])?.bonus ?? -1;
     const next = EQUIPMENT.filter(
       (item) =>
-        item.slot === slot && item.bonus > bonus && item.tier <= maxTier,
+        !item.since &&
+        item.slot === slot &&
+        item.bonus > bonus &&
+        item.tier <= maxTier,
     ).sort((a, b) => a.bonus - b.bonus)[0];
     return next ? [next] : [];
   });
@@ -675,7 +825,7 @@ export type RunRecord = {
 };
 export type State = {
   version: 2;
-  rulesVersion?: 2 | 3 | 4 | 5;
+  rulesVersion?: 2 | 3 | 4 | 5 | 6;
   hero?: HeroId;
   difficulty?: 0 | 1;
   challenge?: ChallengeId;
@@ -683,6 +833,21 @@ export type State = {
   echo?: Family;
   damageEvents?: DamageEvent[];
   chronicle?: string[];
+  effectState?: {
+    action: number;
+    serial: number;
+    current?: EffectContext;
+    events: CombatEvent[];
+    energySpent: number;
+    lastAttack?: AttackPacket;
+    companion: number;
+    insurance: boolean;
+    insured: number;
+    lastAxis?: 'row' | 'col';
+    courierUsed: boolean;
+    ashSpark: number;
+    ashFocus: number;
+  };
   weaponQuality?: 0 | 1 | 2;
   streams?: Record<'map' | 'encounters' | 'loot', number>;
   journey?: {
@@ -693,6 +858,13 @@ export type State = {
   seal?: SealId;
   rewardSource?: 'battle' | 'elite' | 'treasure' | 'seal' | 'event' | 'trial';
   treasureRerolled?: boolean;
+  workshop?: Offer[];
+  eliteContract?: {
+    accepted: boolean;
+    responses: number;
+    bonus: number;
+    completed?: boolean;
+  };
   equipment: Equipment;
   seed: number;
   rng: number;
@@ -927,10 +1099,53 @@ RELICS.push(
   },
 );
 export const CORE_RELIC_IDS = RELICS.slice(0, 12).map((o) => o.id);
+export const INTERACTION_RELIC_IDS = [
+  'ring-clasp',
+  'mirror-signature',
+  'defective-copy',
+  'ash-register',
+];
+RELICS.push(
+  {
+    id: 'ring-clasp',
+    kind: 'relic',
+    name: 'Кольцевая скоба',
+    tag: 'Геометрия',
+    description:
+      'Совпадения продолжаются через края строки и столбца. Минимум 3 (4 с Великим замыслом). Бомбы через край не взрываются.',
+  },
+  {
+    id: 'mirror-signature',
+    kind: 'relic',
+    name: 'Зеркальная подпись',
+    tag: 'Атака → эхо',
+    description:
+      'Первая группа клинков 4+ каждого оплаченного действия повторяет удар с 50% урона и полными статусами. Цели фиксированы; павшие пропускаются. Повтор не даёт наград за матч.',
+  },
+  {
+    id: 'defective-copy',
+    kind: 'relic',
+    name: 'Бракованная копия',
+    tag: 'Спутник',
+    description:
+      'Каждая третья группа первой волны ручного сдвига вызывает удар текущим оружием с 40% силы тройки. Без модификаторов фишек и наград за матч. Счётчик сохраняется между ходами, сбрасывается между комнатами.',
+  },
+  {
+    id: 'ash-register',
+    kind: 'relic',
+    name: 'Пепельный реестр',
+    tag: 'Разрушение → ресурсы',
+    description:
+      'Фишки вне совпадения, уничтоженные бомбой или Разрывом строки: половина базового урона/блока клинков/щитов; каждая пара искр/фокуса даёт 1 ресурс. Остатки пар общие для действия. Без усилений и эффектов за матч.',
+  },
+);
 function relicPoolFor(s: State) {
   return RELICS.filter(
+    (o) => !INTERACTION_RELIC_IDS.includes(o.id) || interactions(s),
+  ).filter(
     (o) =>
       CORE_RELIC_IDS.includes(o.id) ||
+      (interactions(s) && INTERACTION_RELIC_IDS.includes(o.id)) ||
       ((s.rulesVersion ?? 0) >= 5 && TACTIC_RELIC_IDS.includes(o.id)) ||
       ((s.rulesVersion ?? 0) >= 4 &&
         !TACTIC_RELIC_IDS.includes(o.id) &&
@@ -1024,6 +1239,37 @@ export const SKILLS: Offer[] = [
     tag: '6 фокуса',
   },
 ];
+export const INTERACTION_SKILL_IDS = ['imprint', 'row-rupture', 'defer'];
+SKILLS.push(
+  {
+    id: 'imprint',
+    kind: 'skill',
+    name: 'Оттиск',
+    tag: '4 энергии',
+    description:
+      'Повтори последний первичный пакет оружия этой комнаты с 60% урона по выбранной цели. Полные статусы, текущие дополнительные цели. Не даёт наград за матч и не меняет запись. Нужен записанный удар.',
+  },
+  {
+    id: 'row-rupture',
+    kind: 'skill',
+    name: 'Разрыв строки',
+    tag: '4 фокуса',
+    description:
+      'Разрушает строку выбранной фишки, вместе с её кляксами, корнями и печатями; запускает бомбы, заполнение и каскады. Удаление не считается совпадением. Реестр может дать базовую отдачу.',
+  },
+  {
+    id: 'defer',
+    kind: 'skill',
+    name: 'Отсрочка',
+    tag: '5 энергии',
+    description:
+      'Откладывает объявленное действие выбранного врага на один ответ. Каждый враг — один раз за бой. Намерение сохраняется, яд тикает. Фазу босса и сценарный прилив не задерживает; обычный удар можно отложить.',
+  },
+);
+export const skillPoolFor = (s: State) =>
+  SKILLS.filter(
+    (o) => interactions(s) || !INTERACTION_SKILL_IDS.includes(o.id),
+  );
 export const SEALS: Offer[] = [
   {
     id: 'red-line',
@@ -1128,10 +1374,21 @@ export const actionMax = (s: State) =>
   );
 export const actionLeft = (s: State) =>
   tactical(s) ? (s.actions ?? actionMax(s)) : s.moved ? 0 : 1;
-export const shiftCost = (s: State, amount: number) =>
+export const shiftCost = (s: State, amount: number, axis?: 'row' | 'col') =>
   s.phase === 'trial' || !tactical(s)
     ? 0
-    : Math.min(Math.abs(amount), boardSize(s.board) - Math.abs(amount));
+    : Math.max(
+        1,
+        Math.min(Math.abs(amount), boardSize(s.board) - Math.abs(amount)) -
+          (interactions(s) &&
+          s.equipment.clothing === 'gear-courier-jacket' &&
+          axis &&
+          s.effectState?.lastAxis &&
+          axis !== s.effectState.lastAxis &&
+          !s.effectState.courierUsed
+            ? 1
+            : 0),
+      );
 export function lineLocked(s: State, axis: 'row' | 'col', line: number) {
   const size = boardSize(s.board);
   return (
@@ -1153,49 +1410,28 @@ function spendAction(s: State, cost: number) {
   }
 }
 function resetActions(s: State) {
+  if (interactions(s)) {
+    const e = effects(s);
+    e.energySpent = 0;
+    e.insured = 0;
+    e.courierUsed = false;
+    delete e.lastAxis;
+  }
   if (!tactical(s)) return;
   s.actions = actionMax(s);
   s.moved = false;
   if (s.phase === 'battle' && s.relics.includes('iron-agenda')) s.block += 6;
 }
-export function groups(board: Tile[], minimum = 3): number[][] {
-  const size = boardSize(board);
-  const runs: number[][] = [];
-  for (const axis of ['row', 'col'])
-    for (let line = 0; line < size; line++) {
-      let start = 0;
-      const idx = (n: number) =>
-        axis === 'row' ? line * size + n : n * size + line;
-      while (start < size) {
-        let end = start + 1;
-        while (
-          end < size &&
-          board[idx(end)].family === board[idx(start)].family
-        )
-          end++;
-        if (end - start >= minimum)
-          runs.push(
-            Array.from({ length: end - start }, (_, j) => idx(start + j)),
-          );
-        start = end;
-      }
-    }
-  const merged: number[][] = [];
-  for (const run of runs) {
-    const combined = new Set(run);
-    let touched = true;
-    while (touched) {
-      touched = false;
-      for (let i = merged.length - 1; i >= 0; i--)
-        if (merged[i].some((x) => combined.has(x))) {
-          merged[i].forEach((x) => combined.add(x));
-          merged.splice(i, 1);
-          touched = true;
-        }
-    }
-    merged.push([...combined]);
-  }
-  return merged;
+export const interactions = (s: State) => (s.rulesVersion ?? 0) >= 6;
+export const matchRules = (s: State) => ({
+  minimum: minimumMatch(s),
+  ring: interactions(s) && s.relics.includes('ring-clasp'),
+});
+export function groups(board: Tile[], minimum = 3, ring = false): number[][] {
+  return findMatchGroups(board, { minimum, ring }).map((g) => g.cells);
+}
+export function matchGroups(s: State, wave = 0, source: MatchSource = 'shift') {
+  return findMatchGroups(s.board, matchRules(s), wave, source);
 }
 export function shifted(
   board: Tile[],
@@ -1212,7 +1448,7 @@ export function shifted(
   }
   return out;
 }
-export function validMoves(board: Tile[], minimum = 3) {
+export function validMoves(board: Tile[], minimum = 3, ring = false) {
   const size = boardSize(board);
   const moves: {
     axis: 'row' | 'col';
@@ -1226,6 +1462,7 @@ export function validMoves(board: Tile[], minimum = 3) {
         const cells = groups(
           shifted(board, axis, line, amount),
           minimum,
+          ring,
         ).flat();
         if (cells.length) moves.push({ axis, line, amount, cells });
       }
@@ -1246,8 +1483,9 @@ function newBoard(s: State, size = boardSize(s.board)) {
       );
       b.push(tile(s, options[Math.floor(random(s) * options.length)]));
     }
-    const moves = validMoves(b, minimumMatch(s));
+    const moves = validMoves(b, minimumMatch(s), matchRules(s).ring);
     if (
+      (!matchRules(s).ring || !groups(b, minimumMatch(s), true).length) &&
       moves.length >= 3 &&
       moves.some((m) =>
         m.cells.some((i) =>
@@ -1277,12 +1515,88 @@ function heal(s: State, value: number) {
   s.hp += actual;
   if (actual) note(s, `Восстановлено ${actual} здоровья`);
 }
+function effects(s: State) {
+  return (s.effectState ??= {
+    action: 0,
+    serial: 0,
+    events: [],
+    energySpent: 0,
+    companion: 0,
+    insurance: true,
+    insured: 0,
+    courierUsed: false,
+    ashSpark: 0,
+    ashFocus: 0,
+  });
+}
+function beginAction(s: State, cause: string, source: EffectSource) {
+  if (!interactions(s)) return;
+  const e = effects(s);
+  if (
+    s.phase === 'battle' &&
+    !s.flags.includes('battle:acted') &&
+    ['shift', 'edit', ...SKILLS.map((x) => x.id)].includes(cause)
+  )
+    s.flags.push('battle:acted');
+  e.action++;
+  e.ashSpark = 0;
+  e.ashFocus = 0;
+  s.flags = s.flags.filter((f) => !f.startsWith('action:'));
+  e.current = {
+    rootActionId: e.action,
+    effectId: ++e.serial,
+    source,
+    cause,
+    wave: 0,
+    scope: 'action',
+    rulesVersion: 6,
+  };
+  e.events.push({ ...e.current, kind: 'action' });
+  e.events = e.events.slice(-80);
+}
+function effect(
+  s: State,
+  kind: CombatEvent['kind'],
+  cause: string,
+  source: EffectSource,
+  amount?: number,
+  parentEffectId?: number,
+  scope: EffectContext['scope'] = 'action',
+): EffectContext {
+  const e = effects(s);
+  const context: EffectContext = {
+    rootActionId: e.action,
+    effectId: ++e.serial,
+    parentEffectId: parentEffectId ?? e.current?.effectId,
+    source,
+    cause,
+    wave: e.current?.wave ?? 0,
+    scope,
+    rulesVersion: 6,
+  };
+  e.events.push({
+    ...context,
+    kind,
+    ...(amount === undefined ? {} : { amount }),
+  });
+  e.events = e.events.slice(-80);
+  return context;
+}
+function orderedTargets(s: State) {
+  const live = s.enemies.filter((e) => e.hp > 0);
+  return [
+    ...live.filter((e) => e.id === s.target),
+    ...live.filter((e) => e.id !== s.target),
+  ].map((e) => e.id);
+}
 function hit(
   s: State,
   value: number,
   piercing: boolean | number = false,
   direct = true,
   targetId?: number,
+  source?: EffectSource,
+  parentEffectId?: number,
 ) {
   if (s.phase === 'trial' && s.trial) {
     s.trial.damage += value;
@@ -1311,6 +1625,17 @@ function hit(
   e.block -= absorb;
   const damage = Math.min(e.hp, value - absorb);
   e.hp -= damage;
+  if (interactions(s)) {
+    effect(
+      s,
+      'effect',
+      'damage',
+      source ?? effects(s).current?.source ?? 'status',
+      damage,
+      parentEffectId,
+    );
+    effects(s).events[effects(s).events.length - 1].target = e.id;
+  }
   s.stats.damage += damage;
   if (e.hp <= 0) {
     s.stats.kills++;
@@ -1328,9 +1653,145 @@ function spreadPoison(s: State, dead: Enemy) {
     note(s, `Закладка: ${value} яда → ${target.name}`);
   }
 }
-function weaponAttack(s: State, count: number, venom: number) {
+export function weaponProfile(
+  s: State,
+  count: number,
+  venom = 0,
+  orientation?: MatchGroup['orientation'],
+  primary = true,
+): AttackProfile {
+  const weapon = s.equipment.weapon ?? 'gear-cutter';
+  let damage =
+    count * s.balance.blade +
+    s.upgrades.blade * 2 +
+    equipmentBonus(s, 'weapon');
+  if (
+    ['gear-rusty-dagger', 'gear-rune-sword', 'gear-cash-hammer'].includes(
+      weapon,
+    )
+  )
+    damage = Math.max(0, damage - 2);
+  if (weapon === 'gear-axe')
+    damage = Math.max(0, damage + (count >= 4 ? 4 : -2));
+  if (hasSeal(s, 'red-line')) damage += 4;
+  if (primary && s.flags.includes('turn:carbon-armed')) damage += 3;
+  if (minimumMatch(s) === 4) damage *= 2;
+  return {
+    weapon,
+    damage,
+    targeting:
+      weapon === 'gear-cleaver'
+        ? 'split'
+        : weapon === 'gear-ruler' && orientation === 'horizontal'
+          ? 'all'
+          : weapon === 'gear-ruler' && orientation === 'cross'
+            ? 'cross'
+            : 'single',
+    piercing:
+      weapon === 'gear-cutter'
+        ? 2
+        : weapon === 'gear-ruler' && orientation === 'vertical'
+          ? 'full'
+          : 0,
+    poison: venom + (weapon === 'gear-rusty-dagger' ? 2 : 0),
+  };
+}
+function applyAttack(s: State, packet: AttackPacket) {
+  for (const strike of packet.strikes) {
+    if (s.phase === 'battle' && strike.target === undefined) continue;
+    const target = s.enemies.find((e) => e.id === strike.target && e.hp > 0);
+    if (s.phase === 'battle' && !target) continue;
+    const excess = target
+      ? Math.max(
+          0,
+          strike.damage -
+            Math.min(
+              target.block,
+              Math.max(0, strike.damage - strike.piercing),
+            ) -
+            target.hp,
+        )
+      : 0;
+    hit(
+      s,
+      strike.damage,
+      strike.piercing,
+      true,
+      strike.target,
+      packet.context.source,
+      packet.context.effectId,
+    );
+    if (
+      target &&
+      !target.hp &&
+      excess &&
+      !target.summoned &&
+      packet.context.source === 'match' &&
+      packet.profile.weapon === 'gear-cash-hammer' &&
+      once(s, `run:cash:${target.id}`)
+    ) {
+      const coins = Math.min(5, excess);
+      s.gold += coins;
+      note(s, `Кассовый молоток: избыточный урон → ${coins} золота.`);
+    }
+    if (target && target.hp > 0) target.poison += strike.poison;
+  }
+}
+function profileAttack(
+  s: State,
+  count: number,
+  venom: number,
+  group?: MatchGroup,
+) {
+  const profile = weaponProfile(s, count, venom, group?.orientation);
+  const context = effect(s, 'attack', profile.weapon, 'match', profile.damage);
+  const packet: AttackPacket = {
+    profile,
+    strikes: attackStrikes(profile, orderedTargets(s)),
+    context,
+  };
+  effects(s).lastAttack = copy(packet);
+  s.flags = s.flags.filter((f) => f !== 'turn:carbon-armed');
+  applyAttack(s, packet);
+  if (
+    count >= 4 &&
+    s.relics.includes('mirror-signature') &&
+    (s.phase === 'trial' || s.enemies.some((e) => e.hp > 0)) &&
+    once(s, `action:mirror:${effects(s).action}`)
+  ) {
+    const context = effect(
+      s,
+      'attack',
+      'mirror-signature',
+      'repeat',
+      undefined,
+      packet.context.effectId,
+    );
+    applyAttack(s, scaledPacket(packet, 0.5, context));
+    note(s, 'Зеркальная подпись: повтор 50%, без новой группы.');
+  }
+  if (profile.weapon === 'gear-rune-sword') {
+    gainEnergy(s, 1);
+    if (s.trial) s.trial.energy++;
+    if (once(s, 'turn:rune-trigger')) s.flags.push('turn:rune-armed');
+  }
+  note(
+    s,
+    `${equipmentById(profile.weapon)?.name}: ${packet.strikes.map((x) => x.damage).join(' / ')} урона до защиты${profile.poison ? `, ${profile.poison} яда выжившим целям` : ''}.`,
+  );
+}
+function weaponAttack(
+  s: State,
+  count: number,
+  venom: number,
+  group?: MatchGroup,
+) {
   if ((s.rulesVersion ?? 0) >= 4 && s.challenge === 'precision' && count < 4) {
     note(s, 'Точный удар: для оружия нужно 4+ клинка.');
+    return;
+  }
+  if (interactions(s)) {
+    profileAttack(s, count, venom, group);
     return;
   }
   const id = s.equipment.weapon ?? 'gear-cutter';
@@ -1381,10 +1842,19 @@ function weaponAttack(s: State, count: number, venom: number) {
   );
 }
 function gainEnergy(s: State, amount: number) {
-  const overflow = s.energy + amount > energyMax(s);
+  const lost = Math.max(0, s.energy + amount - energyMax(s));
+  const overflow = amount > 0 && lost > 0;
+  if (interactions(s) && amount > 0)
+    effect(s, 'energy', 'gain', 'resource', amount);
   s.energy = Math.min(energyMax(s), s.energy + amount);
-  if (overflow && s.relics.includes('lamp') && once(s, 'turn:lamp'))
-    hit(s, 4, false, false);
+  if (overflow && s.relics.includes('lamp') && once(s, 'turn:lamp')) {
+    const value = interactions(s) ? 4 + Math.min(4, lost) : 4;
+    if (interactions(s)) {
+      effect(s, 'effect', 'lamp', 'resource', value, undefined, 'turn');
+      note(s, `Лампа: перелив ${lost} → ${value} урона.`);
+    }
+    hit(s, value, false, false, undefined, 'resource');
+  }
 }
 function poison(s: State, amount: number) {
   const e =
@@ -1417,7 +1887,7 @@ function startTide(s: State) {
   // Every fresh warning has at least one legal matching response on this board.
   const rows = [
     ...new Set(
-      validMoves(s.board, minimumMatch(s)).flatMap((m) =>
+      validMoves(s.board, minimumMatch(s), matchRules(s).ring).flatMap((m) =>
         m.cells.map((i) => Math.floor(i / boardSize(s.board))),
       ),
     ),
@@ -1435,19 +1905,148 @@ function recordDamage(s: State, source: string, amount: number, blocked = 0) {
     { source, amount, blocked, room: s.room, round: s.round },
   ].slice(-20);
 }
+export function insurancePreview(s: State, incoming: number, piercing = false) {
+  const blocked = piercing ? 0 : Math.min(s.block, incoming);
+  const remaining = Math.min(s.hp, Math.max(0, incoming - blocked));
+  const prevented =
+    interactions(s) &&
+    s.equipment.trousers === 'gear-collateral-belt' &&
+    s.effectState?.insurance
+      ? Math.max(
+          0,
+          Math.min(
+            remaining,
+            4 - s.effectState.insured,
+            Math.floor(s.gold / 2),
+          ),
+        )
+      : 0;
+  return {
+    blocked,
+    prevented,
+    gold: prevented * 2,
+    health: remaining - prevented,
+  };
+}
+export function previewEndTurn(s: State) {
+  if (s.phase !== 'battle') return null;
+  const next = endTurn(s).state;
+  return {
+    healthLoss: Math.max(0, s.hp - next.hp),
+    goldCost: Math.max(0, s.gold - next.gold),
+    defeated: next.phase === 'defeat',
+  };
+}
+export function toggleInsurance(input: State): Result {
+  if (
+    !interactions(input) ||
+    input.equipment.trousers !== 'gear-collateral-belt' ||
+    input.phase !== 'battle'
+  )
+    return result(input, [], 'Страховка недоступна.');
+  const s = copy(input);
+  effects(s).insurance = !effects(s).insurance;
+  return result(s);
+}
 function hurtHero(
   s: State,
   value: number,
   piercing = false,
   source = 'Опасность поля',
+  external = true,
 ) {
+  const insurance = external
+    ? insurancePreview(s, value, piercing)
+    : { prevented: 0, gold: 0 };
+  if (insurance.prevented) {
+    s.gold -= insurance.gold;
+    effects(s).insured += insurance.prevented;
+    note(
+      s,
+      `Пояс: −${insurance.gold} золота, предотвращено ${insurance.prevented} урона.`,
+    );
+  }
   const blocked = piercing ? 0 : Math.min(s.block, value);
   s.block -= blocked;
   s.stats.blocked += blocked;
-  const damage = Math.min(s.hp, value - blocked);
+  const damage = Math.min(s.hp, value - blocked - insurance.prevented);
   s.hp -= damage;
   recordDamage(s, source, damage, blocked);
   return damage;
+}
+function battleActive(s: State) {
+  return s.hp > 0 && (s.phase === 'trial' || s.enemies.some((e) => e.hp > 0));
+}
+function bombCollateral(s: State, removed: Set<number>): Set<number> {
+  const size = boardSize(s.board),
+    collateral = new Set<number>();
+  const queue = [...removed].filter((i) => s.board[i].variant === 'bomb'),
+    fired = new Set<number>();
+  while (queue.length) {
+    const i = queue.shift()!;
+    if (fired.has(i)) continue;
+    fired.add(i);
+    for (const j of [
+      i - size,
+      i + size,
+      ...(i % size ? [i - 1] : []),
+      ...(i % size < size - 1 ? [i + 1] : []),
+    ]) {
+      if (j < 0 || j >= s.board.length) continue;
+      if (!removed.has(j)) collateral.add(j);
+      if (s.board[j].variant === 'bomb' && !fired.has(j)) queue.push(j);
+    }
+  }
+  return collateral;
+}
+function recycle(s: State, cells: Set<number>) {
+  if (
+    !interactions(s) ||
+    !s.relics.includes('ash-register') ||
+    !battleActive(s)
+  )
+    return;
+  const counts = { blade: 0, shield: 0, spark: 0, focus: 0 };
+  cells.forEach((i) => counts[s.board[i].family]++);
+  const e = effects(s);
+  // Remainders only live until the end of this paid action, including cascades.
+  const sparks = Math.floor((e.ashSpark + counts.spark) / 2),
+    focus = Math.floor((e.ashFocus + counts.focus) / 2);
+  e.ashSpark = (e.ashSpark + counts.spark) % 2;
+  e.ashFocus = (e.ashFocus + counts.focus) % 2;
+  const block = Math.floor((counts.shield * s.balance.shield) / 2),
+    damage = Math.floor((counts.blade * s.balance.blade) / 2);
+  effect(s, 'effect', 'ash-register', 'explosion', cells.size);
+  s.block += block;
+  if (s.trial) s.trial.protection += block;
+  if (sparks) {
+    gainEnergy(s, sparks);
+    if (s.trial) s.trial.energy += sparks;
+  }
+  const active = battleActive(s);
+  if (active) {
+    s.focus = Math.min(focusMax(s), s.focus + focus);
+    hit(s, damage, false, false, undefined, 'explosion');
+  }
+  note(
+    s,
+    `Реестр: ${cells.size} разрушенных фишек → ${active ? damage : 0} урона, ${block} блока, ${sparks} энергии, ${active ? focus : 0} фокуса.`,
+  );
+}
+function conductorGain(s: State, count: number) {
+  if (!s.relics.includes('conductor') || !battleActive(s)) return;
+  const old = Number(
+    s.flags.find((f) => f.startsWith('conductor:'))?.split(':')[1] ?? 0,
+  );
+  const gain = Math.min(3 - old, Math.floor(count / 2));
+  if (gain > 0) {
+    gainEnergy(s, gain);
+    s.flags = s.flags.filter((f) => !f.startsWith('conductor:'));
+    s.flags.push(`conductor:${old + gain}`);
+  }
+}
+function effectsSource(s: State): MatchSource {
+  return s.effectState?.current?.cause === 'edit' ? 'edit' : 'skill';
 }
 function resolve(
   s: State,
@@ -1458,14 +2057,27 @@ function resolve(
   const size = boardSize(s.board);
   const multiplier = minimumMatch(s) === 4 ? 2 : 1;
   let wave = 0;
+  const source = manual ? 'shift' : effectsSource(s);
+  const rootContext = s.effectState?.current;
   while (true) {
-    const matches = groups(s.board, minimumMatch(s));
+    const metadata = matchGroups(s, wave, source);
+    const matches = metadata.map((g) => g.cells);
     if (!matches.length) break;
     if (wave++ > 128) throw Error('Цепочка эффектов не завершилась');
     if (wave > 1) {
       s.stats.cascades++;
-      if (manual && s.relics.includes('prism') && once(s, 'turn:prism'))
-        gainEnergy(s, 2);
+      if (interactions(s) && effects(s).current)
+        effects(s).current = { ...rootContext!, wave: wave - 1 };
+      if (manual && s.relics.includes('prism')) {
+        if (interactions(s)) {
+          const amount = [0, 0, 2, 1, 1][wave] ?? 0;
+          if (amount) {
+            effect(s, 'effect', 'prism', 'resource', amount);
+            gainEnergy(s, amount);
+            note(s, `Призма: каскад ${wave - 1}, +${amount} энергии.`);
+          }
+        } else if (once(s, 'turn:prism')) gainEnergy(s, 2);
+      }
     }
     const waveTarget =
       s.enemies.find((e) => e.id === s.target && e.hp > 0)?.id ??
@@ -1508,7 +2120,29 @@ function resolve(
       s.relics.includes('tape');
     const previousEcho = tapeMove ? s.echo : undefined;
     let echoUsed = false;
-    for (const indices of matches) {
+    for (const group of metadata) {
+      if (
+        interactions(s) &&
+        (s.hp <= 0 ||
+          (s.phase === 'battle' && !s.enemies.some((e) => e.hp > 0)))
+      )
+        break;
+      const indices = group.cells;
+      if (interactions(s)) {
+        effects(s).current!.wave = group.wave;
+        const context = effect(
+          s,
+          'match',
+          group.family,
+          'match',
+          group.cells.length,
+          rootContext?.effectId,
+        );
+        effects(s).events[effects(s).events.length - 1].cells = [
+          ...group.cells,
+        ];
+        effects(s).current = context;
+      }
       s.stats.matches++;
       const family = s.board[indices[0]].family;
       const count = indices.length;
@@ -1531,7 +2165,8 @@ function resolve(
       if (previousEcho && !echoUsed && family !== previousEcho) {
         echoUsed = true;
         delete s.echo;
-        if (previousEcho === 'blade') hit(s, 4, false, false);
+        if (previousEcho === 'blade')
+          hit(s, 4, false, false, undefined, 'repeat');
         if (previousEcho === 'shield') {
           s.block += 4;
           if (s.trial) s.trial.protection += 4;
@@ -1552,7 +2187,7 @@ function resolve(
         const venom = indices.filter(
           (i) => s.board[i].variant === 'venom',
         ).length;
-        if ((s.rulesVersion ?? 0) >= 2) weaponAttack(s, count, venom);
+        if ((s.rulesVersion ?? 0) >= 2) weaponAttack(s, count, venom, group);
         else {
           poison(s, venom);
           const value =
@@ -1621,6 +2256,34 @@ function resolve(
           if (s.trial) s.trial.protection += 3;
         }
       }
+      if (
+        interactions(s) &&
+        manual &&
+        wave === 1 &&
+        s.relics.includes('defective-copy') &&
+        (s.phase === 'trial' || s.enemies.some((e) => e.hp > 0))
+      ) {
+        const e = effects(s);
+        e.companion++;
+        if (e.companion === 3) {
+          e.companion = 0;
+          const profile = weaponProfile(s, 3, 0, undefined, false);
+          const context = effect(s, 'attack', 'defective-copy', 'companion');
+          applyAttack(
+            s,
+            scaledPacket(
+              {
+                profile,
+                context,
+                strikes: attackStrikes(profile, orderedTargets(s)),
+              },
+              0.4,
+              context,
+            ),
+          );
+          note(s, 'Бракованная копия: третий матч → удар спутника.');
+        }
+      }
       for (const i of indices)
         if (s.board[i].variant === 'bomb')
           for (const j of [
@@ -1662,7 +2325,11 @@ function resolve(
       }
     }
     if (collateral.size) {
-      if (s.relics.includes('conductor')) {
+      recycle(s, collateral);
+      if (
+        (!interactions(s) || battleActive(s)) &&
+        s.relics.includes('conductor')
+      ) {
         const old = Number(
           s.flags.find((f) => f.startsWith('conductor:'))?.split(':')[1] ?? 0,
         );
@@ -1676,8 +2343,11 @@ function resolve(
       note(s, `Бомба разрушила ${collateral.size} фишек`);
     }
     if (inkDamage) {
-      hurtHero(s, inkDamage, true, 'Собранные кляксы');
-      note(s, `Собранные кляксы: −${inkDamage} здоровья сквозь защиту.`);
+      const actual = hurtHero(s, inkDamage, true, 'Собранные кляксы');
+      note(
+        s,
+        `Собранные кляксы: −${interactions(s) ? actual : inkDamage} здоровья сквозь защиту.`,
+      );
     }
     frames.push({
       state: copy(s),
@@ -1700,7 +2370,7 @@ function resolve(
     )
       break;
   }
-  if (!validMoves(s.board, minimumMatch(s)).length) {
+  if (!validMoves(s.board, minimumMatch(s), matchRules(s).ring).length) {
     newBoard(s);
     note(s, 'Ходов нет — поле бесплатно перемешано');
   }
@@ -1734,7 +2404,11 @@ function resizeBoard(s: State, size: number) {
     }
   s.board = next;
   if (s.tide) s.tide.row = Math.min(size - 1, s.tide.row);
-  if (!validMoves(s.board, minimumMatch(s)).length) newBoard(s, size);
+  if (
+    (matchRules(s).ring && groups(s.board, minimumMatch(s), true).length) ||
+    !validMoves(s.board, minimumMatch(s), matchRules(s).ring).length
+  )
+    newBoard(s, size);
 }
 export function enemyTactic(s: State, e: Pick<Enemy, 'kind'>) {
   if (!tactical(s)) return ENEMY_CATALOG[e.kind].tactic;
@@ -1755,6 +2429,18 @@ export function enemyTactic(s: State, e: Pick<Enemy, 'kind'>) {
   return tactics[e.kind] ?? ENEMY_CATALOG[e.kind].tactic;
 }
 export function intent(s: State, e: Enemy): EnemyIntent {
+  if (
+    interactions(s) &&
+    e.deferred &&
+    e.deferred.phase === bossPhase({ ...e, hp: Math.max(0, e.hp - e.poison) })
+  )
+    return e.deferred.skip
+      ? {
+          type: 'prepare',
+          value: 0,
+          text: `Отсрочка: пропустит ответ; затем ${e.deferred.intent.text.toLowerCase()}`,
+        }
+      : copy(e.deferred.intent);
   const damage = (bonus = 0, round = s.round) => {
     const pressure = (s.rulesVersion ?? 0) >= 4 && s.difficulty === 1 ? 2 : 0;
     const rage =
@@ -1990,6 +2676,16 @@ function checkFinish(s: State) {
       `${s.hero === 'warden' ? 'Страж' : 'Странник'} пал. Следующий путь будет другим.`,
     );
   } else if (s.phase === 'battle' && s.enemies.every((e) => e.hp <= 0)) {
+    if (
+      interactions(s) &&
+      s.eliteContract?.accepted &&
+      s.eliteContract.responses <= 3 &&
+      !s.eliteContract.completed
+    ) {
+      s.eliteContract.completed = true;
+      s.gold += s.eliteContract.bonus;
+      note(s, `Контракт выполнен: +${s.eliteContract.bonus} золота.`);
+    }
     s.gold +=
       (s.rulesVersion ?? 0) >= 3
         ? s.roomKind === 'boss'
@@ -2058,7 +2754,7 @@ function checkFinish(s: State) {
 export function startRun(
   seed = 19062026,
   balance: Balance = DEFAULT_BALANCE,
-  rulesVersion: 2 | 3 | 4 | 5 = 5,
+  rulesVersion: 2 | 3 | 4 | 5 | 6 = 6,
 ): State {
   seed = seed >>> 0;
   const s: State = {
@@ -2155,6 +2851,7 @@ export function previewMove(
   const error = moveError(input, axis, line, amount);
   if (error) return { error };
   const s = copy(input);
+  beginAction(s, 'shift', 'match');
   s.board = shifted(s.board, axis, line, amount);
   const frames: Frame[] = [];
   resolve(s, frames, true, true);
@@ -2162,8 +2859,8 @@ export function previewMove(
   const defeated = s.enemies.filter((e) => e.hp === 0).map((e) => e.id);
   return {
     error: undefined,
-    actionCost: shiftCost(input, amount),
-    actionsRemaining: actionLeft(input) - shiftCost(input, amount),
+    actionCost: shiftCost(input, amount, axis),
+    actionsRemaining: actionLeft(input) - shiftCost(input, amount, axis),
     cells,
     targets: s.enemies
       .map((e) => {
@@ -2184,6 +2881,12 @@ export function previewMove(
     energy: s.energy - input.energy,
     focus: s.focus - input.focus,
     health: s.hp - input.hp,
+    ...(interactions(s)
+      ? {
+          gold: s.gold - input.gold,
+          insured: effects(s).insured - (input.effectState?.insured ?? 0),
+        }
+      : {}),
     trialDamage: (s.trial?.damage ?? 0) - (input.trial?.damage ?? 0),
     tideCleared: !!s.tide?.cleared && !input.tide?.cleared,
     inkCleared:
@@ -2229,13 +2932,16 @@ function moveError(
   if (
     tactical(input) &&
     input.phase !== 'trial' &&
-    shiftCost(input, amount) > actionLeft(input)
+    shiftCost(input, amount, axis) > actionLeft(input)
   )
-    return `Нужно ${shiftCost(input, amount)} очков действия, осталось ${actionLeft(input)}.`;
+    return `Нужно ${shiftCost(input, amount, axis)} очков действия, осталось ${actionLeft(input)}.`;
   if (
     (!tactical(input) || input.phase === 'trial') &&
-    !groups(shifted(input.board, axis, line, amount), minimumMatch(input))
-      .length
+    !groups(
+      shifted(input.board, axis, line, amount),
+      minimumMatch(input),
+      matchRules(input).ring,
+    ).length
   )
     return 'Нет комбинации — сдвиг не тратится.';
 }
@@ -2248,12 +2954,32 @@ export function move(
   const error = moveError(input, axis, line, amount);
   if (error) return result(input, [], error);
   const s = copy(input);
+  beginAction(s, 'shift', 'match');
   s.board = shifted(s.board, axis, line, amount);
-  if (tactical(s)) spendAction(s, shiftCost(s, amount));
+  if (tactical(s)) spendAction(s, shiftCost(s, amount, axis));
   else s.moved = s.phase !== 'trial';
-  if (tactical(s) && !groups(s.board, minimumMatch(s)).length)
-    note(s, `Подготовка поля: −${shiftCost(s, amount)} очков действия.`);
+  if (
+    tactical(s) &&
+    !groups(s.board, minimumMatch(s), matchRules(s).ring).length
+  )
+    note(s, `Подготовка поля: −${shiftCost(s, amount, axis)} очков действия.`);
   const frames: Frame[] = [];
+  if (interactions(s) && s.phase === 'battle') {
+    const e = effects(s);
+    if (
+      s.equipment.clothing === 'gear-courier-jacket' &&
+      e.lastAxis &&
+      e.lastAxis !== axis &&
+      !e.courierUsed
+    ) {
+      e.courierUsed = true;
+      note(
+        s,
+        'Курьер: первая смена оси, скидка использована (минимум 1 действие).',
+      );
+    }
+    e.lastAxis = axis;
+  }
   resolve(s, frames, true);
   if (s.phase === 'trial') {
     s.cast = false;
@@ -2273,8 +2999,10 @@ export function endTurn(input: State): Result {
   if (input.phase !== 'battle') return result(input);
   const s = copy(input);
   const frames: Frame[] = [];
+  beginAction(s, 'enemy-response', 'status');
+  if (interactions(s) && s.eliteContract?.accepted) s.eliteContract.responses++;
   if (tactical(s) && s.relics.includes('borrowed-time')) {
-    hurtHero(s, 2, true, 'Заемное время');
+    hurtHero(s, 2, true, 'Заемное время', false);
     note(s, 'Заемное время: −2 здоровья за завершение хода.');
     if (s.hp <= 0) {
       checkFinish(s);
@@ -2304,8 +3032,11 @@ export function endTurn(input: State): Result {
     }
   }
   if (s.heroPoison > 0) {
-    recordDamage(s, 'Яд', Math.min(s.hp, s.heroPoison));
-    s.hp -= s.heroPoison;
+    if (interactions(s)) hurtHero(s, s.heroPoison, true, 'Яд');
+    else {
+      recordDamage(s, 'Яд', Math.min(s.hp, s.heroPoison));
+      s.hp -= s.heroPoison;
+    }
     note(s, `Яд: ${s.heroPoison} урона сквозь блок`);
     s.heroPoison--;
     frames.push({
@@ -2337,7 +3068,7 @@ export function endTurn(input: State): Result {
   for (const e of participants) {
     if (e.hp <= 0) continue;
     // Snapshot the displayed intent before this enemy's status tick.
-    const action = planned?.get(e.id) ?? intent(s, e);
+    let action = planned?.get(e.id) ?? intent(s, e);
     const tickingPoison =
       (s.rulesVersion ?? 0) >= 4 ? poisonAtStart.get(e.id)! : e.poison;
     if (tickingPoison > 0) {
@@ -2345,6 +3076,10 @@ export function endTurn(input: State): Result {
       e.hp -= damage;
       s.stats.damage += damage;
       e.poison--;
+      if (interactions(s)) {
+        effect(s, 'effect', 'poison', 'status', damage);
+        effects(s).events[effects(s).events.length - 1].target = e.id;
+      }
       frames.push({
         state: copy(s),
         cells: [],
@@ -2366,12 +3101,19 @@ export function endTurn(input: State): Result {
     if (rooted.length) {
       const damage = rooted.length * 2;
       const absorb = Math.min(s.block, damage);
-      s.block -= absorb;
-      s.stats.blocked += absorb;
-      recordDamage(s, 'Корни', Math.min(s.hp, damage - absorb), absorb);
-      s.hp -= damage - absorb;
+      const healthBefore = s.hp;
+      if (interactions(s)) hurtHero(s, damage, false, 'Корни');
+      else {
+        s.block -= absorb;
+        s.stats.blocked += absorb;
+        recordDamage(s, 'Корни', Math.min(s.hp, damage - absorb), absorb);
+        s.hp -= damage - absorb;
+      }
       rooted.forEach((t) => delete t.root);
-      note(s, `Корни: ${damage - absorb} урона`);
+      note(
+        s,
+        `Корни: ${interactions(s) ? healthBefore - s.hp : damage - absorb} урона`,
+      );
       frames.push({
         state: copy(s),
         cells: [],
@@ -2381,6 +3123,22 @@ export function endTurn(input: State): Result {
       if (s.hp <= 0) break;
     }
     e.block = 0;
+    if (interactions(s) && e.deferred) {
+      if (e.deferred.phase === bossPhase(e) && e.deferred.skip) {
+        e.deferred.skip = false;
+        note(s, `${e.name}: действие отложено, следующее намерение сохранено.`);
+        frames.push({
+          state: copy(s),
+          cells: [],
+          label: 'Отсрочка',
+          cue: { actor: e.id, type: 'prepare' },
+        });
+        continue;
+      }
+      const phaseChanged = e.deferred.phase !== bossPhase(e);
+      delete e.deferred;
+      if (phaseChanged) action = intent(s, { ...e, poison: 0 });
+    }
     if (action.type === 'poison') {
       s.heroPoison = (s.heroPoison ?? 0) + action.value;
       note(s, `Герой отравлен: +${action.value} яда`);
@@ -2469,18 +3227,31 @@ export function endTurn(input: State): Result {
       }
       const blocked =
         action.type === 'pierce' ? 0 : Math.min(s.block, action.value);
-      s.block -= blocked;
-      s.stats.blocked += blocked;
-      recordDamage(s, e.name, Math.min(s.hp, action.value - blocked), blocked);
-      s.hp -= action.value - blocked;
-      note(s, `${e.name}: ${action.value - blocked} урона, ${blocked} в блок`);
+      const healthBefore = s.hp;
+      if (interactions(s))
+        hurtHero(s, action.value, action.type === 'pierce', e.name);
+      else {
+        s.block -= blocked;
+        s.stats.blocked += blocked;
+        recordDamage(
+          s,
+          e.name,
+          Math.min(s.hp, action.value - blocked),
+          blocked,
+        );
+        s.hp -= action.value - blocked;
+      }
+      note(
+        s,
+        `${e.name}: ${interactions(s) ? healthBefore - s.hp : action.value - blocked} урона, ${blocked} в блок`,
+      );
       if (
         (s.rulesVersion ?? 0) >= 4 &&
         s.hp > 0 &&
         blocked >= 2 &&
         s.relics.includes('thorns')
       ) {
-        hit(s, Math.floor(blocked / 2), false, false, e.id);
+        hit(s, Math.floor(blocked / 2), false, false, e.id, 'reflection');
         note(
           s,
           `Шипованный обод: ${Math.floor(blocked / 2)} урона → ${e.name}`,
@@ -2574,6 +3345,17 @@ export function endTurn(input: State): Result {
   }
   return result(s, frames);
 }
+export function skillReason(s: State, id: string): string | undefined {
+  if (INTERACTION_SKILL_IDS.includes(id) && !interactions(s))
+    return 'Нужен новый спуск с правилами 6.';
+  if (id === 'imprint' && !s.effectState?.lastAttack)
+    return 'Сначала нанеси оружейный удар в этой комнате.';
+  if (id === 'defer') {
+    const target = s.enemies.find((e) => e.id === s.target && e.hp > 0);
+    if (s.phase !== 'battle' || !target) return 'Выбери живого врага.';
+    if (target.delayUsed) return 'Этого врага уже задерживали в этом бою.';
+  }
+}
 export function castSkill(
   input: State,
   id: string,
@@ -2593,6 +3375,8 @@ export function castSkill(
       [],
       tactical(input) ? 'Нужно 1 очко действия.' : 'Одна способность за ход.',
     );
+  const unavailable = skillReason(input, id);
+  if (unavailable) return result(input, [], unavailable);
   const binding =
     id === 'binding' &&
     (input.rulesVersion ?? 0) >= 4 &&
@@ -2600,6 +3384,9 @@ export function castSkill(
   if (id !== 'edit' && !binding && !input.skills.includes(id))
     return result(input, [], 'Этот приём не экипирован.');
   const costs: Record<string, [number, number, number]> = {
+    imprint: [4, 0, 0],
+    'row-rupture': [0, 4, 0],
+    defer: [5, 0, 0],
     binding: [0, 0, 0],
     bolt: [6, 0, 0],
     guard: [4, 0, 0],
@@ -2629,6 +3416,7 @@ export function castSkill(
   )
     return result(input, [], 'Выбери две разные клетки для правки.');
   const s = copy(input);
+  beginAction(s, id, 'skill');
   s.cast = !tactical(s) || s.phase === 'trial';
   spendAction(s, 1);
   s.stats.skills++;
@@ -2644,7 +3432,20 @@ export function castSkill(
     )
       s.flags.push('vessel:armed');
   }
-  if (cost[0] >= 6 && s.relics.includes('return')) s.flags.push('return:armed');
+  if (interactions(s)) {
+    const e = effects(s);
+    e.energySpent += cost[0];
+    if (cost[0]) effect(s, 'payment', id, 'skill', cost[0], undefined, 'turn');
+    if (
+      e.energySpent >= 6 &&
+      s.relics.includes('return') &&
+      once(s, 'turn:return')
+    ) {
+      s.flags.push('return:armed');
+      note(s, 'Обратная тяга: потрачено 6 энергии; следующие щиты +3 блока.');
+    }
+  } else if (cost[0] >= 6 && s.relics.includes('return'))
+    s.flags.push('return:armed');
   const bonus = cost[2] && s.relics.includes('lens') ? 4 : 0;
   const rune =
     (s.rulesVersion ?? 0) >= 2 &&
@@ -2667,6 +3468,48 @@ export function castSkill(
   }
   if (id === 'bolt') hit(s, damage(12 + rune));
   if (id === 'guard') s.block += 8;
+  if (id === 'imprint') {
+    const packet = effects(s).lastAttack!;
+    const context = effect(
+      s,
+      'attack',
+      id,
+      'repeat',
+      undefined,
+      packet.context.effectId,
+    );
+    const repeated = scaledPacket(packet, 0.6, context, orderedTargets(s));
+    repeated.strikes.forEach((strike) => {
+      strike.damage = damage(strike.damage);
+      strike.piercing = Math.min(strike.piercing, strike.damage);
+    });
+    applyAttack(s, repeated);
+  }
+  if (id === 'defer') {
+    const target = s.enemies.find((e) => e.id === s.target && e.hp > 0)!;
+    target.deferred = {
+      intent: intent(s, target),
+      skip: true,
+      phase: bossPhase(target),
+    };
+    target.delayUsed = true;
+  }
+  if (id === 'row-rupture') {
+    const size = boardSize(s.board),
+      row = Math.floor(index / size);
+    const removed = new Set(
+      Array.from({ length: size }, (_, col) => row * size + col),
+    );
+    const collateral = bombCollateral(s, removed);
+    collateral.forEach((i) => removed.add(i));
+    recycle(s, removed);
+    conductorGain(s, collateral.size);
+    collapse(s, removed);
+    note(
+      s,
+      `Разрыв строки ${row + 1}: ${removed.size} фишек разрушено без награды за совпадение.`,
+    );
+  }
   if (id === 'pierce') hit(s, damage(8), true);
   if (id === 'blood') hit(s, damage(8 + bonus));
   if (id === 'seal') hit(s, damage(16 + bonus + rune));
@@ -2730,7 +3573,7 @@ export function castSkill(
       },
     },
   ];
-  resolve(s, frames, false);
+  if (!interactions(s) || battleActive(s)) resolve(s, frames, false);
   checkFinish(s);
   return result(s, frames);
 }
@@ -2793,7 +3636,7 @@ export function rewardOffers(s: State, strong = false): Offer[] {
     ...(strong
       ? []
       : [
-          ...SKILLS.filter((x) => !s.skills.includes(x.id)),
+          ...skillPoolFor(s).filter((x) => !s.skills.includes(x.id)),
           ...upgradeOptions(s),
         ]),
   ];
@@ -3056,11 +3899,12 @@ export function progressionRewards(m: Meta): string[] {
       : []),
   ];
 }
-export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4 | 5) {
+export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4 | 5 | 6) {
   if ((rulesVersion ?? 0) >= 2)
     return [
       ...CORE_RELIC_IDS,
       ...((rulesVersion ?? 0) >= 5 ? TACTIC_RELIC_IDS : []),
+      ...((rulesVersion ?? 0) >= 6 ? INTERACTION_RELIC_IDS : []),
       ...((rulesVersion ?? 0) >= 4 ? progressionRewards(m) : []),
       ...((rulesVersion ?? 0) >= 4
         ? ACHIEVEMENTS.filter(
@@ -3150,6 +3994,75 @@ export function canEnterForbidden(s: State) {
     !!s.journey
   );
 }
+function doorHint(s: State, room: Room & { depth: number; next?: string[] }) {
+  const cue = ['battle', 'elite'].includes(room.kind)
+    ? (room.roster?.length ?? 1) > 2
+      ? 'За дверью слышно много шагов.'
+      : 'За дверью слышны шаги.'
+    : room.kind === 'trial'
+      ? 'Слышен шум работающего механизма.'
+      : room.kind === 'treasure'
+        ? 'Тихо. Видна полоска света под дверью.'
+        : 'За дверью кто-то оставил следы.';
+  const onward =
+    s.journey?.nodes.filter((n) => room.next?.includes(n.id)) ?? [];
+  const risky = onward.some(
+    (n) => n.kind === 'elite' || (n.roster?.length ?? 0) >= 3,
+  );
+  return `${cue} ${risky ? 'Дальше по ветви — следы большой схватки.' : 'Явных следов большой схватки дальше нет.'} Точный состав и находки неизвестны.`;
+}
+export function canAcceptContract(s: State) {
+  return (
+    interactions(s) &&
+    s.phase === 'battle' &&
+    s.roomKind === 'elite' &&
+    !!s.eliteContract &&
+    !s.eliteContract.accepted &&
+    s.round === 1 &&
+    !s.flags.includes('battle:acted')
+  );
+}
+export function acceptContract(input: State): Result {
+  if (!canAcceptContract(input))
+    return result(
+      input,
+      [],
+      'Контракт можно принять только до первого действия в этой элитной комнате.',
+    );
+  const s = copy(input);
+  s.eliteContract!.accepted = true;
+  note(
+    s,
+    `Контракт: победить не позднее третьего ответа врагов. Дополнительно ${s.eliteContract!.bonus} золота; базовая награда не меняется.`,
+  );
+  return result(s);
+}
+export function workshopOffers(s: State): Offer[] {
+  return (s.workshop ?? [])
+    .filter((o) => o.id !== s.equipment.weapon)
+    .map((o) => ({ ...weaponOffer(o.id, s.weaponQuality ?? 0), cost: 28 }));
+}
+export function buyWorkshop(input: State, id: string): Result {
+  const offer = workshopOffers(input).find((o) => o.id === id);
+  if (
+    !interactions(input) ||
+    input.phase !== 'shop' ||
+    !offer ||
+    input.gold < (offer.cost ?? Infinity)
+  )
+    return result(
+      input,
+      [],
+      'Выбери доступное оружие мастерской; нужны 28 монет.',
+    );
+  const s = copy(input);
+  const error = grant(s, offer);
+  if (error) return result(input, [], error);
+  s.gold -= offer.cost!;
+  s.workshop = [];
+  note(s, 'Мастерская Саввы: тип оружия заменён, качество сохранено.');
+  return result(s);
+}
 function visibleRoom<T extends Room & { depth: number }>(s: State, n: T): T {
   if (
     !tactical(s) ||
@@ -3164,7 +4077,9 @@ function visibleRoom<T extends Room & { depth: number }>(s: State, n: T): T {
     kind: 'unknown',
     name: 'Неизвестная комната',
     description:
-      'За дверью может быть бой, находка, событие или испытание. Содержимое откроется после входа. Магазины, привалы и боссы отмечены заранее.',
+      interactions(s) && n.depth === s.room + 1
+        ? doorHint(s, n)
+        : 'За дверью может быть бой, находка, событие или испытание. Содержимое откроется после входа. Магазины, привалы и боссы отмечены заранее.',
   } as T;
 }
 function tacticalRoster(
@@ -3627,12 +4542,23 @@ function journeyRewardOffers(s: State, strong: boolean): Offer[] {
     ...(sharpening ? [sharpening] : []),
   ];
   const techniques = [
-    ...SKILLS.filter((o) => !s.skills.includes(o.id)),
+    ...skillPoolFor(s).filter((o) => !s.skills.includes(o.id)),
     ...modifiers,
   ];
+  const firstEquipment = drawOffers(s, equipment, 1);
   const offers = [
-    ...drawOffers(s, equipment, 1),
-    ...drawOffers(s, techniques, 1),
+    ...firstEquipment,
+    ...drawOffers(
+      s,
+      interactions(s)
+        ? [
+            ...techniques,
+            ...equipment.filter((o) => itemNature(o.id) === 'transformative'),
+            ...relics,
+          ].filter((o) => !firstEquipment.some((x) => x.id === o.id))
+        : techniques,
+      1,
+    ),
   ];
   const fallback = [...equipment, ...techniques, ...relics].filter(
     (o) => !offers.some((a) => a.id === o.id),
@@ -3930,6 +4856,13 @@ export function enterRoom(input: State, id: string): Result {
     delete t.ink;
     delete t.root;
   });
+  if (interactions(s)) {
+    const e = effects(s);
+    delete e.lastAttack;
+    e.companion = 0;
+    delete s.workshop;
+    delete s.eliteContract;
+  }
   s.roomKind = room.kind;
   s.path.push(room.name);
   s.round = 1;
@@ -3946,6 +4879,8 @@ export function enterRoom(input: State, id: string): Result {
   s.enemies = [];
   if (['battle', 'elite', 'boss'].includes(room.kind)) {
     s.phase = 'battle';
+    if (interactions(s) && room.kind === 'elite' && s.room % 10 === 4)
+      s.eliteContract = { accepted: false, responses: 0, bonus: 15 };
     const scale = Math.floor(s.room / 3) * 3;
     s.enemies = (room.roster ?? ROOM_ENEMIES[id]).map((kind) =>
       makeEnemy(
@@ -3966,6 +4901,15 @@ export function enterRoom(input: State, id: string): Result {
   } else if (room.kind === 'shop') {
     s.phase = 'shop';
     s.offers = shopOffers(s);
+    if (interactions(s))
+      s.workshop = drawOffers(
+        s,
+        WEAPONS.filter((w) => w.id !== s.equipment.weapon).map((w) => ({
+          ...weaponOffer(w.id, s.weaponQuality ?? 0),
+          cost: 28,
+        })),
+        2,
+      );
   } else if (room.kind === 'rest') s.phase = 'rest';
   else if (room.kind === 'event') s.phase = 'event';
   else {
@@ -4038,9 +4982,18 @@ function grant(s: State, offer: Offer, slot?: number): string | undefined {
       );
       return;
     }
-    if (previous && previous.bonus >= item.bonus)
+    if (
+      previous &&
+      previous.bonus >= item.bonus &&
+      !(
+        interactions(s) &&
+        previous.id !== item.id &&
+        (item.behavior || previous.behavior)
+      )
+    )
       return 'У тебя уже есть такая же или более сильная вещь.';
     s.equipment[item.slot] = item.id;
+    if (interactions(s)) s.focus = Math.min(s.focus, focusMax(s));
     if (item.slot === 'helmet') {
       const difference = item.bonus - (previous?.bonus ?? 0);
       s.maxHp += difference;
@@ -4152,7 +5105,7 @@ function shopOffers(s: State): Offer[] {
       )[0],
       cost: 65,
     });
-  const skills = SKILLS.filter((x) => !s.skills.includes(x.id));
+  const skills = skillPoolFor(s).filter((x) => !s.skills.includes(x.id));
   if (skills.length)
     offers.push({
       ...skills[Math.floor(random(s, 'loot') * skills.length)],
@@ -4349,11 +5302,103 @@ function validDamageEvents(value: unknown): value is DamageEvent[] {
     )
   );
 }
+function validEffectState(s: State): boolean {
+  const e = s.effectState;
+  if (e === undefined) return !interactions(s);
+  const natural = (n: unknown) =>
+    typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
+  return (
+    interactions(s) &&
+    e !== null &&
+    Array.isArray(s.enemies) &&
+    s.enemies.every(
+      (enemy) =>
+        enemy &&
+        (enemy.delayUsed === undefined || enemy.delayUsed === true) &&
+        (enemy.deferred === undefined ||
+          (enemy.delayUsed &&
+            enemy.deferred !== null &&
+            typeof enemy.deferred.skip === 'boolean' &&
+            [1, 2].includes(enemy.deferred.phase) &&
+            enemy.deferred.intent &&
+            [
+              'attack',
+              'pierce',
+              'prepare',
+              'block',
+              'drain',
+              'heal',
+              'poison',
+              'roots',
+              'ink',
+              'siphon',
+              'redact',
+              'summon',
+              'rally',
+              'mend',
+              'lock',
+              'resize',
+            ].includes(enemy.deferred.intent.type) &&
+            natural(enemy.deferred.intent.value) &&
+            typeof enemy.deferred.intent.text === 'string')),
+    ) &&
+    [
+      e.action,
+      e.serial,
+      e.energySpent,
+      e.companion,
+      e.insured,
+      e.ashSpark,
+      e.ashFocus,
+    ].every(natural) &&
+    e.companion < 3 &&
+    e.insured <= 4 &&
+    typeof e.insurance === 'boolean' &&
+    typeof e.courierUsed === 'boolean' &&
+    (e.lastAxis === undefined || ['row', 'col'].includes(e.lastAxis)) &&
+    (e.current === undefined || validContext(e.current)) &&
+    (e.lastAttack === undefined || validPacket(e.lastAttack)) &&
+    Array.isArray(e.events) &&
+    e.events.length <= 80 &&
+    e.events.every(
+      (event) =>
+        validContext(event) &&
+        ['action', 'attack', 'energy', 'payment', 'match', 'effect'].includes(
+          event.kind,
+        ) &&
+        (event.amount === undefined || natural(event.amount)) &&
+        (event.cells === undefined ||
+          (Array.isArray(event.cells) && event.cells.every(natural))),
+    )
+  );
+}
 export function isSave(value: unknown): value is State {
   if (!value || typeof value !== 'object') return false;
   const s = value as State;
   return (
     s.version === 2 &&
+    validEffectState(s) &&
+    (s.workshop === undefined ||
+      (interactions(s) &&
+        ['shop', 'map'].includes(s.phase) &&
+        Array.isArray(s.workshop) &&
+        s.workshop.length <= 2 &&
+        s.workshop.every(
+          (o) =>
+            o &&
+            equipmentById(o.id)?.slot === 'weapon' &&
+            [0, 1, 2].includes(o.quality ?? -1) &&
+            o.cost === 28,
+        ))) &&
+    (s.eliteContract === undefined ||
+      (interactions(s) &&
+        s.eliteContract !== null &&
+        typeof s.eliteContract.accepted === 'boolean' &&
+        Number.isSafeInteger(s.eliteContract.responses) &&
+        s.eliteContract.responses >= 0 &&
+        s.eliteContract.bonus === 15 &&
+        (s.eliteContract.completed === undefined ||
+          s.eliteContract.completed === true))) &&
     (s.challenge === undefined ||
       ((s.rulesVersion ?? 0) >= 4 &&
         CHALLENGES.some((c) => c.id === s.challenge))) &&
@@ -4400,7 +5445,8 @@ export function isSave(value: unknown): value is State {
       s.rulesVersion === 2 ||
       s.rulesVersion === 3 ||
       s.rulesVersion === 4 ||
-      s.rulesVersion === 5) &&
+      s.rulesVersion === 5 ||
+      s.rulesVersion === 6) &&
     ((s.rulesVersion ?? 0) < 3 || validJourneySave(s)) &&
     ((s.rulesVersion ?? 0) < 2 ||
       (Number.isInteger(s.weaponQuality) &&
@@ -4597,6 +5643,9 @@ export function bindingPreview(s: State) {
 }
 export function canCast(s: State, id: string): boolean {
   const c: Record<string, [number, number, number]> = {
+    imprint: [4, 0, 0],
+    'row-rupture': [0, 4, 0],
+    defer: [5, 0, 0],
     binding: [0, 0, 0],
     bolt: [6, 0, 0],
     guard: [4, 0, 0],
@@ -4609,6 +5658,7 @@ export function canCast(s: State, id: string): boolean {
   const cost = c[id];
   return (
     !!cost &&
+    !skillReason(s, id) &&
     ['battle', 'trial'].includes(s.phase) &&
     !s.trial?.paused &&
     (tactical(s) && s.phase !== 'trial' ? actionLeft(s) >= 1 : !s.cast) &&
@@ -4631,7 +5681,9 @@ export function configureRun(
   s.modified = true;
   s.flags.push(
     ...RELICS.filter(
-      (x) => tactical(s) || !TACTIC_RELIC_IDS.includes(x.id),
+      (x) =>
+        (tactical(s) || !TACTIC_RELIC_IDS.includes(x.id)) &&
+        (interactions(s) || !INTERACTION_RELIC_IDS.includes(x.id)),
     ).map((x) => `run:available:${x.id}`),
   );
   if (preset === 'shields') s.relics = ['thorns', 'coil', 'return'];

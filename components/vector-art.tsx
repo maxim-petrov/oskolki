@@ -89,6 +89,8 @@ export function VectorIcon({
   );
 }
 const weaponPaths: Record<string, string> = {
+  'gear-ruler': 'M12 3h8v19h-8Z M12 8h4m-4 5h4m-4 5h4',
+  'gear-cash-hammer': 'M5 5h22v10H5Z',
   'gear-cutter': 'M14 21V11l5-7v17Z',
   'gear-rusty-dagger': 'm16 3-5 17h10Z',
   'gear-cleaver': 'M13 5h13v17H13Z',

@@ -1,4 +1,5 @@
 'use client';
+import { VectorWeapon } from './vector-art';
 import { WardenArt } from './warden-art';
 import type { CSSProperties } from 'react';
 import { EnemyArt } from './enemy-art';
@@ -24,6 +25,15 @@ export function CombatSprite({
   const id = motion?.id ?? 0,
     stage = motion?.stage ?? 'idle';
   const guarding = pose === 'guard';
+  const companionAttack =
+    motion &&
+    motion.stage !== 'windup' &&
+    motion.after.effectState?.events.some(
+      (e) =>
+        e.source === 'companion' &&
+        e.kind === 'attack' &&
+        e.effectId > (motion.before.effectState?.serial ?? 0),
+    );
   const enemy =
     actor === 'hero' ? undefined : state.enemies.find((e) => e.id === actor);
   return (
@@ -64,6 +74,32 @@ export function CombatSprite({
         {acting && kind === 'heal' && <div className="heal-aura" />}
         {acting && kind === 'prepare' && <div className="rage-aura" />}
       </div>
+      {actor === 'hero' && state.relics.includes('defective-copy') && (
+        <div
+          className={`companion-figure ${companionAttack ? 'companion-strike' : ''}`}
+          title={`Бракованная копия · ${state.effectState?.companion ?? 0}/3`}
+        >
+          <svg
+            width="52"
+            height="66"
+            viewBox="0 0 52 66"
+            fill="#e6eaf0"
+            stroke="#293540"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          >
+            <path d="M11 10h24l6 6v22H11Z M35 10v7h6 M18 38l-3 19h9l3-12 3 12h9l-4-19Z" />
+            <path d="M17 23h4m8 0h4M21 30h8M11 39l-7 9m31-9 9 9" />
+            <path d="m14 13 16-5" strokeDasharray="2 3" />
+          </svg>
+          <span className="companion-weapon">
+            <VectorWeapon
+              id={state.equipment.weapon ?? 'gear-cutter'}
+              size={28}
+            />
+          </span>
+        </div>
+      )}
       {stage !== 'windup' && hit && (
         <div
           key={`hit-${id}`}

@@ -14,7 +14,7 @@ const reload = (s) => {
   return g.loadSave(JSON.parse(JSON.stringify(s)));
 };
 function arena(kinds = ['raider']) {
-  const s = g.startRun(42);
+  const s = g.startRun(42, g.DEFAULT_BALANCE, 5);
   s.hp = s.maxHp = 160;
   s.enemies = kinds.map((kind, n) => ({
     ...s.enemies[0],
@@ -342,7 +342,7 @@ test('match-four boards generate on 5/6/7 grids; poison, ink, locks and tidal ro
       s.seed = s.rng = seed;
       s.relics = ['grand-design'];
       // Enter the archive through its saved route in the full-run test; here isolate geometry/status interaction.
-      s.board = g.startRun(seed).board;
+      s.board = g.startRun(seed, g.DEFAULT_BALANCE, 5).board;
       s.serial = Math.max(s.serial, ...s.board.map((t) => t.id));
       const r = accept(g.endTurn(s));
       assert.ok(g.validMoves(r.board, 4).length);
@@ -369,7 +369,7 @@ test('hidden map masks type and roster, keeps landmarks/topology, and entering r
   let hidden = 0,
     total = 0;
   for (let seed = 0; seed < 64; seed++) {
-    const s = g.startRun(seed);
+    const s = g.startRun(seed, g.DEFAULT_BALANCE, 5);
     assert.equal(s.rulesVersion, 5);
     assert.deepEqual(reload(s), s);
     const map = g.routeMap(s).flat();
@@ -450,6 +450,9 @@ function completeRun(seed, relic, shouldReload) {
     { ...g.EMPTY_META, wins: 1 },
     relic === 'iron-agenda' ? 'warden' : 'wanderer',
   );
+  // This historical suite locks the rules-5 campaign. Rules 6 have their own interaction cases.
+  s.rulesVersion = 5;
+  delete s.effectState;
   if (relic) {
     s.relics = [relic];
     s.actions = g.actionMax(s);

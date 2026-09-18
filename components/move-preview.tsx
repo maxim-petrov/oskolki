@@ -42,6 +42,15 @@ export function MovePreview({
       </p>
     );
   const result = previewMove(game, move.axis, move.line, move.amount);
+  if (!('targets' in result))
+    return (
+      <section
+        className="move-preview"
+        aria-label="Предварительный результат сдвига"
+      >
+        <p>{result.error}</p>
+      </section>
+    );
   const used = (result.limitsUsed ?? []).flatMap((f) =>
     LIMITS[f] ? [LIMITS[f]] : f.startsWith('conductor:') ? ['Проводник'] : [],
   );
@@ -70,9 +79,7 @@ export function MovePreview({
         </span>
       </div>
       <div aria-live="polite" aria-atomic="true">
-        {result.error ? (
-          <p>{result.error}</p>
-        ) : (
+        {
           <>
             <ul className="move-preview-targets">
               {result.targets?.map((e) => (
@@ -87,25 +94,33 @@ export function MovePreview({
               ))}
             </ul>
             <div className="move-preview-resources">
-              {(['block', 'energy', 'focus', 'health'] as const).map((key) =>
-                result[key] ? (
-                  <span key={key}>
-                    {
+              {(['block', 'energy', 'focus', 'health', 'gold'] as const).map(
+                (key) =>
+                  result[key] ? (
+                    <span key={key}>
                       {
-                        block: 'Блок',
-                        energy: 'Энергия',
-                        focus: 'Фокус',
-                        health: 'Здоровье',
-                      }[key]
-                    }{' '}
-                    {signed(result[key]!)}
-                  </span>
-                ) : null,
+                        {
+                          block: 'Блок',
+                          energy: 'Энергия',
+                          focus: 'Фокус',
+                          health: 'Здоровье',
+                          gold: 'Золото',
+                        }[key]
+                      }{' '}
+                      {signed(result[key]!)}
+                    </span>
+                  ) : null,
               )}
               {!!result.trialDamage && (
                 <span>Преграда −{result.trialDamage}</span>
               )}
             </div>
+            {!!result.insured && (
+              <p>
+                Страховка предотвратит {result.insured} урона; расход золота
+                учтён.
+              </p>
+            )}
             {result.tideCleared && <p>Сток откроется: этот прилив отменён.</p>}
             {!!result.inkCleared && <p>Убрано клякс: {result.inkCleared}.</p>}
             {!!result.rootsCleared && <p>Убрано пут: {result.rootsCleared}.</p>}
@@ -135,7 +150,7 @@ export function MovePreview({
               проверь обновлённые намерения врагов.
             </p>
           </>
-        )}
+        }
       </div>
       <p className="move-preview-hint">
         Отпусти фишку, чтобы сделать ход. Esc — отменить перетаскивание.

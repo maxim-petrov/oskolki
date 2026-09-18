@@ -108,12 +108,12 @@ test('live enemy identity, second boss phase and displayed intentions survive sa
   }
 });
 
-test('the Warden holds all five equipped weapons in six measured poses without replacing the original hero', async () => {
+test('the Warden holds every equipped weapon in six measured poses without replacing the original hero', async () => {
   const { WardenArt, WARDEN_FRAMES } =
     await import('../components/warden-art.tsx');
   // Use the real equipment catalog rather than assuming historical item IDs.
   const ids = g.EQUIPMENT.filter((e) => e.slot === 'weapon').map((e) => e.id);
-  assert.equal(ids.length, 5);
+  assert.equal(ids.length, g.WEAPONS.length);
   for (const pose of Object.keys(WARDEN_FRAMES)) {
     const pictures = ids.map((weaponId) =>
       render(WardenArt, { pose, weaponId }),
@@ -121,7 +121,7 @@ test('the Warden holds all five equipped weapons in six measured poses without r
     assert.equal(
       new Set(pictures.map((s) => s.match(/data-weapon-id="([^"]+)/)?.[1]))
         .size,
-      5,
+      ids.length,
     );
     for (const s of pictures) {
       assert.match(s, /data-hero="warden"/);
