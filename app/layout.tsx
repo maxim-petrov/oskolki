@@ -3,9 +3,11 @@ import './globals.css';
 import './palace.css';
 import './palace-cellar.css';
 import './office.css';
+import './minimal.css';
 import { VISUAL_STYLE } from '@/game/visual-style';
 export const metadata: Metadata = {
-  title: 'Осколки — Дворец слов',
+  title: 'Осколки · вектор',
+  icons: { icon: '/art/vector/favicon.svg' },
   description:
     'Рабочий день ещё не закончился. Исследуй офис и комнаты за дверью босса в тактическом match-3 рогалике.',
 };

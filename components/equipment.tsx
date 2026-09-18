@@ -1,8 +1,5 @@
 'use client';
-import { useId } from 'react';
-import { weaponArtById } from '@/game/weapon-art';
-import { PalaceCutout } from '@/components/palace-cutout';
-import equipmentArt from '@/game/equipment-art.json';
+import { VectorWeapon, INK, TINT } from './vector-art';
 import {
   WEAPONS,
   EQUIPMENT_SLOTS,
@@ -22,37 +19,37 @@ export function EquipmentIcon({
   id: string;
   size?: number;
 }) {
-  const uid = useId().replace(/:/g, '');
   const item = equipmentById(id);
   if (!item) return null;
-  // Each weapon uses its own PNG; other gear uses measured atlas regions.
-  const art = item.slot === 'weapon' ? weaponArtById(id) : null;
-  const [x, y, width, height] = art?.bounds ?? equipmentArt.regions[item.icon];
-  const extent = art
-    ? Math.ceil(Math.max(width, height) * 1.08)
-    : Math.max(width, height) + 16;
+  if (item.slot === 'weapon') return <VectorWeapon id={id} size={size} />;
   return (
     <svg
-      aria-hidden="true"
       className="equipment-icon"
+      data-equipment-id={id}
       width={size}
       height={size}
-      viewBox={`${x + (width - extent) / 2} ${y + (height - extent) / 2} ${extent} ${extent}`}
-      shapeRendering="crispEdges"
+      viewBox="0 0 32 32"
+      aria-hidden="true"
+      stroke={INK}
+      strokeWidth="1.7"
+      strokeLinejoin="round"
+      fill="#e6eaf0"
     >
-      <defs>
-        <clipPath id={`gear-${uid}`}>
-          <rect x={x} y={y} width={width} height={height} />
-        </clipPath>
-        <PalaceCutout id={`gear-alpha-${uid}`} bounds={[x, y, width, height]} />
-      </defs>
-      <image
-        href={art?.src ?? equipmentArt.src}
-        width={art?.width ?? equipmentArt.width}
-        height={art?.height ?? equipmentArt.height}
-        clipPath={`url(#gear-${uid})`}
-        filter={`url(#gear-alpha-${uid})`}
-      />
+      {item.slot === 'helmet' ? (
+        <path d="M5 22V15a11 11 0 0 1 22 0v7h-8v5h-6v-5ZM16 5v12" />
+      ) : item.slot === 'clothing' ? (
+        <path d="m11 4-8 8 5 5 3-3v14h10V14l3 3 5-5-8-8-5 5Z" />
+      ) : (
+        <path d="M8 4h16l2 24h-8l-2-15-2 15H6Z M8 9h16" />
+      )}
+      {Array.from({ length: item.tier }, (_, i) => (
+        <path
+          key={i}
+          d={`M${12 + i * 5} 20v3`}
+          stroke={TINT.blue}
+          strokeWidth="2.5"
+        />
+      ))}
     </svg>
   );
 }

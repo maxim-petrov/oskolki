@@ -74,7 +74,10 @@ test('all support and board-control intentions have icons and readable explanati
   }
   const icons = g.TACTIC_RELIC_IDS.map((id) => render(ItemIcon, { id }));
   assert.equal(new Set(icons).size, 3);
-  icons.forEach((html) => assert.match(html, /shape-rendering="crispEdges"/));
+  icons.forEach((html) => {
+    assert.match(html, /<path/);
+    assert.doesNotMatch(html, /<image|\.png/);
+  });
 });
 
 test('public game controls expose AP, match threshold and real hidden routes; unknown doors resolve through normal entry', () => {

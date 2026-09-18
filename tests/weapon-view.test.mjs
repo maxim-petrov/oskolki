@@ -38,13 +38,14 @@ test('rewarded, purchased and restored weapons share identity but use separate h
       weaponId: state.equipment.weapon,
     });
     for (const [html, folder] of [
-      [actor, 'weapons'],
-      [tile, 'weapon-miniatures'],
+      [actor, 'full'],
+      [tile, 'mini'],
     ]) {
       assert.ok(html.includes(`data-weapon-id="${weapon.id}"`));
-      assert.ok(html.includes(`/${folder}/${weapon.id}.png`));
+      assert.ok(html.includes(`data-detail="${folder}"`));
+      assert.doesNotMatch(html, /<image|\.png/);
       for (const other of g.WEAPONS.filter((item) => item.id !== weapon.id))
-        assert.ok(!html.includes(`/${folder}/${other.id}.png`));
+        assert.ok(!html.includes(`data-weapon-id="${other.id}"`));
     }
     assert.ok(
       !tile.includes('/weapons/'),
@@ -70,10 +71,11 @@ test('every battle pose holds the selected weapon while enemies keep their own a
         pose,
         weaponId: weapon.id,
       });
-      assert.ok(hero.includes('actors-weaponless.png'));
+      assert.ok(hero.includes('vector-person'));
+      assert.doesNotMatch(hero, /<image|\.png/);
       assert.ok(hero.includes(`data-weapon-id="${weapon.id}"`));
-      assert.ok(hero.includes('palace-body-mask-'));
-      assert.ok(hero.includes('palace-hand-'));
+      assert.ok(hero.includes(`pose-${pose}`));
+      assert.ok(hero.includes('held-weapon'));
       assert.ok(!hero.includes('NaN'));
     }
     const enemy = render(PalaceActorArt, {
@@ -81,7 +83,7 @@ test('every battle pose holds the selected weapon while enemies keep their own a
       pose,
       weaponId: 'gear-rune-sword',
     });
-    assert.ok(enemy.includes('/actors.png'));
+    assert.ok(enemy.includes('vector-enemy'));
     assert.ok(!enemy.includes('held-weapon'));
     assert.ok(!enemy.includes('actors-weaponless.png'));
   }
@@ -94,7 +96,8 @@ test('special blade tiles show equipped weapon and effect, other tile families s
       variant,
       weaponId: 'gear-axe',
     });
-    assert.ok(html.includes('/weapon-miniatures/gear-axe.png'));
+    assert.ok(html.includes('data-weapon-id="gear-axe"'));
+    assert.ok(html.includes('data-detail="mini"'));
     assert.ok(html.includes(`weapon-variant variant-${variant}`));
   }
   for (const family of ['shield', 'spark', 'focus']) {
@@ -104,7 +107,8 @@ test('special blade tiles show equipped weapon and effect, other tile families s
         variant,
         weaponId: 'gear-axe',
       });
-      assert.ok(html.includes('/icons.png'));
+      assert.ok(html.includes('vector-icon'));
+      assert.doesNotMatch(html, /<image|data-weapon-id/);
       assert.ok(!html.includes('/weapons/'));
       assert.ok(!html.includes('/weapon-miniatures/'));
     }
@@ -130,7 +134,7 @@ test('missing or unknown weapon IDs fall back to the same cutter for hero and mi
       weaponId: id,
       size: 32,
     });
-    assert.ok(html.includes('/weapon-miniatures/gear-cutter.png'));
+    assert.ok(html.includes('data-weapon-id="gear-cutter"'));
     assert.ok(!html.includes('NaN') && !html.includes('undefined'));
   }
 });
@@ -146,7 +150,7 @@ test('gallery previews leave equipped weapon unchanged, and grips land at the po
   assert.equal(JSON.stringify(state), snapshot);
   assert.ok(
     render(CombatSprite, { state, actor: 'hero', motion: null }).includes(
-      '/weapons/gear-cutter.png',
+      'data-weapon-id="gear-cutter"',
     ),
   );
   for (const item of g.WEAPONS) {

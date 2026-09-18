@@ -61,18 +61,19 @@ test('sixteen enemies and three bosses each own a distinct transparent native PN
   assert.equal(hashes.size, kinds.length);
 });
 
-test('all enemy combat poses use their own artwork, while old saved enemies keep their atlas', () => {
+test('all enemy combat poses and legacy saved enemies use distinct vector artwork', () => {
   for (const key of kinds)
     for (const pose of ['idle', 'windup', 'strike', 'guard', 'hurt', 'death']) {
       const html = render(EnemyArt, { enemy: enemy(key), pose });
-      assert.ok(html.includes(art[key].src));
+      assert.ok(html.includes(`data-enemy-kind="${key}"`));
+      assert.doesNotMatch(html, /<image|\.png/);
       assert.ok(html.includes('data-enemy-kind="' + key + '"'));
       assert.ok(!html.includes('/weapons/'));
       assert.ok(!html.includes('NaN'));
     }
   assert.ok(
     render(EnemyArt, { enemy: enemy('raider'), pose: 'idle' }).includes(
-      '/actors.png',
+      'data-enemy-kind="raider"',
     ),
   );
 });
@@ -86,7 +87,8 @@ test('live enemy identity, second boss phase and displayed intentions survive sa
     state = g.loadSave(JSON.parse(JSON.stringify(state)));
     const snapshot = JSON.stringify(state);
     const html = render(CombatSprite, { state, actor: 1, motion: null });
-    assert.ok(html.includes(art[key].src));
+    assert.ok(html.includes(`data-enemy-kind="${key}"`));
+    assert.doesNotMatch(html, /<image|\.png/);
     assert.equal(
       html.includes('boss-enraged'),
       ['censor', 'tide-keeper'].includes(key),
@@ -122,7 +124,8 @@ test('the Warden holds all five equipped weapons in six measured poses without r
       5,
     );
     for (const s of pictures) {
-      assert.match(s, /warden-poses\.png/);
+      assert.match(s, /data-hero="warden"/);
+      assert.doesNotMatch(s, /<image|\.png/);
       assert.doesNotMatch(s, /undefined|NaN/);
     }
   }

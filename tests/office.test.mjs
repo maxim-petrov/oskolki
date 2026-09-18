@@ -202,36 +202,31 @@ test('the office exposes walkable interactions and uses the original hero withou
   for (const target of office.OFFICE_TARGETS)
     assert.ok(html.includes(`aria-label="${target.action}"`));
   assert.ok(html.includes('role="application"'));
-  assert.ok(html.includes('actors-weaponless.png'));
+  assert.ok(html.includes('vector-person'));
+  assert.doesNotMatch(html, /<image|\.png|data-weapon-id/);
   assert.doesNotMatch(html, /\/weapons\//);
   const battle = render(PalaceActorArt, {
     hero: true,
     pose: 'idle',
     weaponId: 'gear-axe',
   });
-  assert.match(battle, /weapons\/gear-axe.png/);
+  assert.match(battle, /data-weapon-id="gear-axe"/);
 });
 
-test('office bitmaps load from the project and the top has four independently clipped rotation frames', () => {
-  const art = JSON.parse(
-    readFileSync(new URL('../game/office-art.json', import.meta.url)),
+test('office scene and rotating top are pure vectors with reduced-motion support', () => {
+  const svg = readFileSync(
+    new URL('../public/art/vector/office.svg', import.meta.url),
+    'utf8',
   );
-  for (const [id, a] of Object.entries(art)) {
-    assert.ok(
-      readFileSync(new URL('../public' + a.src, import.meta.url)).length > 100,
-    );
-    if (id === 'background') continue;
-    assert.ok(a.clip.startsWith('M'));
-    assert.ok(a.crop[0] + a.crop[2] <= a.width);
-    assert.ok(a.crop[1] + a.crop[3] <= a.height);
-  }
-  assert.equal(art.top.frames.length, 4);
+  assert.match(svg, /viewBox="0 0 1000 600"/);
+  assert.doesNotMatch(svg, /<image|data:image|\.png/);
   const html = render(OfficeSprite, { kind: 'top' });
-  assert.equal((html.match(/class="top-frame top-frame-/g) ?? []).length, 4);
+  assert.match(html, /vector-top-spin/);
+  assert.doesNotMatch(html, /<image/);
   const css = readFileSync(
-    new URL('../app/office.css', import.meta.url),
+    new URL('../app/minimal.css', import.meta.url),
     'utf8',
   );
   assert.match(css, /prefers-reduced-motion/);
-  assert.match(css, /office-top-cycle/);
+  assert.match(css, /vectorTop/);
 });

@@ -1,6 +1,6 @@
-/* eslint-disable react/react-compiler, nextjs/no-img-element -- RAF movement is isolated from seeded combat. Native image crops preserve source pixels. */
+/* eslint-disable react/react-compiler, nextjs/no-img-element -- RAF movement is isolated from seeded combat. Office movement is independent of vector rendering. */
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   Menu,
@@ -30,56 +30,33 @@ import {
   type OfficeTarget,
   type Point,
 } from '@/game/office';
-import officeArt from '@/game/office-art.json';
+import { VectorPerson, INK, TINT } from './vector-art';
 import { ROOM_BACKGROUNDS } from '@/game/visual-style';
 
 export function OfficeSprite({ kind }: { kind: 'vera' | 'lev' | 'top' }) {
-  const id = useId().replace(/:/g, '');
-  const art = officeArt[kind];
+  if (kind !== 'top')
+    return (
+      <VectorPerson
+        kind={kind}
+        unarmed
+        className={`office-sprite office-sprite-${kind}`}
+      />
+    );
   return (
     <svg
-      className={`office-sprite office-sprite-${kind}`}
-      viewBox={art.crop.join(' ')}
+      className="office-sprite office-sprite-top"
+      viewBox="0 0 64 64"
       aria-hidden="true"
+      stroke={INK}
+      strokeWidth="1.8"
+      fill="none"
     >
-      <defs>
-        <clipPath id={`office-clip-${id}`}>
-          <path d={art.clip} />
-        </clipPath>
-        {kind === 'top' &&
-          officeArt.top.clips.map((clip, i) => (
-            <clipPath key={i} id={`office-top-${id}-${i}`}>
-              <path d={clip} />
-            </clipPath>
-          ))}
-      </defs>
-      {kind === 'top' ? (
-        officeArt.top.frames.map((crop, i) => (
-          <svg
-            key={i}
-            className={`top-frame top-frame-${i}`}
-            x={art.crop[0]}
-            y={art.crop[1]}
-            width={art.crop[2]}
-            height={art.crop[3]}
-            viewBox={crop.join(' ')}
-          >
-            <image
-              href={art.src}
-              width={art.width}
-              height={art.height}
-              clipPath={`url(#office-top-${id}-${i})`}
-            />
-          </svg>
-        ))
-      ) : (
-        <image
-          href={art.src}
-          width={art.width}
-          height={art.height}
-          clipPath={`url(#office-clip-${id})`}
-        />
-      )}
+      <path d="M32 9v10m0 25v11" />
+      <g className="vector-top-spin">
+        <path d="m32 18 23 15-23 15L9 33Z" fill="#e6eaf0" />
+        <path d="m32 18 9 15-9 15-9-15Z" fill={TINT.blue} />
+        <path d="M9 33h46" />
+      </g>
     </svg>
   );
 }
@@ -107,13 +84,13 @@ export function GameMenu({
     <main className="office-menu" aria-labelledby="menu-title">
       <img
         className="office-menu-backdrop"
-        src={officeArt.background.src}
+        src="/art/vector/office.svg"
         alt="Пустой офис. За дверью босса ждут неизвестные комнаты."
       />
       <div className="office-menu-note">
         <p className="office-kicker">ЛИЧНОЕ ДЕЛО № 0001</p>
         <h1 id="menu-title">Осколки</h1>
-        <p className="office-menu-subtitle">Дворец слов</p>
+        <p className="office-menu-subtitle">Тактический рогалик</p>
         <div className="office-menu-rule" />
         <p className="office-menu-story">Рабочий день ещё не закончился.</p>
         <nav aria-label="Главное меню">
@@ -411,7 +388,7 @@ export function OfficeHub({
       >
         <img
           className="office-background"
-          src={officeArt.background.src}
+          src="/art/vector/office.svg"
           alt="Знакомые столы, картотека и закрытая дверь босса в конце офиса"
           draggable={false}
         />

@@ -24,7 +24,7 @@ test('original visual anchors retain their approved source pixels', () => {
   }
 });
 
-test('every non-weapon item has its own complete, non-overlapping atlas crop', () => {
+test('archived equipment atlas is intact and active equipment renders as vectors', () => {
   const art = JSON.parse(read('game/equipment-art.json'));
   const png = read('public' + art.src);
   assert.equal(png[25], 6, 'Equipment requires native RGBA');
@@ -46,9 +46,9 @@ test('every non-weapon item has its own complete, non-overlapping atlas crop', (
     const html = renderToStaticMarkup(
       createElement(EquipmentIcon, { id: item.id }),
     );
-    assert.ok(html.includes(art.src));
+    assert.ok(html.includes(`data-equipment-id="${item.id}"`));
+    assert.doesNotMatch(html, /<image|\.png/);
     assert.ok(!html.includes('NaN') && !html.includes('undefined'));
-    const [x, y, w, h] = art.regions[item.icon];
-    assert.ok(html.includes(`x="${x}" y="${y}" width="${w}" height="${h}"`));
+    assert.ok(html.includes('viewBox="0 0 32 32"'));
   }
 });

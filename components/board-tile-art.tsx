@@ -2,7 +2,7 @@
 import type { CSSProperties } from 'react';
 import { SkinIcon } from '@/components/skin-icon';
 import { type Family, type Variant } from '@/game/engine';
-import { boardWeaponArtById } from '@/game/weapon-art';
+import { VectorWeapon, vectorWeaponId } from './vector-art';
 
 function VariantBadge({ variant }: { variant: Exclude<Variant, null> }) {
   return (
@@ -41,9 +41,7 @@ export function BoardTileArt({
       );
     return <SkinIcon name={variant ?? family} size={size} />;
   }
-  const weapon = boardWeaponArtById(weaponId);
-  const [x, y, width, height] = weapon.bounds;
-  const extent = Math.ceil(Math.max(width, height) * 1.08);
+  const weapon = { id: vectorWeaponId(weaponId) };
   return (
     <span
       className="board-weapon-art"
@@ -51,15 +49,7 @@ export function BoardTileArt({
       aria-hidden="true"
       style={style}
     >
-      <svg
-        className="board-weapon-miniature"
-        width={size}
-        height={size}
-        viewBox={`${x + width / 2 - extent / 2} ${y + height / 2 - extent / 2} ${extent} ${extent}`}
-        aria-hidden="true"
-      >
-        <image href={weapon.src} width={weapon.width} height={weapon.height} />
-      </svg>
+      <VectorWeapon id={weapon.id} size={size} mini />
       {variant && <VariantBadge variant={variant} />}
     </span>
   );

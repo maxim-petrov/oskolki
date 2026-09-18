@@ -30,3 +30,7 @@ Browser prototype of a turn-based match-3 roguelike. Russian interface.
 
 - Read [docs/office-story-v01.md](docs/office-story-v01.md) for hub, menu or narrative changes. The office is the waking world between expeditions; the boss door leads to the existing rooms, defeat returns to the desk and spinning top.
 - Office position/dialogue memories must stay separate from seeded combat. Preserve old active saves, idempotent defeat/progression, explicit confirmation before abandoning a run, and paused trial time in menus.
+
+## Ветка feat/minimal-vector
+
+На этой ветке действует docs/minimal-vector.md: вся активная графика — чистый SVG и CSS. Предыдущий pixel-art контракт относится к исходной ветке. Сохранять полный движок, офис, кампанию и save/RNG контракты. Не возвращать raster в интерфейс.

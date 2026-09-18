@@ -540,7 +540,7 @@ html[data-skin='palace-cellar'] {
     align-items: end;
     justify-content: center;
     background: var(--palace-paper-dim)
-      url('/art/pronoun-palace/backgrounds/market.png') 43% 55% / cover;
+      url('/art/vector/market.svg') 43% 55% / cover;
     border: 2px solid var(--palace-ink);
   }
   .merchant-art {

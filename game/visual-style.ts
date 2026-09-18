@@ -1,7 +1,7 @@
 export const VISUAL_STYLE = {
   id: 'palace-cellar',
-  name: 'Дворец слов — подвал',
-  description: 'Плоская пиксельная графика, тушевые контуры и бумажные панели',
+  name: 'Осколки · вектор',
+  description: 'Минималистичная векторная графика и читаемая тактика',
 } as const;
 export const ROOM_BACKGROUNDS = [
   {
@@ -106,7 +106,7 @@ export const ROOM_BACKGROUNDS = [
   },
 ].map((room) => ({
   ...room,
-  src: `/art/pronoun-palace/backgrounds/${room.id}.png`,
+  src: `/art/vector/${room.id}.svg`,
 }));
 export function roomBackground(depth: number) {
   return (

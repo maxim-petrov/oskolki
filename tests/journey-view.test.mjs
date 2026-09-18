@@ -41,7 +41,8 @@ test('all eleven native images exist, remain unchanged and have the required for
 test('merchant renders his transparent sprite, dialogue and all conversation choices', () => {
   const text = merchantGreeting(0),
     html = render(Merchant, { text, onTalk() {}, busy: false });
-  assert.match(html, /\/art\/pronoun-palace\/merchant.png/);
+  assert.match(html, /data-hero="merchant"/);
+  assert.doesNotMatch(html, /<image|\.png/);
   assert.ok(html.includes(text));
   assert.match(html, /aria-live="polite"/);
   for (const label of ['Савва', 'Кто ты?', 'Что впереди?', 'Почему скидки?'])
@@ -55,12 +56,7 @@ test('merchant renders his transparent sprite, dialogue and all conversation cho
     ).length,
     3,
   );
-  const sprite = JSON.parse(
-    readFileSync(new URL('../game/merchant-art.json', import.meta.url)),
-  );
-  assert.ok(
-    render(MerchantArt).includes(`viewBox="${sprite.bounds.join(' ')}"`),
-  );
+  assert.ok(render(MerchantArt).includes('viewBox="0 0 100 100"'));
 });
 
 test('sale price renders the base price crossed out and exactly the amount buy charges', () => {
@@ -94,7 +90,7 @@ test('rendered map only enables the next rooms and its selected destination butt
   assert.ok(html.includes('2 · I · Можно идти'));
   assert.ok(html.includes('Ты здесь'));
   assert.ok(html.includes('Идти сюда'));
-  assert.ok(html.includes('paper-tunnels.png'));
+  assert.ok(html.includes('paper-tunnels.svg'));
   assert.ok(html.includes('left:25%') && html.includes('left:75%'));
   const locked = render(JourneyMap, { game: s, busy: true, onEnter() {} });
   assert.equal(
