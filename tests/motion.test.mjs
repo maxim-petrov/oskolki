@@ -57,6 +57,8 @@ function bossResponse(
   { damage = 8, block = 0, hp = 80, round = 3, poison = 0 } = {},
 ) {
   const s = startRun(42);
+  s.room = 10;
+  s.roomKind = 'boss';
   s.maxHp = 80;
   s.hp = hp;
   s.block = block;
@@ -136,6 +138,8 @@ test('ordinary enemies, preparation and status effects cannot trigger whole-scre
 
 test('boss shake uses strike strength, not an earlier relic payment or the remaining health', () => {
   const s = startRun(42);
+  s.room = 10;
+  s.roomKind = 'boss';
   s.relics = ['borrowed-time'];
   s.round = 3;
   Object.assign(s.enemies[0], { kind: 'censor', hp: 80, maxHp: 80, damage: 3 });

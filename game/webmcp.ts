@@ -211,17 +211,19 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
   return {
     phase: s.phase,
     rulesVersion:
-      s.rulesVersion === 6
-        ? 'v0.4-interactions'
-        : s.rulesVersion === 5
-          ? 'v0.3-tactics'
-          : s.rulesVersion === 4
-            ? 'v0.2-stage3'
-            : s.rulesVersion === 3
-              ? 'v0.2-stage2'
-              : s.rulesVersion === 2
-                ? 'v0.2'
-                : 'classic',
+      s.rulesVersion === 7
+        ? 'v0.5-gradual-opening'
+        : s.rulesVersion === 6
+          ? 'v0.4-interactions'
+          : s.rulesVersion === 5
+            ? 'v0.3-tactics'
+            : s.rulesVersion === 4
+              ? 'v0.2-stage3'
+              : s.rulesVersion === 3
+                ? 'v0.2-stage2'
+                : s.rulesVersion === 2
+                  ? 'v0.2'
+                  : 'classic',
     hero: s.hero ?? 'wanderer',
     challenge: s.challenge ?? null,
     difficulty: s.difficulty ?? 0,

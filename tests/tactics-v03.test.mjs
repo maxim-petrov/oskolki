@@ -450,8 +450,11 @@ function completeRun(seed, relic, shouldReload) {
     { ...g.EMPTY_META, wins: 1 },
     relic === 'iron-agenda' ? 'warden' : 'wanderer',
   );
-  // This historical suite locks the rules-5 campaign. Rules 6 have their own interaction cases.
+  // Freeze both rules and map: current starts have a different opening topology.
+  const legacy = g.startRun(seed, s.balance, 5);
   s.rulesVersion = 5;
+  s.journey = legacy.journey;
+  s.streams = legacy.streams;
   delete s.effectState;
   if (relic) {
     s.relics = [relic];

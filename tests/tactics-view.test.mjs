@@ -83,7 +83,7 @@ test('all support and board-control intentions have icons and readable explanati
 test('public game controls expose AP, match threshold and real hidden routes; unknown doors resolve through normal entry', () => {
   let s = g.startRun(42);
   const first = gameSnapshot(s, false);
-  assert.equal(first.rulesVersion, 'v0.4-interactions');
+  assert.equal(first.rulesVersion, 'v0.5-gradual-opening');
   assert.deepEqual(first.actions, { left: 3, max: 3 });
   assert.equal(first.boardSize, 6);
   assert.equal(first.minimumMatch, 3);

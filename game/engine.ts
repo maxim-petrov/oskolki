@@ -825,7 +825,7 @@ export type RunRecord = {
 };
 export type State = {
   version: 2;
-  rulesVersion?: 2 | 3 | 4 | 5 | 6;
+  rulesVersion?: 2 | 3 | 4 | 5 | 6 | 7;
   hero?: HeroId;
   difficulty?: 0 | 1;
   challenge?: ChallengeId;
@@ -2428,6 +2428,13 @@ export function enemyTactic(s: State, e: Pick<Enemy, 'kind'>) {
   };
   return tactics[e.kind] ?? ENEMY_CATALOG[e.kind].tactic;
 }
+// A fixed encounter curve, never adjusted to the player's health or build.
+// Versioned so active saves retain their original encounters and intentions.
+function openingDamageScale(s: State) {
+  if ((s.rulesVersion ?? 0) < 7 || s.room >= 8) return 1;
+  return s.room <= 3 ? 0.75 : s.room <= 4 ? 0.85 : 0.95;
+}
+
 export function intent(s: State, e: Enemy): EnemyIntent {
   if (
     interactions(s) &&
@@ -2456,7 +2463,8 @@ export function intent(s: State, e: Enemy): EnemyIntent {
           (tactical(s) && (e.powerReady ?? Infinity) <= round
             ? (e.power ?? 0)
             : 0)) *
-          s.balance.enemyPower,
+          s.balance.enemyPower *
+          openingDamageScale(s),
       ) +
         rage +
         pressure,
@@ -2754,7 +2762,7 @@ function checkFinish(s: State) {
 export function startRun(
   seed = 19062026,
   balance: Balance = DEFAULT_BALANCE,
-  rulesVersion: 2 | 3 | 4 | 5 | 6 = 6,
+  rulesVersion: 2 | 3 | 4 | 5 | 6 | 7 = 7,
 ): State {
   seed = seed >>> 0;
   const s: State = {
@@ -3899,7 +3907,7 @@ export function progressionRewards(m: Meta): string[] {
       : []),
   ];
 }
-export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4 | 5 | 6) {
+export function availableRelics(m: Meta, rulesVersion?: 2 | 3 | 4 | 5 | 6 | 7) {
   if ((rulesVersion ?? 0) >= 2)
     return [
       ...CORE_RELIC_IDS,
@@ -4091,6 +4099,24 @@ function tacticalRoster(
   if (local === 1) return archive ? ['reed-crab', 'moth'] : ['raider'];
   const pick = <T>(items: T[]): T =>
     items[Math.floor(random(s, 'encounters') * items.length)];
+  if ((s.rulesVersion ?? 0) >= 7 && !archive) {
+    if (local <= 3)
+      return pick([['paper-rat'], ['stapler'], ['moth']] as EnemyKind[][]);
+    if (local === 6)
+      return pick([
+        ['librarian', 'moth'],
+        ['eraser', 'paper-rat'],
+        ['bell', 'paper-rat'],
+        ['candle', 'paper-rat'],
+      ] as EnemyKind[][]);
+    if (local === 4)
+      return elite
+        ? ['stapler', 'paper-rat']
+        : pick([
+            ['paper-rat', 'moth'],
+            ['paper-rat', 'paper-rat'],
+          ] as EnemyKind[][]);
+  }
   if (local <= 3)
     return archive
       ? pick([
@@ -4390,6 +4416,12 @@ function createJourney(s: State): NonNullable<State['journey']> {
                   ? 'Следы прежнего спуска'
                   : '';
           }
+          // A guaranteed find between the second encounter and the first squad.
+          // Keep the existing map draw above: this is pacing, not adaptive luck.
+          if ((s.rulesVersion ?? 0) >= 7 && !archive && local === 3) {
+            kind = 'treasure';
+            name = lane ? 'Забытая кладовая' : 'Запечатанный запасник';
+          }
           if (['battle', 'elite'].includes(kind)) {
             roster = tacticalRoster(s, archive, local, kind === 'elite');
             if (local !== 1) name = '';
@@ -4425,6 +4457,8 @@ function createJourney(s: State): NonNullable<State['journey']> {
               ? [`${depth + 1}-${lane}`]
               : [`${depth + 1}-0`];
         }
+        if ((s.rulesVersion ?? 0) >= 7 && !archive && local === 3)
+          next = ['4-0', '4-1'];
         const continuation =
           local === 2
             ? ` Затем кладовая → ${lane === riskLane ? 'элита' : 'обычный бой'} → магазин.`
@@ -4438,6 +4472,7 @@ function createJourney(s: State): NonNullable<State['journey']> {
           name,
           description: reward + (tactical(s) ? '' : continuation),
           ...(tactical(s) &&
+          !((s.rulesVersion ?? 0) >= 7 && !archive && local === 4) &&
           !['shop', 'rest', 'boss'].includes(kind) &&
           local !== 1
             ? { concealed: random(s, 'map') < 0.65 }
@@ -4648,7 +4683,8 @@ function validJourneySave(s: State): boolean {
     const expected =
       n.depth === 20
         ? []
-        : [1, 5].includes(local)
+        : [1, 5].includes(local) ||
+            ((s.rulesVersion ?? 0) >= 7 && n.depth === 3)
           ? [`${n.depth + 1}-0`, `${n.depth + 1}-1`]
           : [2, 3, 6, 7].includes(local)
             ? [`${n.depth + 1}-${lane}`]
@@ -4881,7 +4917,10 @@ export function enterRoom(input: State, id: string): Result {
     s.phase = 'battle';
     if (interactions(s) && room.kind === 'elite' && s.room % 10 === 4)
       s.eliteContract = { accepted: false, responses: 0, bonus: 15 };
-    const scale = Math.floor(s.room / 3) * 3;
+    const scale =
+      (s.rulesVersion ?? 0) >= 7 && s.room < 8
+        ? Math.max(0, s.room - 2)
+        : Math.floor(s.room / 3) * 3;
     s.enemies = (room.roster ?? ROOM_ENEMIES[id]).map((kind) =>
       makeEnemy(
         s,
@@ -5446,7 +5485,8 @@ export function isSave(value: unknown): value is State {
       s.rulesVersion === 3 ||
       s.rulesVersion === 4 ||
       s.rulesVersion === 5 ||
-      s.rulesVersion === 6) &&
+      s.rulesVersion === 6 ||
+      s.rulesVersion === 7) &&
     ((s.rulesVersion ?? 0) < 3 || validJourneySave(s)) &&
     ((s.rulesVersion ?? 0) < 2 ||
       (Number.isInteger(s.weaponQuality) &&
