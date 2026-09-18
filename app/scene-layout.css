@@ -1,0 +1,810 @@
+/* Figma composition, rendered by the complete campaign and vector theme. */
+html[data-skin='palace-cellar'] .scene-layout {
+  .scene-rules,
+  .scene-inventory {
+    color: var(--foreground);
+  }
+  .scene-rules > summary,
+  .scene-inventory > summary {
+    cursor: pointer;
+    padding: 9px 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 12px;
+  }
+  .scene-inventory > summary span {
+    color: var(--muted-foreground);
+    margin-left: 8px;
+    font-size: 11px;
+  }
+  .scene-rules-content,
+  .scene-inventory-content {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .scene-inventory-content .equipment-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .scene-toolbar {
+    position: fixed;
+    z-index: 25;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1000px, calc(100% - 48px));
+    min-height: 88px;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+  }
+  .scene-toolbar[hidden] {
+    display: none;
+  }
+  .scene-toolbar > .section-label,
+  .scene-toolbar .turn-shortcut {
+    display: none;
+  }
+  .scene-toolbar .skills {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+  }
+  .scene-toolbar .skill-card,
+  .scene-toolbar .edit-skill {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+  }
+  .scene-toolbar .skill-card,
+  .scene-toolbar .edit-trigger {
+    height: 74px;
+    padding: 5px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+  }
+  .scene-toolbar .skill-card strong,
+  .scene-toolbar .edit-trigger strong {
+    display: block;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: normal;
+    text-align: center;
+  }
+  .scene-toolbar .skill-card small,
+  .scene-toolbar .edit-trigger small,
+  .scene-toolbar .potion > span {
+    display: none;
+  }
+  .scene-toolbar .skill-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .scene-toolbar .skill-icon svg,
+  .scene-toolbar .edit-trigger > svg {
+    width: 26px;
+    height: 26px;
+  }
+  .scene-toolbar .edit-skill {
+    position: relative;
+  }
+  .scene-toolbar .family-choices {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    width: 200px;
+  }
+  .scene-toolbar .potion {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 58px;
+    height: 74px;
+    padding: 5px;
+    margin: 0;
+  }
+  .scene-toolbar .potion svg {
+    width: 25px;
+    height: 25px;
+  }
+  .scene-toolbar .potion b {
+    font-size: 11px;
+  }
+  .scene-toolbar .battle-actions,
+  .scene-toolbar .battle-actions-inner {
+    display: contents;
+    position: static;
+    padding: 0;
+    border: 0;
+    transform: none;
+  }
+  .scene-toolbar .action-counter {
+    order: -1;
+    font-size: 12px;
+    min-width: 110px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .scene-toolbar .action-counter small {
+    font-size: 10px;
+    color: var(--red);
+  }
+  .scene-toolbar .end-turn {
+    height: 52px;
+    padding: 10px 18px;
+    font-size: 13px;
+    margin: 0;
+  }
+  .scene-toolbar .end-turn svg {
+    width: 16px;
+  }
+  @media (min-width: 960px) and (min-height: 600px) {
+    --scene-board-top: clamp(105px, 14dvh, 145px);
+    --scene-board-edge: min(43vw, calc(100dvh - 290px), 600px);
+    position: relative;
+    isolation: isolate;
+    height: 100dvh;
+    min-height: 600px;
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: clip;
+    .game-layout,
+    .play-area,
+    .loadout,
+    .play-area > .arena,
+    .arena .hero {
+      display: contents;
+    }
+    .journey,
+    .game-footer,
+    .arena-shade,
+    .arena-dust {
+      display: none;
+    }
+    .topbar {
+      position: absolute;
+      inset: 20px 28px auto;
+      height: 40px;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      display: block;
+      z-index: 12;
+    }
+    .topbar .brand {
+      position: absolute;
+      left: 0;
+      top: 0;
+      gap: 7px;
+    }
+    .topbar .brand h1 {
+      font-size: 20px;
+    }
+    .topbar .brand .palace-icon {
+      width: 24px;
+      height: 24px;
+    }
+    .topbar .build-tag {
+      display: none;
+    }
+    .topbar .header-run {
+      position: fixed;
+      top: 67px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .topbar .header-actions {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+    }
+    .header-actions button {
+      min-height: 30px;
+      height: 30px;
+      font-size: 11px;
+      padding: 5px 10px;
+    }
+    .header-actions .gold {
+      position: fixed;
+      left: calc(50vw - 85px);
+      top: 0;
+      font-size: 17px;
+    }
+    .header-actions .gold svg {
+      width: 22px;
+      height: 22px;
+    }
+    .topbar .run-seed {
+      position: fixed;
+      right: 28px;
+      bottom: 22px;
+      top: auto;
+      font-size: 10px;
+    }
+    .arena .arena-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      max-height: none;
+      object-fit: cover;
+      opacity: 0.17;
+      z-index: -1;
+      pointer-events: none;
+    }
+    .arena .arena-caption {
+      position: absolute;
+      top: 64px;
+      right: 28px;
+      left: auto;
+      width: 22%;
+      padding: 0;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .arena-caption .turn-badge {
+      font-size: 20px;
+      padding: 6px 14px;
+      margin: 0;
+      border: 1px solid var(--border);
+    }
+    .arena-caption .eyebrow {
+      font-size: 10px;
+      max-width: 100%;
+      text-align: right;
+    }
+    .arena .hero .sprite-root {
+      position: absolute;
+      left: 14%;
+      top: 35%;
+      bottom: auto;
+      width: min(22vw, 32dvh);
+      height: min(29vw, 42dvh);
+      translate: -50% 0;
+      z-index: 2;
+    }
+    .arena .hero .fighter-caption {
+      position: absolute;
+      top: 77px;
+      left: 28px;
+      right: auto;
+      bottom: auto;
+      width: 21%;
+      max-width: 270px;
+      min-height: 0;
+      padding: 0;
+      background: transparent;
+      text-align: left;
+    }
+    .hero .fighter-caption strong {
+      font-size: 12px;
+    }
+    .hero .health-number {
+      justify-content: flex-start;
+      font-size: 22px;
+      line-height: 1.6;
+    }
+    .hero .health-bar {
+      margin-top: 6px;
+    }
+    .arena .hero .block-orb {
+      position: absolute;
+      left: 28px;
+      top: 210px;
+      bottom: auto;
+      z-index: 4;
+    }
+    .loadout .resource-row {
+      position: absolute;
+      top: 160px;
+      left: 28px;
+      width: 21%;
+      max-width: 270px;
+      margin: 0;
+      padding: 0;
+      background: none;
+      border: 0;
+      z-index: 3;
+    }
+    .resource-row .resource {
+      justify-content: flex-start;
+    }
+    .resource-row .resource strong {
+      font-size: 20px;
+    }
+    .resource-row .resource svg {
+      width: 25px;
+      height: 25px;
+    }
+    .resource-row .resource span {
+      font-size: 10px;
+    }
+    .scene-rules {
+      position: absolute;
+      top: 210px;
+      left: 72px;
+      width: calc(21% - 44px);
+      max-width: 226px;
+      z-index: 21;
+    }
+    .scene-rules-content {
+      position: absolute;
+      top: 44px;
+      left: -44px;
+      width: 330px;
+      max-height: calc(100dvh - 390px);
+      overflow: auto;
+    }
+    .scene-rules .turn-budget {
+      border: 0;
+      padding: 0;
+      margin: 0;
+    }
+    .scene-inventory {
+      position: absolute;
+      bottom: 24px;
+      left: 28px;
+      z-index: 30;
+    }
+    .scene-inventory-content {
+      position: absolute;
+      bottom: 45px;
+      left: 0;
+      width: 355px;
+      max-height: calc(100dvh - 100px);
+      overflow: auto;
+    }
+    .scene-inventory .equipment-panel {
+      margin-top: 0;
+    }
+    .play-area > .board-heading {
+      position: absolute;
+      top: calc(var(--scene-board-top) - 18px);
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: var(--scene-board-edge);
+      max-width: none;
+      padding: 0 24px;
+      margin: 0;
+      border: 0;
+      z-index: 3;
+    }
+    .board-heading strong {
+      font-size: 12px;
+    }
+    .board-heading .hint-button {
+      height: 28px;
+      font-size: 11px;
+    }
+    .play-area > .board-section {
+      position: absolute;
+      top: var(--scene-board-top);
+      left: 50%;
+      transform: translateX(-50%);
+      width: var(--scene-board-edge);
+      max-width: none;
+      margin: 0;
+      z-index: 5;
+    }
+    .board-section .board-legend {
+      display: none;
+    }
+    .play-area > .move-preview-hint,
+    .play-area > .move-preview,
+    .play-area > .turn-controls {
+      position: absolute;
+      top: calc(var(--scene-board-top) + var(--scene-board-edge) + 5px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(52vw, 720px);
+      max-width: none;
+      z-index: 10;
+      padding: 5px 10px;
+      margin: 0;
+      font-size: 10px;
+      line-height: 1.35;
+      text-align: center;
+      background: #f3f5f7;
+      border: 0;
+    }
+    .play-area > .move-preview {
+      max-height: calc(
+        100dvh - var(--scene-board-top) - var(--scene-board-edge) - 125px
+      );
+      overflow: auto;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+    .play-area > .turn-controls {
+      top: calc(var(--scene-board-top) + var(--scene-board-edge) + 34px);
+      z-index: 9;
+    }
+    .turn-controls .move-message {
+      font-size: 10px;
+    }
+    .play-area:has(.move-preview) > .turn-controls {
+      visibility: hidden;
+    }
+    .play-area > .archive-mechanics {
+      position: absolute;
+      top: 258px;
+      left: 28px;
+      width: 21%;
+      max-width: 270px;
+      z-index: 4;
+      margin: 0;
+    }
+    .archive-mechanics .tide-notice,
+    .archive-mechanics .ink-notice {
+      padding: 7px 9px;
+      gap: 6px;
+    }
+    .archive-mechanics strong {
+      font-size: 11px;
+    }
+    .archive-mechanics p {
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    &.biome-archive .hero .sprite-root {
+      top: 53%;
+      height: 25dvh;
+      width: 20dvh;
+    }
+    .arena .enemies,
+    .arena.squad-arena .enemies {
+      position: absolute;
+      top: 29%;
+      right: 3%;
+      left: auto;
+      bottom: 160px;
+      width: 23%;
+      height: auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      align-content: center;
+      gap: 12px;
+      z-index: 4;
+    }
+    .arena .enemies .enemy {
+      position: relative;
+      inset: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      padding: 7px;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+    }
+    .arena .enemies .enemy.targeted {
+      border-color: #dcbac1;
+    }
+    .arena .enemies .fighter-caption {
+      position: relative;
+      inset: auto;
+      order: 0;
+      width: 100%;
+      min-height: 0;
+      background: transparent;
+      padding: 3px;
+    }
+    .arena .enemies .fighter-caption strong {
+      font-size: 14px;
+    }
+    .arena .enemies .health-number {
+      font-size: 12px;
+    }
+    .arena .enemy.targeted .fighter-caption {
+      outline: 0;
+    }
+    .arena .enemies .enemy-intent {
+      position: relative;
+      inset: auto;
+      order: 1;
+      width: 100%;
+      min-height: 0;
+      padding: 6px;
+      margin: 0;
+      transform: none;
+      font-size: 11px;
+    }
+    .arena .enemies .sprite-root {
+      position: relative;
+      inset: auto;
+      order: 2;
+      width: min(20vw, 28dvh);
+      height: min(20vw, 28dvh);
+      flex: none;
+      translate: none;
+      margin: 0;
+    }
+    .arena .enemies.count-2 {
+      top: 21%;
+    }
+    .arena .enemies.count-2 .enemy {
+      display: grid;
+      grid-template-columns: 90px minmax(0, 1fr);
+      gap: 5px 8px;
+    }
+    .arena .enemies.count-2 .sprite-root {
+      grid-column: 1;
+      grid-row: 1/3;
+      width: 90px;
+      height: 90px;
+    }
+    .arena .enemies.count-2 .fighter-caption,
+    .arena .enemies.count-2 .enemy-intent {
+      grid-column: 2;
+    }
+    .arena .enemies.count-2 .fighter-caption strong {
+      font-size: 12px;
+    }
+    .arena.squad-arena .enemies {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      top: 23%;
+      bottom: 155px;
+      gap: 6px;
+    }
+    .arena.squad-arena .enemies .enemy {
+      gap: 4px;
+      padding: 4px;
+    }
+    .squad-arena .enemies .enemy-intent {
+      font-size: 10px;
+      min-height: 58px;
+    }
+    .squad-arena .enemies .sprite-root {
+      width: 65px;
+      height: 65px;
+    }
+    .squad-arena .enemies .fighter-caption {
+      min-height: 52px;
+    }
+    .squad-arena .enemies .fighter-caption strong {
+      font-size: 11px;
+    }
+    .arena .trial-target {
+      position: absolute;
+      top: 34%;
+      right: 3%;
+      width: 23%;
+      left: auto;
+      bottom: auto;
+    }
+    .arena .combat-flash {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+    }
+    .rules-notice {
+      position: absolute;
+      top: 248px;
+      left: 28px;
+      width: 21%;
+      font-size: 10px;
+    }
+    .scene-toolbar {
+      width: min(980px, 68vw);
+      bottom: 24px;
+      gap: 12px;
+    }
+  }
+  @media (max-width: 959px), (max-height: 599px) {
+    padding-bottom: 185px;
+    .scene-rules {
+      margin: 8px 0;
+    }
+    .scene-inventory {
+      margin: 18px 0;
+    }
+    .scene-toolbar {
+      bottom: 0;
+      width: 100%;
+      border-radius: 8px 8px 0 0;
+      padding: 8px 12px;
+      gap: 7px;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+    .scene-toolbar .skills {
+      grid-column: 1/3;
+      grid-row: 1;
+      gap: 5px;
+    }
+    .scene-toolbar .potion {
+      grid-column: 3;
+      grid-row: 1;
+    }
+    .scene-toolbar .action-counter {
+      grid-column: 1;
+      grid-row: 2;
+    }
+    .scene-toolbar .end-turn {
+      grid-column: 2/4;
+      grid-row: 2;
+      height: 38px;
+    }
+    .scene-toolbar .skill-card,
+    .scene-toolbar .edit-trigger {
+      height: 68px;
+      padding: 4px;
+    }
+    .scene-toolbar .skill-card strong,
+    .scene-toolbar .edit-trigger strong {
+      font-size: 10px;
+    }
+    .scene-toolbar .potion {
+      height: 68px;
+      width: 44px;
+    }
+  }
+}
+html[data-skin='palace-cellar'] .scene-layout {
+  .scene-toolbar .skills {
+    flex-direction: row;
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .scene-toolbar .potion {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .scene-toolbar .action-counter {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .scene-toolbar .end-turn {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  @media (min-width: 960px) and (min-height: 600px) {
+    .board-section .board-frame {
+      width: 100%;
+      max-width: none;
+    }
+    .arena-caption .turn-badge {
+      position: static;
+    }
+    .turn-controls {
+      min-height: 0;
+      height: auto;
+      justify-content: center;
+    }
+    .turn-controls .move-message {
+      margin: 0;
+      padding: 0;
+      line-height: 1.3;
+    }
+  }
+  @media (max-width: 959px), (max-height: 599px) {
+    .scene-toolbar .skills {
+      grid-column: 1/3;
+      grid-row: 1;
+    }
+    .scene-toolbar .potion {
+      grid-column: 3;
+      grid-row: 1;
+    }
+    .scene-toolbar .action-counter {
+      grid-column: 1;
+      grid-row: 2;
+    }
+    .scene-toolbar .end-turn {
+      grid-column: 2/4;
+      grid-row: 2;
+    }
+  }
+}
+html[data-skin='palace-cellar'] .scene-layout {
+  .scene-toolbar .ability-cost {
+    display: block;
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.25;
+    color: var(--muted-foreground);
+    text-align: center;
+  }
+  .scene-toolbar .skill-icon,
+  .scene-toolbar .skill-icon svg,
+  .scene-toolbar .edit-trigger > svg {
+    width: 22px;
+    height: 22px;
+  }
+  @media (min-width: 960px) and (min-height: 600px) {
+    .scene-inventory > summary span {
+      display: none;
+    }
+    .scene-toolbar .skill-card:hover small,
+    .scene-toolbar .skill-card:focus-visible small,
+    .scene-toolbar .edit-trigger:hover small,
+    .scene-toolbar .edit-trigger:focus-visible small {
+      display: block;
+      position: fixed;
+      bottom: calc(100% + 12px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(460px, 60vw);
+      padding: 12px 16px;
+      background: #fff;
+      color: var(--foreground);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: normal;
+      text-align: center;
+      pointer-events: none;
+      z-index: 30;
+    }
+  }
+  @media (min-width: 960px) and (min-height: 600px) and (max-height: 700px) {
+    .arena .hero .sprite-root {
+      top: 41%;
+    }
+    .arena.squad-arena .enemies .sprite-root {
+      width: 45px;
+      height: 45px;
+    }
+    .arena.squad-arena .enemies .enemy-intent {
+      min-height: 40px;
+      font-size: 9px;
+      line-height: 1.2;
+      padding: 4px;
+    }
+    .arena.squad-arena .enemies .fighter-caption {
+      min-height: 44px;
+    }
+    .arena.squad-arena .enemies .fighter-caption strong {
+      font-size: 10px;
+    }
+  }
+  @media (max-width: 720px) {
+    .arena:not(.squad-arena) {
+      height: 320px;
+    }
+    .arena:not(.squad-arena) .arena-caption {
+      top: 10px;
+      align-items: center;
+    }
+    .arena:not(.squad-arena) .turn-badge {
+      position: static;
+      margin-left: auto;
+    }
+    .scene-toolbar .ability-cost {
+      font-size: 8px;
+    }
+  }
+}

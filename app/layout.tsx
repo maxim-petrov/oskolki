@@ -4,6 +4,7 @@ import './palace.css';
 import './palace-cellar.css';
 import './office.css';
 import './minimal.css';
+import './scene-layout.css';
 import { VISUAL_STYLE } from '@/game/visual-style';
 export const metadata: Metadata = {
   title: 'Осколки · вектор',

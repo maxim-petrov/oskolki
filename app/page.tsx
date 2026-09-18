@@ -688,7 +688,7 @@ export default function Game() {
       )}
       {screen === 'run' && (
         <main
-          className={`game-shell biome-${biomeAt(s.room).id}${active ? ' battle-active' : ''}${shake ? ' boss-impact' : ''}`}
+          className={`game-shell scene-layout biome-${biomeAt(s.room).id}${active ? ' battle-active' : ''}${shake ? ' boss-impact' : ''}`}
           data-screen-shake={screenShake > 0 ? 'on' : 'off'}
           style={
             shake
@@ -973,8 +973,18 @@ export default function Game() {
                   Подсказка
                 </Button>
               </div>
-              <TurnBudget game={s} />
-              <ActiveHeroRules game={s} />
+              <details className="scene-rules">
+                <summary>
+                  Правила и эффекты
+                  {minimumMatch(s) > 3 ? ` · матч ${minimumMatch(s)}+` : ''}
+                  {s.boardWarp ? ` · поле ${size}×${size}` : ''}
+                  {s.board.some((t) => t.locked) ? ' · есть печати' : ''}
+                </summary>
+                <div className="scene-rules-content">
+                  <TurnBudget game={s} />
+                  <ActiveHeroRules game={s} />
+                </div>
+              </details>
               <ArchiveMechanics game={s} />
               <div
                 style={{ '--board-size': size } as CSSProperties}
@@ -1156,166 +1166,77 @@ export default function Game() {
                   <span>Фокус</span>
                 </div>
               </div>
-              <EquipmentPanel game={s} onDetail={setDetail} />
-              {s.seal && (
-                <ActiveSeal seal={itemById(s.seal)!} onDetail={setDetail} />
-              )}
-              <div className="section-label">
-                <span className="eyebrow">ПРИЁМЫ</span>
-                <span>
-                  {tactical(s) && s.phase === 'battle'
-                    ? '1 действие + ресурс'
-                    : s.cast
-                      ? 'Использован'
-                      : '1 за ход'}
-                </span>
-              </div>
-              <div className="skills">
-                {[
-                  ...s.skills,
-                  ...((s.rulesVersion ?? 0) >= 4 && s.relics.includes('binding')
-                    ? ['binding']
-                    : []),
-                ].map((id) => (
-                  <Button
-                    key={id}
-                    variant="outline"
-                    className="skill-card"
-                    disabled={busy || !canCast(game, id)}
-                    onClick={() => void play(castSkill(game, id, selectedCell))}
-                  >
-                    <span className="skill-icon">
-                      <ItemIcon id={id} />
-                    </span>
-                    <span>
-                      <strong>{itemById(id)?.name}</strong>
-                      <small>
-                        {itemForRun(s, id)?.description}
-                        {id === 'binding' &&
-                          ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона с учётом защиты цели; останется ${bindingPreview(s).remainingBlock} блока.`}
-                      </small>
-                    </span>
-                  </Button>
-                ))}
-                <div className={`edit-skill ${editing ? 'active' : ''}`}>
-                  <Button
-                    variant="ghost"
-                    className="edit-trigger"
-                    disabled={busy || !canCast(s, 'edit') || !active}
-                    onClick={() => {
-                      setPreview(null);
-                      gesture.current = null;
-                      setEditing(editing ? null : 'blade');
-                      setEditFirst(null);
-                    }}
-                  >
-                    <SkinIcon name="focus" size={32} />
-                    <span>
-                      <strong>Правка поля</strong>
-                      <small>
-                        {hasSeal(game, 'double-edit')
-                          ? '3 фокуса · замени две разные фишки вместе'
-                          : '3 фокуса · замени одну фишку'}
-                      </small>
-                    </span>
-                  </Button>
-                  {editing && (
-                    <div className="family-choices">
-                      {FAMILIES.map((f) => {
-                        return (
-                          <button
-                            key={f}
-                            className={`tile-${f} ${editing === f ? 'chosen' : ''}`}
-                            aria-label={`Превратить в ${FAMILY_NAMES[f]}`}
-                            onClick={() => setEditing(f)}
-                          >
-                            <BoardTileArt
-                              family={f}
-                              weaponId={s.equipment.weapon}
-                              size={28}
-                            />
-                          </button>
-                        );
-                      })}
+              <details className="scene-inventory">
+                <summary>
+                  Снаряжение <span>{s.relics.length} реликвий</span>
+                </summary>
+                <div className="scene-inventory-content">
+                  <EquipmentPanel game={s} onDetail={setDetail} />
+                  {s.seal && (
+                    <ActiveSeal seal={itemById(s.seal)!} onDetail={setDetail} />
+                  )}
+                  <div className="section-label relic-label">
+                    <span className="eyebrow">РЕЛИКВИИ</span>
+                    <span>{s.relics.length}</span>
+                  </div>
+                  {s.relics.length ? (
+                    <div className="relic-list">
+                      {s.relics.map((id) => (
+                        <button key={id} onClick={() => setDetail(id)}>
+                          <ItemIcon id={id} />
+                          <span>{itemById(id)?.name}</span>
+                          <CircleHelp size={12} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-relics">
+                      <SkinIcon name="relic" size={42} />
+                      <p>
+                        Первая находка
+                        <br />
+                        ждёт за этим боем.
+                      </p>
                     </div>
                   )}
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                className="potion"
-                disabled={
-                  busy ||
-                  s.consumed ||
-                  !s.potions ||
-                  s.hp === s.maxHp ||
-                  !active
-                }
-                onClick={() => void play(consumePotion(game))}
-              >
-                <SkinIcon name="potion" size={36} />
-                <span>
-                  Лечебное зелье <small>+8 здоровья</small>
-                </span>
-                <b>×{s.potions}</b>
-              </Button>
-              <div className="section-label relic-label">
-                <span className="eyebrow">РЕЛИКВИИ</span>
-                <span>{s.relics.length}</span>
-              </div>
-              {s.relics.length ? (
-                <div className="relic-list">
-                  {s.relics.map((id) => (
-                    <button key={id} onClick={() => setDetail(id)}>
-                      <ItemIcon id={id} />
-                      <span>{itemById(id)?.name}</span>
-                      <CircleHelp size={12} />
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-relics">
-                  <SkinIcon name="relic" size={42} />
-                  <p>
-                    Первая находка
-                    <br />
-                    ждёт за этим боем.
-                  </p>
-                </div>
-              )}
-              {s.modifiers.length > 0 && (
-                <>
-                  <div className="section-label">
-                    <span className="eyebrow">МОДИФИКАТОРЫ ПОЛЯ</span>
-                    <span>{s.modifiers.length}/2</span>
-                  </div>
-                  <div className="modifier-list">
-                    {s.modifiers.map((id) => (
-                      <button key={id} onClick={() => setDetail(id)}>
-                        <ItemIcon id={id} />
-                        <span>{itemById(id)?.name}</span>
-                      </button>
+                  {s.modifiers.length > 0 && (
+                    <>
+                      <div className="section-label">
+                        <span className="eyebrow">МОДИФИКАТОРЫ ПОЛЯ</span>
+                        <span>{s.modifiers.length}/2</span>
+                      </div>
+                      <div className="modifier-list">
+                        {s.modifiers.map((id) => (
+                          <button key={id} onClick={() => setDetail(id)}>
+                            <ItemIcon id={id} />
+                            <span>{itemById(id)?.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {Object.values(s.upgrades).some((x) => x > 0) && (
+                    <div className="upgrade-pips">
+                      {FAMILIES.filter((f) => s.upgrades[f] > 0).map((f) => (
+                        <span key={f}>
+                          {FAMILY_NAMES[f]} +{s.upgrades[f]}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="battle-log">
+                    <span className="eyebrow">ХОД БОЯ</span>
+                    {s.log.slice(0, 4).map((line, i) => (
+                      <p
+                        key={`${i}-${line}`}
+                        className={i === 0 ? 'latest' : ''}
+                      >
+                        {line}
+                      </p>
                     ))}
                   </div>
-                </>
-              )}
-              {Object.values(s.upgrades).some((x) => x > 0) && (
-                <div className="upgrade-pips">
-                  {FAMILIES.filter((f) => s.upgrades[f] > 0).map((f) => (
-                    <span key={f}>
-                      {FAMILY_NAMES[f]} +{s.upgrades[f]}
-                    </span>
-                  ))}
                 </div>
-              )}
-              <div className="battle-log">
-                <span className="eyebrow">ХОД БОЯ</span>
-                {s.log.slice(0, 4).map((line, i) => (
-                  <p key={`${i}-${line}`} className={i === 0 ? 'latest' : ''}>
-                    {line}
-                  </p>
-                ))}
-              </div>
+              </details>
             </aside>
           </div>
           <footer className="game-footer">
@@ -1327,42 +1248,151 @@ export default function Game() {
               {' · Esc — отменить перетаскивание · Пробел — завершить ход'}
             </span>
           </footer>
-          {active && !modalOpen && !game.trial?.paused && (
-            <section className="battle-actions" aria-label="Управление ходом">
-              <div className="battle-actions-inner">
-                {tactical(s) && s.phase === 'battle' && (
-                  <output className="action-counter">
-                    Действия: {actionLeft(s)} / {actionMax(s)}
-                    {s.relics.includes('borrowed-time') && (
-                      <small>В конце: −2 здоровья</small>
-                    )}
-                  </output>
-                )}
-                <span className="turn-shortcut">
-                  Пробел — {game.phase === 'trial' ? 'пауза' : 'завершить ход'}
-                </span>
+          <div
+            className="scene-toolbar"
+            aria-label="Действия героя"
+            hidden={modalOpen || !active || !!game.trial?.paused}
+          >
+            <div className="section-label">
+              <span className="eyebrow">ПРИЁМЫ</span>
+              <span>
+                {tactical(s) && s.phase === 'battle'
+                  ? '1 действие + ресурс'
+                  : s.cast
+                    ? 'Использован'
+                    : '1 за ход'}
+              </span>
+            </div>
+            <div className="skills">
+              {[
+                ...s.skills,
+                ...((s.rulesVersion ?? 0) >= 4 && s.relics.includes('binding')
+                  ? ['binding']
+                  : []),
+              ].map((id) => (
                 <Button
-                  className="end-turn"
-                  aria-keyshortcuts="Space"
-                  onClick={() =>
-                    void play(
-                      game.phase === 'trial'
-                        ? pauseTrial(game, true)
-                        : endTurn(game),
-                    )
-                  }
-                  disabled={busy}
+                  key={id}
+                  variant="outline"
+                  className="skill-card"
+                  aria-label={`${itemById(id)?.name}. ${itemForRun(s, id)?.description}`}
+                  title={`${itemById(id)?.name}. ${itemForRun(s, id)?.description}${id === 'binding' ? ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона; останется ${bindingPreview(s).remainingBlock} блока.` : ''}`}
+                  disabled={busy || !canCast(game, id)}
+                  onClick={() => void play(castSkill(game, id, selectedCell))}
                 >
-                  {game.phase === 'trial' ? 'Пауза' : 'Завершить ход'}{' '}
-                  {game.phase === 'trial' ? (
-                    <Pause size={17} />
-                  ) : (
-                    <ArrowRight size={17} />
-                  )}
+                  <span className="skill-icon">
+                    <ItemIcon id={id} />
+                  </span>
+                  <span>
+                    <strong>{itemById(id)?.name}</strong>
+                    <em className="ability-cost">{itemForRun(s, id)?.tag}</em>
+                    <small>
+                      {itemForRun(s, id)?.description}
+                      {id === 'binding' &&
+                        ` Сейчас: −${bindingPreview(s).spent} блока → ${bindingPreview(s).damage} урона с учётом защиты цели; останется ${bindingPreview(s).remainingBlock} блока.`}
+                    </small>
+                  </span>
                 </Button>
+              ))}
+              <div className={`edit-skill ${editing ? 'active' : ''}`}>
+                <Button
+                  variant="ghost"
+                  className="edit-trigger"
+                  aria-label="Правка поля. 3 фокуса. Выбери семейство, затем фишку."
+                  title={`Правка: ${tactical(s) && s.phase === 'battle' ? '1 действие и ' : ''}3 фокуса. Выбери семейство, затем фишку.`}
+                  disabled={busy || !canCast(s, 'edit') || !active}
+                  onClick={() => {
+                    setPreview(null);
+                    gesture.current = null;
+                    setEditing(editing ? null : 'blade');
+                    setEditFirst(null);
+                  }}
+                >
+                  <SkinIcon name="focus" size={32} />
+                  <span>
+                    <strong>Правка</strong>
+                    <em className="ability-cost">3 фокуса</em>
+                    <small>
+                      {hasSeal(game, 'double-edit')
+                        ? '3 фокуса · замени две разные фишки вместе'
+                        : '3 фокуса · замени одну фишку'}
+                    </small>
+                  </span>
+                </Button>
+                {editing && (
+                  <div className="family-choices">
+                    {FAMILIES.map((f) => {
+                      return (
+                        <button
+                          key={f}
+                          className={`tile-${f} ${editing === f ? 'chosen' : ''}`}
+                          aria-label={`Превратить в ${FAMILY_NAMES[f]}`}
+                          onClick={() => setEditing(f)}
+                        >
+                          <BoardTileArt
+                            family={f}
+                            weaponId={s.equipment.weapon}
+                            size={28}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </section>
-          )}
+            </div>
+            <Button
+              variant="outline"
+              className="potion"
+              title="Восстановить 8 здоровья. Один раз за ход, без затрат действий."
+              disabled={
+                busy || s.consumed || !s.potions || s.hp === s.maxHp || !active
+              }
+              onClick={() => void play(consumePotion(game))}
+            >
+              <SkinIcon name="potion" size={36} />
+              <span>
+                Лечебное зелье <small>+8 здоровья</small>
+              </span>
+              <b>×{s.potions}</b>
+            </Button>
+            {active && !modalOpen && !game.trial?.paused && (
+              <section className="battle-actions" aria-label="Управление ходом">
+                <div className="battle-actions-inner">
+                  {tactical(s) && s.phase === 'battle' && (
+                    <output className="action-counter">
+                      Действия: {actionLeft(s)} / {actionMax(s)}
+                      {s.relics.includes('borrowed-time') && (
+                        <small>В конце: −2 здоровья</small>
+                      )}
+                    </output>
+                  )}
+                  <span className="turn-shortcut">
+                    Пробел —{' '}
+                    {game.phase === 'trial' ? 'пауза' : 'завершить ход'}
+                  </span>
+                  <Button
+                    className="end-turn"
+                    aria-keyshortcuts="Space"
+                    onClick={() =>
+                      void play(
+                        game.phase === 'trial'
+                          ? pauseTrial(game, true)
+                          : endTurn(game),
+                      )
+                    }
+                    disabled={busy}
+                  >
+                    {game.phase === 'trial' ? 'Пауза' : 'Завершить ход'}{' '}
+                    {game.phase === 'trial' ? (
+                      <Pause size={17} />
+                    ) : (
+                      <ArrowRight size={17} />
+                    )}
+                  </Button>
+                </div>
+              </section>
+            )}
+          </div>
           {newDiscovery && (
             <button
               className="discovery-toast"
