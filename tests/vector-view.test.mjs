@@ -6,6 +6,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 const { VectorEnemy, VectorIcon, VectorPerson, VectorWeapon, enemyShapes } =
   await import('../components/vector-art.tsx');
+const { ENCOUNTERS } = await import('../game/duel/campaign.ts');
 const { ICON_NAMES } = await import('../game/icon-names.ts');
 const { ROOM_BACKGROUNDS } = await import('../game/visual-style.ts');
 const { ENEMY_CATALOG, WEAPONS } = await import('./helpers/stage1-engine.mjs');
@@ -14,11 +15,14 @@ const geometry = (html) => html.replace(/data-[\w-]+="[^"]*"/g, '');
 const noRaster = (html) =>
   assert.doesNotMatch(html, /<image|data:image|\.(?:png|jpe?g|webp|gif)\b/i);
 test('every enemy, including all legacy save kinds, has its own vector geometry', () => {
-  assert.deepEqual(
-    Object.keys(enemyShapes).sort(),
-    Object.keys(ENEMY_CATALOG).sort(),
-  );
-  const shapes = Object.keys(ENEMY_CATALOG).map((kind) =>
+  const kinds = [
+    ...new Set([
+      ...Object.keys(ENEMY_CATALOG),
+      ...ENCOUNTERS.map((e) => e.art),
+    ]),
+  ];
+  assert.deepEqual(Object.keys(enemyShapes).sort(), kinds.sort());
+  const shapes = kinds.map((kind) =>
     render(VectorEnemy, { kind, pose: 'idle' }),
   );
   shapes.forEach(noRaster);

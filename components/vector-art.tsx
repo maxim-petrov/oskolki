@@ -400,8 +400,121 @@ export const enemyShapes: Record<string, ReactNode> = {
     </>
   ),
 };
+// Shared-board campaign silhouettes. All use the same simple vector outline.
+Object.assign(enemyShapes, {
+  'wet-catalog': (
+    <>
+      <path d="M22 24h57v63H22ZM31 37h39M31 46h28M31 56h36M31 66h18" />
+      <path d="M15 88q9-6 18 0t18 0t18 0t18 0M60 8q-16 20 0 20t0-20Z" />
+    </>
+  ),
+  'sluice-guard': (
+    <>
+      <path d="M24 86V33l26-16 27 16v53ZM33 45h36M33 57h36M33 69h36M50 33v50" />
+      <circle cx="50" cy="21" r="10" />
+      <path d="M45 21h10m-5-5v10" />
+    </>
+  ),
+  'account-scribe': (
+    <>
+      <path d="M27 90V41h46v49ZM22 35h57L65 17H36Z" />
+      <path d="M34 51h30m-30 10h30m-30 10h20M77 79l15-34M14 76l9-29" />
+    </>
+  ),
+  collector: (
+    <>
+      <path d="M26 91V36l24-15 27 15v55Z" />
+      <path d="M34 48h32v17H34ZM40 55h20M47 45v23M20 37H9v34h15M78 38h13v33H78" />
+      <path d="M38 79h24" />
+    </>
+  ),
+  'depth-keeper': (
+    <>
+      <path d="M17 92V42l17-9 16 13 16-13 18 9v50Z" />
+      <path d="M50 42V17M36 17h28M40 17V8m20 9V8M24 74q13-10 27 0t27 0M29 54v9m43-9v9" />
+      <circle cx="50" cy="58" r="5" />
+    </>
+  ),
+  'coal-courier': (
+    <>
+      <path d="M26 90V43h49v47ZM21 41l11-20h39l10 20Z" />
+      <path d="M34 57h13v13H34Zm20 0h13v13H54ZM41 78h20M34 28h34" />
+      <path d="M12 88V59h12m53 0h12v29" />
+    </>
+  ),
+  printer: (
+    <>
+      <path d="M17 49h69v37H17ZM29 49V20h45v29M29 75h45v19H29Z" />
+      <path d="M37 30h27m-27 9h27M24 60h11M36 83h30" />
+      <circle cx="74" cy="60" r="3" />
+    </>
+  ),
+  'furnace-cashier': (
+    <>
+      <path d="M20 42h64v48H20ZM29 42V19h45v23M28 68h48v15H28Z" />
+      <circle cx="51" cy="30" r="8" />
+      <path d="M51 24v12m-9 17h19M34 77h7m7 0h7m7 0h7M42 59h19" />
+    </>
+  ),
+  'hot-editor': (
+    <>
+      <path d="M23 43h55v47H23ZM32 43V27h36v16" />
+      <path d="M48 25q-18-11 0-24-1 10 8 13 3 8-8 11ZM32 57h36M35 73l28 8m-28 0 28-8" />
+    </>
+  ),
+  'press-boss': (
+    <>
+      <path d="M12 29h76v14H12ZM20 43v42h60V43M28 55h44v13H28ZM9 87h82v8H9Z" />
+      <path d="M29 28V13h42v15M36 21h28M17 12v16m66-16v16M34 78h32" />
+      <circle cx="50" cy="61" r="4" />
+    </>
+  ),
+  auditor: (
+    <>
+      <path d="M24 90 32 43h39l9 47Z" />
+      <circle cx="51" cy="27" r="16" />
+      <circle cx="44" cy="26" r="6" />
+      <circle cx="59" cy="26" r="6" />
+      <path d="M50 26h3M27 62h49M41 71h24m-24 9h16M12 82l12-27" />
+    </>
+  ),
+  'glass-adviser': (
+    <>
+      <path d="m28 34 23-23 24 23-7 55H35Z" />
+      <path d="m28 34 23 17 24-17M51 11v78M35 68l16-17 17 17M17 89h68" />
+    </>
+  ),
+  'shift-secretary': (
+    <>
+      <path d="M25 45h52v46H25Z" />
+      <circle cx="51" cy="24" r="18" />
+      <path d="M51 13v12l10 5M34 58h13v13H34Zm21 0h13v13H55ZM39 80h25M12 76l13-16m52 0 13 16" />
+    </>
+  ),
+  deputy: (
+    <>
+      <path d="M21 91 28 40h47l7 51ZM33 35V12h37v23Z" />
+      <path d="M39 25h6m13 0h6M42 42l9 15 11-15M51 57v28M27 68h18m14 0h18" />
+    </>
+  ),
+  director: (
+    <>
+      <path d="M15 93V42h71v51ZM30 37V17h41v20Z" />
+      <path d="m28 16-5-11 19 5 9-9 10 9 18-5-6 11M39 26h9m10 0h9M26 43l25 25 24-25M51 68v20M35 82h8m16 0h8" />
+      <path d="M7 92h85M17 64h15m38 0h14" />
+    </>
+  ),
+});
 export function VectorEnemy({ kind, pose }: { kind: string; pose: Pose }) {
-  const boss = ['censor', 'tide-keeper', 'redactor', 'boss'].includes(kind);
+  const boss = [
+    'censor',
+    'tide-keeper',
+    'redactor',
+    'boss',
+    'depth-keeper',
+    'press-boss',
+    'director',
+  ].includes(kind);
   return (
     <svg
       viewBox="0 0 100 100"

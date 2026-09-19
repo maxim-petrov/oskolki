@@ -196,23 +196,7 @@ export type ItemId =
   | 'capacitor'
   | 'directorPen'
   | 'spinningTop'
-  | 'infiniteDiploma'
-  | 'graphite'
-  | 'cottonCuffs'
-  | 'teaBag'
-  | 'lens'
-  | 'emberKnife'
-  | 'archiveVest'
-  | 'metronome'
-  | 'fireSeal'
-  | 'mortgage'
-  | 'saltCoat'
-  | 'prism'
-  | 'waterwheel'
-  | 'glassNib'
-  | 'ledger'
-  | 'goldenLining'
-  | 'eclipseRing';
+  | 'infiniteDiploma';
 export type Item = {
   id: ItemId;
   name: string;
@@ -534,163 +518,6 @@ export const ITEMS: Record<ItemId, Item> = {
       'Звёзды больше не дают опыт. Первые 4 за действие дают по 1 мане каждого цвета. Опыт за победу сохраняется.',
     tags: ['reserve', 'spell'],
   },
-  graphite: {
-    id: 'graphite',
-    name: 'Графитовый резец',
-    slot: 'weapon',
-    rarity: 'common',
-    price: 12,
-    description:
-      'Собрать 3 воздуха за действие → первая следующая волна черепов этого действия получает +2 урона.',
-    tags: ['air', 'skull'],
-  },
-  cottonCuffs: {
-    id: 'cottonCuffs',
-    name: 'Хлопковые манжеты',
-    slot: 'armor',
-    rarity: 'common',
-    price: 12,
-    description:
-      'Собрать 3 воды за действие → восстановить 1 HP. Не более 6 HP за бой.',
-    tags: ['water', 'healing'],
-  },
-  teaBag: {
-    id: 'teaBag',
-    name: 'Чайный пакетик',
-    slot: 'charm',
-    rarity: 'common',
-    price: 12,
-    description: 'Собрать 3 земли за действие → 1 мана воды.',
-    tags: ['earth', 'water', 'spell'],
-  },
-  lens: {
-    id: 'lens',
-    name: 'Линза корректора',
-    slot: 'ring',
-    rarity: 'common',
-    price: 12,
-    description:
-      'Собрать 3 звезды за действие → 2 маны воздуха. Опыт сохраняется.',
-    tags: ['growth', 'air', 'spell'],
-  },
-  emberKnife: {
-    id: 'emberKnife',
-    name: 'Раскалённый нож',
-    slot: 'weapon',
-    rarity: 'uncommon',
-    price: 22,
-    description:
-      'Собрать 3 огня за действие → зарядить следующую волну черепов: +3 урона. Один заряд, сохраняется между действиями.',
-    tags: ['fire', 'skull'],
-  },
-  archiveVest: {
-    id: 'archiveVest',
-    name: 'Архивный жилет',
-    slot: 'armor',
-    rarity: 'uncommon',
-    price: 22,
-    description: 'Собрать 3 звезды за действие → 3 барьера. Опыт сохраняется.',
-    tags: ['growth', 'defense'],
-  },
-  metronome: {
-    id: 'metronome',
-    name: 'Метроном',
-    slot: 'charm',
-    rarity: 'uncommon',
-    price: 22,
-    description:
-      'Собрать 3 воздуха за действие → зарядить следующее успешное прямое заклинание: +3 урона. Один заряд.',
-    tags: ['air', 'spell'],
-  },
-  fireSeal: {
-    id: 'fireSeal',
-    name: 'Угольная печать',
-    slot: 'ring',
-    rarity: 'uncommon',
-    price: 22,
-    description: 'Собрать 3 черепа за действие → 2 маны огня.',
-    tags: ['skull', 'fire', 'spell'],
-  },
-  mortgage: {
-    id: 'mortgage',
-    name: 'Клинок закладной',
-    slot: 'weapon',
-    rarity: 'rare',
-    price: 34,
-    description:
-      'Первая волна черепов за действие: +6 урона за 2 HP. При HP ≤2 бонус отключён. Самооплата обходит защиту.',
-    tags: ['risk', 'skull'],
-  },
-  saltCoat: {
-    id: 'saltCoat',
-    name: 'Соляной плащ',
-    slot: 'armor',
-    rarity: 'rare',
-    price: 34,
-    description:
-      'Первое заклинание до действия врага даёт 3 барьера. Передышка лечит 7 HP вместо 11.',
-    tags: ['spell', 'defense', 'healing'],
-  },
-  prism: {
-    id: 'prism',
-    name: 'Трёхгранная призма',
-    slot: 'charm',
-    rarity: 'rare',
-    price: 34,
-    description:
-      'Собрать три разные стихии за действие → 3 урона и 2 барьера. Только физические фишки.',
-    tags: ['elements', 'defense'],
-  },
-  waterwheel: {
-    id: 'waterwheel',
-    name: 'Водяное колесо',
-    slot: 'ring',
-    rarity: 'rare',
-    price: 34,
-    description:
-      'Собрать 3 воды за действие → 3 маны земли, но потерять до 2 маны огня.',
-    tags: ['water', 'earth', 'spell'],
-  },
-  glassNib: {
-    id: 'glassNib',
-    name: 'Стеклянное перо',
-    slot: 'weapon',
-    rarity: 'veryRare',
-    price: 50,
-    description:
-      'Прямые заклинания: +5 урона. Первое попадание врага за действие получает +1 урона до защиты.',
-    tags: ['spell', 'risk'],
-  },
-  ledger: {
-    id: 'ledger',
-    name: 'Долговая книга',
-    slot: 'charm',
-    rarity: 'veryRare',
-    price: 50,
-    description:
-      '6 физических монет за бой заряжают следующую волну черепов: +6 урона. Один заряд; пока он готов, монеты не копят новый.',
-    tags: ['gold', 'skull'],
-  },
-  goldenLining: {
-    id: 'goldenLining',
-    name: 'Золотая подкладка',
-    slot: 'armor',
-    rarity: 'legendary',
-    price: 0,
-    description:
-      'Собрать 3 монеты за действие → потратить 2 золота и вылечить до 3 HP. Раз до действия врага, не более 12 HP за бой.',
-    tags: ['gold', 'healing'],
-  },
-  eclipseRing: {
-    id: 'eclipseRing',
-    name: 'Кольцо смены',
-    slot: 'ring',
-    rarity: 'legendary',
-    price: 0,
-    description:
-      'Первое совпадение 4+ до действия врага: по 2 маны каждой стихии за 2 HP. При HP ≤2 не срабатывает.',
-    tags: ['long', 'risk', 'elements'],
-  },
 };
 export type ClassId = 'blade' | 'elementalist' | 'warlock' | 'monk';
 export const CLASSES: Record<
@@ -769,4 +596,45 @@ export const CLASSES: Record<
     cheap: ['morale', 'earth'],
   },
 };
-export { ENCOUNTERS as FOES } from './campaign.ts';
+export const FOES = [
+  {
+    name: 'Бумажная крыса',
+    art: 'paper-rat',
+    hp: 32,
+    spells: ['bolt'] as SpellId[],
+    gear: [] as ItemId[],
+    trait: 'Собирает черепа и копит огонь для разряда.',
+  },
+  {
+    name: 'Архивариус',
+    art: 'librarian',
+    hp: 44,
+    spells: ['bolt', 'mend'] as SpellId[],
+    gear: ['scholar'] as ItemId[],
+    trait: 'Лечится водой. Не оставляйте ему синие совпадения.',
+  },
+  {
+    name: 'Сборщик долгов',
+    art: 'raider',
+    hp: 54,
+    spells: ['drain', 'forge'] as SpellId[],
+    gear: ['tideNeedle'] as ItemId[],
+    trait: 'Отнимает ману. Сбор воды наносит вам урон.',
+  },
+  {
+    name: 'Редактор',
+    art: 'redactor',
+    hp: 64,
+    spells: ['erase', 'bolt', 'wall'] as SpellId[],
+    gear: ['coat'] as ItemId[],
+    trait: 'Перестраивает поле и защищается собственными запасами.',
+  },
+  {
+    name: 'Цензор',
+    art: 'censor',
+    hp: 86,
+    spells: ['forge', 'bomb', 'drain', 'bolt'] as SpellId[],
+    gear: ['fullBlade', 'ward'] as ItemId[],
+    trait: 'Берегитесь полных запасов: они усиливают его черепа.',
+  },
+];

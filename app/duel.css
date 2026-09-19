@@ -1082,3 +1082,57 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* The route is visible between fights; the shared board keeps its space. */
+.duel-route-caption,
+.duel-loot-note {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 8px 0 18px;
+}
+.duel-biomes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  border-block: 1px solid #000;
+  padding: 18px 0;
+  margin: 12px 0 18px;
+}
+.duel-biomes span {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 12px;
+}
+.duel-biomes b {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #000;
+  flex-shrink: 0;
+}
+.duel-biomes [aria-current='step'] b {
+  background: #000;
+  color: #fff;
+}
+@media (max-width: 600px) {
+  .duel-biomes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.duel-enemy-rule {
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+.duel-enemy-rule summary {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.duel-enemy-rule p {
+  margin: 8px 0;
+  max-width: 28em;
+}

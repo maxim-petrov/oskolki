@@ -5,10 +5,8 @@ import {
   dispatchDuel,
   saveDuel,
   loadDuel,
-  manaCap,
-  fingerprint,
   spellError,
-} from '../game/duel/legacy-v2/engine.ts';
+} from '../game/duel/engine.ts';
 import * as v1 from '../game/duel/legacy-v1/engine.ts';
 import {
   ITEMS,
@@ -17,15 +15,15 @@ import {
   KINDS,
   SPELLS,
   RARITIES,
-} from '../game/duel/legacy-v2/catalog.ts';
+} from '../game/duel/catalog.ts';
 import { findMatches, swapBoard } from '../game/duel/board.ts';
 import {
   freshItems,
   spellPayment,
   itemWarnings,
-} from '../game/duel/legacy-v2/item-rules.ts';
-import { createOffers } from '../game/duel/legacy-v2/loot.ts';
-import { chooseAction } from '../game/duel/legacy-v2/ai.ts';
+} from '../game/duel/item-rules.ts';
+import { createOffers } from '../game/duel/loot.ts';
+import { chooseAction } from '../game/duel/ai.ts';
 const config = { seed: 707, classId: 'blade', mode: 'duel', foe: 0 };
 const start = (patch = {}) => createDuel({ ...config, ...patch });
 const step = (s, c) => {
@@ -84,43 +82,14 @@ const gear = (s, ...ids) => {
 const prng = (seed) => () =>
   (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
 
-test('catalog: 32 unique items, 8/8/8/5/3 tiers, useful starts and valid four-slot configurations', () => {
-  assert.equal(Object.keys(ITEMS).length, 32);
-  assert.deepEqual(
-    RARITIES.map(
-      (r) => Object.values(ITEMS).filter((i) => i.rarity === r).length,
-    ),
-    [8, 8, 8, 5, 3],
-  );
-  for (const [id, c] of Object.entries(CLASSES)) {
-    const s = start({ classId: id });
-    assert.equal(Object.values(s.hero.gear).length, 2);
-    assert.ok(c.gear.every((i) => ITEMS[i].rarity === 'common'));
-  }
-  assert.throws(() => start({ testGear: ['coat', 'veil'] }));
-  assert.throws(() => start({ mode: 'route', testGear: ['coat'] }));
-  assert.throws(() => start({ testGear: ['bogus'] }));
-  assert.equal(start({ testGear: ['insurance'] }).hero.gear.charm, 'insurance');
-});
-test('start bonuses, reservoir and completed-encounter resets preserve consumed insurance', () => {
-  const s = start({ testGear: ['bluePass', 'pocketVest'] });
-  assert.equal(s.hero.items.barrier, 6);
-  assert.equal(s.hero.mana.water, 2);
-  assert.equal(s.hero.mana.earth, 3);
-  const r = start({ testGear: ['reservoir'] });
-  assert.equal(manaCap(r.hero, 'water'), 30);
-  s.config.mode = 'route';
-  s.config.testGear = undefined;
-  s.phase = 'camp';
-  s.rewarded = true;
-  s.hero.items.insuranceUsed = true;
-  s.hero.items.purseGold = 8;
-  const n = step(s, { type: 'next' });
-  assert.equal(n.hero.items.insuranceUsed, true);
-  assert.equal(n.hero.items.purseGold, 0);
-  assert.equal(n.hero.items.barrier, 6);
-  assert.equal(n.hero.mana.water, 2);
-});
+import * as v2 from '../game/duel/legacy-v2/engine.ts';
+import {
+  ENCOUNTERS,
+  BIOMES,
+  victoryReward,
+  restHealing,
+} from '../game/duel/campaign.ts';
+import { LOOT_WEIGHTS, SHOP_WEIGHTS } from '../game/duel/loot.ts';
 test('all invalid actions preserve barrier, charges, health, RNG and initiative', () => {
   const s = gear(loaded(), 'mirrorVest', 'bloodInkwell');
   s.enemy.items.initiative.mint = true;
@@ -392,76 +361,6 @@ test('conductor needs physically collected different colors, not gifted mana', (
   assert.equal(n.hero.mana.air, 1);
   assert.ok(!n.log.some((l) => l.includes('Кольцо проводника.')));
 });
-test('rarity progression: deterministic, no duplicates/equipped items, rare pity, no late XP, normal shop only', () => {
-  let legendary = false;
-  for (let seed = 0; seed < 300; seed++)
-    for (let room = 0; room < 4; room++) {
-      const s = start();
-      const a = createOffers(s.hero, room, false, prng(seed)),
-        b = createOffers(s.hero, room, false, prng(seed));
-      assert.deepEqual(a, b);
-      const all = [...a.offers, ...a.stock];
-      assert.equal(new Set(all).size, 6);
-      assert.ok(all.every((id) => !Object.values(s.hero.gear).includes(id)));
-      assert.ok(a.stock.every((id) => RARITIES.indexOf(ITEMS[id].rarity) <= 2));
-      if (room >= 2) {
-        assert.ok(a.rareOffered);
-        assert.ok(!all.includes('scholar'));
-      }
-      if (room === 0)
-        assert.ok(
-          a.offers.every((id) => RARITIES.indexOf(ITEMS[id].rarity) <= 2),
-        );
-      if (a.offers.some((id) => ITEMS[id].rarity === 'legendary'))
-        legendary = true;
-    }
-  assert.ok(legendary);
-});
-test('old v1 journals replay and continue unchanged through the public dispatcher', () => {
-  let s = v1.createDuel(config);
-  s = v1.dispatchDuel(s, chooseAction(s)).state;
-  const loaded = loadDuel(v1.saveDuel(s));
-  assert.deepEqual(loaded, s);
-  const c = chooseAction(s);
-  assert.deepEqual(dispatchDuel(loaded, c), v1.dispatchDuel(s, c));
-  assert.equal(saveDuel(loaded), v1.saveDuel(s));
-});
-test('v2 journals retain gear selection and charges with exact command replay', () => {
-  let s = start({
-    classId: 'elementalist',
-    testGear: ['directorPen', 'mirrorVest', 'spinningTop', 'capacitor'],
-  });
-  for (let i = 0; i < 24 && s.phase === 'battle'; i++)
-    s = step(s, chooseAction(s));
-  assert.deepEqual(loadDuel(saveDuel(s)), s);
-  const bad = JSON.parse(saveDuel(s));
-  bad.fingerprint = 'bad';
-  assert.equal(loadDuel(JSON.stringify(bad)), null);
-});
-test('complete routes use rarity rewards and shops; repeat seeds preserve results', () => {
-  function run(seed) {
-    let s = start({ mode: 'route', seed });
-    for (let i = 0; i < 600 && ['battle', 'camp'].includes(s.phase); i++) {
-      if (s.phase === 'battle') {
-        const c = chooseAction(s);
-        assert.ok(c);
-        s = step(s, c);
-      } else if (!s.rewarded)
-        s = step(s, { type: 'reward', item: s.offers[0] });
-      else s = step(s, { type: 'next' });
-      for (const f of [s.hero, s.enemy]) {
-        assert.ok(f.hp >= 0 && f.hp <= f.maxHp);
-        assert.ok(f.items.barrier >= 0 && f.items.barrier <= 6);
-        for (const c of COLORS)
-          assert.ok(f.mana[c] >= 0 && f.mana[c] <= manaCap(f, c));
-      }
-    }
-    assert.ok(['won', 'lost'].includes(s.phase));
-    assert.deepEqual(loadDuel(saveDuel(s)), s);
-    return fingerprint(s);
-  }
-  for (let seed = 0; seed < 8; seed++) assert.equal(run(seed), run(seed));
-});
 test('equipment warnings describe actual tradeoffs', () => {
   assert.equal(itemWarnings({ weapon: 'fullBlade' }, 'reservoir').length, 1);
   assert.ok(
@@ -550,21 +449,365 @@ test('AI does not prioritize harmless skull triples with quarter cutter or inspe
   assert.deepEqual(chooseAction(changed), a);
 });
 
-test('classes without direct damage spells never receive dead stylus or copier offers', () => {
-  for (const classId of Object.keys(CLASSES)) {
-    const s = start({ classId });
-    for (let room = 0; room < 4; room++)
-      for (let seed = 0; seed < 80; seed++) {
-        const loot = createOffers(s.hero, room, false, prng(seed));
-        if (
-          !s.hero.spells.some((id) => ['bolt', 'drain', 'palm'].includes(id))
-        ) {
+test('four biomes have readable escalating encounters, bosses, valid gear and 48 slotted items', () => {
+  assert.equal(BIOMES.length, 4);
+  assert.equal(ENCOUNTERS.length, 20);
+  assert.equal(new Set(ENCOUNTERS.map((e) => e.name)).size, 20);
+  assert.deepEqual(
+    RARITIES.map(
+      (r) => Object.values(ITEMS).filter((i) => i.rarity === r).length,
+    ),
+    [12, 12, 12, 7, 5],
+  );
+  for (let room = 0; room < 20; room++) {
+    const e = ENCOUNTERS[room],
+      s = start({ foe: room });
+    assert.equal(e.biome, Math.floor(room / 5));
+    assert.equal(
+      e.kind,
+      room % 5 === 4 ? 'boss' : room % 5 === 3 ? 'elite' : 'normal',
+    );
+    assert.equal(s.enemy.hp, e.hp);
+    assert.equal(s.version, 3);
+    assert.ok(e.gear.every((id) => ITEMS[id]));
+    assert.equal(
+      new Set(e.gear.map((id) => ITEMS[id].slot)).size,
+      e.gear.length,
+    );
+    assert.ok(e.spells.every((id) => SPELLS[id]));
+    assert.ok(s.enemy.stats.fire <= 9);
+  }
+  assert.throws(() => start({ foe: 20 }));
+  assert.throws(() => start({ mode: 'route', testGear: ['ledger'] }));
+});
+test('loot depth is a hard gate across classes, equipped slots and seeds; boss upgrades and shop ceilings hold', () => {
+  let earlyCommon = 0,
+    earlyTotal = 0;
+  for (const classId of Object.keys(CLASSES))
+    for (let seed = 0; seed < 120; seed++) {
+      const s = start({ classId });
+      for (let room = 0; room < 20; room++) {
+        const random = prng(seed * 89 + room * 23),
+          e = ENCOUNTERS[room];
+        const loot = createOffers(s.hero, room, false, random);
+        assert.deepEqual(
+          loot,
+          createOffers(s.hero, room, false, prng(seed * 89 + room * 23)),
+        );
+        const all = [...loot.offers, ...loot.stock];
+        assert.equal(new Set(all).size, 6);
+        for (const id of all)
+          assert.ok(!Object.values(s.hero.gear).includes(id));
+        for (const id of loot.offers)
           assert.ok(
-            [...loot.offers, ...loot.stock].every(
-              (id) => !['stylus', 'carbonPaper'].includes(id),
+            LOOT_WEIGHTS[e.kind][e.biome][RARITIES.indexOf(ITEMS[id].rarity)] >
+              0,
+          );
+        for (const id of loot.stock)
+          assert.ok(
+            SHOP_WEIGHTS[e.biome][RARITIES.indexOf(ITEMS[id].rarity)] > 0,
+          );
+        if (e.biome === 0 && e.kind === 'normal')
+          for (const id of loot.offers) {
+            earlyTotal++;
+            if (ITEMS[id].rarity === 'common') earlyCommon++;
+          }
+        if (e.kind === 'boss')
+          assert.ok(
+            RARITIES.indexOf(ITEMS[loot.offers[0]].rarity) >=
+              Math.min(3, e.biome + 1),
+          );
+        if (classId === 'blade')
+          assert.ok(
+            all.every(
+              (id) =>
+                !['stylus', 'carbonPaper', 'metronome', 'glassNib'].includes(
+                  id,
+                ),
             ),
           );
-        }
+        s.hero.gear[ITEMS[loot.offers[0]].slot] = loot.offers[0];
       }
+    }
+  assert.ok(earlyCommon / earlyTotal > 0.95);
+});
+test('boss reward stays valid when all usable Very Rare are equipped and insurance is spent', () => {
+  const s = gear(start(), 'quarterCutter', 'mirrorVest', 'ledger', 'capacitor');
+  s.hero.items.insuranceUsed = true;
+  for (let seed = 0; seed < 60; seed++) {
+    const { offers, stock } = createOffers(s.hero, 14, false, prng(seed));
+    assert.equal(new Set([...offers, ...stock]).size, 6);
+    assert.ok(offers.every((id) => ITEMS[id].rarity === 'rare'));
+    assert.ok(
+      [...offers, ...stock].every(
+        (id) => !Object.values(s.hero.gear).includes(id),
+      ),
+    );
+    assert.ok(!offers.includes('insurance'));
   }
+});
+test('common support items use physical tiles, healing caps and do not substitute XP', () => {
+  for (const [kind, id, color, bonus] of [
+    ['earth', 'teaBag', 'water', 1],
+    ['xp', 'lens', 'air', 2],
+  ]) {
+    const { s, command } = fixture(kind);
+    gear(s, id);
+    s.hero.mana[color] = 0;
+    const n = step(s, command);
+    assert.equal(n.hero.mana[color], bonus);
+    if (kind === 'xp') assert.equal(n.hero.xp, 3);
+  }
+  const { s, command } = fixture('water');
+  gear(s, 'cottonCuffs');
+  s.hero.hp = 900;
+  s.hero.items.healed = 5;
+  const n = step(s, command);
+  assert.equal(n.hero.hp, 901);
+  assert.equal(n.hero.items.healed, 6);
+  s.hero.items.healed = 6;
+  assert.equal(step(s, command).hero.hp, 900);
+});
+test('archive vest, fire seal and waterwheel connect XP/skulls/water to distinct resources', () => {
+  let f = fixture('xp');
+  gear(f.s, 'archiveVest');
+  assert.equal(step(f.s, f.command).hero.items.barrier, 3);
+  f = fixture('skull');
+  gear(f.s, 'fireSeal');
+  f.s.hero.mana.fire = 0;
+  assert.equal(step(f.s, f.command).hero.mana.fire, 2);
+  f = fixture('water');
+  gear(f.s, 'waterwheel');
+  f.s.hero.mana.fire = 1;
+  f.s.hero.mana.earth = 0;
+  const n = step(f.s, f.command);
+  assert.equal(n.hero.mana.fire, 0);
+  assert.equal(n.hero.mana.earth, 3);
+});
+test('ember and ledger charges cross actions, consume once, cannot double count coins while charged', () => {
+  let f = fixture('fire');
+  gear(f.s, 'emberKnife');
+  const charged = step(f.s, f.command);
+  assert.equal(charged.hero.items.ember, true);
+  const skull = fixture('skull');
+  gear(skull.s, 'emberKnife');
+  skull.s.hero.items = charged.hero.items;
+  let n = step(skull.s, skull.command);
+  assert.equal(n.enemy.hp, 994);
+  assert.equal(n.hero.items.ember, false);
+  f = fixture('gold');
+  gear(f.s, 'ledger');
+  f.s.hero.items.ledgerCoins = 3;
+  n = step(f.s, f.command);
+  assert.equal(n.hero.items.ledgerReady, true);
+  f.s.hero.items.ledgerReady = true;
+  f.s.hero.items.ledgerCoins = 1;
+  assert.equal(step(f.s, f.command).hero.items.ledgerCoins, 1);
+  gear(skull.s, 'ledger');
+  skull.s.hero.items = freshItems();
+  skull.s.hero.items.ledgerReady = true;
+  n = step(skull.s, skull.command);
+  assert.equal(n.enemy.hp, 991);
+  assert.equal(n.hero.items.ledgerReady, false);
+});
+test('metronome primes a later direct spell, remains charged when resisted and cannot stack', () => {
+  const f = fixture('air');
+  gear(f.s, 'metronome');
+  const charged = step(f.s, f.command);
+  assert.equal(charged.hero.items.metronome, true);
+  const s = gear(loaded(), 'metronome');
+  s.hero.items = charged.hero.items;
+  let n = step(s, { type: 'cast', spell: 'bolt' });
+  assert.equal(n.enemy.hp, 987);
+  assert.equal(n.hero.items.metronome, false);
+  s.enemy.stats.morale = 30;
+  s.enemy.gear = { ring: 'ward' };
+  s.rng.effect = 1;
+  n = step(s, { type: 'cast', spell: 'bolt' });
+  assert.equal(n.hero.items.metronome, true);
+});
+test('glass risk applies once before protection, reflected damage does not amplify itself', () => {
+  const s = gear(loaded(), 'glassNib', 'carbonPaper');
+  let n = step(s, { type: 'cast', spell: 'bolt' });
+  assert.equal(n.enemy.hp, 980);
+  s.actor = 'enemy';
+  s.hero.gear.armor = 'coat';
+  n = step(s, { type: 'cast', spell: 'bolt' });
+  assert.equal(n.hero.hp, 991); // 10 + 1 - 2
+  s.hero.gear.armor = 'mirrorVest';
+  s.hero.items.barrier = 6;
+  s.enemy.gear = { weapon: 'glassNib', armor: 'mirrorVest' };
+  s.enemy.items.barrier = 6;
+  n = step(s, { type: 'cast', spell: 'bolt' });
+  assert.equal(n.hero.hp, 990);
+  assert.ok(n.enemy.hp > 990);
+});
+test('salt coat trades healing for once-per-initiative protection, self costs do not trigger retaliation', () => {
+  const s = gear(loaded(), 'saltCoat');
+  s.hero.hp = 900;
+  let n = step(s, { type: 'cast', spell: 'mend' });
+  assert.equal(n.hero.hp, 907);
+  assert.equal(n.hero.items.barrier, 3);
+  n.actor = 'hero';
+  n.hero.items.barrier = 0;
+  n = step(n, { type: 'cast', spell: 'bolt' });
+  assert.equal(n.hero.items.barrier, 0);
+  const f = fixture('skull');
+  gear(f.s, 'mortgage', 'answerCloak');
+  f.s.hero.items.barrier = 6;
+  n = step(f.s, f.command);
+  assert.equal(n.hero.hp, 998);
+  assert.equal(n.enemy.hp, 991);
+  assert.equal(n.hero.items.answer, false);
+  assert.equal(n.hero.items.barrier, 6);
+  f.s.hero.hp = 2;
+  n = step(f.s, f.command);
+  assert.equal(n.hero.hp, 2);
+  assert.equal(n.enemy.hp, 997);
+});
+test('gold lining has a real gold cost and bounded actual healing; long-match ring pays health once per initiative', () => {
+  const f = fixture('gold');
+  gear(f.s, 'goldenLining');
+  f.s.hero.hp = 990;
+  f.s.hero.items.healed = 11;
+  const n = step(f.s, f.command);
+  assert.equal(n.hero.hp, 991);
+  assert.equal(n.hero.items.healed, 12);
+  assert.equal(n.hero.gold, 1);
+  f.s.hero.items.healed = 12;
+  assert.equal(step(f.s, f.command).hero.gold, 3);
+  const g = fixture('earth', 4);
+  gear(g.s, 'eclipseRing');
+  for (const c of COLORS) g.s.hero.mana[c] = 0;
+  let p = step(g.s, g.command);
+  assert.equal(p.hero.hp, 998);
+  assert.equal(p.hero.mana.earth, 6);
+  assert.equal(p.hero.mana.fire, 2);
+  g.s.hero.items.initiative.eclipseRing = true;
+  p = step(g.s, g.command);
+  assert.equal(p.hero.hp, 1000);
+  assert.equal(p.hero.mana.fire, 0);
+  g.s.hero.items.initiative = {};
+  g.s.hero.hp = 2;
+  assert.equal(step(g.s, g.command).hero.hp, 2);
+});
+test('prism needs three physical colors; graphite needs air before a skull wave in the same action', () => {
+  const s = gear(loaded(), 'prism', 'graphite');
+  s.hero.mana.air = 6;
+  s.board = Array.from({ length: 64 }, (_, i) => ({
+    kind: KINDS[((i % 8) + Math.floor(i / 8) * 2) % 7],
+  }));
+  s.board[24] = { kind: 'air' };
+  s.board[25] = { kind: 'earth' };
+  s.board[26] = { kind: 'water' };
+  let n = step(s, { type: 'cast', spell: 'slice', target: 25 });
+  assert.ok(n.enemy.hp <= 997);
+  assert.equal(n.hero.items.barrier, 2);
+  const f = fixture('skull');
+  gear(f.s, 'graphite');
+  const baseline = step(f.s, f.command);
+  assert.equal(baseline.enemy.hp, 997);
+  // The spell physically collects 3 air and 2 skulls together; bonus air mana cannot substitute this.
+  for (let i = 24; i <= 28; i++)
+    s.board[i] = { kind: i <= 26 ? 'air' : 'skull' };
+  s.hero.mana.air = 10;
+  s.hero.gear = { weapon: 'graphite' };
+  n = step(s, { type: 'cast', spell: 'slice', target: 26 });
+  assert.ok(n.enemy.hp <= 996);
+});
+test('all 20 route transitions preserve gear, seed streams and insurance; only final boss ends run', () => {
+  let s = start({ mode: 'route' });
+  const seen = [];
+  for (let room = 0; room < 20; room++) {
+    assert.equal(s.room, room);
+    assert.equal(s.enemy.name, ENCOUNTERS[room].name);
+    s.hero.spells = ['bolt'];
+    s.hero.mana.fire = 20;
+    s.hero.mana.air = 20;
+    s.hero.ready = {};
+    s.actor = 'hero';
+    s.enemy.hp = 1;
+    s.enemy.gear = {};
+    s.enemy.items = freshItems();
+    s.enemy.wall = 0;
+    s.enemy.stats.morale = 0;
+    s.hero.hp = 20;
+    const gold = s.hero.gold;
+    s = step(s, { type: 'cast', spell: 'bolt' });
+    assert.equal(s.hero.gold - gold, victoryReward(room));
+    if (room === 19) {
+      assert.equal(s.phase, 'won');
+      break;
+    }
+    assert.equal(s.phase, 'camp');
+    assert.ok(s.hero.hp >= Math.min(20 + restHealing(room), s.hero.maxHp));
+    seen.push(s.offers);
+    s = step(s, { type: 'reward', item: s.offers[0] });
+    s.hero.items.insuranceUsed = true;
+    s.hero.items.ember = true;
+    s.hero.items.healed = 6;
+    const equipment = structuredClone(s.hero.gear);
+    s = step(s, { type: 'next' });
+    assert.deepEqual(s.hero.gear, equipment);
+    assert.equal(s.hero.items.insuranceUsed, true);
+    assert.equal(s.hero.items.ember, false);
+    assert.equal(s.hero.items.healed, 0);
+  }
+  assert.equal(seen.length, 19);
+  for (let i = 1; i <= 4; i++) assert.ok(s.achievements.includes(`biome-${i}`));
+  assert.ok(s.achievements.includes('fourBiomes'));
+});
+test('public loader preserves v1/v2 exact journals and continuation; v3 validates new item records', () => {
+  for (const engine of [v1, v2]) {
+    let old = engine.createDuel(config);
+    const command = chooseAction(old);
+    old = engine.dispatchDuel(old, command).state;
+    const restored = loadDuel(engine.saveDuel(old));
+    assert.deepEqual(restored, old);
+    const next = chooseAction(restored);
+    assert.deepEqual(
+      dispatchDuel(restored, next).state,
+      engine.dispatchDuel(old, next).state,
+    );
+  }
+  let s = start({
+    foe: 19,
+    testGear: ['glassNib', 'goldenLining', 'metronome', 'eclipseRing'],
+  });
+  for (let i = 0; i < 12 && s.phase === 'battle'; i++)
+    s = step(s, chooseAction(s));
+  assert.deepEqual(loadDuel(saveDuel(s)), s);
+  const tampered = JSON.parse(saveDuel(s));
+  tampered.config.foe = 20;
+  assert.equal(loadDuel(JSON.stringify(tampered)), null);
+});
+
+test('diploma feeds mana while archive vest still uses physical stars for defense', () => {
+  const f = fixture('xp');
+  gear(f.s, 'archiveVest', 'infiniteDiploma');
+  for (const c of COLORS) f.s.hero.mana[c] = 0;
+  const n = step(f.s, f.command);
+  assert.equal(n.hero.xp, 0);
+  assert.equal(n.hero.items.barrier, 3);
+  for (const c of COLORS) assert.equal(n.hero.mana[c], 3);
+});
+test('coin build can heal, charge ledger and create a shared skull without synthetic coins retriggering', () => {
+  const f = fixture('gold');
+  gear(f.s, 'goldenLining', 'ledger', 'mint');
+  f.s.hero.hp = 990;
+  f.s.hero.items.ledgerCoins = 3;
+  const n = step(f.s, f.command);
+  assert.equal(n.hero.hp, 993);
+  assert.equal(n.hero.gold, 1);
+  assert.equal(n.hero.items.ledgerReady, true);
+  assert.equal(n.hero.items.initiative.mint, true);
+});
+test('a complete legal four-biome run reaches all bosses and restores from its command journal', async () => {
+  const { run } = await import('../scripts/duel-balance.mjs');
+  const r = run(3, 'elementalist');
+  assert.equal(r.phase, 'won');
+  assert.equal(r.room, 20);
+  assert.equal(r.checkpoints.length, 19);
+  assert.ok(r.commands < 6000);
+  assert.deepEqual(loadDuel(saveDuel(r.state)), r.state);
 });

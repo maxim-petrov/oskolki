@@ -1,5 +1,3 @@
-import { chooseAction as oldAction } from './legacy-v2/ai.ts';
-import type { Duel as OldDuel } from './legacy-v2/engine.ts';
 import { COLORS, SPELLS, type SpellId } from './catalog.ts';
 import {
   blastCells,
@@ -9,7 +7,7 @@ import {
   swapBoard,
   type Match,
   type Tile,
-} from './board.ts';
+} from '../board.ts';
 import {
   manaCap,
   spellError,
@@ -21,12 +19,11 @@ import { owns, spellPayment } from './item-rules.ts';
 // Deliberately receives no refill generator and never calls the dispatcher.
 // Exactly the same visible information is available to a human and this policy.
 export function chooseAction(s: Duel, side: Side = s.actor): Command | null {
-  if (s.version < 3) return oldAction(s as OldDuel, side);
   if (s.phase !== 'battle') return null;
   const me = s[side],
     enemy = s[side === 'hero' ? 'enemy' : 'hero'];
   const candidates: { command: Command; score: number }[] = [];
-  const modern = s.version >= 2;
+  const modern = s.version === 2;
   const manaWeight = (color: (typeof COLORS)[number]) => {
     const need = Math.max(
       0,
@@ -73,19 +70,6 @@ export function chooseAction(s: Duel, side: Side = s.actor): Command | null {
       );
       if (damage) {
         if (owns(me, 'paperKnife')) damage++;
-        if (owns(me, 'graphite') && counts.air >= 3) damage += 2;
-        if (owns(me, 'emberKnife') && (me.items?.ember || counts.fire >= 3))
-          damage += 3;
-        if (
-          owns(me, 'ledger') &&
-          (me.items?.ledgerReady ||
-            (me.items?.ledgerCoins ?? 0) + (counts.gold ?? 0) >= 6)
-        )
-          damage += 6;
-        if (owns(me, 'mortgage') && me.hp > 2) {
-          damage += 6;
-          score -= me.hp < 16 ? 10 : 3;
-        }
         if (long && owns(me, 'chargeSeal')) damage += 4;
         if (long && owns(me, 'quarterCutter')) damage += 8;
         if (owns(me, 'contractBlade') && me.hp <= me.maxHp / 2) damage += 5;
@@ -98,24 +82,6 @@ export function chooseAction(s: Duel, side: Side = s.actor): Command | null {
           (owns(me, 'veil') && groups.some((g) => g.cells.length >= 4))
         )
           damage = Math.ceil(damage * 1.5);
-      }
-      if (
-        counts.water >= 3 &&
-        owns(me, 'cottonCuffs') &&
-        (me.items?.healed ?? 0) < 6 &&
-        me.hp < me.maxHp
-      )
-        score += 3;
-      if (counts.xp >= 3 && owns(me, 'archiveVest'))
-        score += Math.min(3, 6 - (me.items?.barrier ?? 0)) * 2;
-      if (counts.air >= 3 && owns(me, 'metronome') && !me.items?.metronome)
-        score += 5;
-      if (
-        COLORS.filter((c) => counts[c] > 0).length >= 3 &&
-        owns(me, 'prism')
-      ) {
-        damage += 3;
-        score += 3;
       }
       if (counts.water >= 3 && owns(me, 'tideNeedle')) damage += 2;
       if (
@@ -188,8 +154,6 @@ export function chooseAction(s: Duel, side: Side = s.actor): Command | null {
         if (owns(me, 'carbonPaper') && !me.items?.initiative.carbonPaper)
           n += Math.min(6, Math.floor(n / 2));
         if (owns(me, 'stylus')) n += 2;
-        if (owns(me, 'glassNib')) n += 5;
-        if (owns(me, 'metronome') && me.items?.metronome) n += 3;
         n = Math.max(
           0,
           n - (owns(enemy, 'coat') ? 2 : 0) - (enemy.items?.barrier ?? 0),
@@ -213,10 +177,7 @@ export function chooseAction(s: Duel, side: Side = s.actor): Command | null {
         );
         break;
       case 'mend':
-        add(
-          Math.min(owns(me, 'saltCoat') ? 7 : 11, me.maxHp - me.hp) *
-            (me.hp < 18 ? 5 : 1.7),
-        );
+        add(Math.min(11, me.maxHp - me.hp) * (me.hp < 18 ? 5 : 1.7));
         break;
       case 'wall':
         if (!me.wall)

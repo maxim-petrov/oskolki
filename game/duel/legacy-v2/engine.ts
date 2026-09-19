@@ -1,6 +1,4 @@
-import * as v2 from './legacy-v2/engine.ts';
-import { BIOMES, ENCOUNTERS, restHealing, victoryReward } from './campaign.ts';
-import * as legacy from './legacy-v1/engine.ts';
+import * as legacy from '../legacy-v1/engine.ts';
 import {
   freshItems,
   itemState,
@@ -34,7 +32,7 @@ import {
   swapBoard,
   type Match,
   type Tile,
-} from './board.ts';
+} from '../board.ts';
 export type Side = 'hero' | 'enemy';
 export type Config = {
   seed: number;
@@ -73,7 +71,7 @@ export type Command =
   | { type: 'train'; stat: keyof Stats; gold?: boolean }
   | { type: 'next' };
 export type Duel = {
-  version: 1 | 2 | 3;
+  version: 1 | 2;
   rareOffered?: boolean;
   config: Config;
   rng: { board: number; effect: number; loot: number };
@@ -172,7 +170,7 @@ function fighter(
 }
 function opponent(index: number): Fighter {
   const foe = FOES[index];
-  const mastery = foe.mastery;
+  const mastery = 1 + index;
   return fighter(
     foe.name,
     foe.art,
@@ -182,9 +180,9 @@ function opponent(index: number): Fighter {
       fire: mastery,
       air: mastery,
       water: mastery,
-      battle: foe.battle,
-      cunning: foe.biome + 1,
-      morale: foe.biome + 1,
+      battle: Math.max(0, index - 1),
+      cunning: index,
+      morale: index,
     },
     foe.spells,
     foe.gear,
@@ -205,7 +203,7 @@ export function createDuel(config: Config): Duel {
   hero.gold = config.mode === 'route' ? 10 : 0;
   const room = config.mode === 'route' ? 0 : config.foe;
   const s: Duel = {
-    version: 3,
+    version: 2,
     rareOffered: false,
     config: copy(config),
     rng: {
@@ -296,7 +294,6 @@ type ActionContext = {
   armor: Record<Side, number>;
   reflected: Record<Side, number>;
   blocked: Record<Side, number>;
-  glassHit: Set<Side>;
 };
 function proc(s: Duel, ctx: ActionContext, id: ItemId, series = false) {
   const f = s[ctx.side];
@@ -337,10 +334,6 @@ function damage(
     sourceSide = other(targetSide);
   if (target.hp <= 0 || amount <= 0) return;
   let hit = amount;
-  if (!reflection && own(target, 'glassNib') && !ctx.glassHit.has(targetSide)) {
-    hit++;
-    ctx.glassHit.add(targetSide);
-  }
   const absorbed = Math.min(ctx.armor[targetSide], hit);
   ctx.armor[targetSide] -= absorbed;
   hit -= absorbed;
@@ -462,34 +455,6 @@ function collect(
     proc(s, ctx, 'conductor')
   )
     addMana(s, ctx, emptiest(actor), 2);
-  if (ctx.physical.earth >= 3 && proc(s, ctx, 'teaBag'))
-    addMana(s, ctx, 'water', 1);
-  if (ctx.physical.xp >= 3 && proc(s, ctx, 'lens')) addMana(s, ctx, 'air', 2);
-  if (ctx.physical.xp >= 3 && proc(s, ctx, 'archiveVest')) barrier(actor, 3);
-  if (ctx.physical.fire >= 3 && proc(s, ctx, 'emberKnife')) st.ember = true;
-  if (ctx.physical.air >= 3 && proc(s, ctx, 'metronome')) st.metronome = true;
-  if (ctx.physical.skull >= 3 && proc(s, ctx, 'fireSeal'))
-    addMana(s, ctx, 'fire', 2);
-  if (ctx.physical.water >= 3 && proc(s, ctx, 'waterwheel')) {
-    actor.mana.fire = Math.max(0, actor.mana.fire - 2);
-    addMana(s, ctx, 'earth', 3);
-  }
-  if (
-    ctx.physical.water >= 3 &&
-    st.healed < 6 &&
-    actor.hp < actor.maxHp &&
-    proc(s, ctx, 'cottonCuffs')
-  ) {
-    actor.hp++;
-    st.healed++;
-  }
-  if (own(actor, 'ledger') && !st.ledgerReady) {
-    st.ledgerCoins += physical.gold ?? 0;
-    if (st.ledgerCoins >= 6) {
-      st.ledgerCoins %= 6;
-      st.ledgerReady = true;
-    }
-  }
   let gold = counts.gold * (1 + Math.floor(actor.stats.cunning / 10));
   if (
     ctx.physical.water >= 3 &&
@@ -501,18 +466,6 @@ function collect(
   }
   actor.gold += gold;
   ctx.gold += gold;
-  if (
-    ctx.physical.gold >= 3 &&
-    actor.gold >= 2 &&
-    actor.hp < actor.maxHp &&
-    st.healed < 12 &&
-    proc(s, ctx, 'goldenLining', true)
-  ) {
-    const healed = Math.min(3, 12 - st.healed, actor.maxHp - actor.hp);
-    actor.gold -= 2;
-    actor.hp += healed;
-    st.healed += healed;
-  }
   if (counts.xp) {
     if (own(actor, 'infiniteDiploma')) {
       const n = Math.min(
@@ -527,14 +480,6 @@ function collect(
         st.scholarXp += 2;
       }
     }
-  }
-  if (
-    actor.hp > 2 &&
-    groups.some((g) => g.cells.length >= 4) &&
-    proc(s, ctx, 'eclipseRing', true)
-  ) {
-    actor.hp -= 2;
-    for (const c of COLORS) addMana(s, ctx, c, 2);
   }
   if (groups.some((g) => g.cells.length >= 4) && proc(s, ctx, 'veil'))
     actor.stealthUntil = actor.actions + 4;
@@ -552,15 +497,6 @@ function collect(
       barrier(actor, 4);
       damage(s, ctx, 8, 'Перо директора');
     }
-  }
-  if (
-    actor.hp > 0 &&
-    s[other(ctx.side)].hp > 0 &&
-    COLORS.filter((c) => ctx.physical[c] > 0).length >= 3 &&
-    proc(s, ctx, 'prism')
-  ) {
-    barrier(actor, 2);
-    damage(s, ctx, 3, 'Трёхгранная призма');
   }
   if (actor.hp <= 0 || s[other(ctx.side)].hp <= 0) return gold;
   if (counts.skull) {
@@ -580,19 +516,6 @@ function collect(
       skulls > 0 ? skulls + Math.floor(actor.stats.battle / 3) + blast : blast;
     if (hit > 0) {
       if (proc(s, ctx, 'paperKnife')) hit++;
-      if (ctx.physical.air >= 3 && proc(s, ctx, 'graphite')) hit += 2;
-      if (st.ember && own(actor, 'emberKnife')) {
-        hit += 3;
-        st.ember = false;
-      }
-      if (st.ledgerReady && own(actor, 'ledger')) {
-        hit += 6;
-        st.ledgerReady = false;
-      }
-      if (actor.hp > 2 && proc(s, ctx, 'mortgage')) {
-        actor.hp -= 2;
-        hit += 6;
-      }
       if (long && proc(s, ctx, 'chargeSeal')) hit += 4;
       if (long && proc(s, ctx, 'quarterCutter')) hit += 8;
       if (actor.hp <= actor.maxHp / 2 && proc(s, ctx, 'contractBlade'))
@@ -698,16 +621,13 @@ export function spellError(
   spellId: SpellId,
   side: Side = s.actor,
 ): string | null {
-  if (s.version === 1)
-    return legacy.spellError(s as legacy.Duel, spellId, side);
-  if (s.version === 2) return v2.spellError(s as v2.Duel, spellId, side);
   const f = s[side],
     spell = SPELLS[spellId];
   if (s.phase !== 'battle') return 'Бой уже завершён';
   if (!spell || !f.spells.includes(spellId)) return 'Заклинание не изучено';
   if ((f.ready[spellId] ?? 0) > f.actions)
     return `Восстановление: ${(f.ready[spellId] ?? 0) - f.actions} действ.`;
-  const payment = spellPayment(f, spellId, s.version >= 2);
+  const payment = spellPayment(f, spellId, s.version === 2);
   if (COLORS.some((c) => f.mana[c] < (payment.cost[c] ?? 0)))
     return 'Недостаточно маны';
   if (spellId === 'palm' && f.ki === 0) return 'Сначала накопите Ки';
@@ -750,7 +670,6 @@ function cast(
     actor.hp -= payment.health;
     proc(s, ctx, 'bloodInkwell', true);
   }
-  if (proc(s, ctx, 'saltCoat', true)) barrier(actor, 3);
   let spent = COLORS.reduce((n, c) => n + (payment.cost[c] ?? 0), 0);
   if (proc(s, ctx, 'catalyst')) {
     const refund = Math.min(
@@ -789,11 +708,6 @@ function cast(
   const direct = (base: number, name: string) => {
     let hit = base;
     if (proc(s, ctx, 'stylus')) hit += 2;
-    if (proc(s, ctx, 'glassNib')) hit += 5;
-    if (st.metronome && own(actor, 'metronome')) {
-      hit += 3;
-      st.metronome = false;
-    }
     if (proc(s, ctx, 'carbonPaper', true))
       hit += Math.min(6, Math.floor(base / 2));
     damage(s, ctx, hit, name);
@@ -803,10 +717,7 @@ function cast(
       direct(10 + Math.floor(actor.stats.fire / 5), 'Разряд');
       break;
     case 'mend':
-      actor.hp = Math.min(
-        actor.maxHp,
-        actor.hp + (own(actor, 'saltCoat') ? 7 : 11),
-      );
+      actor.hp = Math.min(actor.maxHp, actor.hp + 11);
       break;
     case 'slice': {
       const radius = empowered ? 2 : 1,
@@ -893,21 +804,19 @@ function finishBattle(s: Duel) {
     return;
   }
   if (s.enemy.hp > 0) return;
-  s.hero.gold += victoryReward(s.room);
-  s.hero.xp += victoryReward(s.room);
+  s.hero.gold += 8 + s.room * 2;
+  s.hero.xp += 8 + s.room * 2;
   advanceLevel(s.hero);
   unlock(s, 'victory');
-  if (s.config.mode === 'route' && ENCOUNTERS[s.room].kind === 'boss')
-    unlock(s, `biome-${ENCOUNTERS[s.room].biome + 1}`);
   if (s.config.mode === 'duel' || s.room === FOES.length - 1) {
     s.phase = 'won';
-    if (s.config.mode === 'route') unlock(s, 'fourBiomes');
+    if (s.config.mode === 'route') unlock(s, 'route');
     note(s, 'Дуэль окончена.');
     return;
   }
   s.phase = 'camp';
   const oldHp = s.hero.hp;
-  s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + restHealing(s.room));
+  s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 12);
   const loot = createOffers(s.hero, s.room, !!s.rareOffered, () =>
     rand(s, 'loot'),
   );
@@ -917,7 +826,7 @@ function finishBattle(s: Duel) {
   s.rewarded = false;
   note(
     s,
-    `Комната пройдена. +${victoryReward(s.room)} золота, отдых восстановил ${s.hero.hp - oldHp} здоровья.`,
+    `Комната пройдена. +${8 + s.room * 2} золота, отдых восстановил ${s.hero.hp - oldHp} здоровья.`,
   );
 }
 function endAction(s: Duel, ctx: ActionContext) {
@@ -991,11 +900,6 @@ export function dispatchDuel(original: Duel, command: Command): Result {
       original as legacy.Duel,
       command as legacy.Command,
     ) as Result;
-  if (original.version === 2)
-    return v2.dispatchDuel(
-      original as v2.Duel,
-      command as v2.Command,
-    ) as Result;
   const invalid = (error: string): Result => ({
     state: original,
     error,
@@ -1003,7 +907,7 @@ export function dispatchDuel(original: Duel, command: Command): Result {
   });
   if (!command || typeof command !== 'object')
     return invalid('Неизвестное действие');
-  if (original.commands.length >= 6000)
+  if (original.commands.length >= 2000)
     return invalid('Лимит записи достигнут. Начните новый тест.');
   const s = copy(original);
   const ctx: ActionContext = {
@@ -1023,7 +927,6 @@ export function dispatchDuel(original: Duel, command: Command): Result {
       enemy: own(s.enemy, 'coat') ? 2 : 0,
     },
     blocked: { hero: 0, enemy: 0 },
-    glassHit: new Set(),
     reflected: { hero: 0, enemy: 0 },
   };
   if (s.phase === 'battle') {
@@ -1116,10 +1019,7 @@ export function dispatchDuel(original: Duel, command: Command): Result {
         s.board = freshBoard(() => rand(s, 'board'));
         s.offers = [];
         s.stock = [];
-        note(
-          s,
-          `${BIOMES[ENCOUNTERS[s.room].biome].name}. Следующая дуэль: ${s.enemy.name}.`,
-        );
+        note(s, `Следующая дуэль: ${s.enemy.name}.`);
         break;
       default:
         return invalid('Бой окончен: выберите награду и продолжайте');
@@ -1140,28 +1040,24 @@ export function fingerprint(s: Duel): string {
 export const saveDuel = (s: Duel) =>
   s.version === 1
     ? legacy.saveDuel(s as legacy.Duel)
-    : s.version === 2
-      ? v2.saveDuel(s as v2.Duel)
-      : JSON.stringify({
-          schema: 'oskolki-shared-board-3',
-          config: s.config,
-          commands: s.commands,
-          fingerprint: fingerprint(s),
-        });
+    : JSON.stringify({
+        schema: 'oskolki-shared-board-2',
+        config: s.config,
+        commands: s.commands,
+        fingerprint: fingerprint(s),
+      });
 // Saves contain a command journal, never trusted mutable fighter/board data.
 export function loadDuel(raw: string): Duel | null {
-  if (raw.length > 1000000) return null;
+  if (raw.length > 500000) return null;
   try {
     const data = JSON.parse(raw);
     if (data?.schema === 'oskolki-shared-board-1')
       return legacy.loadDuel(raw) as Duel | null;
-    if (data?.schema === 'oskolki-shared-board-2')
-      return v2.loadDuel(raw) as Duel | null;
     if (
-      data.schema !== 'oskolki-shared-board-3' ||
+      data.schema !== 'oskolki-shared-board-2' ||
       !validConfig(data.config) ||
       !Array.isArray(data.commands) ||
-      data.commands.length > 6000
+      data.commands.length > 2000
     )
       return null;
     let s = createDuel(data.config);

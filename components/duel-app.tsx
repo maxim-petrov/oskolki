@@ -43,11 +43,23 @@ import {
   type Fighter,
   type Frame,
 } from '@/game/duel/engine';
+import {
+  BIOMES,
+  ENCOUNTERS,
+  ENCOUNTER_NAMES,
+  biomeAt,
+} from '@/game/duel/campaign';
+import { FOES as OLD_FOES } from '@/game/duel/legacy-v2/catalog';
 import { ITEMS as OLD_ITEMS } from '@/game/duel/legacy-v1/catalog';
-import { itemWarnings, spellPayment } from '@/game/duel/item-rules';
+import {
+  itemWarnings,
+  spellPayment,
+  spellDescription,
+} from '@/game/duel/item-rules';
 import { chooseAction } from '@/game/duel/ai';
 import { VectorEnemy, VectorPerson } from './vector-art';
-const SAVE_KEY = 'oskolki.duel.session.v2';
+const SAVE_KEY = 'oskolki.duel.session.v3';
+const V2_SAVE_KEY = 'oskolki.duel.session.v2';
 const OLD_SAVE_KEY = 'oskolki.duel.session.v1';
 const V1_ITEMS = {
   ...ITEMS,
@@ -65,7 +77,12 @@ const ACHIEVEMENTS: Record<string, string> = {
   blast: 'Цепная реакция',
   cascade: 'Героическое усилие',
   synergy: 'Всё связано',
-  route: 'За дверью босса',
+  route: 'За дверью босса · прежний маршрут',
+  'biome-1': 'Из канцелярии',
+  'biome-2': 'Из глубин архива',
+  'biome-3': 'Смену не сжечь',
+  'biome-4': 'Лицом к директору',
+  fourBiomes: 'Конец бесконечной смены',
 };
 const COLOR_HEX: Record<Color, string> = {
   earth: '#23724e',
@@ -169,10 +186,14 @@ function FighterPanel({
   f,
   hero,
   active,
+  encounterLabel,
+  trait,
 }: {
   f: Fighter;
   hero?: boolean;
   active: boolean;
+  encounterLabel?: string;
+  trait?: string;
 }) {
   return (
     <section
@@ -180,7 +201,7 @@ function FighterPanel({
       aria-label={hero ? 'Ваш персонаж' : 'Противник'}
     >
       <div className="duel-fighter-heading">
-        <span>{hero ? 'Вы' : 'Противник'}</span>
+        <span>{hero ? 'Вы' : (encounterLabel ?? 'Противник')}</span>
         <h2>{f.name}</h2>
       </div>
       <div className="duel-portrait">
@@ -230,8 +251,23 @@ function FighterPanel({
           </div>
         ))}
       </div>
+      {trait && (
+        <details className="duel-enemy-rule">
+          <summary>Особенность противника</summary>
+          <p>{trait}</p>
+        </details>
+      )}
       <div className="duel-status">
         {!!f.items?.barrier && <span>Барьер {f.items.barrier}/6</span>}
+        {f.items?.ember && <span>Огонь в клинке +3</span>}
+        {f.items?.metronome && <span>Магия +3</span>}
+        {f.gear.charm === 'ledger' && (
+          <span>
+            {f.items?.ledgerReady
+              ? 'Книга: удар +6'
+              : `Книга ${f.items?.ledgerCoins ?? 0}/6`}
+          </span>
+        )}
         {f.items?.answer && <span>Ответ +3</span>}
         {f.items?.topReady && <span>Юла готова</span>}
         {f.items?.capacitorReadyAt != null && <span>Конденсатор заряжен</span>}
@@ -262,6 +298,7 @@ export function DuelApp({
 }) {
   const [state, setState] = useState<Duel | null>(null);
   const items = state?.version === 1 ? V1_ITEMS : ITEMS;
+  const foes = state && state.version < 3 ? OLD_FOES : FOES;
   const [ready, setReady] = useState(false);
   const [setup, setSetup] = useState(true);
   const [config, setConfig] = useState<Config>({
@@ -290,7 +327,9 @@ export function DuelApp({
   useEffect(() => {
     try {
       const raw =
-        localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(OLD_SAVE_KEY);
+        localStorage.getItem(SAVE_KEY) ??
+        localStorage.getItem(V2_SAVE_KEY) ??
+        localStorage.getItem(OLD_SAVE_KEY);
       if (raw) {
         const saved = loadDuel(raw);
         if (saved) {
@@ -434,7 +473,7 @@ export function DuelApp({
   }
   async function importRecord(file?: File) {
     if (!file) return;
-    if (file.size > 500000) {
+    if (file.size > 1000000) {
       setMessage('Запись слишком большая');
       return;
     }
@@ -532,7 +571,9 @@ export function DuelApp({
             : state?.config.testGear
               ? 'Тест сборки'
               : state?.config.mode === 'route'
-                ? `Комната ${(state?.room ?? 0) + 1} / ${FOES.length}`
+                ? state.version === 3
+                  ? `${biomeAt(state.room).name} · ${(state.room % 5) + 1}/5`
+                  : `Комната ${state.room + 1} / ${foes.length}`
                 : 'Дуэль'}
         </span>
         <button className="duel-menu-button" onClick={() => setMenu(true)}>
@@ -572,10 +613,15 @@ export function DuelApp({
                     })
                   }
                 >
-                  {mode === 'duel' ? 'Один бой' : 'Пять комнат'}
+                  {mode === 'duel' ? 'Один бой' : 'Четыре биома'}
                 </button>
               ))}
             </fieldset>
+            {config.mode === 'route' && (
+              <p className="duel-route-caption">
+                20 боёв · 4 босса. От простых находок к редким сочетаниям.
+              </p>
+            )}
             <fieldset className="duel-builds">
               <legend>Ваш стиль</legend>
               {(Object.keys(CLASSES) as ClassId[]).map((id) => (
@@ -625,10 +671,17 @@ export function DuelApp({
                         }))
                       }
                     >
-                      {FOES.map((f, i) => (
-                        <option key={f.name} value={i}>
-                          {f.name}
-                        </option>
+                      {BIOMES.map((b, bi) => (
+                        <optgroup key={b.id} label={b.name}>
+                          {ENCOUNTERS.map(
+                            (f, i) =>
+                              f.biome === bi && (
+                                <option key={f.name} value={i}>
+                                  {ENCOUNTER_NAMES[f.kind]} · {f.name}
+                                </option>
+                              ),
+                          )}
+                        </optgroup>
                       ))}
                     </select>
                   </label>
@@ -732,13 +785,37 @@ export function DuelApp({
             {camp ? (
               <section className="duel-camp">
                 <div className="duel-camp-heading">
-                  <span>Комната пройдена</span>
+                  <span>
+                    {state.version === 3
+                      ? `${biomeAt(state.room).name} · ${ENCOUNTER_NAMES[ENCOUNTERS[state.room].kind]} пройден`
+                      : 'Комната пройдена'}
+                  </span>
                   <h1>Минутка передышки.</h1>
                   <p>
                     {state.hero.hp} / {state.hero.maxHp} здоровья ·{' '}
                     {state.hero.gold} золота · уровень {state.hero.level}
                   </p>
                 </div>
+                {state.version === 3 && (
+                  <nav className="duel-biomes" aria-label="Путь по биомам">
+                    {BIOMES.map((b, i) => (
+                      <span
+                        key={b.id}
+                        aria-current={
+                          ENCOUNTERS[state.room].biome === i
+                            ? 'step'
+                            : undefined
+                        }
+                      >
+                        <b>{state.room >= i * 5 + 4 ? '✓' : i + 1}</b>
+                        {b.name}
+                      </span>
+                    ))}
+                  </nav>
+                )}
+                {state.version === 3 && (
+                  <p className="duel-loot-note">{biomeAt(state.room).loot}</p>
+                )}
                 {!state.rewarded ? (
                   <>
                     <h2>Возьмите одну находку</h2>
@@ -751,13 +828,13 @@ export function DuelApp({
                         >
                           <span>
                             {SLOT_NAMES[items[id].slot]}
-                            {state.version === 2 && (
+                            {state.version >= 2 && (
                               <> · {RARITY_NAMES[items[id].rarity]}</>
                             )}
                           </span>
                           <strong>{items[id].name}</strong>
                           <p>{items[id].description}</p>
-                          {state.version === 2 &&
+                          {state.version >= 2 &&
                             itemWarnings(state.hero.gear, id).map((w) => (
                               <small className="duel-item-warning" key={w}>
                                 {w}
@@ -799,14 +876,14 @@ export function DuelApp({
                       >
                         <span>
                           {SLOT_NAMES[items[id].slot]}
-                          {state.version === 2 && (
+                          {state.version >= 2 && (
                             <> · {RARITY_NAMES[items[id].rarity]}</>
                           )}{' '}
                           · {items[id].price} золота
                         </span>
                         <strong>{items[id].name}</strong>
                         <p>{items[id].description}</p>
-                        {state.version === 2 &&
+                        {state.version >= 2 &&
                           itemWarnings(state.hero.gear, id).map((w) => (
                             <small className="duel-item-warning" key={w}>
                               {w}
@@ -865,8 +942,14 @@ export function DuelApp({
                 </details>
                 <div className="duel-next">
                   <p>
-                    Дальше — {FOES[state.room + 1].name}
-                    <small>{FOES[state.room + 1].trait}</small>
+                    {state.version === 3 && state.room % 5 === 4 && (
+                      <strong>
+                        {biomeAt(state.room + 1).name}
+                        <br />
+                      </strong>
+                    )}
+                    Дальше — {foes[state.room + 1].name}
+                    <small>{foes[state.room + 1].trait}</small>
                   </p>
                   <button
                     className="duel-primary"
@@ -926,6 +1009,9 @@ export function DuelApp({
             ) : (
               <section
                 className="duel-battle"
+                data-biome={
+                  state.version === 3 ? biomeAt(state.room).id : 'legacy'
+                }
                 aria-label="Дуэль на общей доске"
               >
                 <FighterPanel
@@ -1028,23 +1114,23 @@ export function DuelApp({
                           key={id}
                           className={targeting === id ? 'is-targeted' : ''}
                           disabled={!canPlay || !!error}
-                          title={`${spell.description}\n${error ?? 'Заменяет перестановку.'}`}
+                          title={`${spellDescription(state.hero, id)}\n${error ?? 'Заменяет перестановку.'}`}
                           onClick={() => {
                             if (spell.target) {
                               setTargeting(id);
                               setSelected(null);
-                              setMessage(spell.description);
+                              setMessage(spellDescription(state.hero, id));
                             } else apply({ type: 'cast', spell: id });
                           }}
                         >
                           <strong>{spell.name}</strong>
                           <Cost
                             cost={
-                              spellPayment(state.hero, id, state.version === 2)
+                              spellPayment(state.hero, id, state.version >= 2)
                                 .cost
                             }
                           />
-                          {spellPayment(state.hero, id, state.version === 2)
+                          {spellPayment(state.hero, id, state.version >= 2)
                             .health > 0 && <small>−2 здоровья</small>}
                           {(state.hero.ready[id] ?? 0) > state.hero.actions && (
                             <small>
@@ -1078,6 +1164,12 @@ export function DuelApp({
                 </div>
                 <FighterPanel
                   f={state.enemy}
+                  encounterLabel={
+                    state.version === 3
+                      ? ENCOUNTER_NAMES[ENCOUNTERS[state.room].kind]
+                      : undefined
+                  }
+                  trait={foes[state.room].trait}
                   active={(frames[0]?.actor ?? state.actor) === 'enemy'}
                 />
               </section>
@@ -1165,7 +1257,7 @@ export function DuelApp({
           <>
             <details className="duel-disclosure">
               <summary>Снаряжение и персонажи</summary>
-              {state.version === 1 && (
+              {state.version < 3 && (
                 <p>
                   Сохранение продолжается по прежним правилам. Новый каталог
                   доступен в новых забегах.
@@ -1177,7 +1269,7 @@ export function DuelApp({
                   <p>
                     {index === 0
                       ? `Уровень ${f.level} · ${f.gold} золота · ${f.xp}/${experienceNeeded(f)} опыта`
-                      : FOES[state.room].trait}
+                      : foes[state.room].trait}
                   </p>
                   <p className="duel-dossier-stats">
                     {(Object.keys(f.stats) as (keyof Stats)[])
@@ -1187,7 +1279,7 @@ export function DuelApp({
                   {Object.values(f.gear).map((id) => (
                     <p key={id}>
                       <b>{items[id!].name}.</b>{' '}
-                      {state.version === 2 && (
+                      {state.version >= 2 && (
                         <small>{RARITY_NAMES[items[id!].rarity]} · </small>
                       )}
                       {items[id!].description}
@@ -1196,9 +1288,9 @@ export function DuelApp({
                   <h4>Заклинания</h4>
                   {f.spells.map((id) => (
                     <p key={id}>
-                      <b>{SPELLS[id].name}.</b> {SPELLS[id].description}{' '}
+                      <b>{SPELLS[id].name}.</b> {spellDescription(f, id)}{' '}
                       <Cost
-                        cost={spellPayment(f, id, state.version === 2).cost}
+                        cost={spellPayment(f, id, state.version >= 2).cost}
                       />{' '}
                       Восстановление: {SPELLS[id].cooldown}.
                     </p>
@@ -1233,7 +1325,21 @@ export function DuelApp({
           </>
         )}
         <details className="duel-disclosure">
-          <summary>Каталог предметов · 32</summary>
+          <summary>Биомы и находки</summary>
+          {BIOMES.map((b, i) => (
+            <section className="duel-dossier" key={b.id}>
+              <h3>
+                {i + 1}. {b.name}
+              </h3>
+              <p>{b.description}</p>
+              <p>{b.mechanic}</p>
+              <p>{b.loot}</p>
+              <p>Босс: {ENCOUNTERS[i * 5 + 4].name}</p>
+            </section>
+          ))}
+        </details>
+        <details className="duel-disclosure">
+          <summary>Каталог предметов · {Object.keys(ITEMS).length}</summary>
           <p>
             Четыре слота. Барьер поглощает до 6 урона и исчезает после
             следующего действия врага. Созданные фишки доступны обоим
