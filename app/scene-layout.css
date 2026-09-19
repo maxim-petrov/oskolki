@@ -35,14 +35,15 @@ html[data-skin='palace-cellar'] .scene-layout {
     left: 50%;
     transform: translateX(-50%);
     width: min(1000px, calc(100% - 48px));
-    min-height: 88px;
+    min-height: 72px;
     padding: 12px 16px;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 16px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
     background: #fff;
   }
   .scene-toolbar[hidden] {
@@ -67,7 +68,7 @@ html[data-skin='palace-cellar'] .scene-layout {
   }
   .scene-toolbar .skill-card,
   .scene-toolbar .edit-trigger {
-    height: 74px;
+    height: 56px;
     padding: 5px 8px;
     display: flex;
     flex-direction: column;
@@ -115,7 +116,7 @@ html[data-skin='palace-cellar'] .scene-layout {
     flex-direction: column;
     gap: 2px;
     width: 58px;
-    height: 74px;
+    height: 56px;
     padding: 5px;
     margin: 0;
   }
@@ -252,7 +253,7 @@ html[data-skin='palace-cellar'] .scene-layout {
       height: 100%;
       max-height: none;
       object-fit: cover;
-      opacity: 0.17;
+      opacity: 0.06;
       z-index: -1;
       pointer-events: none;
     }
@@ -885,5 +886,292 @@ html[data-skin='palace-cellar'] .hero-sprite > .companion-strike {
   html[data-skin='palace-cellar'] .hero-sprite > .companion-figure {
     transition: none;
     transform: none;
+  }
+}
+
+/* The field and intentions are primary; setup and reference material live in Menu. */
+html[data-skin='palace-cellar'] {
+  .scene-layout {
+    .phase-dot {
+      display: none;
+    }
+    .hint-button {
+      border: 0;
+      padding: 6px;
+      min-width: 30px;
+    }
+    .scene-rule-alerts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .scene-rule-alerts:empty {
+      display: none;
+    }
+    .scene-rule-alerts button {
+      background: #fff;
+      border: 1px solid var(--border);
+      padding: 5px 8px;
+      font-size: 11px;
+    }
+    .turn-controls.routine-message {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .scene-toolbar .skill-card,
+    .scene-toolbar .edit-trigger,
+    .scene-toolbar .potion {
+      border-color: transparent;
+    }
+    .scene-toolbar .skill-card:hover:not(:disabled),
+    .scene-toolbar .edit-trigger:hover:not(:disabled),
+    .scene-toolbar .potion:hover:not(:disabled) {
+      border-color: var(--border);
+    }
+    @media (max-width: 720px) {
+      .topbar {
+        gap: 6px;
+        padding: 8px 0;
+      }
+      .topbar .header-actions {
+        grid-column: 2;
+        grid-row: 1;
+        width: auto;
+        gap: 8px;
+      }
+      .topbar .gold {
+        order: -1;
+        margin: 0;
+        font-size: 14px;
+      }
+      .topbar .header-run {
+        grid-row: 2;
+      }
+      .game-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .play-area {
+        display: contents;
+      }
+      .loadout {
+        grid-row: 2;
+        border: 0;
+        padding: 0;
+      }
+      .resource-row {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        padding: 4px;
+        border: 0;
+        margin: 0;
+      }
+      .resource {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .resource > span {
+        font-size: 10px;
+      }
+      .resource strong {
+        font-size: 15px;
+      }
+      .resource > svg {
+        width: 18px;
+        height: 18px;
+      }
+      .board-heading {
+        margin: 0;
+        padding: 4px;
+      }
+      .board-section {
+        padding-block: 0;
+      }
+      .arena,
+      .arena:not(.squad-arena),
+      .arena.squad-arena {
+        display: grid;
+        grid-template-columns: 90px minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        height: auto;
+        min-height: 0;
+        padding: 10px;
+        border: 0;
+        background: transparent;
+      }
+      .arena .arena-bg {
+        opacity: 0.06;
+      }
+      .arena .hero,
+      .arena.squad-arena .hero {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        height: auto;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .arena .enemies,
+      .arena .enemies.count-2,
+      .arena.squad-arena .enemies {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        height: auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .arena .enemies.count-2,
+      .arena.squad-arena .enemies {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .arena .enemies .enemy,
+      .arena .enemies .enemy:last-child {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 3px;
+        gap: 4px;
+      }
+      .arena .hero .sprite-root,
+      .arena .enemies .sprite-root {
+        position: relative;
+        inset: auto;
+        translate: none;
+        transform: none;
+        width: 60px;
+        height: 60px;
+        margin: 0;
+        flex: none;
+      }
+      .arena .hero .fighter-caption,
+      .arena .enemies .fighter-caption {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        min-height: 0;
+        padding: 3px;
+      }
+      .arena .fighter-caption strong,
+      .arena .health-number {
+        font-size: 11px;
+      }
+      .arena .enemies .enemy-intent {
+        position: relative;
+        inset: auto;
+        transform: none;
+        min-height: 0;
+        width: 100%;
+        padding: 3px;
+        font-size: 10px;
+      }
+      .scene-toolbar .skill-card,
+      .scene-toolbar .edit-trigger,
+      .scene-toolbar .potion {
+        height: 56px;
+      }
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .arrow-row button:not(.line-selected),
+      .side-arrows button:not(.line-selected) {
+        opacity: 0;
+      }
+      .arrow-row button:hover,
+      .side-arrows button:hover,
+      .arrow-row button:focus-visible,
+      .side-arrows button:focus-visible {
+        opacity: 1;
+      }
+    }
+    @media (min-width: 960px) and (min-height: 600px) {
+      .topbar .header-actions {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: auto;
+        transform: none;
+      }
+      .header-actions .gold {
+        position: static;
+        order: -1;
+        margin-right: 12px;
+      }
+      .topbar .header-run {
+        position: absolute;
+        top: 8px;
+      }
+      .scene-rule-alerts {
+        position: absolute;
+        top: 218px;
+        left: 28px;
+        width: 21%;
+        z-index: 10;
+      }
+    }
+  }
+  .pause-menu {
+    width: min(440px, calc(100vw - 32px));
+    gap: 16px;
+  }
+  .pause-menu-actions {
+    display: grid;
+    gap: 6px;
+  }
+  .pause-menu-actions button {
+    justify-content: flex-start;
+  }
+  .pause-menu details > summary {
+    cursor: pointer;
+    font-size: 13px;
+    padding: 9px 0;
+  }
+  .pause-menu details > summary span {
+    color: var(--muted-foreground);
+    font-size: 11px;
+    margin-left: 8px;
+  }
+  .pause-menu details[open] > summary {
+    margin-bottom: 10px;
+  }
+  .pause-menu .scene-inventory-content {
+    font-size: 12px;
+  }
+  .pause-menu .equipment-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .pause-menu .resource-row {
+    display: none;
+  }
+  .pause-menu .run-seed {
+    position: static;
+    margin: 0;
+  }
+  .pause-menu .run-seed button {
+    font-size: 11px;
+  }
+  .pause-lab-link {
+    color: var(--foreground);
+    text-align: center;
+    font-size: 13px;
   }
 }

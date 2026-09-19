@@ -31,7 +31,6 @@ import {
   RELICS,
   SKILLS,
   MODIFIERS,
-  ENEMY_CATALOG,
   itemById,
   type ScenarioLoadout,
   type Result,
@@ -284,8 +283,8 @@ export function LabApp() {
             paused: journal,
             onTransition: transition,
             onExit: leave,
-            toolbar: (_state, busy) => (
-              <div className="lab-toolbar">
+            toolbar: (_state, busy, close) => (
+              <div className="lab-session-tools">
                 <button
                   className="lab-text-button"
                   onClick={leave}
@@ -293,11 +292,9 @@ export function LabApp() {
                 >
                   <ArrowLeft size={15} /> Лаборатория
                 </button>
-                <span className="lab-toolbar-title">
+                <span className="lab-session-title">
                   {scenarioName(session.config)}{' '}
-                  <span>
-                    · {buildName(session.config)} · seed {session.config.seed}
-                  </span>
+                  <span>· {buildName(session.config)}</span>
                 </span>
                 <span className="lab-mode-label">
                   {session.imported
@@ -309,20 +306,24 @@ export function LabApp() {
                 <button
                   className="lab-button"
                   disabled={busy}
-                  onClick={() => launch(session.config)}
+                  onClick={() => {
+                    close();
+                    launch(session.config);
+                  }}
                 >
                   <RotateCcw size={14} /> Тот же бой
                 </button>
                 <button
                   className="lab-button"
                   disabled={busy}
-                  onClick={() =>
+                  onClick={() => {
+                    close();
                     launch({
                       ...session.config,
                       seed: seedValue(),
                       scored: false,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Shuffle size={14} /> Новое поле
                 </button>
@@ -338,7 +339,10 @@ export function LabApp() {
                 <button
                   className="lab-button"
                   disabled={busy}
-                  onClick={() => setJournal(true)}
+                  onClick={() => {
+                    close();
+                    setJournal(true);
+                  }}
                 >
                   Запись · {session.entries.length}
                 </button>
@@ -402,45 +406,13 @@ export function LabApp() {
             </Link>
           </header>
           <div className="lab-intro">
-            <div>
-              <p className="lab-eyebrow">ПОЛЕ. РЕШЕНИЕ. ПОСЛЕДСТВИЕ.</p>
-              <h1>
-                Проверить идею
-                <br />в бою.
-              </h1>
-              <p>
-                Выбери сборку и ситуацию. Сыграй, поменяй одну вещь
-                <br className="lab-desktop-break" /> и сравни результат на том
-                же поле.
-              </p>
-            </div>
-            <div className="lab-board-mark" aria-hidden="true">
-              {[
-                Sword,
-                Shield,
-                Zap,
-                Droplet,
-                Sword,
-                Sword,
-                Shield,
-                Zap,
-                Sword,
-              ].map((Icon, i) => (
-                <span
-                  key={i}
-                  className={i === 5 || i === 8 ? 'lab-tile-active' : ''}
-                >
-                  <Icon strokeWidth={1.4} />
-                </span>
-              ))}
-            </div>
+            <h1>Сыграем?</h1>
           </div>
           {session && (
             <div className="lab-resume">
               <span>
                 <strong>{terminal ? 'Последний опыт' : 'Опыт сохранён'}</strong>{' '}
-                {scenarioName(session.config)} · {buildName(session.config)} ·{' '}
-                {session.entries.length} действий
+                {scenarioName(session.config)} · {buildName(session.config)}
               </span>
               <button className="lab-text-button" onClick={resume}>
                 {terminal ? 'Посмотреть результат' : 'Продолжить'}{' '}
@@ -453,7 +425,7 @@ export function LabApp() {
               aria-pressed={config.scenario !== 'sprint'}
               onClick={() => change({ scenario: 'duel' })}
             >
-              Один бой <span>Проверить механику</span>
+              Один бой
             </button>
             <button
               aria-pressed={config.scenario === 'sprint'}
@@ -466,15 +438,13 @@ export function LabApp() {
                 })
               }
             >
-              Короткий забег <span>Проверить развитие сборки</span>
+              Короткий забег
             </button>
           </fieldset>
           {config.scenario !== 'sprint' ? (
             <div className="lab-picker">
               <section>
-                <h2>
-                  <span>01</span> С чем идём
-                </h2>
+                <h2>Сборка</h2>
                 <div className="lab-builds">
                   {BUILDS.map((b, i) => {
                     const Icon = buildIcons[i];
@@ -490,7 +460,6 @@ export function LabApp() {
                         <Icon size={25} strokeWidth={1.5} />
                         <span>
                           <strong>{b.name}</strong>
-                          <small>{b.description}</small>
                         </span>
                         <span className="lab-radio" aria-hidden="true">
                           {config.build === b.id && !config.custom && (
@@ -501,6 +470,11 @@ export function LabApp() {
                     );
                   })}
                 </div>
+                {!config.custom && (
+                  <p className="lab-choice-description">
+                    {BUILDS.find((b) => b.id === config.build)?.description}
+                  </p>
+                )}
                 {config.custom && (
                   <p className="lab-custom-hint">
                     Выбрана своя сборка — настройки ниже.
@@ -508,9 +482,7 @@ export function LabApp() {
                 )}
               </section>
               <section>
-                <h2>
-                  <span>02</span> Что проверяем
-                </h2>
+                <h2>Противник</h2>
                 <div className="lab-encounters">
                   {SCENARIOS.map((s) => (
                     <button
@@ -528,10 +500,12 @@ export function LabApp() {
                         </span>
                       </div>
                       <strong>{s.name}</strong>
-                      <small>{s.question}</small>
                     </button>
                   ))}
                 </div>
+                <p className="lab-choice-description">
+                  {SCENARIOS.find((s) => s.id === config.scenario)?.question}
+                </p>
               </section>
             </div>
           ) : (
@@ -540,34 +514,13 @@ export function LabApp() {
               <div>
                 <h2>От простого ножа до Цензора</h2>
                 <p>
-                  Шесть комнат, находка и две развилки. Начни без усилений и
-                  посмотри, как меняются решения после каждой награды.
+                  Шесть комнат до босса. Начни с обычным ножом и собирай
+                  усиления по пути.
                 </p>
-                <ol>
-                  <li>Первый бой</li>
-                  <li>Находка</li>
-                  <li>Обычный бой или элита</li>
-                  <li>Привал или магазин</li>
-                  <li>Два врага</li>
-                  <li>Босс</li>
-                </ol>
               </div>
             </section>
           )}
           <div className="lab-launch">
-            <div>
-              <strong>
-                {scenarioName(config)} <span>· {buildName(config)}</span>
-              </strong>
-              <p>
-                {config.scenario === 'sprint'
-                  ? 'Проверяем путь от первой находки до босса.'
-                  : SCENARIOS.find((s) => s.id === config.scenario)!
-                      .roster.map((id) => ENEMY_CATALOG[id].name)
-                      .join(' + ')}{' '}
-                · seed {config.seed}
-              </p>
-            </div>
             <button
               className="lab-button lab-primary"
               onClick={() => launch(config)}
@@ -576,368 +529,379 @@ export function LabApp() {
               <ArrowRight size={18} />
             </button>
           </div>
-          <section className="lab-secondary">
-            <label
-              className="lab-check lab-scored"
-              aria-label="Испытание с фиксированными условиями"
-            >
-              <input
-                type="checkbox"
-                checked={config.scored}
-                disabled={config.scenario === 'sprint'}
-                onChange={(e) =>
-                  change(
-                    e.target.checked
-                      ? {
-                          scored: true,
-                          custom: undefined,
-                          seed: LAB_SEED,
-                          balance: {
-                            ...DEFAULT_BALANCE,
-                            animation: config.balance.animation,
-                          },
-                        }
-                      : { scored: false },
-                  )
-                }
-              />
-              <span>
-                <strong>Испытание с фиксированными условиями</strong>
-                <small>
-                  Seed {LAB_SEED}, готовая сборка и обычный баланс. Для честного
-                  сравнения и отметок за механику.
-                </small>
-              </span>
-            </label>
-            <details className="lab-details">
-              <summary>
-                Испытания{' '}
-                <span>
-                  {profile.marks.length} / {LAB_GOALS.length}
-                </span>
-              </summary>
-              <ul className="lab-goals">
-                {LAB_GOALS.map((g) => (
-                  <li key={g.id} data-complete={profile.marks.includes(g.id)}>
-                    <span
-                      aria-label={
-                        profile.marks.includes(g.id)
-                          ? 'Выполнено'
-                          : 'Не выполнено'
-                      }
-                    >
-                      {profile.marks.includes(g.id) ? <Check size={18} /> : '○'}
-                    </span>
-                    <div>
-                      <strong>{g.name}</strong>
-                      <p>{g.description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <p className="lab-caption">
-                Эти отметки принадлежат лаборатории. Своя сборка, изменённые
-                параметры и импорт записей не дают зачёт.
-              </p>
-            </details>
-          </section>
-          <details className="lab-details lab-advanced">
-            <summary>
-              Настроить опыт{' '}
-              <span>Seed, баланс, предметы, сохранённые сборки</span>
-            </summary>
-            <div className="lab-settings">
-              <label>
-                Seed
-                <input
-                  aria-label="Seed"
-                  type="number"
-                  min={0}
-                  max={4294967295}
-                  value={config.seed}
-                  onChange={(e) =>
-                    change({ seed: Number(e.target.value), scored: false })
-                  }
-                />
-              </label>
-              <button
-                className="lab-button"
-                onClick={() => change({ seed: seedValue(), scored: false })}
-              >
-                <Shuffle size={14} /> Другой seed
-              </button>
-              {(
-                [
-                  {
-                    key: 'health',
-                    label: 'Здоровье',
-                    min: 10,
-                    max: 100,
-                    step: 1,
-                  },
-                  {
-                    key: 'blade',
-                    label: 'Урон фишки',
-                    min: 1,
-                    max: 5,
-                    step: 1,
-                  },
-                  {
-                    key: 'shield',
-                    label: 'Блок фишки',
-                    min: 1,
-                    max: 5,
-                    step: 1,
-                  },
-                  {
-                    key: 'enemyPower',
-                    label: 'Сила врагов',
-                    min: 0.5,
-                    max: 2,
-                    step: 0.1,
-                  },
-                ] as const
-              ).map((p) => (
-                <label key={p.key}>
-                  {p.label}
+          <details className="lab-tools">
+            <summary>Настроить и сравнить</summary>
+            <section className="lab-secondary">
+              <details className="lab-details">
+                <summary>
+                  Испытания{' '}
+                  <span>
+                    {profile.marks.length} / {LAB_GOALS.length}
+                  </span>
+                </summary>
+                <label
+                  className="lab-check lab-scored"
+                  aria-label="Испытание с фиксированными условиями"
+                >
                   <input
-                    type="number"
-                    min={p.min}
-                    max={p.max}
-                    step={p.step}
-                    value={config.balance[p.key]}
+                    type="checkbox"
+                    checked={config.scored}
+                    disabled={config.scenario === 'sprint'}
                     onChange={(e) =>
-                      change({
-                        balance: {
-                          ...config.balance,
-                          [p.key]: Number(e.target.value),
-                        },
-                        scored: false,
-                      })
+                      change(
+                        e.target.checked
+                          ? {
+                              scored: true,
+                              custom: undefined,
+                              seed: LAB_SEED,
+                              balance: {
+                                ...DEFAULT_BALANCE,
+                                animation: config.balance.animation,
+                              },
+                            }
+                          : { scored: false },
+                      )
+                    }
+                  />
+                  <span>
+                    <strong>Испытание с фиксированными условиями</strong>
+                    <small>
+                      Seed {LAB_SEED}, готовая сборка и обычный баланс. Для
+                      честного сравнения и отметок за механику.
+                    </small>
+                  </span>
+                </label>
+                <ul className="lab-goals">
+                  {LAB_GOALS.map((g) => (
+                    <li key={g.id} data-complete={profile.marks.includes(g.id)}>
+                      <span
+                        aria-label={
+                          profile.marks.includes(g.id)
+                            ? 'Выполнено'
+                            : 'Не выполнено'
+                        }
+                      >
+                        {profile.marks.includes(g.id) ? (
+                          <Check size={18} />
+                        ) : (
+                          '○'
+                        )}
+                      </span>
+                      <div>
+                        <strong>{g.name}</strong>
+                        <p>{g.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p className="lab-caption">
+                  Эти отметки принадлежат лаборатории. Своя сборка, изменённые
+                  параметры и импорт записей не дают зачёт.
+                </p>
+              </details>
+            </section>
+            <details className="lab-details lab-advanced">
+              <summary>Параметры боя и своя сборка</summary>
+              <div className="lab-settings">
+                <label>
+                  Seed
+                  <input
+                    aria-label="Seed"
+                    type="number"
+                    min={0}
+                    max={4294967295}
+                    value={config.seed}
+                    onChange={(e) =>
+                      change({ seed: Number(e.target.value), scored: false })
                     }
                   />
                 </label>
-              ))}
-              <button
-                className="lab-text-button"
-                onClick={() =>
-                  change({
-                    balance: { ...DEFAULT_BALANCE, animation: 80 },
-                    scored: false,
-                  })
-                }
-              >
-                Обычный баланс
-              </button>
-              <label className="lab-check">
-                <input
-                  type="checkbox"
-                  checked={fast}
-                  onChange={(e) => setFast(e.target.checked)}
-                />{' '}
-                Без ожидания анимаций
-              </label>
-            </div>
-            {config.scenario !== 'sprint' && (
-              <div className="lab-custom">
-                <h3>Своя сборка</h3>
-                <p className="lab-caption">
-                  Меняй один параметр за опыт. Семейства фишек на старте
-                  остаются теми же при том же seed; особые правила поля могут
-                  потребовать другой раскладки.
-                </p>
-                <div className="lab-settings">
-                  <label>
-                    Оружие
-                    <select
-                      value={loadoutFor(config).weapon}
-                      onChange={(e) => custom({ weapon: e.target.value })}
-                    >
-                      {WEAPONS.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Качество
-                    <select
-                      value={loadoutFor(config).quality}
-                      onChange={(e) =>
-                        custom({ quality: Number(e.target.value) as 0 | 1 | 2 })
-                      }
-                    >
-                      <option value="0">Базовое</option>
-                      <option value="1">Улучшенное</option>
-                      <option value="2">Мастерское</option>
-                    </select>
-                  </label>
-                </div>
+                <button
+                  className="lab-button"
+                  onClick={() => change({ seed: seedValue(), scored: false })}
+                >
+                  <Shuffle size={14} /> Другой seed
+                </button>
                 {(
                   [
-                    { field: 'relics', name: 'Реликвии', pool: RELICS, max: 6 },
                     {
-                      field: 'modifiers',
-                      name: 'Особые фишки',
-                      pool: MODIFIERS,
-                      max: 2,
+                      key: 'health',
+                      label: 'Здоровье',
+                      min: 10,
+                      max: 100,
+                      step: 1,
                     },
-                    { field: 'skills', name: 'Приёмы', pool: SKILLS, max: 2 },
+                    {
+                      key: 'blade',
+                      label: 'Урон фишки',
+                      min: 1,
+                      max: 5,
+                      step: 1,
+                    },
+                    {
+                      key: 'shield',
+                      label: 'Блок фишки',
+                      min: 1,
+                      max: 5,
+                      step: 1,
+                    },
+                    {
+                      key: 'enemyPower',
+                      label: 'Сила врагов',
+                      min: 0.5,
+                      max: 2,
+                      step: 0.1,
+                    },
                   ] as const
-                ).map((group) => (
-                  <details className="lab-details" key={group.field}>
-                    <summary>
-                      {group.name}{' '}
-                      <span>
-                        {loadoutFor(config)[group.field].length} / {group.max}
-                      </span>
-                    </summary>
-                    <div className="lab-item-list">
-                      {group.pool.map((o) => (
-                        <label key={o.id} aria-label={o.name}>
-                          <input
-                            type="checkbox"
-                            checked={loadoutFor(config)[group.field].includes(
-                              o.id,
-                            )}
-                            disabled={
-                              !loadoutFor(config)[group.field].includes(o.id) &&
-                              loadoutFor(config)[group.field].length >=
-                                group.max
-                            }
-                            onChange={() => toggleItem(group.field, o.id)}
-                          />
-                          <span>
-                            <strong>{o.name}</strong>
-                            <small>{o.description}</small>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </details>
-                ))}
-                <div className="lab-save-build">
-                  <label>
-                    Название сборки
+                ).map((p) => (
+                  <label key={p.key}>
+                    {p.label}
                     <input
-                      maxLength={48}
-                      value={saveName}
-                      onChange={(e) => setSaveName(e.target.value)}
-                      placeholder="Например, щиты + яд"
+                      type="number"
+                      min={p.min}
+                      max={p.max}
+                      step={p.step}
+                      value={config.balance[p.key]}
+                      onChange={(e) =>
+                        change({
+                          balance: {
+                            ...config.balance,
+                            [p.key]: Number(e.target.value),
+                          },
+                          scored: false,
+                        })
+                      }
                     />
                   </label>
-                  <button className="lab-button" onClick={saveBuild}>
-                    Сохранить сборку
-                  </button>
-                </div>
-                {saved.length > 0 && (
-                  <ul className="lab-saved-builds">
-                    {saved.map((b) => (
-                      <li key={b.name}>
-                        <button
-                          className="lab-text-button"
-                          onClick={() =>
-                            change({ custom: b.loadout, scored: false })
-                          }
-                        >
-                          {b.name} <ArrowRight size={14} />
-                        </button>
-                        <button
-                          className="lab-text-button"
-                          aria-label={`Удалить сборку ${b.name}`}
-                          onClick={() => {
-                            const next = saved.filter((x) => x.name !== b.name);
-                            setSaved(next);
-                            write(LAB_BUILDS_KEY, next);
-                          }}
-                        >
-                          Удалить
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                ))}
+                <button
+                  className="lab-text-button"
+                  onClick={() =>
+                    change({
+                      balance: { ...DEFAULT_BALANCE, animation: 80 },
+                      scored: false,
+                    })
+                  }
+                >
+                  Обычный баланс
+                </button>
+                <label className="lab-check">
+                  <input
+                    type="checkbox"
+                    checked={fast}
+                    onChange={(e) => setFast(e.target.checked)}
+                  />{' '}
+                  Без ожидания анимаций
+                </label>
               </div>
-            )}
-          </details>
-          {history.length > 0 && (
-            <details className="lab-details">
-              <summary>
-                Сравнить опыты <span>Последние {history.length}</span>
-              </summary>
-              <p className="lab-caption">
-                Краткие итоги прошлых опытов. Полная запись доступна у текущего
-                боя — скачай её до нового запуска. Для сравнения меняй один
-                фактор; одинаковый seed сам по себе не означает одинаковые
-                условия.
-              </p>
-              <div className="lab-history">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Ситуация / сборка</th>
-                      <th>Итог</th>
-                      <th>Урон / блок</th>
-                      <th>Действия / остаток ОД</th>
-                      <th>Условия</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map((h, i) => (
-                      <tr key={i}>
-                        <td>
-                          <strong>{scenarioName(h.config)}</strong>
-                          <span>
-                            {buildName(h.config)} · seed {h.config.seed}
-                          </span>
-                          {h.note && <small>{h.note}</small>}
-                        </td>
-                        <td>
-                          {
-                            {
-                              victory: 'Победа',
-                              defeat: 'Поражение',
-                              stopped: 'Остановлен',
-                            }[h.outcome]
-                          }
-                        </td>
-                        <td>
-                          {h.summary.damage} / {h.summary.blocked}
-                        </td>
-                        <td>
-                          {h.summary.actions} / {h.summary.unusedActions}
-                        </td>
-                        <td>
+              {config.scenario !== 'sprint' && (
+                <div className="lab-custom">
+                  <h3>Своя сборка</h3>
+                  <p className="lab-caption">
+                    Меняй один параметр за опыт. Семейства фишек на старте
+                    остаются теми же при том же seed; особые правила поля могут
+                    потребовать другой раскладки.
+                  </p>
+                  <div className="lab-settings">
+                    <label>
+                      Оружие
+                      <select
+                        value={loadoutFor(config).weapon}
+                        onChange={(e) => custom({ weapon: e.target.value })}
+                      >
+                        {WEAPONS.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Качество
+                      <select
+                        value={loadoutFor(config).quality}
+                        onChange={(e) =>
+                          custom({
+                            quality: Number(e.target.value) as 0 | 1 | 2,
+                          })
+                        }
+                      >
+                        <option value="0">Базовое</option>
+                        <option value="1">Улучшенное</option>
+                        <option value="2">Мастерское</option>
+                      </select>
+                    </label>
+                  </div>
+                  {(
+                    [
+                      {
+                        field: 'relics',
+                        name: 'Реликвии',
+                        pool: RELICS,
+                        max: 6,
+                      },
+                      {
+                        field: 'modifiers',
+                        name: 'Особые фишки',
+                        pool: MODIFIERS,
+                        max: 2,
+                      },
+                      { field: 'skills', name: 'Приёмы', pool: SKILLS, max: 2 },
+                    ] as const
+                  ).map((group) => (
+                    <details className="lab-details" key={group.field}>
+                      <summary>
+                        {group.name}{' '}
+                        <span>
+                          {loadoutFor(config)[group.field].length} / {group.max}
+                        </span>
+                      </summary>
+                      <div className="lab-item-list">
+                        {group.pool.map((o) => (
+                          <label key={o.id} aria-label={o.name}>
+                            <input
+                              type="checkbox"
+                              checked={loadoutFor(config)[group.field].includes(
+                                o.id,
+                              )}
+                              disabled={
+                                !loadoutFor(config)[group.field].includes(
+                                  o.id,
+                                ) &&
+                                loadoutFor(config)[group.field].length >=
+                                  group.max
+                              }
+                              onChange={() => toggleItem(group.field, o.id)}
+                            />
+                            <span>
+                              <strong>{o.name}</strong>
+                              <small>{o.description}</small>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
+                  ))}
+                  <div className="lab-save-build">
+                    <label>
+                      Название сборки
+                      <input
+                        maxLength={48}
+                        value={saveName}
+                        onChange={(e) => setSaveName(e.target.value)}
+                        placeholder="Например, щиты + яд"
+                      />
+                    </label>
+                    <button className="lab-button" onClick={saveBuild}>
+                      Сохранить сборку
+                    </button>
+                  </div>
+                  {saved.length > 0 && (
+                    <ul className="lab-saved-builds">
+                      {saved.map((b) => (
+                        <li key={b.name}>
                           <button
                             className="lab-text-button"
+                            onClick={() =>
+                              change({ custom: b.loadout, scored: false })
+                            }
+                          >
+                            {b.name} <ArrowRight size={14} />
+                          </button>
+                          <button
+                            className="lab-text-button"
+                            aria-label={`Удалить сборку ${b.name}`}
                             onClick={() => {
-                              setConfig(h.config);
-                              window.scrollTo(0, 0);
+                              const next = saved.filter(
+                                (x) => x.name !== b.name,
+                              );
+                              setSaved(next);
+                              write(LAB_BUILDS_KEY, next);
                             }}
                           >
-                            Выбрать
+                            Удалить
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </details>
-          )}
-          <footer className="lab-footer">
-            <div>
-              <strong>Короткий цикл проверки</strong>
-              <p>Один вопрос → бой → заметка → одно изменение → тот же бой.</p>
-            </div>
-            <button
-              className="lab-text-button"
-              onClick={() => upload.current?.click()}
-            >
-              <Upload size={16} /> Открыть запись боя
-            </button>
-          </footer>
+            {history.length > 0 && (
+              <details className="lab-details">
+                <summary>
+                  Сравнить опыты <span>Последние {history.length}</span>
+                </summary>
+                <p className="lab-caption">
+                  Краткие итоги прошлых опытов. Полная запись доступна у
+                  текущего боя — скачай её до нового запуска. Для сравнения
+                  меняй один фактор; одинаковый seed сам по себе не означает
+                  одинаковые условия.
+                </p>
+                <div className="lab-history">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Ситуация / сборка</th>
+                        <th>Итог</th>
+                        <th>Урон / блок</th>
+                        <th>Действия / остаток ОД</th>
+                        <th>Условия</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((h, i) => (
+                        <tr key={i}>
+                          <td>
+                            <strong>{scenarioName(h.config)}</strong>
+                            <span>
+                              {buildName(h.config)} · seed {h.config.seed}
+                            </span>
+                            {h.note && <small>{h.note}</small>}
+                          </td>
+                          <td>
+                            {
+                              {
+                                victory: 'Победа',
+                                defeat: 'Поражение',
+                                stopped: 'Остановлен',
+                              }[h.outcome]
+                            }
+                          </td>
+                          <td>
+                            {h.summary.damage} / {h.summary.blocked}
+                          </td>
+                          <td>
+                            {h.summary.actions} / {h.summary.unusedActions}
+                          </td>
+                          <td>
+                            <button
+                              className="lab-text-button"
+                              onClick={() => {
+                                setConfig(h.config);
+                                window.scrollTo(0, 0);
+                              }}
+                            >
+                              Выбрать
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            )}
+            <footer className="lab-footer">
+              <button
+                className="lab-text-button"
+                onClick={() => upload.current?.click()}
+              >
+                <Upload size={16} /> Открыть запись боя
+              </button>
+            </footer>
+          </details>
         </main>
       )}
       {message && (

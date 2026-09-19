@@ -49,11 +49,8 @@ import {
   ChevronDown,
   ArrowRight,
   Lightbulb,
-  RotateCcw,
   CircleHelp,
   Gem,
-  Footprints,
-  Flame,
   Check,
   Settings2,
   Crown,
@@ -147,7 +144,7 @@ export type LaboratoryGame = {
   paused: boolean;
   onTransition: (command: LabCommand, result: Result, activeMs: number) => void;
   onExit: () => void;
-  toolbar: (state: State, busy: boolean) => ReactNode;
+  toolbar: (state: State, busy: boolean, close: () => void) => ReactNode;
   panel: (
     state: State,
     execute: (command: LabCommand) => Promise<void>,
@@ -184,6 +181,8 @@ export default function Game({
   const [editing, setEditing] = useState<Family | null>(null);
   const [editFirst, setEditFirst] = useState<number | null>(null);
   const [help, setHelp] = useState(false);
+  const [runMenu, setRunMenu] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false),
     [discoveries, setDiscoveries] = useState(false),
     [restartConfirm, setRestartConfirm] = useState(false);
@@ -201,6 +200,7 @@ export default function Game({
   const [visible, setVisible] = useState(true);
   const modalOpen =
     lab?.paused ||
+    runMenu ||
     help ||
     settingsOpen ||
     discoveries ||
@@ -208,7 +208,12 @@ export default function Game({
     !!detail ||
     screen !== 'run';
   const officeBlocked =
-    help || settingsOpen || discoveries || restartConfirm || !!detail;
+    runMenu ||
+    help ||
+    settingsOpen ||
+    discoveries ||
+    restartConfirm ||
+    !!detail;
   const saveMessageRef = useRef(false);
   const [preview, setPreview] = useState<{
     axis: 'row' | 'col';
@@ -469,8 +474,9 @@ export default function Game({
       setMessage('Ты снова за своим столом. Юла продолжает крутиться.');
     }
   }, [isLab, game, ready, hasRun, busy]);
-  const openMenu = () => {
+  const leaveRunScreen = () => {
     if (busyRef.current) return;
+    setRunMenu(false);
     if (lab) {
       lab.onExit();
       return;
@@ -481,6 +487,22 @@ export default function Game({
     setEditing(null);
     setEditFirst(null);
     setScreen('menu');
+  };
+  const openMenu = () => {
+    if (busyRef.current) return;
+    if (screen !== 'run') {
+      setScreen('menu');
+      return;
+    }
+    cancelDrag();
+    setEditing(null);
+    setEditFirst(null);
+    setShowRules(false);
+    setRunMenu(true);
+  };
+  const openRules = () => {
+    openMenu();
+    setShowRules(true);
   };
   const returnToOffice = () => {
     if (busyRef.current) return;
@@ -521,7 +543,7 @@ export default function Game({
         e.key !== 'Escape' ||
         e.defaultPrevented ||
         screen !== 'run' ||
-        officeBlocked ||
+        modalOpen ||
         busyRef.current ||
         editing ||
         preview
@@ -741,8 +763,7 @@ export default function Game({
   }, [ready]);
   return (
     <>
-      {lab?.toolbar(game, busy)}
-      {!lab && (
+      {!lab && screen !== 'run' && (
         <Link className="campaign-lab-link" href="/">
           Лаборатория
         </Link>
@@ -801,14 +822,10 @@ export default function Game({
               </span>
             </div>
             <div className="header-run">
-              <Flame size={16} />
-              <span>{biomeAt(s.room).name}</span>
-              <span className="divider">/</span>
               <span>
                 Комната {s.room} из {runLength(s)}
               </span>
             </div>
-            <RunSeed seed={s.seed} />
             <div className="header-actions">
               <Button variant="outline" disabled={busy} onClick={openMenu}>
                 Меню
@@ -817,45 +834,6 @@ export default function Game({
                 <SkinIcon name="coin" size={30} />
                 {s.gold}
               </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Открытия"
-                hidden={!!lab}
-                onClick={() => setDiscoveries(true)}
-              >
-                <BookOpen />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Настройки"
-                hidden={!!lab}
-                onClick={() => {
-                  setSettingsMode('preferences');
-                  setSettingsOpen(true);
-                }}
-                disabled={busy}
-              >
-                <Settings2 />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Как играть"
-                onClick={() => setHelp(true)}
-              >
-                <CircleHelp />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Новый забег"
-                disabled={busy}
-                onClick={lab ? lab.onExit : requestOffice}
-              >
-                <RotateCcw />
-              </Button>
             </div>
           </header>
           <div className="game-layout">
@@ -925,20 +903,6 @@ export default function Game({
                   <i />
                   <i />
                   <i />
-                </div>
-                <div className="arena-caption">
-                  <span className="eyebrow">
-                    {lab
-                      ? s.path.at(-1)
-                      : s.roomKind === 'boss'
-                        ? `БОСС · ${s.enemies[0]?.name.toUpperCase()}`
-                        : roomBackground(s.room).name.toUpperCase()}
-                  </span>
-                  <span className="turn-badge">
-                    {s.phase === 'trial'
-                      ? `${Math.ceil(s.trial?.remaining ?? 0)} сек.`
-                      : `Ход ${s.round}`}
-                  </span>
                 </div>
                 <div className="fighter hero">
                   <CombatSprite state={s} motion={motion} actor="hero" />
@@ -1051,36 +1015,41 @@ export default function Game({
                   <span className={`phase-dot ${busy ? 'resolving' : ''}`} />
                   <strong>
                     {busy
-                      ? 'Комбинация сработала'
-                      : !canShift(s)
-                        ? tactical(s)
-                          ? 'Действия закончились'
-                          : 'Сдвиг использован'
-                        : 'Твой ход'}
+                      ? 'Комбинация…'
+                      : s.phase === 'trial'
+                        ? `${Math.ceil(s.trial?.remaining ?? 0)} сек.`
+                        : `Ход ${s.round}`}
                   </strong>
                 </div>
                 <Button
                   variant="ghost"
                   className="hint-button"
+                  aria-label="Подсказка"
+                  title="Подсказать сдвиг"
                   onClick={hint}
                   disabled={busy || !active}
                 >
                   <Lightbulb size={15} />
-                  Подсказка
                 </Button>
               </div>
-              <details className="scene-rules">
-                <summary>
-                  Правила и эффекты
-                  {minimumMatch(s) > 3 ? ` · матч ${minimumMatch(s)}+` : ''}
-                  {s.boardWarp ? ` · поле ${size}×${size}` : ''}
-                  {s.board.some((t) => t.locked) ? ' · есть печати' : ''}
-                </summary>
-                <div className="scene-rules-content">
-                  <TurnBudget game={s} />
-                  <ActiveHeroRules game={s} />
-                </div>
-              </details>
+              <div className="scene-rule-alerts" aria-label="Особые правила">
+                {minimumMatch(s) > 3 && (
+                  <button onClick={openRules}>
+                    Совпадение от {minimumMatch(s)}
+                  </button>
+                )}
+                {s.boardWarp && (
+                  <button onClick={openRules}>
+                    Поле {size}×{size}
+                  </button>
+                )}
+                {s.board.some((t) => t.locked) && (
+                  <button onClick={openRules}>Печати на поле</button>
+                )}
+                {s.flags.includes('turn:rune-armed') && (
+                  <button onClick={openRules}>Рунный заряд готов</button>
+                )}
+              </div>
               <InteractionStatus
                 game={s}
                 busy={busy}
@@ -1098,6 +1067,9 @@ export default function Game({
                     {Array.from({ length: size }, (_, i) => (
                       <button
                         key={i}
+                        className={
+                          selectedCell % size === i ? 'line-selected' : ''
+                        }
                         aria-label={`Столбец ${i + 1} вверх`}
                         onClick={() => doMove('col', i, -1)}
                         disabled={
@@ -1114,6 +1086,11 @@ export default function Game({
                       {Array.from({ length: size }, (_, i) => (
                         <button
                           key={i}
+                          className={
+                            Math.floor(selectedCell / size) === i
+                              ? 'line-selected'
+                              : ''
+                          }
                           aria-label={`Строка ${i + 1} влево`}
                           onClick={() => doMove('row', i, -1)}
                           disabled={
@@ -1185,6 +1162,11 @@ export default function Game({
                       {Array.from({ length: size }, (_, i) => (
                         <button
                           key={i}
+                          className={
+                            Math.floor(selectedCell / size) === i
+                              ? 'line-selected'
+                              : ''
+                          }
                           aria-label={`Строка ${i + 1} вправо`}
                           onClick={() => doMove('row', i, 1)}
                           disabled={
@@ -1201,6 +1183,9 @@ export default function Game({
                     {Array.from({ length: size }, (_, i) => (
                       <button
                         key={i}
+                        className={
+                          selectedCell % size === i ? 'line-selected' : ''
+                        }
                         aria-label={`Столбец ${i + 1} вниз`}
                         onClick={() => doMove('col', i, 1)}
                         disabled={
@@ -1213,20 +1198,6 @@ export default function Game({
                     <span />
                   </div>
                 </div>
-                <div className="board-legend">
-                  {FAMILIES.map((f) => {
-                    return (
-                      <span key={f} className={`legend-${f}`}>
-                        <BoardTileArt
-                          family={f}
-                          weaponId={s.equipment.weapon}
-                          size={23}
-                        />
-                        {FAMILY_NAMES[f]}
-                      </span>
-                    );
-                  })}
-                </div>
               </div>
               {(game.rulesVersion ?? 0) < 3 && (
                 <p className="rules-notice">
@@ -1235,13 +1206,16 @@ export default function Game({
                 </p>
               )}
               {(game.rulesVersion ?? 0) >= 2 &&
+                preview &&
                 !busy &&
                 active &&
                 !modalOpen &&
                 !game.trial?.paused && (
                   <MovePreview game={game} move={preview} />
                 )}
-              <div className="turn-controls">
+              <div
+                className={`turn-controls ${!editing && /^(Сдвигай целые|Забег восстановлен|Осталось действий:.*Враги ответят)/.test(message) ? 'routine-message' : ''}`}
+              >
                 <output className="move-message">
                   {editing
                     ? `${hasSeal(game, 'double-edit') ? (editFirst === null ? 'Выбери первую из двух фишек' : 'Выбери вторую фишку; Esc — отмена') : 'Выбери фишку'} → ${FAMILY_NAMES[editing]}`
@@ -1268,91 +1242,9 @@ export default function Game({
                   <span>Фокус</span>
                 </div>
               </div>
-              <details className="scene-inventory">
-                <summary>
-                  Снаряжение <span>{s.relics.length} реликвий</span>
-                </summary>
-                <div className="scene-inventory-content">
-                  <EquipmentPanel game={s} onDetail={setDetail} />
-                  {s.seal && (
-                    <ActiveSeal seal={itemById(s.seal)!} onDetail={setDetail} />
-                  )}
-                  <div className="section-label relic-label">
-                    <span className="eyebrow">РЕЛИКВИИ</span>
-                    <span>{s.relics.length}</span>
-                  </div>
-                  {s.relics.length ? (
-                    <div className="relic-list">
-                      {s.relics.map((id) => (
-                        <button key={id} onClick={() => setDetail(id)}>
-                          <ItemIcon id={id} />
-                          <span>{itemById(id)?.name}</span>
-                          <CircleHelp size={12} />
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="empty-relics">
-                      <SkinIcon name="relic" size={42} />
-                      <p>
-                        Первая находка
-                        <br />
-                        ждёт за этим боем.
-                      </p>
-                    </div>
-                  )}
-                  {s.modifiers.length > 0 && (
-                    <>
-                      <div className="section-label">
-                        <span className="eyebrow">МОДИФИКАТОРЫ ПОЛЯ</span>
-                        <span>{s.modifiers.length}/2</span>
-                      </div>
-                      <div className="modifier-list">
-                        {s.modifiers.map((id) => (
-                          <button key={id} onClick={() => setDetail(id)}>
-                            <ItemIcon id={id} />
-                            <span>{itemById(id)?.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  {Object.values(s.upgrades).some((x) => x > 0) && (
-                    <div className="upgrade-pips">
-                      {FAMILIES.filter((f) => s.upgrades[f] > 0).map((f) => (
-                        <span key={f}>
-                          {FAMILY_NAMES[f]} +{s.upgrades[f]}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="battle-log">
-                    <span className="eyebrow">ХОД БОЯ</span>
-                    {s.log.slice(0, 4).map((line, i) => (
-                      <p
-                        key={`${i}-${line}`}
-                        className={i === 0 ? 'latest' : ''}
-                      >
-                        {line}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </details>
             </aside>
           </div>
-          <footer className="game-footer">
-            <span>
-              <Footprints size={14} />{' '}
-              {lab
-                ? 'Один опыт. Один вопрос. Новое решение.'
-                : 'Два биома. Двадцать комнат. Твоя сборка.'}
-            </span>
-            <span>
-              Выбери фишку + ← ↑ ↓ →
-              {' · Esc — отменить перетаскивание · Пробел — завершить ход'}
-            </span>
-          </footer>
+
           <div
             className="scene-toolbar"
             aria-label="Действия героя"
@@ -1450,6 +1342,7 @@ export default function Game({
             <Button
               variant="outline"
               className="potion"
+              aria-label={`Лечебное зелье: +8 здоровья. Осталось ${s.potions}.`}
               title="Восстановить 8 здоровья. Один раз за ход, без затрат действий."
               disabled={
                 busy || s.consumed || !s.potions || s.hp === s.maxHp || !active
@@ -1593,22 +1486,164 @@ export default function Game({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={runMenu} onOpenChange={setRunMenu}>
+        <DialogContent className="game-dialog pause-menu">
+          <DialogTitle>Пауза</DialogTitle>
+          <DialogDescription>
+            Комната {s.room} из {runLength(s)}. Прогресс сохранён.
+          </DialogDescription>
+          <Button
+            className="panel-main-action"
+            onClick={() => setRunMenu(false)}
+          >
+            Продолжить
+          </Button>
+          <div className="pause-menu-actions">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRunMenu(false);
+                setHelp(true);
+              }}
+            >
+              <CircleHelp size={16} /> Как играть
+            </Button>
+            {!lab && (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setRunMenu(false);
+                    setSettingsMode('preferences');
+                    setSettingsOpen(true);
+                  }}
+                >
+                  <Settings2 size={16} /> Настройки
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setRunMenu(false);
+                    setDiscoveries(true);
+                  }}
+                >
+                  <BookOpen size={16} /> Открытия
+                </Button>
+              </>
+            )}
+          </div>
+          <details
+            className="pause-rules"
+            open={showRules}
+            onToggle={(event) => setShowRules(event.currentTarget.open)}
+          >
+            <summary>Правила и эффекты</summary>
+            <TurnBudget game={s} />
+            <ActiveHeroRules game={s} />
+          </details>
+          <details className="scene-inventory">
+            <summary>
+              Снаряжение <span>{s.relics.length} реликвий</span>
+            </summary>
+            <div className="scene-inventory-content">
+              <EquipmentPanel game={s} onDetail={setDetail} />
+              {s.seal && (
+                <ActiveSeal seal={itemById(s.seal)!} onDetail={setDetail} />
+              )}
+              <div className="section-label relic-label">
+                <span className="eyebrow">РЕЛИКВИИ</span>
+                <span>{s.relics.length}</span>
+              </div>
+              {s.relics.length ? (
+                <div className="relic-list">
+                  {s.relics.map((id) => (
+                    <button key={id} onClick={() => setDetail(id)}>
+                      <ItemIcon id={id} />
+                      <span>{itemById(id)?.name}</span>
+                      <CircleHelp size={12} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-relics">
+                  <SkinIcon name="relic" size={42} />
+                  <p>
+                    Первая находка
+                    <br />
+                    ждёт за этим боем.
+                  </p>
+                </div>
+              )}
+              {s.modifiers.length > 0 && (
+                <>
+                  <div className="section-label">
+                    <span className="eyebrow">МОДИФИКАТОРЫ ПОЛЯ</span>
+                    <span>{s.modifiers.length}/2</span>
+                  </div>
+                  <div className="modifier-list">
+                    {s.modifiers.map((id) => (
+                      <button key={id} onClick={() => setDetail(id)}>
+                        <ItemIcon id={id} />
+                        <span>{itemById(id)?.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {Object.values(s.upgrades).some((x) => x > 0) && (
+                <div className="upgrade-pips">
+                  {FAMILIES.filter((f) => s.upgrades[f] > 0).map((f) => (
+                    <span key={f}>
+                      {FAMILY_NAMES[f]} +{s.upgrades[f]}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="battle-log">
+                <span className="eyebrow">ХОД БОЯ</span>
+                {s.log.slice(0, 4).map((line, i) => (
+                  <p key={`${i}-${line}`} className={i === 0 ? 'latest' : ''}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </details>
+          <RunSeed seed={s.seed} />
+          {lab ? (
+            lab.toolbar(game, busy, () => setRunMenu(false))
+          ) : (
+            <>
+              <Button variant="outline" onClick={leaveRunScreen}>
+                Главное меню
+              </Button>
+              <Link className="pause-lab-link" href="/">
+                Лаборатория
+              </Link>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog open={help} onOpenChange={setHelp}>
         <DialogContent className="game-dialog">
-          <DialogTitle>Как выбраться из офиса</DialogTitle>
+          <DialogTitle>
+            {lab ? 'Как играть' : 'Как выбраться из офиса'}
+          </DialogTitle>
           <DialogDescription>
             Собирай комбинации, читай намерения врагов и строй свою сборку.
           </DialogDescription>
           <div className="help-copy">
+            {!lab && (
+              <p>
+                В офисе ходи стрелками или WASD. Нажми E рядом со столом,
+                коллегой или дверью. Можно просто нажать на нужное место — герой
+                подойдёт сам. Дверь босса ведёт в комнаты. После поражения ты
+                проснёшься за столом; открытия сохранятся.
+              </p>
+            )}
             <p>
-              В офисе ходи стрелками или WASD. Нажми E рядом со столом, коллегой
-              или дверью. Можно просто нажать на нужное место — герой подойдёт
-              сам. Дверь босса ведёт в комнаты. После поражения ты проснёшься за
-              столом; открытия сохранятся.
-            </p>
-            <p>
-              Меню сохраняет текущий спуск. Esc открывает его, а во время правки
-              или перетаскивания сначала отменяет выбранное действие.
+              Esc открывает меню паузы, а во время правки или перетаскивания
+              сначала отменяет выбранное действие.
             </p>
             <p>
               Перетащи фишку вдоль строки или столбца. Двигается вся линия;
@@ -1638,13 +1673,15 @@ export default function Game({
               выбранную фишку в нужный тип. Враг действует после кнопки
               «Завершить ход».
             </p>
-            <p>
-              После Цензора путь продолжается в Затопленном архиве. Прилив раз в
-              3 хода ударяет перед врагами: матч в отмеченной строке отменяет
-              его, блок поглощает урон. Клякса на собранной фишке ранит на 1
-              сквозь блок. Любой матч фокуса сначала смывает все кляксы, в том
-              числе в том же каскаде.
-            </p>
+            {!lab && (
+              <p>
+                После Цензора путь продолжается в Затопленном архиве. Прилив раз
+                в 3 хода ударяет перед врагами: матч в отмеченной строке
+                отменяет его, блок поглощает урон. Клякса на собранной фишке
+                ранит на 1 сквозь блок. Любой матч фокуса сначала смывает все
+                кляксы, в том числе в том же каскаде.
+              </p>
+            )}
           </div>
           <Button onClick={() => setHelp(false)}>Всё понятно</Button>
         </DialogContent>

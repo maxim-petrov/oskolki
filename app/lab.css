@@ -1,7 +1,7 @@
 /* The laboratory stays in the minimal-vector theme; all illustrations are SVG. */
 html[data-skin='palace-cellar'] {
   .lab-shell {
-    max-width: 1136px;
+    max-width: 960px;
     padding: 0 40px 36px;
     margin: 0 auto;
     color: var(--foreground);
@@ -37,7 +37,7 @@ html[data-skin='palace-cellar'] {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 26px 0;
+    padding: 28px 0 20px;
     gap: 32px;
   }
   .lab-eyebrow {
@@ -48,41 +48,11 @@ html[data-skin='palace-cellar'] {
     margin: 0 0 14px;
   }
   .lab-intro h1 {
-    font-size: clamp(34px, 4vw, 46px);
+    font-size: 30px;
     font-weight: 560;
     letter-spacing: -0.055em;
     line-height: 1.06;
-    margin: 0 0 18px;
-  }
-  .lab-intro h1 br {
-    display: none;
-  }
-  .lab-intro p:not(.lab-eyebrow) {
-    color: var(--muted-foreground);
-    font-size: 15px;
-    line-height: 1.6;
     margin: 0;
-  }
-  .lab-board-mark {
-    display: grid;
-    grid-template-columns: repeat(3, 38px);
-    gap: 8px;
-    padding-right: 32px;
-    transform: rotate(-7deg);
-  }
-  .lab-board-mark span {
-    display: grid;
-    place-items: center;
-    aspect-ratio: 1;
-    border: 1px solid var(--border);
-    background: var(--background);
-    border-radius: 5px;
-    color: var(--foreground);
-  }
-  .lab-board-mark .lab-tile-active {
-    background: var(--foreground);
-    border-color: var(--foreground);
-    color: var(--background);
   }
   .lab-button,
   .lab-text-button {
@@ -134,13 +104,13 @@ html[data-skin='palace-cellar'] {
   }
   .lab-shell button:disabled,
   .lab-dialog button:disabled,
-  .lab-toolbar button:disabled {
+  .lab-session-tools button:disabled {
     cursor: not-allowed;
     opacity: 0.45;
   }
   .lab-shell :focus-visible,
   .lab-dialog :focus-visible,
-  .lab-toolbar :focus-visible {
+  .lab-session-tools :focus-visible {
     outline: 2px solid var(--foreground);
     outline-offset: 3px;
   }
@@ -184,12 +154,6 @@ html[data-skin='palace-cellar'] {
     border-bottom-color: var(--foreground);
     color: var(--foreground);
   }
-  .lab-mode span {
-    display: block;
-    font-size: 11px;
-    font-weight: 400;
-    margin-top: 5px;
-  }
   .lab-picker {
     display: grid;
     grid-template-columns: 0.9fr 1.3fr;
@@ -218,8 +182,8 @@ html[data-skin='palace-cellar'] {
     align-items: center;
     text-align: left;
     width: 100%;
-    padding: 16px;
-    min-height: 78px;
+    padding: 12px;
+    min-height: 54px;
     font: inherit;
     background: transparent;
     border: 1px solid var(--border);
@@ -305,9 +269,9 @@ html[data-skin='palace-cellar'] {
     padding: 0 0 9px;
   }
   .lab-enemy-preview svg {
-    width: 54px;
-    height: 54px;
-    flex: 0 0 54px;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
   }
   .lab-enemy-preview span {
     font-size: 9px;
@@ -319,12 +283,12 @@ html[data-skin='palace-cellar'] {
     z-index: 20;
     background: var(--background);
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 20px;
     border-top: 1px solid var(--border);
-    padding: 24px 0;
-    margin: 28px 0 0;
+    padding: 16px 0;
+    margin: 16px 0 0;
   }
   .lab-launch strong {
     font-size: 14px;
@@ -560,34 +524,6 @@ html[data-skin='palace-cellar'] {
     font-size: 11px;
     color: var(--foreground);
   }
-  .lab-toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    padding: 10px 24px;
-    background: var(--background);
-    border-bottom: 1px solid var(--border);
-    min-height: 58px;
-    color: var(--foreground);
-  }
-  .lab-toolbar-title {
-    flex: 1;
-    font-size: 12px;
-    min-width: 150px;
-  }
-  .lab-toolbar-title > span {
-    color: var(--muted-foreground);
-    font-size: 11px;
-  }
-  .lab-toolbar .lab-button {
-    padding: 6px 10px;
-    min-height: 32px;
-    font-size: 11px;
-  }
   .lab-mode-label {
     font-size: 10px;
     color: var(--muted-foreground);
@@ -819,34 +755,6 @@ html[data-skin='palace-cellar'] {
     border-radius: 4px;
   }
 }
-@media (min-width: 960px) and (min-height: 600px) {
-  html[data-skin='palace-cellar'] {
-    .lab-toolbar {
-      height: 58px;
-      flex-wrap: nowrap;
-    }
-    .lab-toolbar-title > span {
-      display: block;
-    }
-    .scene-layout.lab-game {
-      height: calc(100dvh - 58px);
-      min-height: 542px;
-      --scene-board-edge: min(43vw, calc(100dvh - 340px), 560px);
-    }
-    .scene-layout.lab-game .topbar .header-actions {
-      top: 78px;
-    }
-    .scene-layout.lab-game .topbar .header-run {
-      top: 125px;
-    }
-    .scene-layout.lab-game .arena .hero .sprite-root {
-      height: min(27vw, 34dvh);
-    }
-    .scene-layout.lab-game .scene-inventory {
-      bottom: 125px;
-    }
-  }
-}
 @media (max-width: 760px) {
   html[data-skin='palace-cellar'] {
     .lab-shell {
@@ -865,9 +773,6 @@ html[data-skin='palace-cellar'] {
     }
     .lab-intro {
       padding: 28px 0;
-    }
-    .lab-board-mark {
-      display: none;
     }
     .lab-picker {
       grid-template-columns: 1fr;
@@ -891,9 +796,6 @@ html[data-skin='palace-cellar'] {
     .lab-launch {
       align-items: flex-start;
     }
-    .lab-launch > div {
-      max-width: 60%;
-    }
     .lab-launch .lab-primary {
       padding-inline: 16px;
     }
@@ -905,17 +807,6 @@ html[data-skin='palace-cellar'] {
       align-items: flex-start;
       flex-direction: column;
       gap: 12px;
-    }
-    .lab-toolbar {
-      padding: 8px 12px;
-      gap: 8px;
-    }
-    .lab-toolbar-title {
-      order: -1;
-      flex-basis: 100%;
-    }
-    .lab-toolbar .lab-mode-label {
-      display: none;
     }
     .lab-dialog {
       padding: 20px;
@@ -959,14 +850,11 @@ html[data-skin='palace-cellar'] {
       grid-template-columns: 1fr 1fr;
     }
     .lab-builds {
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 1fr;
     }
     .lab-launch {
       flex-direction: column;
       gap: 14px;
-    }
-    .lab-launch > div {
-      max-width: none;
     }
     .lab-launch > button {
       width: 100%;
@@ -979,6 +867,73 @@ html[data-skin='palace-cellar'] {
     }
     .lab-desktop-break {
       display: none;
+    }
+  }
+}
+
+/* Progressive disclosure: setup controls stay behind a single entry point. */
+html[data-skin='palace-cellar'] {
+  .lab-choice-description {
+    color: var(--muted-foreground);
+    font-size: 12px;
+    line-height: 1.5;
+    min-height: 36px;
+    margin: 12px 0 0;
+  }
+  .lab-tools {
+    padding: 12px 0;
+  }
+  .lab-tools > summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted-foreground);
+    width: fit-content;
+  }
+  .lab-tools[open] > summary {
+    margin-bottom: 20px;
+    color: var(--foreground);
+  }
+  .lab-secondary {
+    border: 0;
+    padding: 0;
+  }
+  .lab-session-tools {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .lab-session-title {
+    grid-column: 1 / -1;
+    font-size: 12px;
+  }
+  .lab-session-title > span {
+    color: var(--muted-foreground);
+  }
+  .lab-session-tools > .lab-text-button {
+    grid-column: 1 / -1;
+    order: 3;
+    justify-content: flex-start;
+  }
+  .lab-session-tools > .lab-mode-label {
+    grid-column: 1 / -1;
+  }
+  .lab-session-tools .lab-check {
+    font-size: 12px;
+  }
+  @media (max-width: 760px) {
+    .lab-builds {
+      grid-template-columns: 1fr 1fr;
+    }
+    .lab-build {
+      align-items: center;
+    }
+    .lab-choice-description {
+      min-height: 0;
+    }
+    .lab-picker {
+      gap: 24px;
     }
   }
 }
