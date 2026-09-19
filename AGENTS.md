@@ -46,3 +46,5 @@ Browser prototype of a turn-based match-3 roguelike. Russian interface.
 ## Branch contract: shared-board duels
 
 On `feat/shared-board-duels`, the user's latest attached Puzzle Quest reference replaces the former cyclic-shift combat contract. Read `docs/shared-board-duels.md`. The new authoritative rules are in `game/duel/`; both duel and route modes use them. Keep legacy engine files and old lab/campaign saves intact. Only `oskolki.duel.*` stores the new schema, validated by command replay. Do not graft a second combat implementation into React or the AI. The AI must not simulate unknown refills. SVG-only, restrained black-and-white UI with semantic resource colors. Preserve the existing hosting project ID.
+
+For item/reward changes in shared-board rules 2, read `docs/duel-items-v2.md`. Preserve four-slot tradeoffs, physical-collection triggers, per-action/initiative/encounter/run limits, seeded loot and the legacy-v1 replay/continuation path. Custom test gear must not award normal achievements. Do not change rarity labels without updating the catalog, loot weights and UI.

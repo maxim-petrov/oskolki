@@ -1,12 +1,3 @@
-import * as legacy from './legacy-v1/engine.ts';
-import {
-  freshItems,
-  itemState,
-  owns,
-  spellPayment,
-  type ItemState,
-} from './item-rules.ts';
-import { createOffers } from './loot.ts';
 import {
   CLASSES,
   COLORS,
@@ -32,17 +23,15 @@ import {
   swapBoard,
   type Match,
   type Tile,
-} from './board.ts';
+} from '../board.ts';
 export type Side = 'hero' | 'enemy';
 export type Config = {
   seed: number;
   classId: ClassId;
   mode: 'duel' | 'route';
   foe: number;
-  testGear?: ItemId[];
 };
 export type Fighter = {
-  items?: ItemState;
   name: string;
   art: string;
   hp: number;
@@ -71,8 +60,7 @@ export type Command =
   | { type: 'train'; stat: keyof Stats; gold?: boolean }
   | { type: 'next' };
 export type Duel = {
-  version: 1 | 2;
-  rareOffered?: boolean;
+  version: 1;
   config: Config;
   rng: { board: number; effect: number; loot: number };
   board: Tile[];
@@ -112,7 +100,7 @@ const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const note = (s: Duel, text: string) => {
   s.log = [...s.log.slice(-29), text];
 };
-const own = owns;
+const own = (f: Fighter, item: ItemId) => Object.values(f.gear).includes(item);
 export const manaCap = (f: Fighter, color: Color) =>
   20 + 2 * f.stats[color] + (own(f, 'reservoir') ? 8 : 0);
 export const statPrice = (s: Duel, stat: keyof Stats) =>
@@ -138,7 +126,6 @@ function fighter(
   gear: ItemId[],
 ): Fighter {
   const f: Fighter = {
-    items: freshItems(),
     name,
     art,
     hp,
@@ -161,11 +148,6 @@ function fighter(
   };
   gear.forEach((id) => equip(f, id));
   for (const c of COLORS) f.mana[c] = Math.min(4, Math.floor(f.stats[c] / 2));
-  if (own(f, 'bluePass')) {
-    gainMana(f, 'water', 2);
-    gainMana(f, 'earth', 2);
-  }
-  if (own(f, 'pocketVest')) itemState(f).barrier = 6;
   return f;
 }
 function opponent(index: number): Fighter {
@@ -198,13 +180,12 @@ export function createDuel(config: Config): Duel {
     hp,
     heroClass.stats,
     heroClass.spells,
-    config.testGear ?? heroClass.gear,
+    heroClass.gear,
   );
   hero.gold = config.mode === 'route' ? 10 : 0;
   const room = config.mode === 'route' ? 0 : config.foe;
   const s: Duel = {
-    version: 2,
-    rareOffered: false,
+    version: 1,
     config: copy(config),
     rng: {
       board: (config.seed ^ 0x9e3779b9) >>> 0,
@@ -249,22 +230,11 @@ export function validConfig(c: unknown): c is Config {
     ['duel', 'route'].includes(v.mode) &&
     Number.isInteger(v.foe) &&
     v.foe >= 0 &&
-    v.foe < FOES.length &&
-    (v.testGear === undefined ||
-      (v.mode === 'duel' &&
-        Array.isArray(v.testGear) &&
-        v.testGear.length <= 4 &&
-        v.testGear.every(
-          (id) => typeof id === 'string' && Object.hasOwn(ITEMS, id),
-        ) &&
-        new Set(v.testGear.map((id) => ITEMS[id].slot)).size ===
-          v.testGear.length))
+    v.foe < FOES.length
   );
 }
 function gainMana(f: Fighter, color: Color, amount: number) {
-  const overflow = Math.max(0, f.mana[color] + amount - manaCap(f, color));
   f.mana[color] = Math.min(manaCap(f, color), f.mana[color] + amount);
-  return overflow;
 }
 function unlock(s: Duel, id: string) {
   if (!s.achievements.includes(id)) s.achievements.push(id);
@@ -281,99 +251,34 @@ function advanceLevel(f: Fighter) {
 // Armor applies once per opposing action, across all spell, item and cascade hits.
 type ActionContext = {
   side: Side;
+  armorLeft: number;
   extra: boolean;
   groups: number;
   frames: Frame[];
   itemTriggered: boolean;
-  used: Set<ItemId>;
-  physical: Record<string, number>;
-  overflow: number;
-  gold: number;
-  mint: boolean;
-  wick: boolean;
-  armor: Record<Side, number>;
-  reflected: Record<Side, number>;
-  blocked: Record<Side, number>;
 };
-function proc(s: Duel, ctx: ActionContext, id: ItemId, series = false) {
-  const f = s[ctx.side];
-  if (
-    !own(f, id) ||
-    ctx.used.has(id) ||
-    (series && itemState(f).initiative[id])
-  )
-    return false;
-  ctx.used.add(id);
-  if (series) itemState(f).initiative[id] = true;
-  ctx.itemTriggered = true;
-  note(s, `${f.name}: ${ITEMS[id].name}.`);
-  return true;
-}
-function barrier(f: Fighter, amount: number) {
-  itemState(f).barrier = Math.min(6, itemState(f).barrier + amount);
-}
-function addMana(s: Duel, ctx: ActionContext, color: Color, amount: number) {
-  const f = s[ctx.side];
-  ctx.overflow += gainMana(f, color, amount);
-  if (ctx.overflow >= 3 && proc(s, ctx, 'overflowRobe')) barrier(f, 3);
-}
-function emptiest(f: Fighter): Color {
-  return [...COLORS].sort(
-    (a, b) => f.mana[a] / manaCap(f, a) - f.mana[b] / manaCap(f, b),
-  )[0];
-}
-function damage(
-  s: Duel,
-  ctx: ActionContext,
-  amount: number,
-  source: string,
-  targetSide: Side = other(ctx.side),
-  reflection = false,
-) {
-  const target = s[targetSide],
-    sourceSide = other(targetSide);
+function damage(s: Duel, ctx: ActionContext, amount: number, source: string) {
+  const target = s[other(ctx.side)];
   if (target.hp <= 0 || amount <= 0) return;
-  let hit = amount;
-  const absorbed = Math.min(ctx.armor[targetSide], hit);
-  ctx.armor[targetSide] -= absorbed;
-  hit -= absorbed;
-  const shield = Math.min(itemState(target).barrier, hit);
-  itemState(target).barrier -= shield;
-  hit -= shield;
+  let damage = amount;
+  const absorbed = Math.min(ctx.armorLeft, damage);
+  ctx.armorLeft -= absorbed;
+  damage -= absorbed;
   if (target.wall > 0) {
-    while (hit > 0) {
+    while (damage > 0) {
       const c = [...COLORS].sort((a, b) => target.mana[b] - target.mana[a])[0];
-      if (!target.mana[c]) break;
+      if (target.mana[c] === 0) break;
       target.mana[c]--;
-      hit--;
+      damage--;
     }
   }
-  if (
-    hit >= target.hp &&
-    own(target, 'insurance') &&
-    !itemState(target).insuranceUsed
-  ) {
-    itemState(target).insuranceUsed = true;
-    hit = target.hp - 1;
-    barrier(target, 6);
-    note(s, `${target.name}: Страховой полис использован — 1 здоровья.`);
-  }
-  const actual = Math.min(target.hp, hit);
+  const actual = Math.min(target.hp, damage);
   target.hp -= actual;
-  if (sourceSide === 'hero') s.metrics.damage += actual;
-  if (actual > 0 && own(target, 'answerCloak')) itemState(target).answer = true;
+  if (ctx.side === 'hero') s.metrics.damage += actual;
   note(
     s,
-    `${s[sourceSide].name}: ${source} — ${actual} урона${amount > actual && target.hp > 0 ? `, защита поглотила ${amount - actual}` : ''}.`,
+    `${s[ctx.side].name}: ${source} — ${actual} урона${amount > actual && target.hp > 0 ? `, защита поглотила ${amount - actual}` : ''}.`,
   );
-  if (!reflection && shield > 0 && own(target, 'mirrorVest')) {
-    ctx.blocked[targetSide] += shield;
-    const total = Math.min(3, Math.floor(ctx.blocked[targetSide] / 2));
-    const reflected = total - ctx.reflected[targetSide];
-    ctx.reflected[targetSide] = total;
-    if (reflected)
-      damage(s, ctx, reflected, 'Зеркальная жилетка', sourceSide, true);
-  }
 }
 function collect(
   s: Duel,
@@ -410,140 +315,46 @@ function collect(
           (normal + wilds.length) * Math.min(27, 3 ** wilds.length) - normal;
       }
     }
-  // Physical cells are separate from wildcard/mastery multipliers and resource grants.
-  const physical: Record<string, number> = {};
-  for (const i of cells)
-    if (board[i].kind !== 'wild')
-      physical[board[i].kind] = (physical[board[i].kind] ?? 0) + 1;
-  const wildAssigned = new Set<number>();
-  for (const g of groups)
-    if (isColor(g.kind))
-      for (const i of g.cells) {
-        if (cells.has(i) && board[i].kind === 'wild' && !wildAssigned.has(i)) {
-          wildAssigned.add(i);
-          physical[g.kind] = (physical[g.kind] ?? 0) + 1;
-        }
-      }
-  for (const [kind, n] of Object.entries(physical))
-    ctx.physical[kind] = (ctx.physical[kind] ?? 0) + n;
   for (const c of COLORS)
     if (counts[c])
-      addMana(
-        s,
-        ctx,
+      gainMana(
+        actor,
         c,
         counts[c] + Math.floor((counts[c] * actor.stats[c]) / 15),
       );
-  const st = itemState(actor);
-  if (
-    own(actor, 'capacitor') &&
-    st.capacitorReadyAt !== null &&
-    actor.actions >= st.capacitorReadyAt
-  ) {
-    const color = groups.find((g) => isColor(g.kind))?.kind;
-    if (color && isColor(color) && proc(s, ctx, 'capacitor')) {
-      st.capacitorReadyAt = null;
-      addMana(s, ctx, color, 4);
-    }
-  }
-  if (ctx.physical.earth >= 3 && proc(s, ctx, 'apron')) barrier(actor, 2);
-  if (ctx.physical.gold >= 3 && proc(s, ctx, 'abacus')) barrier(actor, 2);
-  if (ctx.physical.fire >= 3 && proc(s, ctx, 'copperClip'))
-    addMana(s, ctx, 'air', 1);
-  if (
-    COLORS.filter((c) => ctx.physical[c] > 0).length >= 2 &&
-    proc(s, ctx, 'conductor')
-  )
-    addMana(s, ctx, emptiest(actor), 2);
   let gold = counts.gold * (1 + Math.floor(actor.stats.cunning / 10));
-  if (
-    ctx.physical.water >= 3 &&
-    st.purseGold < 8 &&
-    proc(s, ctx, 'tidePurse')
-  ) {
+  if (counts.water >= 3 && own(actor, 'tidePurse')) {
     gold += 2;
-    st.purseGold += 2;
+    ctx.itemTriggered = true;
+    note(s, `${actor.name}: вода → 2 золота.`);
   }
   actor.gold += gold;
-  ctx.gold += gold;
-  if (counts.xp) {
-    if (own(actor, 'infiniteDiploma')) {
-      const n = Math.min(
-        counts.xp,
-        Math.max(0, 4 - ((ctx.physical.xp ?? 0) - counts.xp)),
-      );
-      for (const c of COLORS) if (n) addMana(s, ctx, c, n);
-    } else {
-      actor.xp += counts.xp + Math.floor((counts.xp * actor.stats.morale) / 10);
-      if (st.scholarXp < 6 && proc(s, ctx, 'scholar')) {
-        actor.xp += 2;
-        st.scholarXp += 2;
-      }
-    }
-  }
-  if (groups.some((g) => g.cells.length >= 4) && proc(s, ctx, 'veil'))
+  if (counts.xp)
+    actor.xp +=
+      counts.xp +
+      Math.floor((counts.xp * actor.stats.morale) / 10) +
+      (own(actor, 'scholar') ? 2 : 0);
+  if (groups.some((g) => g.cells.length >= 4) && own(actor, 'veil'))
     actor.stealthUntil = actor.actions + 4;
-  if (
-    groups.some((g) => g.kind === 'fire' && g.cells.length >= 4) &&
-    own(actor, 'wick')
-  )
-    ctx.wick = true;
-  if (ctx.gold >= 2 && own(actor, 'mint')) ctx.mint = true;
-  if (own(actor, 'directorPen') && !st.initiative.directorPen) {
-    for (const c of COLORS)
-      if (ctx.physical[c] >= 3 && !st.seals.includes(c)) st.seals.push(c);
-    if (st.seals.length === 4 && proc(s, ctx, 'directorPen', true)) {
-      st.seals = [];
-      barrier(actor, 4);
-      damage(s, ctx, 8, 'Перо директора');
-    }
-  }
-  if (actor.hp <= 0 || s[other(ctx.side)].hp <= 0) return gold;
   if (counts.skull) {
-    let skulls = counts.skull;
-    const long = groups.some((g) => g.kind === 'skull' && g.cells.length >= 4);
-    if (own(actor, 'quarterCutter')) {
-      // Only natural triples are suppressed. Direct spell/blast collection keeps its base damage.
-      const suppressed = new Set(
-        groups
-          .filter((g) => g.kind === 'skull' && g.cells.length === 3)
-          .flatMap((g) => g.cells),
-      );
-      skulls -= suppressed.size;
-    }
-    const blast = [...cells].reduce((n, i) => n + (board[i].power ?? 0), 0);
     let hit =
-      skulls > 0 ? skulls + Math.floor(actor.stats.battle / 3) + blast : blast;
-    if (hit > 0) {
-      if (proc(s, ctx, 'paperKnife')) hit++;
-      if (long && proc(s, ctx, 'chargeSeal')) hit += 4;
-      if (long && proc(s, ctx, 'quarterCutter')) hit += 8;
-      if (actor.hp <= actor.maxHp / 2 && proc(s, ctx, 'contractBlade'))
-        hit += 5;
-      if (proc(s, ctx, 'fullBlade'))
-        for (const c of COLORS)
-          if (actor.mana[c] === manaCap(actor, c)) {
-            hit += 4;
-            actor.mana[c] -= 2;
-          }
-      if (st.answer && own(actor, 'answerCloak')) {
-        hit += 3;
-        st.answer = false;
-      }
-      if (actor.stealthUntil > actor.actions) {
-        hit = Math.ceil(hit * 1.5);
-        actor.stealthUntil = 0;
-      }
-      damage(s, ctx, hit, 'черепа');
+      counts.skull +
+      Math.floor(actor.stats.battle / 3) +
+      [...cells].reduce((n, i) => n + (board[i].power ?? 0), 0);
+    if (own(actor, 'paperKnife')) hit++;
+    if (own(actor, 'fullBlade'))
+      hit +=
+        COLORS.filter((c) => actor.mana[c] === manaCap(actor, c)).length * 4;
+    if (actor.stealthUntil > actor.actions) {
+      hit = Math.ceil(hit * 1.5);
+      actor.stealthUntil = 0;
     }
+    damage(s, ctx, hit, 'черепа');
   }
-  if (
-    actor.hp > 0 &&
-    s[other(ctx.side)].hp > 0 &&
-    ctx.physical.water >= 3 &&
-    proc(s, ctx, 'tideNeedle')
-  )
+  if (counts.water >= 2 && own(actor, 'tideNeedle')) {
     damage(s, ctx, 2, 'Игла прилива');
+    ctx.itemTriggered = true;
+  }
   return gold;
 }
 function resolve(
@@ -574,7 +385,8 @@ function resolve(
       if (groups.some((g) => g.longest >= 5)) unlock(s, 'five');
       if ([...cells].some((i) => s.board[i].power)) unlock(s, 'blast');
     }
-    if (!(pending && !collectInitial)) collect(s, ctx, cells, groups);
+    const gold =
+      pending && !collectInitial ? 0 : collect(s, ctx, cells, groups);
     // Five in a straight line creates a wildcard at its middle, after collection.
     const protectedTiles = new Map<number, Tile>();
     for (const g of groups.filter((g) => g.longest >= 5)) {
@@ -582,20 +394,15 @@ function resolve(
       protectedTiles.set(i, { kind: 'wild' });
     }
     s.board = fall(s.board, cells, () => rand(s, 'board'), protectedTiles);
-    if (s.hero.hp > 0 && s.enemy.hp > 0) {
-      if (ctx.mint && !itemState(s[ctx.side]).initiative.mint) {
-        const candidates = s.board
-          .map((t, i) => (t.kind !== 'wild' && t.kind !== 'skull' ? i : -1))
-          .filter((i) => i >= 0);
-        if (candidates.length && proc(s, ctx, 'mint', true))
-          s.board[
-            candidates[Math.floor(rand(s, 'effect') * candidates.length)]
-          ] = { kind: 'skull' };
-      }
-      if (ctx.wick && !itemState(s[ctx.side]).initiative.wick) {
-        const target = s.board.findIndex((t) => t.kind === 'skull' && !t.power);
-        if (target >= 0 && proc(s, ctx, 'wick', true))
-          s.board[target] = { kind: 'skull', power: 5 };
+    if (gold >= 2 && own(s[ctx.side], 'mint') && s[other(ctx.side)].hp > 0) {
+      const candidates = s.board
+        .map((t, i) => (t.kind !== 'wild' && t.kind !== 'skull' ? i : -1))
+        .filter((i) => i >= 0);
+      if (candidates.length) {
+        s.board[candidates[Math.floor(rand(s, 'effect') * candidates.length)]] =
+          { kind: 'skull' };
+        ctx.itemTriggered = true;
+        note(s, `${s[ctx.side].name}: золото → череп.`);
       }
     }
     ctx.frames.push({
@@ -610,7 +417,7 @@ function resolve(
         : `Совпадения: ${groups.map((g) => g.cells.length).join(' + ')}${large.length ? ' · ещё ход' : ''}`,
     });
     pending = undefined;
-    if (s.hero.hp <= 0 || s.enemy.hp <= 0) return;
+    if (s[other(ctx.side)].hp <= 0) return;
   }
   // Technical circuit breaker; resources already collected remain. Never an endless cascade.
   s.board = freshBoard(() => rand(s, 'board'));
@@ -627,8 +434,7 @@ export function spellError(
   if (!spell || !f.spells.includes(spellId)) return 'Заклинание не изучено';
   if ((f.ready[spellId] ?? 0) > f.actions)
     return `Восстановление: ${(f.ready[spellId] ?? 0) - f.actions} действ.`;
-  const payment = spellPayment(f, spellId, s.version === 2);
-  if (COLORS.some((c) => f.mana[c] < (payment.cost[c] ?? 0)))
+  if (COLORS.some((c) => f.mana[c] < (spell.cost[c] ?? 0)))
     return 'Недостаточно маны';
   if (spellId === 'palm' && f.ki === 0) return 'Сначала накопите Ки';
   if (spellId === 'trance' && f.ki >= 8) return 'Ки уже на максимуме';
@@ -664,36 +470,7 @@ function cast(
   if (id === 'forge' && s.board[target!].kind === 'skull')
     return 'Здесь уже череп';
   const empowered = actor.mana.air >= 10;
-  const payment = spellPayment(actor, id);
-  for (const c of COLORS) actor.mana[c] -= payment.cost[c] ?? 0;
-  if (payment.health) {
-    actor.hp -= payment.health;
-    proc(s, ctx, 'bloodInkwell', true);
-  }
-  let spent = COLORS.reduce((n, c) => n + (payment.cost[c] ?? 0), 0);
-  if (proc(s, ctx, 'catalyst')) {
-    const refund = Math.min(
-      2,
-      Math.max(0, (payment.cost[payment.expensive] ?? 0) - 1),
-    );
-    addMana(s, ctx, payment.expensive, refund);
-    spent -= refund;
-  }
-  const st = itemState(actor);
-  if (own(actor, 'capacitor') && st.capacitorReadyAt === null) {
-    st.capacitorSpent += spent;
-    if (st.capacitorSpent >= 12) {
-      st.capacitorSpent %= 12;
-      st.capacitorReadyAt = actor.actions + 1;
-    }
-  }
-  if (own(actor, 'spinningTop') && !st.topReady) {
-    st.topCasts++;
-    if (st.topCasts >= 3) {
-      st.topCasts = 0;
-      st.topReady = true;
-    }
-  }
+  for (const c of COLORS) actor.mana[c] -= spell.cost[c] ?? 0;
   actor.ready[id] = actor.actions + spell.cooldown + 1;
   note(s, `${actor.name}: ${spell.name}.`);
   if (ctx.side === 'hero') s.metrics.spells++;
@@ -705,16 +482,9 @@ function cast(
     note(s, `${enemy.name} отразил заклинание. Мана потрачена.`);
     return;
   }
-  const direct = (base: number, name: string) => {
-    let hit = base;
-    if (proc(s, ctx, 'stylus')) hit += 2;
-    if (proc(s, ctx, 'carbonPaper', true))
-      hit += Math.min(6, Math.floor(base / 2));
-    damage(s, ctx, hit, name);
-  };
   switch (id) {
     case 'bolt':
-      direct(10 + Math.floor(actor.stats.fire / 5), 'Разряд');
+      damage(s, ctx, 10 + Math.floor(actor.stats.fire / 5), 'Разряд');
       break;
     case 'mend':
       actor.hp = Math.min(actor.maxHp, actor.hp + 11);
@@ -748,12 +518,11 @@ function cast(
       s.board[target!] = { kind: 'skull', power: 5 };
       break;
     case 'drain':
-      direct(6, 'Взыскание');
-      if (actor.hp <= 0 || enemy.hp <= 0) break;
+      damage(s, ctx, 6, 'Взыскание');
       for (const c of COLORS) {
         const n = Math.min(3, enemy.mana[c]);
         enemy.mana[c] -= n;
-        addMana(s, ctx, c, n);
+        gainMana(actor, c, n);
       }
       break;
     case 'wall':
@@ -772,8 +541,7 @@ function cast(
     case 'palm': {
       const ki = actor.ki;
       actor.ki = 0;
-      direct(ki * 2, 'Удар ладонью');
-      if (actor.hp <= 0 || enemy.hp <= 0) break;
+      damage(s, ctx, ki * 2, 'Удар ладонью');
       if (ki >= 5 && enemy.immune === 0) {
         enemy.stunned = 1;
         enemy.immune = 4;
@@ -817,12 +585,14 @@ function finishBattle(s: Duel) {
   s.phase = 'camp';
   const oldHp = s.hero.hp;
   s.hero.hp = Math.min(s.hero.maxHp, s.hero.hp + 12);
-  const loot = createOffers(s.hero, s.room, !!s.rareOffered, () =>
-    rand(s, 'loot'),
+  const choices = (Object.keys(ITEMS) as ItemId[]).filter(
+    (id) => !own(s.hero, id),
   );
-  s.offers = loot.offers;
-  s.stock = loot.stock;
-  s.rareOffered = loot.rareOffered;
+  // Loot has its own stream: testing another build cannot perturb refill RNG.
+  const draw = () =>
+    choices.splice(Math.floor(rand(s, 'loot') * choices.length), 1)[0];
+  s.offers = Array.from({ length: Math.min(3, choices.length) }, draw);
+  s.stock = Array.from({ length: Math.min(3, choices.length) }, draw);
   s.rewarded = false;
   note(
     s,
@@ -832,7 +602,7 @@ function finishBattle(s: Duel) {
 function endAction(s: Duel, ctx: ActionContext) {
   const actor = s[ctx.side],
     enemy = s[other(ctx.side)];
-  if (!ctx.extra && ctx.groups > 0 && enemy.hp > 0 && actor.hp > 0) {
+  if (!ctx.extra && ctx.groups > 0 && enemy.hp > 0) {
     const chance = Math.min(
       0.12,
       0.02 +
@@ -861,17 +631,6 @@ function endAction(s: Duel, ctx: ActionContext) {
     note(s, 'Героическое усилие: пять совпадений за действие.');
   }
   if (ctx.itemTriggered && ctx.side === 'hero') unlock(s, 'synergy');
-  if (
-    !ctx.extra &&
-    actor.hp > 0 &&
-    enemy.hp > 0 &&
-    itemState(actor).topReady &&
-    proc(s, ctx, 'spinningTop', true)
-  ) {
-    itemState(actor).topReady = false;
-    ctx.extra = true;
-  }
-  itemState(enemy).barrier = 0;
   actor.actions++;
   s.metrics.turns++;
   enemy.wall = Math.max(0, enemy.wall - 1);
@@ -895,11 +654,6 @@ function endAction(s: Duel, ctx: ActionContext) {
   }
 }
 export function dispatchDuel(original: Duel, command: Command): Result {
-  if (original.version === 1)
-    return legacy.dispatchDuel(
-      original as legacy.Duel,
-      command as legacy.Command,
-    ) as Result;
   const invalid = (error: string): Result => ({
     state: original,
     error,
@@ -912,26 +666,13 @@ export function dispatchDuel(original: Duel, command: Command): Result {
   const s = copy(original);
   const ctx: ActionContext = {
     side: s.actor,
+    armorLeft: own(s[other(s.actor)], 'coat') ? 2 : 0,
     extra: false,
     groups: 0,
     frames: [],
     itemTriggered: false,
-    used: new Set(),
-    physical: {},
-    overflow: 0,
-    gold: 0,
-    mint: false,
-    wick: false,
-    armor: {
-      hero: own(s.hero, 'coat') ? 2 : 0,
-      enemy: own(s.enemy, 'coat') ? 2 : 0,
-    },
-    blocked: { hero: 0, enemy: 0 },
-    reflected: { hero: 0, enemy: 0 },
   };
   if (s.phase === 'battle') {
-    itemState(s[other(s.actor)]).initiative = {};
-    if (proc(s, ctx, 'mirrorVest')) barrier(s[s.actor], 2);
     if (command.type === 'swap') {
       if (!adjacent(command.a, command.b))
         return invalid('Можно менять только соседние фишки');
@@ -1008,14 +749,8 @@ export function dispatchDuel(original: Duel, command: Command): Result {
         s.hero.stunned = 0;
         s.hero.immune = 0;
         s.hero.stealthUntil = 0;
-        s.hero.items = freshItems(itemState(s.hero).insuranceUsed);
-        if (own(s.hero, 'pocketVest')) itemState(s.hero).barrier = 6;
         for (const c of COLORS)
           s.hero.mana[c] = Math.min(4, Math.floor(s.hero.stats[c] / 2));
-        if (own(s.hero, 'bluePass')) {
-          gainMana(s.hero, 'water', 2);
-          gainMana(s.hero, 'earth', 2);
-        }
         s.board = freshBoard(() => rand(s, 'board'));
         s.offers = [];
         s.stock = [];
@@ -1038,23 +773,19 @@ export function fingerprint(s: Duel): string {
   return (hash >>> 0).toString(16);
 }
 export const saveDuel = (s: Duel) =>
-  s.version === 1
-    ? legacy.saveDuel(s as legacy.Duel)
-    : JSON.stringify({
-        schema: 'oskolki-shared-board-2',
-        config: s.config,
-        commands: s.commands,
-        fingerprint: fingerprint(s),
-      });
+  JSON.stringify({
+    schema: 'oskolki-shared-board-1',
+    config: s.config,
+    commands: s.commands,
+    fingerprint: fingerprint(s),
+  });
 // Saves contain a command journal, never trusted mutable fighter/board data.
 export function loadDuel(raw: string): Duel | null {
   if (raw.length > 500000) return null;
   try {
     const data = JSON.parse(raw);
-    if (data?.schema === 'oskolki-shared-board-1')
-      return legacy.loadDuel(raw) as Duel | null;
     if (
-      data.schema !== 'oskolki-shared-board-2' ||
+      data.schema !== 'oskolki-shared-board-1' ||
       !validConfig(data.config) ||
       !Array.isArray(data.commands) ||
       data.commands.length > 2000

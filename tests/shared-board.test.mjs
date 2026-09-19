@@ -12,7 +12,7 @@ import {
   statPrice,
   trainingGold,
   fingerprint,
-} from '../game/duel/engine.ts';
+} from '../game/duel/legacy-v1/engine.ts';
 import {
   findMatches,
   legalSwaps,
@@ -28,7 +28,7 @@ import {
   ITEMS,
   KINDS,
   SPELLS,
-} from '../game/duel/catalog.ts';
+} from '../game/duel/legacy-v1/catalog.ts';
 import { chooseAction } from '../game/duel/ai.ts';
 const clone = (value) => structuredClone(value);
 const start = (patch = {}) =>

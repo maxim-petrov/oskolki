@@ -1059,3 +1059,26 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+
+.duel-item-warning {
+  display: block;
+  border-left: 2px solid currentColor;
+  padding-left: 8px;
+  margin: 6px 0;
+}
+.duel-gear-test {
+  grid-column: 1 / -1;
+}
+.duel-gear-test label {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+.duel-gear-test select {
+  width: 100%;
+  min-width: 0;
+}
+.duel-gear-test p {
+  font-size: 13px;
+  line-height: 1.5;
+}

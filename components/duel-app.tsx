@@ -12,6 +12,10 @@ import {
   COLORS,
   FOES,
   ITEMS,
+  RARITY_NAMES,
+  RARITIES,
+  type ItemId,
+  type Slot,
   LABELS,
   SLOT_NAMES,
   SPELLS,
@@ -39,9 +43,21 @@ import {
   type Fighter,
   type Frame,
 } from '@/game/duel/engine';
+import { ITEMS as OLD_ITEMS } from '@/game/duel/legacy-v1/catalog';
+import { itemWarnings, spellPayment } from '@/game/duel/item-rules';
 import { chooseAction } from '@/game/duel/ai';
 import { VectorEnemy, VectorPerson } from './vector-art';
-const SAVE_KEY = 'oskolki.duel.session.v1';
+const SAVE_KEY = 'oskolki.duel.session.v2';
+const OLD_SAVE_KEY = 'oskolki.duel.session.v1';
+const V1_ITEMS = {
+  ...ITEMS,
+  ...Object.fromEntries(
+    Object.entries(OLD_ITEMS).map(([id, item]) => [
+      id,
+      { ...ITEMS[id as ItemId], ...item },
+    ]),
+  ),
+} as typeof ITEMS;
 const TROPHY_KEY = 'oskolki.duel.achievements.v1';
 const ACHIEVEMENTS: Record<string, string> = {
   victory: 'Первая победа',
@@ -171,9 +187,9 @@ function FighterPanel({
         {hero ? (
           <VectorPerson
             weaponId={
-              f.gear.weapon === 'fullBlade'
+              ['fullBlade', 'directorPen'].includes(f.gear.weapon ?? '')
                 ? 'gear-rune-sword'
-                : f.gear.weapon === 'tideNeedle'
+                : ['tideNeedle', 'stylus'].includes(f.gear.weapon ?? '')
                   ? 'gear-rusty-dagger'
                   : 'gear-cutter'
             }
@@ -215,6 +231,18 @@ function FighterPanel({
         ))}
       </div>
       <div className="duel-status">
+        {!!f.items?.barrier && <span>Барьер {f.items.barrier}/6</span>}
+        {f.items?.answer && <span>Ответ +3</span>}
+        {f.items?.topReady && <span>Юла готова</span>}
+        {f.items?.capacitorReadyAt != null && <span>Конденсатор заряжен</span>}
+        {!!f.items?.seals.length && (
+          <span>Печати {f.items.seals.length}/4</span>
+        )}
+        {f.gear.charm === 'insurance' && (
+          <span>
+            {f.items?.insuranceUsed ? 'Полис исчерпан' : 'Полис готов'}
+          </span>
+        )}
         {f.ki > 0 && <span>Ки {f.ki}/8</span>}
         {f.wall > 0 && <span>Стена · {f.wall}</span>}
         {f.stealthUntil > f.actions && <span>Тень</span>}
@@ -233,6 +261,7 @@ export function DuelApp({
   defaultMode?: Config['mode'];
 }) {
   const [state, setState] = useState<Duel | null>(null);
+  const items = state?.version === 1 ? V1_ITEMS : ITEMS;
   const [ready, setReady] = useState(false);
   const [setup, setSetup] = useState(true);
   const [config, setConfig] = useState<Config>({
@@ -260,7 +289,8 @@ export function DuelApp({
   /* eslint-disable react/react-compiler -- These two effects hydrate and persist a local external save, once on mount and after committed actions. */
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw =
+        localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(OLD_SAVE_KEY);
       if (raw) {
         const saved = loadDuel(raw);
         if (saved) {
@@ -295,6 +325,7 @@ export function DuelApp({
     } catch {
       setMessage('Не удалось сохранить. Выгрузите запись через меню.');
     }
+    if (state.config.testGear) return;
     setTrophies((previous) => {
       const all = [...new Set([...previous, ...state.achievements])];
       try {
@@ -498,9 +529,11 @@ export function DuelApp({
         <span className="duel-place">
           {setup
             ? 'Общая доска'
-            : state?.config.mode === 'route'
-              ? `Комната ${(state?.room ?? 0) + 1} / ${FOES.length}`
-              : 'Дуэль'}
+            : state?.config.testGear
+              ? 'Тест сборки'
+              : state?.config.mode === 'route'
+                ? `Комната ${(state?.room ?? 0) + 1} / ${FOES.length}`
+                : 'Дуэль'}
         </span>
         <button className="duel-menu-button" onClick={() => setMenu(true)}>
           Меню <span aria-hidden="true">☰</span>
@@ -531,7 +564,13 @@ export function DuelApp({
                 <button
                   key={mode}
                   aria-pressed={config.mode === mode}
-                  onClick={() => setConfig((c) => ({ ...c, mode }))}
+                  onClick={() =>
+                    setConfig((c) => {
+                      const next = { ...c, mode };
+                      if (mode === 'route') delete next.testGear;
+                      return next;
+                    })
+                  }
                 >
                   {mode === 'duel' ? 'Один бой' : 'Пять комнат'}
                 </button>
@@ -594,6 +633,76 @@ export function DuelApp({
                     </select>
                   </label>
                 )}
+                {config.mode === 'duel' && (
+                  <details className="duel-disclosure duel-gear-test">
+                    <summary>Испытать предметы</summary>
+                    <p>
+                      Выберите до четырёх вещей. Такой тест не выдаёт обычные
+                      достижения.
+                    </p>
+                    {(Object.keys(SLOT_NAMES) as Slot[]).map((slot) => (
+                      <label key={slot}>
+                        {SLOT_NAMES[slot]}
+                        <select
+                          aria-label={`Тест: ${SLOT_NAMES[slot]}`}
+                          value={
+                            (
+                              config.testGear ?? CLASSES[config.classId].gear
+                            ).find((id) => ITEMS[id].slot === slot) ?? ''
+                          }
+                          onChange={(e) =>
+                            setConfig((c) => ({
+                              ...c,
+                              testGear: [
+                                ...(
+                                  c.testGear ?? CLASSES[c.classId].gear
+                                ).filter((id) => ITEMS[id].slot !== slot),
+                                ...(e.target.value
+                                  ? [e.target.value as ItemId]
+                                  : []),
+                              ],
+                            }))
+                          }
+                        >
+                          <option value="">Пустой слот</option>
+                          {RARITIES.map((rarity) => (
+                            <optgroup key={rarity} label={RARITY_NAMES[rarity]}>
+                              {Object.values(ITEMS)
+                                .filter(
+                                  (item) =>
+                                    item.slot === slot &&
+                                    item.rarity === rarity,
+                                )
+                                .map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                    {config.testGear?.map((id) => (
+                      <p key={id}>
+                        <b>{ITEMS[id].name}.</b> {ITEMS[id].description}
+                      </p>
+                    ))}
+                    {config.testGear && (
+                      <button
+                        onClick={() =>
+                          setConfig((c) => {
+                            const next = { ...c };
+                            delete next.testGear;
+                            return next;
+                          })
+                        }
+                      >
+                        Вернуть стартовые вещи
+                      </button>
+                    )}
+                  </details>
+                )}
                 <label className="duel-checkbox">
                   <input
                     type="checkbox"
@@ -640,13 +749,24 @@ export function DuelApp({
                           className="duel-item"
                           onClick={() => apply({ type: 'reward', item: id })}
                         >
-                          <span>{SLOT_NAMES[ITEMS[id].slot]}</span>
-                          <strong>{ITEMS[id].name}</strong>
-                          <p>{ITEMS[id].description}</p>
+                          <span>
+                            {SLOT_NAMES[items[id].slot]}
+                            {state.version === 2 && (
+                              <> · {RARITY_NAMES[items[id].rarity]}</>
+                            )}
+                          </span>
+                          <strong>{items[id].name}</strong>
+                          <p>{items[id].description}</p>
+                          {state.version === 2 &&
+                            itemWarnings(state.hero.gear, id).map((w) => (
+                              <small className="duel-item-warning" key={w}>
+                                {w}
+                              </small>
+                            ))}
                           <small>
                             Заменит:{' '}
-                            {state.hero.gear[ITEMS[id].slot]
-                              ? ITEMS[state.hero.gear[ITEMS[id].slot]!].name
+                            {state.hero.gear[items[id].slot]
+                              ? items[state.hero.gear[items[id].slot]!].name
                               : 'пустой слот'}
                           </small>
                         </button>
@@ -673,20 +793,29 @@ export function DuelApp({
                     {state.stock.map((id) => (
                       <button
                         key={id}
-                        disabled={state.hero.gold < ITEMS[id].price}
+                        disabled={state.hero.gold < items[id].price}
                         className="duel-item"
                         onClick={() => apply({ type: 'buy', item: id })}
                       >
                         <span>
-                          {SLOT_NAMES[ITEMS[id].slot]} · {ITEMS[id].price}{' '}
-                          золота
+                          {SLOT_NAMES[items[id].slot]}
+                          {state.version === 2 && (
+                            <> · {RARITY_NAMES[items[id].rarity]}</>
+                          )}{' '}
+                          · {items[id].price} золота
                         </span>
-                        <strong>{ITEMS[id].name}</strong>
-                        <p>{ITEMS[id].description}</p>
+                        <strong>{items[id].name}</strong>
+                        <p>{items[id].description}</p>
+                        {state.version === 2 &&
+                          itemWarnings(state.hero.gear, id).map((w) => (
+                            <small className="duel-item-warning" key={w}>
+                              {w}
+                            </small>
+                          ))}
                         <small>
                           Заменит:{' '}
-                          {state.hero.gear[ITEMS[id].slot]
-                            ? ITEMS[state.hero.gear[ITEMS[id].slot]!].name
+                          {state.hero.gear[items[id].slot]
+                            ? items[state.hero.gear[items[id].slot]!].name
                             : 'пустой слот'}
                         </small>
                       </button>
@@ -909,7 +1038,14 @@ export function DuelApp({
                           }}
                         >
                           <strong>{spell.name}</strong>
-                          <Cost cost={spell.cost} />
+                          <Cost
+                            cost={
+                              spellPayment(state.hero, id, state.version === 2)
+                                .cost
+                            }
+                          />
+                          {spellPayment(state.hero, id, state.version === 2)
+                            .health > 0 && <small>−2 здоровья</small>}
                           {(state.hero.ready[id] ?? 0) > state.hero.actions && (
                             <small>
                               Ещё{' '}
@@ -1028,7 +1164,13 @@ export function DuelApp({
         {state && (
           <>
             <details className="duel-disclosure">
-              <summary>Ваш персонаж и противник</summary>
+              <summary>Снаряжение и персонажи</summary>
+              {state.version === 1 && (
+                <p>
+                  Сохранение продолжается по прежним правилам. Новый каталог
+                  доступен в новых забегах.
+                </p>
+              )}
               {[state.hero, state.enemy].map((f, index) => (
                 <section className="duel-dossier" key={index}>
                   <h3>{f.name}</h3>
@@ -1044,15 +1186,21 @@ export function DuelApp({
                   </p>
                   {Object.values(f.gear).map((id) => (
                     <p key={id}>
-                      <b>{ITEMS[id!].name}.</b> {ITEMS[id!].description}
+                      <b>{items[id!].name}.</b>{' '}
+                      {state.version === 2 && (
+                        <small>{RARITY_NAMES[items[id!].rarity]} · </small>
+                      )}
+                      {items[id!].description}
                     </p>
                   ))}
                   <h4>Заклинания</h4>
                   {f.spells.map((id) => (
                     <p key={id}>
                       <b>{SPELLS[id].name}.</b> {SPELLS[id].description}{' '}
-                      <Cost cost={SPELLS[id].cost} /> Восстановление:{' '}
-                      {SPELLS[id].cooldown}.
+                      <Cost
+                        cost={spellPayment(f, id, state.version === 2).cost}
+                      />{' '}
+                      Восстановление: {SPELLS[id].cooldown}.
                     </p>
                   ))}
                 </section>
@@ -1084,6 +1232,28 @@ export function DuelApp({
             </details>
           </>
         )}
+        <details className="duel-disclosure">
+          <summary>Каталог предметов · 32</summary>
+          <p>
+            Четыре слота. Барьер поглощает до 6 урона и исчезает после
+            следующего действия врага. Созданные фишки доступны обоим
+            участникам.
+          </p>
+          {RARITIES.map((rarity) => (
+            <details key={rarity} className="duel-disclosure">
+              <summary>{RARITY_NAMES[rarity]}</summary>
+              {Object.values(ITEMS)
+                .filter((item) => item.rarity === rarity)
+                .map((item) => (
+                  <p key={item.id}>
+                    <b>{item.name}</b> · {SLOT_NAMES[item.slot]}
+                    <br />
+                    {item.description}
+                  </p>
+                ))}
+            </details>
+          ))}
+        </details>
         <details className="duel-disclosure">
           <summary>
             Достижения · {trophies.length}/{Object.keys(ACHIEVEMENTS).length}

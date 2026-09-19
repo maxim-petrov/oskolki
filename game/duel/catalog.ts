@@ -142,99 +142,381 @@ export const SPELLS: Record<SpellId, Spell> = {
     target: true,
   },
 };
+export const RARITIES = [
+  'common',
+  'uncommon',
+  'rare',
+  'veryRare',
+  'legendary',
+] as const;
+export type Rarity = (typeof RARITIES)[number];
+export const RARITY_NAMES: Record<Rarity, string> = {
+  common: 'Common · Обычный',
+  uncommon: 'Uncommon · Необычный',
+  rare: 'Rare · Редкий',
+  veryRare: 'Very Rare · Очень редкий',
+  legendary: 'Legendary · Легендарный',
+};
+export const RARITY_PRICE: Record<Rarity, number> = {
+  common: 12,
+  uncommon: 22,
+  rare: 34,
+  veryRare: 50,
+  legendary: 0,
+};
 export type ItemId =
   | 'paperKnife'
-  | 'tideNeedle'
-  | 'fullBlade'
+  | 'stylus'
   | 'coat'
-  | 'veil'
-  | 'tidePurse'
-  | 'mint'
-  | 'reservoir'
+  | 'apron'
+  | 'copperClip'
+  | 'bluePass'
   | 'scholar'
-  | 'ward';
+  | 'abacus'
+  | 'tideNeedle'
+  | 'chargeSeal'
+  | 'pocketVest'
+  | 'answerCloak'
+  | 'tidePurse'
+  | 'reservoir'
+  | 'wick'
+  | 'conductor'
+  | 'fullBlade'
+  | 'contractBlade'
+  | 'veil'
+  | 'overflowRobe'
+  | 'catalyst'
+  | 'mint'
+  | 'ward'
+  | 'bloodInkwell'
+  | 'quarterCutter'
+  | 'mirrorVest'
+  | 'insurance'
+  | 'carbonPaper'
+  | 'capacitor'
+  | 'directorPen'
+  | 'spinningTop'
+  | 'infiniteDiploma';
 export type Item = {
   id: ItemId;
   name: string;
   slot: Slot;
+  rarity: Rarity;
   price: number;
   description: string;
+  tags: string[];
 };
 export const ITEMS: Record<ItemId, Item> = {
   paperKnife: {
     id: 'paperKnife',
     name: 'Нож для бумаги',
     slot: 'weapon',
-    price: 12,
-    description: '+1 к каждой волне урона черепами.',
+    rarity: 'common',
+    price: RARITY_PRICE.common,
+    description: 'Первая волна черепов за действие: +1 урона.',
+    tags: ['skull'],
   },
-  tideNeedle: {
-    id: 'tideNeedle',
-    name: 'Игла прилива',
+  stylus: {
+    id: 'stylus',
+    name: 'Стальной стилус',
     slot: 'weapon',
-    price: 24,
-    description: 'Собрать 2+ воды за волну → 2 урона. Срабатывает и от взрыва.',
-  },
-  fullBlade: {
-    id: 'fullBlade',
-    name: 'Полный клинок',
-    slot: 'weapon',
-    price: 30,
+    rarity: 'common',
+    price: RARITY_PRICE.common,
     description:
-      'Удар черепами: +4 урона за каждый полностью заполненный запас маны.',
+      'Прямой урон заклинания: +2. Не усиливает черепа и эффекты предметов.',
+    tags: ['spell'],
   },
   coat: {
     id: 'coat',
     name: 'Рабочая куртка',
     slot: 'armor',
-    price: 18,
-    description: 'Первые 2 урона каждого действия врага поглощаются.',
+    rarity: 'common',
+    price: RARITY_PRICE.common,
+    description: 'Поглощает первые 2 урона каждого действия противника.',
+    tags: ['defense'],
   },
-  veil: {
-    id: 'veil',
-    name: 'Плащ тени',
+  apron: {
+    id: 'apron',
+    name: 'Фартук подмастерья',
     slot: 'armor',
-    price: 28,
-    description:
-      'Матч 4+ даёт тень. Следующая волна черепов наносит ×1,5 урона. Тень живёт 3 ваших действия.',
+    rarity: 'common',
+    price: RARITY_PRICE.common,
+    description: 'Собрать 3 земли за действие → 2 барьера.',
+    tags: ['earth', 'defense'],
   },
-  tidePurse: {
-    id: 'tidePurse',
-    name: 'Кошелёк прилива',
+  copperClip: {
+    id: 'copperClip',
+    name: 'Медная скрепка',
     slot: 'charm',
-    price: 22,
-    description:
-      'Собрать 3+ воды за волну → +2 золота. Оно может запустить Монетный пресс.',
+    rarity: 'common',
+    price: RARITY_PRICE.common,
+    description: 'Собрать 3 огня за действие → 1 мана воздуха.',
+    tags: ['fire', 'spell'],
   },
-  mint: {
-    id: 'mint',
-    name: 'Монетный пресс',
-    slot: 'ring',
-    price: 26,
-    description:
-      'Собрать 2+ золота за волну → создать 1 череп в случайной обычной клетке. Один раз за волну.',
-  },
-  reservoir: {
-    id: 'reservoir',
-    name: 'Резервуар',
+  bluePass: {
+    id: 'bluePass',
+    name: 'Синий пропуск',
     slot: 'charm',
-    price: 22,
-    description: '+8 к вместимости каждого запаса маны.',
+    rarity: 'common',
+    price: RARITY_PRICE.common,
+    description: 'В начале каждого боя: +2 воды и +2 земли.',
+    tags: ['water', 'earth', 'spell'],
   },
   scholar: {
     id: 'scholar',
     name: 'Печать стажёра',
     slot: 'ring',
-    price: 18,
-    description: 'За сбор звёзд: +2 опыта за волну.',
+    rarity: 'common',
+    price: RARITY_PRICE.common,
+    description:
+      'Сбор звёзд: +2 опыта за действие, максимум 6 дополнительного опыта за бой.',
+    tags: ['growth'],
+  },
+  abacus: {
+    id: 'abacus',
+    name: 'Счётные костяшки',
+    slot: 'ring',
+    rarity: 'common',
+    price: RARITY_PRICE.common,
+    description: 'Собрать 3 монеты за действие → 2 барьера.',
+    tags: ['gold', 'defense'],
+  },
+  tideNeedle: {
+    id: 'tideNeedle',
+    name: 'Игла прилива',
+    slot: 'weapon',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description: 'Собрать 3 воды за действие → 2 урона противнику.',
+    tags: ['water'],
+  },
+  chargeSeal: {
+    id: 'chargeSeal',
+    name: 'Молоток наборщика',
+    slot: 'weapon',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description: 'Первая группа 4+ черепов за действие: +4 урона.',
+    tags: ['skull', 'long'],
+  },
+  pocketVest: {
+    id: 'pocketVest',
+    name: 'Карманный жилет',
+    slot: 'armor',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description: 'Каждый бой начинается с 6 барьера.',
+    tags: ['defense'],
+  },
+  answerCloak: {
+    id: 'answerCloak',
+    name: 'Плащ ответа',
+    slot: 'armor',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description:
+      'Потеря здоровья от врага заряжает следующую волну черепов: +3 урона. Заряд не складывается.',
+    tags: ['risk', 'skull'],
+  },
+  tidePurse: {
+    id: 'tidePurse',
+    name: 'Кошелёк прилива',
+    slot: 'charm',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description:
+      'Собрать 3 воды за действие → 2 золота. Максимум 8 дополнительного золота за бой.',
+    tags: ['water', 'gold'],
+  },
+  reservoir: {
+    id: 'reservoir',
+    name: 'Резервуар',
+    slot: 'charm',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description:
+      '+8 к вместимости каждого цвета маны. Запасы не заполняются автоматически.',
+    tags: ['spell', 'reserve'],
+  },
+  wick: {
+    id: 'wick',
+    name: 'Фитиль',
+    slot: 'charm',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description:
+      'Группа 4+ огня делает первый обычный череп на поле взрывным (+5). Один раз до реального действия врага.',
+    tags: ['fire', 'long', 'skull'],
+  },
+  conductor: {
+    id: 'conductor',
+    name: 'Кольцо проводника',
+    slot: 'ring',
+    rarity: 'uncommon',
+    price: RARITY_PRICE.uncommon,
+    description:
+      'Сбор двух разных стихий за действие → 2 маны в наименее заполненный запас.',
+    tags: ['spell', 'reserve', 'elements'],
+  },
+  fullBlade: {
+    id: 'fullBlade',
+    name: 'Полный клинок',
+    slot: 'weapon',
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
+    description:
+      'Первая волна черепов: +4 за каждый полный запас маны, затем тратит по 2 маны из этих запасов.',
+    tags: ['skull', 'reserve'],
+  },
+  contractBlade: {
+    id: 'contractBlade',
+    name: 'Договорной клинок',
+    slot: 'weapon',
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
+    description:
+      'При здоровье не выше половины: первая волна черепов за действие получает +5 урона.',
+    tags: ['risk', 'skull'],
+  },
+  veil: {
+    id: 'veil',
+    name: 'Плащ тени',
+    slot: 'armor',
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
+    description:
+      'Совпадение 4+ заряжает следующую волну черепов: ×1,5 урона. Заряд живёт 3 ваших действия, не складывается.',
+    tags: ['long', 'skull'],
+  },
+  overflowRobe: {
+    id: 'overflowRobe',
+    name: 'Мантия переполнения',
+    slot: 'armor',
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
+    description:
+      'Потерять 3 маны из-за полных запасов за действие → 3 барьера.',
+    tags: ['reserve', 'defense'],
+  },
+  catalyst: {
+    id: 'catalyst',
+    name: 'Катализатор',
+    slot: 'charm',
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
+    description:
+      'После заклинания вернуть до 2 маны самого дорогого цвета. Хотя бы 1 мана этого цвета расходуется.',
+    tags: ['spell'],
+  },
+  mint: {
+    id: 'mint',
+    name: 'Монетный пресс',
+    slot: 'ring',
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
+    description:
+      'Получить 2 золота с поля или от Кошелька → один случайный череп. Один раз до реального действия врага.',
+    tags: ['gold', 'skull'],
   },
   ward: {
     id: 'ward',
     name: 'Сухая печать',
     slot: 'ring',
-    price: 25,
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
     description:
-      '+20% вероятности отменить вражеское заклинание, направленное на вас.',
+      '+20 п.п. к отмене направленного на вас заклинания. Общий предел — 45%.',
+    tags: ['defense'],
+  },
+  bloodInkwell: {
+    id: 'bloodInkwell',
+    name: 'Кровавая чернильница',
+    slot: 'ring',
+    rarity: 'rare',
+    price: RARITY_PRICE.rare,
+    description:
+      'Первое заклинание до действия врага: скидка до 2 маны дорогого цвета за 2 здоровья. Минимум 1 мана. При HP ≤2 скидка отключена.',
+    tags: ['risk', 'spell'],
+  },
+  quarterCutter: {
+    id: 'quarterCutter',
+    name: 'Четвертной резак',
+    slot: 'weapon',
+    rarity: 'veryRare',
+    price: RARITY_PRICE.veryRare,
+    description:
+      'Тройки черепов не наносят урон. Первая группа 4+ черепов: +8 урона за действие. Прямой сбор и взрыв — обычный урон без бонуса.',
+    tags: ['skull', 'long'],
+  },
+  mirrorVest: {
+    id: 'mirrorVest',
+    name: 'Зеркальная жилетка',
+    slot: 'armor',
+    rarity: 'veryRare',
+    price: RARITY_PRICE.veryRare,
+    description:
+      'В начале вашего действия: 2 барьера. Каждые 2 поглощённого барьером урона отражают 1, максимум 3 за действие врага.',
+    tags: ['defense', 'gold'],
+  },
+  insurance: {
+    id: 'insurance',
+    name: 'Страховой полис',
+    slot: 'charm',
+    rarity: 'veryRare',
+    price: RARITY_PRICE.veryRare,
+    description:
+      'Один раз за забег пережить смертельное попадание с 1 HP и получить 6 барьера против оставшихся попаданий.',
+    tags: ['defense'],
+  },
+  carbonPaper: {
+    id: 'carbonPaper',
+    name: 'Копирка',
+    slot: 'charm',
+    rarity: 'veryRare',
+    price: RARITY_PRICE.veryRare,
+    description:
+      'Первое прямое заклинание до действия врага: дополнительно половина базового урона вниз, максимум 6. Не копирует другие эффекты.',
+    tags: ['spell'],
+  },
+  capacitor: {
+    id: 'capacitor',
+    name: 'Кольцо-конденсатор',
+    slot: 'ring',
+    rarity: 'veryRare',
+    price: RARITY_PRICE.veryRare,
+    description:
+      'Каждые 12 маны, потраченные на заклинания с учётом возврата, заряжают кольцо. Следующий сбор стихии в последующем действии: +4 маны её цвета. Один заряд.',
+    tags: ['spell', 'reserve'],
+  },
+  directorPen: {
+    id: 'directorPen',
+    name: 'Перо директора',
+    slot: 'weapon',
+    rarity: 'legendary',
+    price: RARITY_PRICE.legendary,
+    description:
+      'Сбор 3 фишек стихии ставит её печать. Четыре разные печати → 8 урона и 4 барьера. Максимум раз до действия врага.',
+    tags: ['elements', 'defense'],
+  },
+  spinningTop: {
+    id: 'spinningTop',
+    name: 'Вечная юла',
+    slot: 'charm',
+    rarity: 'legendary',
+    price: RARITY_PRICE.legendary,
+    description:
+      'Каждое третье заклинание заряжает дополнительное действие вместо передачи хода. Один заряд; максимум раз до реального действия врага.',
+    tags: ['spell'],
+  },
+  infiniteDiploma: {
+    id: 'infiniteDiploma',
+    name: 'Диплом бесконечности',
+    slot: 'ring',
+    rarity: 'legendary',
+    price: RARITY_PRICE.legendary,
+    description:
+      'Звёзды больше не дают опыт. Первые 4 за действие дают по 1 мане каждого цвета. Опыт за победу сохраняется.',
+    tags: ['reserve', 'spell'],
   },
 };
 export type ClassId = 'blade' | 'elementalist' | 'warlock' | 'monk';
@@ -262,12 +544,12 @@ export const CLASSES: Record<
       morale: 3,
     },
     spells: ['slice', 'forge', 'mend'],
-    gear: ['paperKnife', 'veil'],
+    gear: ['paperKnife', 'coat'],
     cheap: ['battle', 'air'],
   },
   elementalist: {
     name: 'Стихийник',
-    description: 'Вода приносит ману, урон и золото. Мана также защищает.',
+    description: 'Превращает землю в воду; использует ману для магии и защиты.',
     stats: {
       earth: 3,
       fire: 3,
@@ -278,7 +560,7 @@ export const CLASSES: Record<
       morale: 3,
     },
     spells: ['bolt', 'wall', 'transmute', 'mend'],
-    gear: ['tideNeedle', 'tidePurse', 'mint'],
+    gear: ['stylus', 'bluePass'],
     cheap: ['water', 'earth'],
   },
   warlock: {
@@ -294,7 +576,7 @@ export const CLASSES: Record<
       morale: 1,
     },
     spells: ['forge', 'bomb', 'drain', 'erase'],
-    gear: ['fullBlade', 'reservoir'],
+    gear: ['paperKnife', 'copperClip'],
     cheap: ['fire', 'cunning'],
   },
   monk: {
@@ -310,7 +592,7 @@ export const CLASSES: Record<
       morale: 4,
     },
     spells: ['trance', 'palm', 'mend'],
-    gear: ['coat', 'scholar'],
+    gear: ['coat', 'bluePass'],
     cheap: ['morale', 'earth'],
   },
 };
