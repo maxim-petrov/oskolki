@@ -1,4 +1,4 @@
-import { VISUAL_STYLE } from './visual-style';
+import { VISUAL_STYLE } from './visual-style.ts';
 import {
   previewEndTurn,
   acceptContract,
@@ -16,7 +16,7 @@ import {
   lineLocked,
   shiftCost,
   biomeAt,
-  TOTAL_ROOMS,
+  runLength,
   tideDamage,
   move,
   endTurn,
@@ -45,7 +45,7 @@ import {
   type State,
   type Result,
   type Family,
-} from './engine';
+} from './engine.ts';
 
 const actions = [
   'accept_contract',
@@ -247,7 +247,7 @@ export function gameSnapshot(s: State, busy: boolean, hidden = false) {
     restOptions: s.phase === 'rest' ? restOptions(s) : [],
     seed: s.seed >>> 0,
     room: s.room,
-    totalRooms: TOTAL_ROOMS,
+    totalRooms: runLength(s),
     biome: biomeAt(s.room),
     tide: s.tide ? { ...s.tide, damage: tideDamage(s) } : null,
     round: s.round,

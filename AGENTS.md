@@ -34,3 +34,11 @@ Browser prototype of a turn-based match-3 roguelike. Russian interface.
 ## Ветка feat/minimal-vector
 
 На этой ветке действует docs/minimal-vector.md: вся активная графика — чистый SVG и CSS. Предыдущий pixel-art контракт относится к исходной ветке. Сохранять полный движок, офис, кампанию и save/RNG контракты. Не возвращать raster в интерфейс.
+
+## Ветка feat/prototype-lab
+
+- Read docs/prototype-lab.md for the test workflow and deliberately reduced surface. The minimalist SVG/CSS contract above also applies here.
+- `/` is the laboratory; `/campaign` preserves the full game. Both must use the same authoritative engine and renderer. Never fork combat math into a lab-only implementation.
+- Laboratory saves, builds, history and mechanic marks use only `oskolki.lab.*` storage. They must not change campaign saves, achievements, unlocks, official challenges or streaks.
+- Replay records verify initial, intermediate and final state through the real action dispatcher. Bump LAB_VERSION when a rule or scenario change makes old replays incompatible; report incompatibility, never silently reinterpret them. Preserve campaign rules 1–6 compatibility.
+- Compare the same seed and change one variable at a time. A bot win, a mechanic mark, a passing test or a large content pool is not evidence of fun or retention. Human observations remain a separate step before expanding content.

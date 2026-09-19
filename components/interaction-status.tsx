@@ -13,10 +13,12 @@ export function InteractionStatus({
   game: s,
   busy,
   act,
+  command,
 }: {
   game: State;
   busy: boolean;
   act: (r: Result) => Promise<void>;
+  command?: (input: { action: string }) => Promise<void>;
 }) {
   if ((s.rulesVersion ?? 0) < 6 || !s.effectState) return null;
   const e = s.effectState;
@@ -74,7 +76,11 @@ export function InteractionStatus({
           type="button"
           aria-pressed={e.insurance}
           disabled={busy}
-          onClick={() => void act(toggleInsurance(s))}
+          onClick={() =>
+            void (command
+              ? command({ action: 'toggle_insurance' })
+              : act(toggleInsurance(s)))
+          }
           title="Только внешний урон после блока. 2 монеты за 1 здоровье; максимум 4 здоровья за ход."
         >
           Страховка {e.insurance ? 'вкл.' : 'выкл.'} · осталось {4 - e.insured}{' '}
@@ -96,7 +102,11 @@ export function InteractionStatus({
           <button
             type="button"
             disabled={busy || !canAcceptContract(s)}
-            onClick={() => void act(acceptContract(s))}
+            onClick={() =>
+              void (command
+                ? command({ action: 'accept_contract' })
+                : act(acceptContract(s)))
+            }
             title="Добровольно: победи не позднее третьего ответа врагов. При неудаче обычная награда сохраняется."
           >
             Контракт: до 3 ответов → +15 монет

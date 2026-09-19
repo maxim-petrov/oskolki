@@ -1,4 +1,11 @@
 import {
+  isScenarioId,
+  scenarioNodes,
+  SPRINT_RELIC_IDS,
+  SPRINT_SKILL_IDS,
+  type ScenarioId,
+} from './scenarios.ts';
+import {
   findMatchGroups,
   type MatchGroup,
   type MatchSource,
@@ -825,6 +832,7 @@ export type RunRecord = {
 };
 export type State = {
   version: 2;
+  scenario?: { version: 1; id: ScenarioId };
   rulesVersion?: 2 | 3 | 4 | 5 | 6 | 7;
   hero?: HeroId;
   difficulty?: 0 | 1;
@@ -1140,6 +1148,8 @@ RELICS.push(
   },
 );
 function relicPoolFor(s: State) {
+  if (s.scenario?.id === 'sprint')
+    return RELICS.filter((o) => SPRINT_RELIC_IDS.includes(o.id));
   return RELICS.filter(
     (o) => !INTERACTION_RELIC_IDS.includes(o.id) || interactions(s),
   ).filter(
@@ -1267,8 +1277,10 @@ SKILLS.push(
   },
 );
 export const skillPoolFor = (s: State) =>
-  SKILLS.filter(
-    (o) => interactions(s) || !INTERACTION_SKILL_IDS.includes(o.id),
+  SKILLS.filter((o) =>
+    s.scenario?.id === 'sprint'
+      ? SPRINT_SKILL_IDS.includes(o.id)
+      : interactions(s) || !INTERACTION_SKILL_IDS.includes(o.id),
   );
 export const SEALS: Offer[] = [
   {
@@ -2710,8 +2722,7 @@ function checkFinish(s: State) {
             : 15;
     if (s.roomKind === 'elite' && !s.flags.includes('run:elite'))
       s.flags.push('run:elite');
-    s.phase =
-      s.roomKind === 'boss' && s.room === TOTAL_ROOMS ? 'victory' : 'reward';
+    s.phase = isFinalEncounter(s) ? 'victory' : 'reward';
     if ((s.rulesVersion ?? 0) >= 3)
       s.rewardSource =
         s.roomKind === 'boss'
@@ -2741,7 +2752,9 @@ function checkFinish(s: State) {
     note(
       s,
       s.phase === 'victory'
-        ? `${s.enemies[0]?.name ?? 'Босс'} повержен. Оба биома пройдены.`
+        ? s.scenario
+          ? 'Сценарий завершён.'
+          : `${s.enemies[0]?.name ?? 'Босс'} повержен. Оба биома пройдены.`
         : 'Комната очищена. Выбери награду.',
     );
   } else if (
@@ -2832,6 +2845,147 @@ export function startRun(
   newBoard(s);
   resetActions(s);
   return s;
+}
+export type ScenarioLoadout = {
+  weapon: string;
+  quality: 0 | 1 | 2;
+  relics: string[];
+  modifiers: string[];
+  skills: string[];
+};
+export function startScenario(
+  id: ScenarioId,
+  seed: number,
+  loadout: ScenarioLoadout,
+  balance: Balance = DEFAULT_BALANCE,
+): State {
+  if (
+    !isScenarioId(id) ||
+    !WEAPONS.some((w) => w.id === loadout.weapon) ||
+    ![0, 1, 2].includes(loadout.quality) ||
+    !loadout.relics.every((x) => RELICS.some((r) => r.id === x)) ||
+    !loadout.modifiers.every((x) => MODIFIERS.some((r) => r.id === x)) ||
+    !loadout.skills.every((x) => SKILLS.some((r) => r.id === x))
+  )
+    throw Error('Неизвестная сборка или ситуация.');
+  const s = startRun(seed, balance);
+  s.scenario = { version: 1, id };
+  s.modified = true;
+  s.hero = 'wanderer';
+  s.runId = `lab-${id}-${seed}`;
+  s.equipment.weapon = loadout.weapon;
+  s.weaponQuality = loadout.quality;
+  s.relics = [...loadout.relics];
+  s.modifiers = [...loadout.modifiers];
+  s.skills = [...loadout.skills];
+  // The same seed keeps base families and subsequent RNG identical between builds.
+  const decoration = copy(s);
+  decoration.rng = (seed ^ 0x6576a91b) >>> 0;
+  s.board.forEach((t) => {
+    t.variant = tile(decoration, t.family).variant;
+  });
+  if (!validMoves(s.board, minimumMatch(s), matchRules(s).ring).length)
+    newBoard(s);
+  const nodes = scenarioNodes(id),
+    first = nodes[0];
+  s.journey = { nodes, current: first.id, visited: [first.id] };
+  s.roomKind = first.kind;
+  s.path = [first.name];
+  s.enemies = first.roster!.map((kind) => makeEnemy(s, kind));
+  s.target = s.enemies[0].id;
+  s.log = [];
+  s.chronicle = [];
+  resetActions(s);
+  note(
+    s,
+    `${first.name}. Сначала посмотри намерения врагов. До конца хода доступно ${actionMax(s)} действия.`,
+  );
+  return s;
+}
+export const runLength = (s: State) =>
+  s.scenario
+    ? Math.max(...scenarioNodes(s.scenario.id).map((n) => n.depth))
+    : TOTAL_ROOMS;
+function isFinalEncounter(s: State) {
+  return s.scenario
+    ? s.journey?.nodes.find((n) => n.id === s.journey?.current)?.next.length ===
+        0
+    : s.roomKind === 'boss' && s.room === TOTAL_ROOMS;
+}
+function validScenarioJourney(s: State): boolean {
+  const scenario = s.scenario,
+    j = s.journey;
+  if (
+    !scenario ||
+    scenario.version !== 1 ||
+    !isScenarioId(scenario.id) ||
+    s.rulesVersion !== 7 ||
+    !s.modified ||
+    !j ||
+    !Array.isArray(j.nodes) ||
+    JSON.stringify(j.nodes) !== JSON.stringify(scenarioNodes(scenario.id)) ||
+    !Array.isArray(j.visited) ||
+    !Array.isArray(s.path) ||
+    j.visited.length !== s.room ||
+    s.path.length !== s.room ||
+    !Array.isArray(s.enemies) ||
+    !Array.isArray(s.offers) ||
+    !s.streams ||
+    ![s.seed, s.rng, s.streams.map, s.streams.encounters, s.streams.loot].every(
+      (n) => Number.isInteger(n) && n >= 0 && n <= 0xffffffff,
+    )
+  )
+    return false;
+  for (let i = 0; i < j.visited.length; i++) {
+    const node = j.nodes.find((n) => n.id === j.visited[i]);
+    if (
+      !node ||
+      node.depth !== i + 1 ||
+      node.name !== s.path[i] ||
+      (i > 0 &&
+        !j.nodes.find((n) => n.id === j.visited[i - 1])?.next.includes(node.id))
+    )
+      return false;
+  }
+  const current = j.nodes.find((n) => n.id === j.current);
+  if (
+    !current ||
+    j.current !== j.visited.at(-1) ||
+    current.depth !== s.room ||
+    current.kind !== s.roomKind ||
+    s.challenge ||
+    s.seal ||
+    s.trial
+  )
+    return false;
+  if (
+    s.phase === 'victory' &&
+    (!isFinalEncounter(s) ||
+      s.offers?.length ||
+      s.enemies.some((e) => !e || e.hp > 0))
+  )
+    return false;
+  if (s.phase === 'map' && !current.next.length) return false;
+  if (s.phase === 'rest' && current.kind !== 'rest') return false;
+  if (s.phase === 'shop' && current.kind !== 'shop') return false;
+  if (
+    s.phase === 'battle' &&
+    !['battle', 'elite', 'boss'].includes(current.kind)
+  )
+    return false;
+  if (s.phase === 'event' || s.phase === 'trial') return false;
+  if (
+    s.phase === 'reward' &&
+    (isFinalEncounter(s) ||
+      s.rewardSource !==
+        (s.roomKind === 'treasure'
+          ? 'treasure'
+          : s.roomKind === 'elite'
+            ? 'elite'
+            : 'battle'))
+  )
+    return false;
+  return true;
 }
 function makeEnemy(
   s: State,
@@ -3816,6 +3970,7 @@ export function defeatExplanation(
 }
 export function updateMeta(input: Meta, s: State): Meta {
   const m = copy(input);
+  if (s.scenario) return m;
   if ((s.rulesVersion ?? 0) >= 4 && !s.modified)
     m.seen = [
       ...new Set([
@@ -3886,6 +4041,7 @@ export function updateMeta(input: Meta, s: State): Meta {
   return m;
 }
 export function abandonMeta(input: Meta, s: State) {
+  if (s.scenario) return copy(input);
   const m = copy(input);
   if (
     !['victory', 'defeat'].includes(s.phase) &&
@@ -4604,6 +4760,7 @@ function validJourneySave(s: State): boolean {
   const j = s.journey;
   const uint = (n: unknown) =>
     typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 0xffffffff;
+  if (s.scenario !== undefined) return validScenarioJourney(s);
   if (
     !Array.isArray(s.offers) ||
     !s.offers.every((o) => o && typeof o.id === 'string') ||
@@ -4784,7 +4941,7 @@ export function routeMap(s: State): RouteNode[][] {
     const available = new Set(
       s.phase === 'map' ? nextRooms(s).map((n) => n.id) : [],
     );
-    return Array.from({ length: TOTAL_ROOMS }, (_, i) =>
+    return Array.from({ length: runLength(s) }, (_, i) =>
       j.nodes
         .filter((n) => n.depth === i + 1)
         .map(
@@ -5416,6 +5573,10 @@ export function isSave(value: unknown): value is State {
   const s = value as State;
   return (
     s.version === 2 &&
+    (s.scenario === undefined ||
+      (s.rulesVersion === 7 &&
+        s.modified === true &&
+        validScenarioJourney(s))) &&
     validEffectState(s) &&
     (s.workshop === undefined ||
       (interactions(s) &&
