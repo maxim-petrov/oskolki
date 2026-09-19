@@ -1,45 +1,45 @@
 /* Active visual contract: docs/minimal-vector.md. Structural rules stay in the
    legacy stylesheets; this layer owns every visible surface on this branch. */
 html[data-skin='palace-cellar'] {
-  --background: #f3f5f7;
-  --foreground: #28323c;
+  --background: #fff;
+  --foreground: #0b0b0b;
   --card: #fff;
-  --card-foreground: #28323c;
+  --card-foreground: #0b0b0b;
   --popover: #fff;
-  --popover-foreground: #28323c;
-  --primary: #466dcc;
+  --popover-foreground: #0b0b0b;
+  --primary: #0b0b0b;
   --primary-foreground: #fff;
-  --secondary: #e9eef4;
-  --secondary-foreground: #28323c;
-  --muted: #edf0f4;
-  --muted-foreground: #657382;
-  --accent: #e6ecfa;
-  --accent-foreground: #28323c;
-  --border: #cbd2da;
-  --input: #cbd2da;
-  --ring: #466dcc;
+  --secondary: #fafafa;
+  --secondary-foreground: #0b0b0b;
+  --muted: #fafafa;
+  --muted-foreground: #626262;
+  --accent: #fafafa;
+  --accent-foreground: #0b0b0b;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #0b0b0b;
   --destructive: #b34f60;
   --red: #b34f60;
   --blue: #466dcc;
   --gold: #946b22;
   --violet: #278376;
-  --palace-ink: #28323c;
-  --palace-quiet: #657382;
-  --palace-paper: #eef1f5;
+  --palace-ink: #0b0b0b;
+  --palace-quiet: #626262;
+  --palace-paper: #fff;
   --palace-paper-light: #fff;
-  --palace-paper-pink: #f5e9ed;
-  --palace-paper-dim: #e4e9ef;
-  --palace-shadow: #d6dee7;
-  --palace-line-quiet: #cbd2da;
+  --palace-paper-pink: #fff;
+  --palace-paper-dim: #fff;
+  --palace-shadow: #e5e5e5;
+  --palace-line-quiet: #e5e5e5;
   --palace-red: #b34f60;
   --palace-white: #fff;
   --palace-blue: #466dcc;
-  --palace-paper-blue: #e6ecfa;
+  --palace-paper-blue: #fff;
   --palace-green: #278376;
-  --palace-paper-green: #e1efec;
+  --palace-paper-green: #fff;
   --palace-violet: #278376;
-  --palace-paper-violet: #e1efec;
-  --palace-weapon-tile: #f5e8ec;
+  --palace-paper-violet: #fff;
+  --palace-weapon-tile: #fff;
   --palace-water: #8bb9b2;
   --note-shadow: none;
   --radius: 6px;
@@ -93,7 +93,7 @@ html[data-skin='palace-cellar'] {
   button:focus-visible,
   a:focus-visible,
   summary:focus-visible {
-    outline: 2px solid #466dcc;
+    outline: 2px solid var(--ring);
     outline-offset: 4px;
   }
   :is([data-slot='button'], .header-actions button) {
@@ -103,8 +103,8 @@ html[data-skin='palace-cellar'] {
     min-height: 36px;
   }
   :is([data-slot='button'], .header-actions button):hover {
-    background: #e9eef9;
-    border-color: #91a6db;
+    background: #fafafa;
+    border-color: #0b0b0b;
   }
   .game-shell {
     max-width: 1400px;
@@ -189,16 +189,16 @@ html[data-skin='palace-cellar'] {
     border-radius: 50%;
   }
   .path-list li.current {
-    color: var(--blue);
+    color: var(--primary);
     font-weight: 650;
   }
   .current .path-dot {
-    background: var(--blue);
-    border-color: var(--blue);
+    background: var(--primary);
+    border-color: var(--primary);
     color: white;
   }
   .complete .path-dot {
-    background: #e0eae7;
+    background: #fff;
     color: var(--palace-green);
     border-color: #a8c5bb;
   }
@@ -209,7 +209,7 @@ html[data-skin='palace-cellar'] {
     height: 274px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: #f3f5f7;
+    background: #fff;
   }
   .arena-bg {
     opacity: 0.75;
@@ -227,12 +227,12 @@ html[data-skin='palace-cellar'] {
     right: 16px;
   }
   .arena-caption .eyebrow {
-    color: #657382;
+    color: #626262;
   }
   .turn-badge {
     border: 0;
     background: #fff;
-    color: #657382;
+    color: #626262;
     border-radius: 4px;
     font: 500 11px var(--font-sans);
     padding: 4px 8px;
@@ -255,7 +255,7 @@ html[data-skin='palace-cellar'] {
     shape-rendering: geometricPrecision;
   }
   .sprite-ground {
-    background: #bcc8d5;
+    background: #d4d4d4;
     height: 2px;
     opacity: 0.65;
     filter: none;
@@ -277,7 +277,7 @@ html[data-skin='palace-cellar'] {
   }
   .health-bar [data-slot='progress-track'] {
     height: 3px;
-    background: #e1e7ec;
+    background: #ededed;
     border: 0;
   }
   .health-bar [data-slot='progress-indicator'] {
@@ -303,8 +303,8 @@ html[data-skin='palace-cellar'] {
     color: var(--red);
   }
   .block-orb {
-    background: #e6ecfa;
-    border: 1px solid #bdccef;
+    background: #fff;
+    border: 1px solid #e5e5e5;
     color: var(--blue);
     border-radius: 50%;
   }
@@ -364,13 +364,13 @@ html[data-skin='palace-cellar'] {
   .action-pips i {
     width: 9px;
     height: 9px;
-    border: 1px solid #c4cfdb;
+    border: 1px solid #e5e5e5;
     border-radius: 50%;
-    background: #e1e7ec;
+    background: #ededed;
   }
   .action-pips .available {
-    background: var(--blue);
-    border-color: var(--blue);
+    background: var(--primary);
+    border-color: var(--primary);
   }
   .board-section {
     max-width: 480px;
@@ -386,44 +386,34 @@ html[data-skin='palace-cellar'] {
     padding: 0;
   }
   .board {
-    background: #e6ebf0;
-    border: 1px solid #d7dfe7;
+    background: #fff;
+    border: 1px solid #e5e5e5;
     border-radius: 8px;
     padding: 7px;
     gap: 5px;
   }
   .tile {
     background: var(--tile-fill);
-    border: 1px solid transparent;
+    border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--foreground);
   }
-  .tile-blade {
-    --tile-fill: #f6e9ed;
-  }
-  .tile-shield {
-    --tile-fill: #e5ecfc;
-  }
-  .tile-spark {
-    --tile-fill: #f4eddb;
-  }
-  .tile-focus {
-    --tile-fill: #deefea;
-  }
-  .tile-venom {
-    --tile-fill: #d1e6dd;
-  }
+  .tile-blade,
+  .tile-shield,
+  .tile-spark,
+  .tile-focus,
+  .tile-venom,
   .tile-bomb {
-    --tile-fill: #e2e2e9;
+    --tile-fill: var(--background);
   }
   .tile:hover {
-    border-color: #91a2b6;
+    border-color: #0b0b0b;
     filter: none;
     transform: translateY(-1px);
   }
   .tile.selected,
   .tile.edit-first {
-    outline: 2px solid var(--blue);
+    outline: 2px solid var(--primary);
     outline-offset: -2px;
     background: #fff;
   }
@@ -449,7 +439,7 @@ html[data-skin='palace-cellar'] {
     filter: none;
   }
   .weapon-variant {
-    border: 1px solid #aeb9c5;
+    border: 1px solid #e5e5e5;
     background: #fff;
     border-radius: 50%;
   }
@@ -460,13 +450,13 @@ html[data-skin='palace-cellar'] {
   .side-arrows button {
     background: transparent;
     border: 0;
-    color: #8494a4;
+    color: #626262;
     border-radius: 4px;
   }
   .arrow-row button:hover,
   .side-arrows button:hover {
-    background: #e1e8f6;
-    color: var(--blue);
+    background: #fafafa;
+    color: var(--primary);
     border-color: transparent;
   }
   .resource-pile,
@@ -502,7 +492,7 @@ html[data-skin='palace-cellar'] {
     height: 30px;
   }
   .gear-rarity {
-    color: var(--blue);
+    color: var(--primary);
     font-size: 8px;
   }
   .equipment-panel {
@@ -515,7 +505,7 @@ html[data-skin='palace-cellar'] {
     background: #fffffff5;
     border-top: 1px solid var(--border);
     padding-block: 10px;
-    backdrop-filter: blur(12px);
+    backdrop-filter: none;
   }
   .battle-actions-inner {
     max-width: 1344px;
@@ -523,15 +513,15 @@ html[data-skin='palace-cellar'] {
   }
   .battle-actions .end-turn,
   .end-turn {
-    background: var(--blue);
-    border: 1px solid var(--blue);
+    background: var(--primary);
+    border: 1px solid var(--primary);
     color: #fff;
     border-radius: 6px;
     min-height: 42px;
     font: 600 14px var(--font-sans);
   }
   .battle-actions .end-turn:hover {
-    background: #3659af;
+    background: #282828;
   }
   .action-counter {
     font: 600 13px var(--font-sans);
@@ -550,7 +540,7 @@ html[data-skin='palace-cellar'] {
     font-size: 12px;
   }
   [data-slot='dialog-overlay'] {
-    background: #26354966;
+    background: #00000066;
     backdrop-filter: blur(3px);
   }
   [data-slot='dialog-content'] {
@@ -572,18 +562,18 @@ html[data-skin='palace-cellar'] {
     font: 14px/1.6 var(--font-sans);
   }
   .panel-emblem {
-    background: #eef2f7;
+    background: #fff;
     border: 0;
     border-radius: 50%;
   }
   .merchant {
-    background: #f3f5f7;
+    background: #fff;
     border: 1px solid var(--border);
     border-radius: 8px;
     grid-template-columns: 112px 1fr;
   }
   .merchant-portrait {
-    background: #e8edf3;
+    background: #fff;
     border: 0;
     border-radius: 5px;
   }
@@ -600,7 +590,7 @@ html[data-skin='palace-cellar'] {
   .hero-rules,
   .archive-mechanics,
   .discovery-toast {
-    background: #edf2f9;
+    background: #fff;
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--foreground);
@@ -625,7 +615,7 @@ html[data-skin='palace-cellar'] {
     color: var(--foreground);
   }
   .office-menu {
-    background: #f3f5f7;
+    background: #fff;
     padding: 7vw;
     isolation: isolate;
   }
@@ -661,7 +651,7 @@ html[data-skin='palace-cellar'] {
   .office-menu-rule {
     width: 28px;
     height: 2px;
-    background: var(--blue);
+    background: var(--primary);
     margin: 30px 0;
   }
   .office-menu-story {
@@ -679,19 +669,19 @@ html[data-skin='palace-cellar'] {
     padding-inline: 15px;
   }
   .office-primary {
-    background: var(--blue) !important;
+    background: var(--primary) !important;
     color: #fff !important;
-    border: 1px solid var(--blue) !important;
+    border: 1px solid var(--primary) !important;
     border-radius: 6px;
   }
   .office-primary:hover {
-    background: #3659af !important;
+    background: #282828 !important;
   }
   .office-menu-footnote {
     font-size: 11px;
     line-height: 1.7;
     margin-top: 32px;
-    color: #788594;
+    color: #626262;
   }
   .office-menu-totem {
     left: auto;
@@ -725,7 +715,7 @@ html[data-skin='palace-cellar'] {
   .office-stage {
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: #f3f5f7;
+    background: #fff;
   }
   .office-hotspot {
     border: 1px solid var(--border);
@@ -735,16 +725,16 @@ html[data-skin='palace-cellar'] {
     padding: 7px 9px;
   }
   .office-hotspot.is-near {
-    border-color: var(--blue);
-    color: var(--blue);
-    background: #edf2ff;
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #fff;
   }
   .office-player {
     width: 14%;
   }
   .office-player-mark {
     border-radius: 3px;
-    color: var(--blue);
+    color: var(--primary);
     background: #fff;
     font-size: 10px;
   }
@@ -862,7 +852,7 @@ html[data-skin='palace-cellar'] {
       align-items: center;
     }
     .office-menu-note {
-      background: #f3f5f7e8;
+      background: #fffffff5;
       max-width: 340px;
       padding-block: 30px;
     }
@@ -965,8 +955,8 @@ html[data-skin='palace-cellar'] {
   .rest-heal:hover:not(:disabled),
   .upgrade-grid button:hover:not(:disabled),
   .replace-card:hover:not(:disabled) {
-    background: #edf2fc;
-    border-color: #9aaede;
+    background: #fafafa;
+    border-color: #0b0b0b;
     color: var(--foreground);
   }
   .offer-card > strong,
@@ -996,24 +986,24 @@ html[data-skin='palace-cellar'] {
     font-size: 12px;
   }
   .offer-tag {
-    color: var(--blue);
+    color: var(--primary);
     font-size: 12px;
   }
   .preset-options [aria-pressed='true'],
   .weapon-gallery-option[aria-pressed='true'] {
-    background: #e6ecfa;
-    color: var(--blue);
-    border-color: #9aaede;
+    background: #fff;
+    color: var(--primary);
+    border-color: #0b0b0b;
   }
   .seed-control input {
-    background: #f3f5f7;
+    background: #fff;
     border: 1px solid var(--border);
     color: var(--foreground);
     border-radius: 4px;
   }
   .panel-main-action {
-    background: var(--blue);
-    border: 1px solid var(--blue);
+    background: var(--primary);
+    border: 1px solid var(--primary);
     color: #fff;
     border-radius: 6px;
     font-size: 14px;
@@ -1024,7 +1014,7 @@ html[data-skin='palace-cellar'] {
   .archive-rule,
   .active-hero-rules {
     border: 1px solid var(--border);
-    background: #f3f5f7;
+    background: #fff;
     border-radius: 6px;
     color: var(--foreground);
   }
@@ -1040,7 +1030,7 @@ html[data-skin='palace-cellar'] {
   }
   [data-slot='dialog-overlay'],
   [data-slot='alert-dialog-overlay'] {
-    background: #26354966 !important;
+    background: #00000066 !important;
     backdrop-filter: blur(3px);
   }
 }
@@ -1132,9 +1122,9 @@ html[data-skin='palace-cellar'] {
   .relic-list > button,
   .modifier-list > button,
   .upgrade-pips span {
-    background: #e6ecfa;
-    border: 1px solid #c9d5ed;
-    color: var(--blue);
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    color: var(--primary);
     border-radius: 4px;
   }
   .board-legend {
@@ -1403,34 +1393,34 @@ html[data-skin='palace-cellar'] {
   }
   .map-scroll {
     border: 1px solid var(--border);
-    background: #f3f5f7;
+    background: #fff;
     border-radius: 6px;
   }
   .map-node.selected {
-    outline: 2px solid var(--blue);
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
-    border-color: var(--blue);
+    border-color: var(--primary);
   }
   .map-current {
     background: var(--foreground);
     color: #fff;
   }
   .map-visited {
-    background: #e1efec;
+    background: #fff;
     color: var(--palace-green);
     border-color: #9fc4bb;
   }
   .map-available {
-    background: #edf2fd;
+    background: #fff;
     color: var(--foreground);
-    border-color: #9aaede;
+    border-color: #0b0b0b;
   }
   .map-future {
-    background: #edf0f4;
+    background: #fafafa;
     color: var(--muted-foreground);
   }
   .map-paths .available {
-    stroke: var(--blue);
+    stroke: var(--primary);
     stroke-width: 2px;
   }
   .map-paths .taken {
@@ -1533,8 +1523,8 @@ html[data-skin='palace-cellar'] {
   .edit-skill:hover:not(:disabled),
   .skill-card:hover:not(:disabled),
   .potion:hover:not(:disabled) {
-    background: #edf2fc;
-    border-color: #9aaede;
+    background: #fafafa;
+    border-color: #0b0b0b;
   }
   @media (min-width: 960px) {
     .play-area > .arena.squad-arena {
