@@ -1,5 +1,5 @@
 'use client';
-import { LabApp } from '@/components/lab-app';
+import { DuelApp } from '@/components/duel-app';
 export default function Home() {
-  return <LabApp />;
+  return <DuelApp />;
 }

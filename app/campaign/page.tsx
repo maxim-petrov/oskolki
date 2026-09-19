@@ -1,5 +1,5 @@
 'use client';
-import Game from '@/components/game-session';
+import { DuelApp } from '@/components/duel-app';
 export default function Campaign() {
-  return <Game />;
+  return <DuelApp defaultMode="route" />;
 }

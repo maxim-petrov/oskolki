@@ -42,3 +42,7 @@ Browser prototype of a turn-based match-3 roguelike. Russian interface.
 - Laboratory saves, builds, history and mechanic marks use only `oskolki.lab.*` storage. They must not change campaign saves, achievements, unlocks, official challenges or streaks.
 - Replay records verify initial, intermediate and final state through the real action dispatcher. Bump LAB_VERSION when a rule or scenario change makes old replays incompatible; report incompatibility, never silently reinterpret them. Preserve campaign rules 1–6 compatibility.
 - Compare the same seed and change one variable at a time. A bot win, a mechanic mark, a passing test or a large content pool is not evidence of fun or retention. Human observations remain a separate step before expanding content.
+
+## Branch contract: shared-board duels
+
+On `feat/shared-board-duels`, the user's latest attached Puzzle Quest reference replaces the former cyclic-shift combat contract. Read `docs/shared-board-duels.md`. The new authoritative rules are in `game/duel/`; both duel and route modes use them. Keep legacy engine files and old lab/campaign saves intact. Only `oskolki.duel.*` stores the new schema, validated by command replay. Do not graft a second combat implementation into React or the AI. The AI must not simulate unknown refills. SVG-only, restrained black-and-white UI with semantic resource colors. Preserve the existing hosting project ID.
