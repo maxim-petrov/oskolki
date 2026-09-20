@@ -1,5 +1,5 @@
 'use client';
-import { DuelApp } from '@/components/duel-app';
+import { MirrorApp } from '@/components/mirror-app';
 export default function Home() {
-  return <DuelApp />;
+  return <MirrorApp />;
 }

@@ -7,9 +7,10 @@ import './minimal.css';
 import './scene-layout.css';
 import './lab.css';
 import './duel.css';
+import './mirror.css';
 import { VISUAL_STYLE } from '@/game/visual-style';
 export const metadata: Metadata = {
-  title: 'Осколки · общая доска',
+  title: 'Осколки · Ритм',
   icons: { icon: '/art/vector/favicon.svg' },
   description:
     'Рабочий день ещё не закончился. Исследуй офис и комнаты за дверью босса в тактическом match-3 рогалике.',
