@@ -1,7 +1,6 @@
-import * as v3 from './legacy-v3/engine.ts';
-import * as v2 from './legacy-v2/engine.ts';
+import * as v2 from '../legacy-v2/engine.ts';
 import { BIOMES, ENCOUNTERS, restHealing, victoryReward } from './campaign.ts';
-import * as legacy from './legacy-v1/engine.ts';
+import * as legacy from '../legacy-v1/engine.ts';
 import {
   freshItems,
   itemState,
@@ -35,7 +34,7 @@ import {
   swapBoard,
   type Match,
   type Tile,
-} from './board.ts';
+} from '../board.ts';
 export type Side = 'hero' | 'enemy';
 export type Config = {
   seed: number;
@@ -69,14 +68,12 @@ export type Fighter = {
 export type Command =
   | { type: 'swap'; a: number; b: number }
   | { type: 'cast'; spell: SpellId; target?: number }
-  | { type: 'yield'; accept: boolean }
   | { type: 'reward'; item: ItemId | null }
   | { type: 'buy'; item: ItemId }
   | { type: 'train'; stat: keyof Stats; gold?: boolean }
   | { type: 'next' };
 export type Duel = {
-  version: 1 | 2 | 3 | 4;
-  pendingYield?: { side: Side; barrierGain: number };
+  version: 1 | 2 | 3;
   rareOffered?: boolean;
   config: Config;
   rng: { board: number; effect: number; loot: number };
@@ -119,13 +116,7 @@ const note = (s: Duel, text: string) => {
 };
 const own = owns;
 export const manaCap = (f: Fighter, color: Color) =>
-  Math.max(
-    8,
-    20 +
-      2 * f.stats[color] +
-      (own(f, 'reservoir') ? 8 : 0) -
-      (own(f, 'openRing') ? 6 : 0),
-  );
+  20 + 2 * f.stats[color] + (own(f, 'reservoir') ? 8 : 0);
 export const statPrice = (s: Duel, stat: keyof Stats) =>
   (CLASSES[s.config.classId].cheap.includes(stat) ? 1 : 2) +
   Math.floor(s.hero.stats[stat] / 10);
@@ -214,7 +205,7 @@ export function createDuel(config: Config): Duel {
   hero.gold = config.mode === 'route' ? 10 : 0;
   const room = config.mode === 'route' ? 0 : config.foe;
   const s: Duel = {
-    version: 4,
+    version: 3,
     rareOffered: false,
     config: copy(config),
     rng: {
@@ -306,12 +297,6 @@ type ActionContext = {
   reflected: Record<Side, number>;
   blocked: Record<Side, number>;
   glassHit: Set<Side>;
-  reserveUsed: Set<Side>;
-  manualSwap: boolean;
-  firstWaveDone: boolean;
-  matchedExtra: boolean;
-  lastPassCandidate: boolean;
-  previewNotes: string[];
 };
 function proc(s: Duel, ctx: ActionContext, id: ItemId, series = false) {
   const f = s[ctx.side];
@@ -340,23 +325,6 @@ function emptiest(f: Fighter): Color {
     (a, b) => f.mana[a] / manaCap(f, a) - f.mana[b] / manaCap(f, b),
   )[0];
 }
-const colorLabel = (color: Color) =>
-  ({ earth: 'земляной', fire: 'огненной', air: 'воздушной', water: 'водяной' })[
-    color
-  ];
-function itemDetail(s: Duel, ctx: ActionContext, text: string) {
-  ctx.previewNotes.push(text);
-  note(s, text);
-}
-function ordinaryGroups(board: Tile[], groups: Match[]): Match[] {
-  return groups
-    .filter((group) => group.cells.every((i) => board[i].kind === group.kind))
-    .sort(
-      (a, b) =>
-        Math.min(...a.cells) - Math.min(...b.cells) ||
-        COLORS.indexOf(a.kind as Color) - COLORS.indexOf(b.kind as Color),
-    );
-}
 function damage(
   s: Duel,
   ctx: ActionContext,
@@ -379,28 +347,6 @@ function damage(
   const shield = Math.min(itemState(target).barrier, hit);
   itemState(target).barrier -= shield;
   hit -= shield;
-  if (
-    !reflection &&
-    hit >= 4 &&
-    own(target, 'reserveLining') &&
-    !ctx.reserveUsed.has(targetSide)
-  ) {
-    const color = [...COLORS]
-      .filter((c) => target.mana[c] - 3 >= Math.ceil(manaCap(target, c) / 2))
-      .sort((a, b) => target.mana[b] - target.mana[a])[0];
-    if (color) {
-      target.mana[color] -= 3;
-      hit -= 4;
-      ctx.reserveUsed.add(targetSide);
-      if (targetSide === ctx.side) ctx.itemTriggered = true;
-      if (targetSide === 'hero') unlock(s, 'synergy');
-      itemDetail(
-        s,
-        ctx,
-        `${target.name}: Подкладка запаса — 3 ${colorLabel(color)} маны поглощают 4 урона.`,
-      );
-    }
-  }
   if (target.wall > 0) {
     while (hit > 0) {
       const c = [...COLORS].sort((a, b) => target.mana[b] - target.mana[a])[0];
@@ -441,11 +387,9 @@ function collect(
   ctx: ActionContext,
   cells: Set<number>,
   groups: Match[],
-  firstWave = false,
-): { earth?: number; magnet?: number } {
+) {
   const actor = s[ctx.side],
     board = s.board;
-  const changes: { earth?: number; magnet?: number } = {};
   const counts: Record<string, number> = {
     earth: 0,
     fire: 0,
@@ -489,90 +433,15 @@ function collect(
       }
   for (const [kind, n] of Object.entries(physical))
     ctx.physical[kind] = (ctx.physical[kind] ?? 0) + n;
-  const st = itemState(actor);
-  const gross = emptyMana();
   for (const c of COLORS)
-    gross[c] = counts[c] + Math.floor((counts[c] * actor.stats[c]) / 15);
-  if (firstWave) {
-    const ordinary = ordinaryGroups(board, groups);
-    const colorGroups = ordinary.filter((g) => isColor(g.kind));
-    const redirect = (id: ItemId, group: Match | undefined, series = false) => {
-      if (
-        !group ||
-        !isColor(group.kind) ||
-        gross[group.kind] < 1 ||
-        !proc(s, ctx, id, series)
-      )
-        return false;
-      gross[group.kind]--;
-      return true;
-    };
-    const audit = colorGroups.find(
-      (g) => s[other(ctx.side)].mana[g.kind as Color] > 0,
-    );
-    if (redirect('auditPencil', audit, true)) {
-      const color = audit!.kind as Color;
-      const removed = Math.min(2, s[other(ctx.side)].mana[color]);
-      s[other(ctx.side)].mana[color] -= removed;
-      itemDetail(
+    if (counts[c])
+      addMana(
         s,
         ctx,
-        `Карандаш: −1 ${colorLabel(color)} маны из добычи, −${removed} у противника.`,
+        c,
+        counts[c] + Math.floor((counts[c] * actor.stats[c]) / 15),
       );
-    }
-    const edge = colorGroups.find((g) =>
-      g.cells.some((i) => i < 8 || i >= 56 || i % 8 === 0 || i % 8 === 7),
-    );
-    if (st.barrier <= 3 && redirect('edgeSleeves', edge)) {
-      barrier(actor, 3);
-      itemDetail(
-        s,
-        ctx,
-        `Нарукавники: −1 ${colorLabel(edge!.kind as Color)} маны из добычи, +3 барьера.`,
-      );
-    }
-    const water = ordinary.find(
-      (g) => g.kind === 'water' && g.cells.length === 3,
-    );
-    if (redirect('agreementSheet', water, true)) {
-      changes.earth = [...water!.cells].sort((a, b) => a - b)[1];
-      itemDetail(
-        s,
-        ctx,
-        'Лист: −1 водяной маны; в середине тройки останется общая земля.',
-      );
-    }
-    const primary = colorGroups[0]?.kind as Color | undefined;
-    const previous = st.shiftColor;
-    if (
-      primary &&
-      previous &&
-      primary !== previous &&
-      gross[primary] >= 1 &&
-      actor.mana[previous] + gross[previous] < manaCap(actor, previous) &&
-      proc(s, ctx, 'shiftRing')
-    ) {
-      gross[primary]--;
-      gross[previous]++;
-      itemDetail(
-        s,
-        ctx,
-        `Сменщик: 1 ${colorLabel(primary)} маны из добычи переходит в ${colorLabel(previous)}.`,
-      );
-    }
-    st.shiftColor = own(actor, 'shiftRing') ? (primary ?? null) : null;
-    if (
-      (physical.air ?? 0) >= 3 &&
-      own(actor, 'safetyMagnet') &&
-      !st.initiative.safetyMagnet
-    ) {
-      const target = board.findIndex(
-        (tile, i) => tile.kind === 'skull' && tile.power === 5 && !cells.has(i),
-      );
-      if (target >= 0) changes.magnet = target;
-    }
-  }
-  for (const c of COLORS) if (gross[c]) addMana(s, ctx, c, gross[c]);
+  const st = itemState(actor);
   if (
     own(actor, 'capacitor') &&
     st.capacitorReadyAt !== null &&
@@ -693,33 +562,7 @@ function collect(
     barrier(actor, 2);
     damage(s, ctx, 3, 'Трёхгранная призма');
   }
-  if (actor.hp <= 0 || s[other(ctx.side)].hp <= 0) return {};
-  if (
-    (physical.gold ?? 0) > 0 &&
-    ctx.physical.gold >= 3 &&
-    own(actor, 'exchangeCoupon')
-  ) {
-    const fractions = COLORS.map((c) => ({
-      color: c,
-      value: actor.mana[c] / manaCap(actor, c),
-    }));
-    const source = [...fractions].sort((a, b) => b.value - a.value)[0];
-    const target = [...fractions].sort((a, b) => a.value - b.value)[0];
-    if (
-      source.value > target.value &&
-      actor.mana[source.color] >= 2 &&
-      actor.mana[target.color] + 2 <= manaCap(actor, target.color) &&
-      proc(s, ctx, 'exchangeCoupon')
-    ) {
-      actor.mana[source.color] -= 2;
-      actor.mana[target.color] += 2;
-      itemDetail(
-        s,
-        ctx,
-        `Талон: 2 ${colorLabel(source.color)} маны переходят в ${colorLabel(target.color)}.`,
-      );
-    }
-  }
+  if (actor.hp <= 0 || s[other(ctx.side)].hp <= 0) return gold;
   if (counts.skull) {
     let skulls = counts.skull;
     const long = groups.some((g) => g.kind === 'skull' && g.cells.length >= 4);
@@ -731,25 +574,6 @@ function collect(
           .flatMap((g) => g.cells),
       );
       skulls -= suppressed.size;
-    }
-    if (
-      itemState(actor).barrier < 6 &&
-      ordinaryGroups(board, groups).some(
-        (g) =>
-          g.kind === 'skull' &&
-          g.cells.length === 3 &&
-          g.cells.every((i) => !board[i].power),
-      ) &&
-      proc(s, ctx, 'dullPunch')
-    ) {
-      const redirected = Math.min(2, 6 - itemState(actor).barrier, 3);
-      skulls -= redirected;
-      barrier(actor, redirected);
-      itemDetail(
-        s,
-        ctx,
-        `Дырокол: −${redirected} базового урона, +${redirected} барьера.`,
-      );
     }
     const blast = [...cells].reduce((n, i) => n + (board[i].power ?? 0), 0);
     let hit =
@@ -797,31 +621,7 @@ function collect(
     proc(s, ctx, 'tideNeedle')
   )
     damage(s, ctx, 2, 'Игла прилива');
-  if (actor.hp <= 0 || s[other(ctx.side)].hp <= 0) return {};
-  if (
-    firstWave &&
-    own(actor, 'lastPass') &&
-    !st.lastPassUsed &&
-    ordinaryGroups(board, groups).some((g) => g.cells.length === 3) &&
-    !groups.some((g) => g.cells.length >= 4) &&
-    COLORS.reduce((sum, c) => sum + actor.mana[c], 0) <= 6
-  ) {
-    ctx.lastPassCandidate = true;
-    itemDetail(
-      s,
-      ctx,
-      'Последний пропуск подготовлен: сохранит ход, если каскад, удача или Юла не дадут продолжение.',
-    );
-  }
-  if (changes.magnet !== undefined && proc(s, ctx, 'safetyMagnet', true)) {
-    s.board[changes.magnet] = { kind: 'skull' };
-    itemDetail(
-      s,
-      ctx,
-      `Магнит: череп ${Math.floor(changes.magnet / 8) + 1}:${(changes.magnet % 8) + 1} потеряет взрыв.`,
-    );
-  } else delete changes.magnet;
-  return changes;
+  return gold;
 }
 function resolve(
   s: Duel,
@@ -841,10 +641,7 @@ function resolve(
         : blastCells(s.board, selected);
     const before = copy(s.board);
     const large = groups.filter((g) => g.cells.length >= 4);
-    if (large.length) {
-      ctx.extra = true;
-      ctx.matchedExtra = true;
-    }
+    if (large.length) ctx.extra = true;
     if (ctx.side === 'hero') {
       s.metrics.matches += groups.length;
       s.metrics.longest = Math.max(
@@ -854,15 +651,9 @@ function resolve(
       if (groups.some((g) => g.longest >= 5)) unlock(s, 'five');
       if ([...cells].some((i) => s.board[i].power)) unlock(s, 'blast');
     }
-    const firstWave = ctx.manualSwap && !ctx.firstWaveDone;
-    ctx.firstWaveDone = true;
-    const changes = !(pending && !collectInitial)
-      ? collect(s, ctx, cells, groups, firstWave)
-      : {};
+    if (!(pending && !collectInitial)) collect(s, ctx, cells, groups);
     // Five in a straight line creates a wildcard at its middle, after collection.
     const protectedTiles = new Map<number, Tile>();
-    if (changes.earth !== undefined)
-      protectedTiles.set(changes.earth, { kind: 'earth' });
     for (const g of groups.filter((g) => g.longest >= 5)) {
       const i = g.cells[Math.floor(g.cells.length / 2)];
       protectedTiles.set(i, { kind: 'wild' });
@@ -910,11 +701,9 @@ export function spellError(
   if (s.version === 1)
     return legacy.spellError(s as legacy.Duel, spellId, side);
   if (s.version === 2) return v2.spellError(s as v2.Duel, spellId, side);
-  if (s.version === 3) return v3.spellError(s as v3.Duel, spellId, side);
   const f = s[side],
     spell = SPELLS[spellId];
   if (s.phase !== 'battle') return 'Бой уже завершён';
-  if (s.pendingYield) return 'Сначала выберите: продолжить или уступить ход';
   if (!spell || !f.spells.includes(spellId)) return 'Заклинание не изучено';
   if ((f.ready[spellId] ?? 0) > f.actions)
     return `Восстановление: ${(f.ready[spellId] ?? 0) - f.actions} действ.`;
@@ -1131,39 +920,6 @@ function finishBattle(s: Duel) {
     `Комната пройдена. +${victoryReward(s.room)} золота, отдых восстановил ${s.hero.hp - oldHp} здоровья.`,
   );
 }
-// Choice resolution must not replay action clocks, random luck or collection.
-function continueInitiative(s: Duel, side: Side, extra: boolean) {
-  const actor = s[side],
-    enemy = s[other(side)];
-  if (extra) {
-    s.actor = side;
-    if (side === 'hero') s.metrics.extra++;
-    note(s, `${actor.name} сохраняет инициативу.`);
-    if (
-      own(enemy, 'waitingVest') &&
-      !itemState(enemy).waitingSpent &&
-      enemy.mana.earth >= 2
-    ) {
-      enemy.mana.earth -= 2;
-      itemState(enemy).waitingSpent = true;
-      barrier(enemy, 4);
-      note(
-        s,
-        `${enemy.name}: Жилет ожидания — 2 земли за 4 барьера против продолжения.`,
-      );
-      if (other(side) === 'hero') unlock(s, 'synergy');
-    }
-  } else s.actor = other(side);
-  const next = s[s.actor];
-  if (next.stunned > 0) {
-    next.stunned--;
-    next.actions++;
-    next.immune = Math.max(0, next.immune - 1);
-    s[other(s.actor)].wall = Math.max(0, s[other(s.actor)].wall - 1);
-    note(s, `${next.name} пропускает действие из-за оглушения.`);
-    s.actor = other(s.actor);
-  }
-}
 function endAction(s: Duel, ctx: ActionContext) {
   const actor = s[ctx.side],
     enemy = s[other(ctx.side)];
@@ -1206,19 +962,6 @@ function endAction(s: Duel, ctx: ActionContext) {
     itemState(actor).topReady = false;
     ctx.extra = true;
   }
-  if (
-    !ctx.extra &&
-    ctx.lastPassCandidate &&
-    actor.hp > 0 &&
-    enemy.hp > 0 &&
-    enemy.stunned === 0 &&
-    !itemState(actor).lastPassUsed &&
-    proc(s, ctx, 'lastPass')
-  ) {
-    itemState(actor).lastPassUsed = true;
-    ctx.extra = true;
-    if (ctx.side === 'hero') unlock(s, 'synergy');
-  }
   itemState(enemy).barrier = 0;
   actor.actions++;
   s.metrics.turns++;
@@ -1227,29 +970,43 @@ function endAction(s: Duel, ctx: ActionContext) {
   finishBattle(s);
   if (s.phase !== 'battle') return;
   ensurePlayable(s);
-  if (
-    ctx.manualSwap &&
-    ctx.matchedExtra &&
-    own(actor, 'yieldRing') &&
-    itemState(actor).yieldUses < 3 &&
-    itemState(actor).barrier < 5 &&
-    enemy.stunned === 0
-  ) {
-    s.pendingYield = {
-      side: ctx.side,
-      barrierGain: Math.min(5, 6 - itemState(actor).barrier),
-    };
+  if (ctx.extra) {
     s.actor = ctx.side;
-    note(
-      s,
-      `${actor.name}: можно продолжить или уступить ход за ${s.pendingYield.barrierGain} барьера.`,
-    );
-    return;
+    if (ctx.side === 'hero') s.metrics.extra++;
+    note(s, `${actor.name} сохраняет инициативу.`);
+  } else s.actor = other(ctx.side);
+  const next = s[s.actor];
+  if (next.stunned > 0) {
+    next.stunned--;
+    next.actions++;
+    next.immune = Math.max(0, next.immune - 1);
+    s[other(s.actor)].wall = Math.max(0, s[other(s.actor)].wall - 1);
+    note(s, `${next.name} пропускает действие из-за оглушения.`);
+    s.actor = other(s.actor);
   }
-  continueInitiative(s, ctx.side, ctx.extra);
 }
-function actionContext(s: Duel): ActionContext {
-  return {
+export function dispatchDuel(original: Duel, command: Command): Result {
+  if (original.version === 1)
+    return legacy.dispatchDuel(
+      original as legacy.Duel,
+      command as legacy.Command,
+    ) as Result;
+  if (original.version === 2)
+    return v2.dispatchDuel(
+      original as v2.Duel,
+      command as v2.Command,
+    ) as Result;
+  const invalid = (error: string): Result => ({
+    state: original,
+    error,
+    frames: [],
+  });
+  if (!command || typeof command !== 'object')
+    return invalid('Неизвестное действие');
+  if (original.commands.length >= 6000)
+    return invalid('Лимит записи достигнут. Начните новый тест.');
+  const s = copy(original);
+  const ctx: ActionContext = {
     side: s.actor,
     extra: false,
     groups: 0,
@@ -1268,133 +1025,10 @@ function actionContext(s: Duel): ActionContext {
     blocked: { hero: 0, enemy: 0 },
     glassHit: new Set(),
     reflected: { hero: 0, enemy: 0 },
-    reserveUsed: new Set(),
-    manualSwap: false,
-    firstWaveDone: false,
-    matchedExtra: false,
-    lastPassCandidate: false,
-    previewNotes: [],
   };
-}
-function beginAction(s: Duel, ctx: ActionContext) {
-  itemState(s[other(ctx.side)]).initiative = {};
-  itemState(s[ctx.side]).waitingSpent = false;
-  if (proc(s, ctx, 'mirrorVest')) barrier(s[ctx.side], 2);
-}
-export type SwapItemPreview = {
-  notes: string[];
-  cells: number[];
-  damage: number;
-  health: number;
-  barrier: number;
-  mana: Mana;
-  enemyMana: Mana;
-  extra: boolean;
-  lastPassCandidate: boolean;
-};
-// Only the known first wave: no RNG, refills, fallback board, luck or timers.
-export function previewSwapItems(
-  original: Duel,
-  a: number,
-  b: number,
-): SwapItemPreview | null {
-  if (
-    original.version !== 4 ||
-    original.phase !== 'battle' ||
-    original.pendingYield ||
-    !adjacent(a, b)
-  )
-    return null;
-  const swapped = swapBoard(original.board, { a, b });
-  const groups = findMatches(swapped);
-  if (!groups.some((g) => g.cells.includes(a) || g.cells.includes(b)))
-    return null;
-  // Combat preview never reads the journal; cloning it once per AI candidate
-  // would make decision cost grow with every previous command in the run.
-  const s = copy({ ...original, commands: [] }),
-    ctx = actionContext(s);
-  ctx.manualSwap = true;
-  beginAction(s, ctx);
-  s.board = swapped.map((tile) => ({ ...tile }));
-  const changes = collect(
-    s,
-    ctx,
-    blastCells(
-      s.board,
-      groups.flatMap((g) => g.cells),
-    ),
-    groups,
-    true,
-  );
-  const before = original[ctx.side],
-    after = s[ctx.side];
-  const enemyBefore = original[other(ctx.side)],
-    enemyAfter = s[other(ctx.side)];
-  const mana = emptyMana(),
-    enemyMana = emptyMana();
-  for (const color of COLORS) {
-    mana[color] = after.mana[color] - before.mana[color];
-    enemyMana[color] = enemyAfter.mana[color] - enemyBefore.mana[color];
-  }
-  return {
-    notes: ctx.previewNotes,
-    cells: [changes.earth, changes.magnet].filter(
-      (i): i is number => i !== undefined,
-    ),
-    damage: enemyBefore.hp - enemyAfter.hp,
-    health: after.hp - before.hp,
-    barrier: itemState(after).barrier - (before.items?.barrier ?? 0),
-    mana,
-    enemyMana,
-    extra: groups.some((g) => g.cells.length >= 4),
-    lastPassCandidate: ctx.lastPassCandidate,
-  };
-}
-export function dispatchDuel(original: Duel, command: Command): Result {
-  if (original.version === 1)
-    return legacy.dispatchDuel(
-      original as legacy.Duel,
-      command as legacy.Command,
-    ) as Result;
-  if (original.version === 2)
-    return v2.dispatchDuel(
-      original as v2.Duel,
-      command as v2.Command,
-    ) as Result;
-  if (original.version === 3)
-    return v3.dispatchDuel(
-      original as v3.Duel,
-      command as v3.Command,
-    ) as Result;
-  const invalid = (error: string): Result => ({
-    state: original,
-    error,
-    frames: [],
-  });
-  if (!command || typeof command !== 'object')
-    return invalid('Неизвестное действие');
-  if (original.commands.length >= 6000)
-    return invalid('Лимит записи достигнут. Начните новый тест.');
-  const s = copy(original);
-  const ctx = actionContext(s);
-  if (s.pendingYield) {
-    if (
-      s.phase !== 'battle' ||
-      command.type !== 'yield' ||
-      typeof command.accept !== 'boolean'
-    )
-      return invalid('Сначала выберите: продолжить или уступить ход');
-    const side = s.pendingYield.side;
-    delete s.pendingYield;
-    if (command.accept) {
-      itemState(s[side]).yieldUses++;
-      barrier(s[side], 5);
-      note(s, `${s[side].name}: Кольцо уступки — ход отдан за барьер.`);
-      if (side === 'hero') unlock(s, 'synergy');
-      continueInitiative(s, side, false);
-    } else continueInitiative(s, side, true);
-  } else if (s.phase === 'battle') {
-    beginAction(s, ctx);
+  if (s.phase === 'battle') {
+    itemState(s[other(s.actor)]).initiative = {};
+    if (proc(s, ctx, 'mirrorVest')) barrier(s[s.actor], 2);
     if (command.type === 'swap') {
       if (!adjacent(command.a, command.b))
         return invalid('Можно менять только соседние фишки');
@@ -1406,7 +1040,6 @@ export function dispatchDuel(original: Duel, command: Command): Result {
       )
         return invalid('Перестановка должна собрать хотя бы 3 фишки');
       s.board = board;
-      ctx.manualSwap = true;
       note(
         s,
         `${s[s.actor].name}: перестановка ${Math.floor(command.a / 8) + 1}:${(command.a % 8) + 1} ↔ ${Math.floor(command.b / 8) + 1}:${(command.b % 8) + 1}.`,
@@ -1415,7 +1048,6 @@ export function dispatchDuel(original: Duel, command: Command): Result {
     } else if (command.type === 'cast') {
       const error = cast(s, ctx, command.spell, command.target);
       if (error) return invalid(error);
-      itemState(s[s.actor]).shiftColor = null;
     } else return invalid('Сейчас идёт бой');
     endAction(s, ctx);
   } else if (s.phase === 'camp') {
@@ -1510,14 +1142,12 @@ export const saveDuel = (s: Duel) =>
     ? legacy.saveDuel(s as legacy.Duel)
     : s.version === 2
       ? v2.saveDuel(s as v2.Duel)
-      : s.version === 3
-        ? v3.saveDuel(s as v3.Duel)
-        : JSON.stringify({
-            schema: 'oskolki-shared-board-4',
-            config: s.config,
-            commands: s.commands,
-            fingerprint: fingerprint(s),
-          });
+      : JSON.stringify({
+          schema: 'oskolki-shared-board-3',
+          config: s.config,
+          commands: s.commands,
+          fingerprint: fingerprint(s),
+        });
 // Saves contain a command journal, never trusted mutable fighter/board data.
 export function loadDuel(raw: string): Duel | null {
   if (raw.length > 1000000) return null;
@@ -1527,10 +1157,8 @@ export function loadDuel(raw: string): Duel | null {
       return legacy.loadDuel(raw) as Duel | null;
     if (data?.schema === 'oskolki-shared-board-2')
       return v2.loadDuel(raw) as Duel | null;
-    if (data?.schema === 'oskolki-shared-board-3')
-      return v3.loadDuel(raw) as Duel | null;
     if (
-      data.schema !== 'oskolki-shared-board-4' ||
+      data.schema !== 'oskolki-shared-board-3' ||
       !validConfig(data.config) ||
       !Array.isArray(data.commands) ||
       data.commands.length > 6000

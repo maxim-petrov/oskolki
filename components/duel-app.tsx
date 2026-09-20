@@ -33,6 +33,7 @@ import {
   experienceNeeded,
   loadDuel,
   manaCap,
+  previewSwapItems,
   saveDuel,
   spellError,
   statPrice,
@@ -53,12 +54,14 @@ import { FOES as OLD_FOES } from '@/game/duel/legacy-v2/catalog';
 import { ITEMS as OLD_ITEMS } from '@/game/duel/legacy-v1/catalog';
 import {
   itemWarnings,
+  itemConnections,
   spellPayment,
   spellDescription,
 } from '@/game/duel/item-rules';
 import { chooseAction } from '@/game/duel/ai';
 import { VectorEnemy, VectorPerson } from './vector-art';
-const SAVE_KEY = 'oskolki.duel.session.v3';
+const SAVE_KEY = 'oskolki.duel.session.v4';
+const V3_SAVE_KEY = 'oskolki.duel.session.v3';
 const V2_SAVE_KEY = 'oskolki.duel.session.v2';
 const OLD_SAVE_KEY = 'oskolki.duel.session.v1';
 const V1_ITEMS = {
@@ -270,6 +273,22 @@ function FighterPanel({
         )}
         {f.items?.answer && <span>Ответ +3</span>}
         {f.items?.topReady && <span>Юла готова</span>}
+        {f.gear.ring === 'shiftRing' && f.items?.shiftColor && (
+          <span title="При смене стихии 1 мана перейдёт в этот цвет">
+            Сменщик: {LABELS[f.items.shiftColor]}
+          </span>
+        )}
+        {f.gear.ring === 'yieldRing' && (
+          <span>Уступка: {3 - (f.items?.yieldUses ?? 0)}/3</span>
+        )}
+        {f.gear.ring === 'lastPass' && (
+          <span>
+            {f.items?.lastPassUsed ? 'Пропуск использован' : 'Пропуск готов'}
+          </span>
+        )}
+        {f.gear.armor === 'waitingVest' && f.items?.waitingSpent && (
+          <span>Жилет: серия прикрыта</span>
+        )}
         {f.items?.capacitorReadyAt != null && <span>Конденсатор заряжен</span>}
         {!!f.items?.seals.length && (
           <span>Печати {f.items.seals.length}/4</span>
@@ -316,6 +335,7 @@ export function DuelApp({
   const [trophies, setTrophies] = useState<string[]>([]);
   const [fast, setFast] = useState(false);
   const [focusCell, setFocusCell] = useState(0);
+  const [hoverCell, setHoverCell] = useState<number | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const latest = useRef<Duel | null>(null);
   const busy = useRef(false);
@@ -323,11 +343,13 @@ export function DuelApp({
   const suppressClick = useRef(false);
   const cells = useRef<(HTMLButtonElement | null)[]>([]);
   const inputFile = useRef<HTMLInputElement>(null);
+  const yieldContinue = useRef<HTMLButtonElement>(null);
   /* eslint-disable react/react-compiler -- These two effects hydrate and persist a local external save, once on mount and after committed actions. */
   useEffect(() => {
     try {
       const raw =
         localStorage.getItem(SAVE_KEY) ??
+        localStorage.getItem(V3_SAVE_KEY) ??
         localStorage.getItem(V2_SAVE_KEY) ??
         localStorage.getItem(OLD_SAVE_KEY);
       if (raw) {
@@ -397,6 +419,7 @@ export function DuelApp({
     setSelected(null);
     setTargeting(null);
     setHint(null);
+    setHoverCell(null);
     setMessage('');
     // Short feedback per actual wave; very long cascades still finish promptly.
     const visual =
@@ -446,6 +469,15 @@ export function DuelApp({
     );
     return () => window.clearTimeout(timer);
   }, [state, setup, menu, frames.length, fast, apply]);
+  useEffect(() => {
+    if (
+      state?.pendingYield?.side === 'hero' &&
+      !frames.length &&
+      !menu &&
+      !setup
+    )
+      yieldContinue.current?.focus();
+  }, [state?.pendingYield, frames.length, menu, setup]);
   function start(nextConfig = config) {
     setConfig(nextConfig);
     window.scrollTo(0, 0);
@@ -498,6 +530,7 @@ export function DuelApp({
     !!state &&
     state.phase === 'battle' &&
     state.actor === 'hero' &&
+    !state.pendingYield &&
     !frames.length &&
     !menu &&
     !setup;
@@ -542,17 +575,24 @@ export function DuelApp({
     }
   }
   const displayBoard = frames[0]?.board ?? state?.board;
+  const previewTarget = hoverCell ?? focusCell;
+  const itemPreview =
+    canPlay && !targeting && selected !== null
+      ? previewSwapItems(state!, selected, previewTarget)
+      : null;
   const result = state && ['won', 'lost'].includes(state.phase);
   const camp = state?.phase === 'camp';
   const roundStatus = frames.length
     ? `${frames[0].actor === 'hero' ? 'Вы' : state?.enemy.name}: ${frames[0].text}`
-    : state?.actor === 'enemy'
-      ? `${state.enemy.name} выбирает ход…`
-      : targeting
-        ? `${SPELLS[targeting].name}: выберите фишку`
-        : selected !== null
-          ? 'Выберите соседнюю фишку'
-          : 'Ваш ход';
+    : state?.pendingYield?.side === 'hero'
+      ? 'Продолжить ход или получить защиту?'
+      : state?.actor === 'enemy'
+        ? `${state.enemy.name} выбирает ход…`
+        : targeting
+          ? `${SPELLS[targeting].name}: выберите фишку`
+          : selected !== null
+            ? 'Выберите соседнюю фишку'
+            : 'Ваш ход';
   if (!ready) return <main className="duel-app duel-loading">Осколки</main>;
   return (
     <main className="duel-app">
@@ -571,7 +611,7 @@ export function DuelApp({
             : state?.config.testGear
               ? 'Тест сборки'
               : state?.config.mode === 'route'
-                ? state.version === 3
+                ? state.version >= 3
                   ? `${biomeAt(state.room).name} · ${(state.room % 5) + 1}/5`
                   : `Комната ${state.room + 1} / ${foes.length}`
                 : 'Дуэль'}
@@ -786,7 +826,7 @@ export function DuelApp({
               <section className="duel-camp">
                 <div className="duel-camp-heading">
                   <span>
-                    {state.version === 3
+                    {state.version >= 3
                       ? `${biomeAt(state.room).name} · ${ENCOUNTER_NAMES[ENCOUNTERS[state.room].kind]} пройден`
                       : 'Комната пройдена'}
                   </span>
@@ -796,7 +836,7 @@ export function DuelApp({
                     {state.hero.gold} золота · уровень {state.hero.level}
                   </p>
                 </div>
-                {state.version === 3 && (
+                {state.version >= 3 && (
                   <nav className="duel-biomes" aria-label="Путь по биомам">
                     {BIOMES.map((b, i) => (
                       <span
@@ -813,7 +853,7 @@ export function DuelApp({
                     ))}
                   </nav>
                 )}
-                {state.version === 3 && (
+                {state.version >= 3 && (
                   <p className="duel-loot-note">{biomeAt(state.room).loot}</p>
                 )}
                 {!state.rewarded ? (
@@ -840,6 +880,12 @@ export function DuelApp({
                                 {w}
                               </small>
                             ))}
+                          {state.version >= 4 &&
+                            itemConnections(state.hero.gear, id).map(
+                              (connection) => (
+                                <small key={connection}>{connection}</small>
+                              ),
+                            )}
                           <small>
                             Заменит:{' '}
                             {state.hero.gear[items[id].slot]
@@ -864,7 +910,8 @@ export function DuelApp({
                 <details className="duel-disclosure">
                   <summary>Торговец · {state.hero.gold} золота</summary>
                   <p>
-                    «Здесь нет бесполезных вещей. Есть неподходящие сочетания».
+                    «Могу продать вещь. Удачное сочетание придётся найти
+                    самому».
                   </p>
                   <div className="duel-items">
                     {state.stock.map((id) => (
@@ -889,6 +936,12 @@ export function DuelApp({
                               {w}
                             </small>
                           ))}
+                        {state.version >= 4 &&
+                          itemConnections(state.hero.gear, id).map(
+                            (connection) => (
+                              <small key={connection}>{connection}</small>
+                            ),
+                          )}
                         <small>
                           Заменит:{' '}
                           {state.hero.gear[items[id].slot]
@@ -942,7 +995,7 @@ export function DuelApp({
                 </details>
                 <div className="duel-next">
                   <p>
-                    {state.version === 3 && state.room % 5 === 4 && (
+                    {state.version >= 3 && state.room % 5 === 4 && (
                       <strong>
                         {biomeAt(state.room + 1).name}
                         <br />
@@ -1010,7 +1063,7 @@ export function DuelApp({
               <section
                 className="duel-battle"
                 data-biome={
-                  state.version === 3 ? biomeAt(state.room).id : 'legacy'
+                  state.version >= 3 ? biomeAt(state.room).id : 'legacy'
                 }
                 aria-label="Дуэль на общей доске"
               >
@@ -1040,9 +1093,39 @@ export function DuelApp({
                       </button>
                     )}
                   </output>
+                  {state.pendingYield?.side === 'hero' && !frames.length && (
+                    <fieldset
+                      className="duel-yield"
+                      aria-label="Кольцо уступки"
+                    >
+                      <p>
+                        <b>Кольцо уступки</b>
+                        <span>
+                          Можно сохранить ход или отдать поле врагу за{' '}
+                          {state.pendingYield.barrierGain} барьера.
+                        </span>
+                      </p>
+                      <div>
+                        <button
+                          ref={yieldContinue}
+                          onClick={() =>
+                            apply({ type: 'yield', accept: false })
+                          }
+                        >
+                          Продолжить ход
+                        </button>
+                        <button
+                          onClick={() => apply({ type: 'yield', accept: true })}
+                        >
+                          Уступить: +{state.pendingYield.barrierGain} барьера
+                        </button>
+                      </div>
+                    </fieldset>
+                  )}
                   <fieldset
                     className={`duel-board ${targeting ? 'is-targeting' : ''} ${!canPlay ? 'is-busy' : ''}`}
                     aria-label="Общее поле 8 на 8. Выберите фишку и её соседа. Стрелки перемещают фокус, Enter выбирает."
+                    onPointerLeave={() => setHoverCell(null)}
                   >
                     {displayBoard?.map((tile, i) => (
                       <button
@@ -1054,7 +1137,12 @@ export function DuelApp({
                         aria-label={`Строка ${Math.floor(i / 8) + 1}, столбец ${(i % 8) + 1}: ${LABELS[tile.kind]}${tile.power ? ' +5' : ''}`}
                         aria-pressed={selected === i}
                         aria-disabled={!canPlay}
-                        className={`duel-cell ${selected === i ? 'is-selected' : ''} ${frames[0]?.cells.includes(i) ? 'is-collected' : ''} ${hint?.type === 'swap' && [hint.a, hint.b].includes(i) ? 'is-hint' : ''} ${targeting === 'bomb' && tile.kind !== 'skull' ? 'is-ineligible' : ''}`}
+                        className={`duel-cell ${selected === i ? 'is-selected' : ''} ${itemPreview?.cells.includes(i) ? 'is-item-target' : ''} ${frames[0]?.cells.includes(i) ? 'is-collected' : ''} ${hint?.type === 'swap' && [hint.a, hint.b].includes(i) ? 'is-hint' : ''} ${targeting === 'bomb' && tile.kind !== 'skull' ? 'is-ineligible' : ''}`}
+                        onPointerEnter={() => setHoverCell(i)}
+                        onFocus={() => {
+                          setFocusCell(i);
+                          setHoverCell(null);
+                        }}
                         onKeyDown={(e) => boardKey(e, i)}
                         onClick={() => {
                           if (suppressClick.current) {
@@ -1102,8 +1190,10 @@ export function DuelApp({
                     ))}
                   </fieldset>
                   <div className="duel-feedback" aria-live="polite">
-                    {message ||
-                      (frames.length ? '' : state.log[state.log.length - 1])}
+                    {itemPreview?.notes.length
+                      ? `Первое совпадение: ${itemPreview.notes.join(' ')} Дальнейшие каскады неизвестны.`
+                      : message ||
+                        (frames.length ? '' : state.log[state.log.length - 1])}
                   </div>
                   <div className="duel-spells" aria-label="Ваши заклинания">
                     {state.hero.spells.map((id) => {
@@ -1165,7 +1255,7 @@ export function DuelApp({
                 <FighterPanel
                   f={state.enemy}
                   encounterLabel={
-                    state.version === 3
+                    state.version >= 3
                       ? ENCOUNTER_NAMES[ENCOUNTERS[state.room].kind]
                       : undefined
                   }
@@ -1257,7 +1347,7 @@ export function DuelApp({
           <>
             <details className="duel-disclosure">
               <summary>Снаряжение и персонажи</summary>
-              {state.version < 3 && (
+              {state.version < 4 && (
                 <p>
                   Сохранение продолжается по прежним правилам. Новый каталог
                   доступен в новых забегах.
@@ -1343,7 +1433,8 @@ export function DuelApp({
           <p>
             Четыре слота. Барьер поглощает до 6 урона и исчезает после
             следующего действия врага. Созданные фишки доступны обоим
-            участникам.
+            участникам. Редкость не гарантирует усиление: некоторые вещи слабы
+            сами по себе или требуют сочетания, которое может не найтись.
           </p>
           {RARITIES.map((rarity) => (
             <details key={rarity} className="duel-disclosure">
@@ -1355,6 +1446,9 @@ export function DuelApp({
                     <b>{item.name}</b> · {SLOT_NAMES[item.slot]}
                     <br />
                     {item.description}
+                    {item.risk && (
+                      <small className="duel-item-warning">{item.risk}</small>
+                    )}
                   </p>
                 ))}
             </details>

@@ -1,7 +1,5 @@
-import { chooseAction as v3Action } from './legacy-v3/ai.ts';
-import type { Duel as V3Duel } from './legacy-v3/engine.ts';
-import { chooseAction as oldAction } from './legacy-v2/ai.ts';
-import type { Duel as OldDuel } from './legacy-v2/engine.ts';
+import { chooseAction as oldAction } from '../legacy-v2/ai.ts';
+import type { Duel as OldDuel } from '../legacy-v2/engine.ts';
 import { COLORS, SPELLS, type SpellId } from './catalog.ts';
 import {
   blastCells,
@@ -11,10 +9,9 @@ import {
   swapBoard,
   type Match,
   type Tile,
-} from './board.ts';
+} from '../board.ts';
 import {
   manaCap,
-  previewSwapItems,
   spellError,
   type Command,
   type Duel,
@@ -25,13 +22,7 @@ import { owns, spellPayment } from './item-rules.ts';
 // Exactly the same visible information is available to a human and this policy.
 export function chooseAction(s: Duel, side: Side = s.actor): Command | null {
   if (s.version < 3) return oldAction(s as OldDuel, side);
-  if (s.version === 3) return v3Action(s as V3Duel, side);
   if (s.phase !== 'battle') return null;
-  // A conservative visible policy keeps tempo; it never predicts the opponent's refill.
-  if (s.pendingYield)
-    return side === s.pendingYield.side
-      ? { type: 'yield', accept: false }
-      : null;
   const me = s[side],
     enemy = s[side === 'hero' ? 'enemy' : 'hero'];
   const candidates: { command: Command; score: number }[] = [];
@@ -176,36 +167,11 @@ export function chooseAction(s: Duel, side: Side = s.actor): Command | null {
       (groups.some((m) => m.longest >= 5) ? 8 : 0)
     );
   };
-  for (const move of legalSwaps(s.board)) {
-    const preview = previewSwapItems({ ...s, actor: side }, move.a, move.b);
-    if (!preview) continue;
-    const board = swapBoard(s.board, move),
-      groups = findMatches(board);
-    const resources = [
-      ...blastCells(
-        board,
-        groups.flatMap((g) => g.cells),
-      ),
-    ].filter((i) => ['gold', 'xp'].includes(board[i].kind)).length;
+  for (const move of legalSwaps(s.board))
     candidates.push({
       command: { type: 'swap', ...move },
-      // The actual known wave includes diverted income, spent reserves and defence.
-      // No future cascade or luck is sampled to rank this move.
-      score:
-        preview.damage * 3 +
-        (preview.damage >= enemy.hp ? 500 : 0) +
-        preview.health * (me.hp < 16 ? 5 : 2) +
-        preview.barrier * 1.6 +
-        COLORS.reduce(
-          (sum, c) =>
-            sum + preview.mana[c] * manaWeight(c) - preview.enemyMana[c] * 0.8,
-          0,
-        ) +
-        resources * (side === 'hero' ? 0.6 : 0.2) +
-        (preview.extra ? 18 : preview.lastPassCandidate ? 12 : 0) +
-        (groups.some((g) => g.longest >= 5) ? 8 : 0),
+      score: boardValue(swapBoard(s.board, move)),
     });
-  }
   for (const id of me.spells) {
     if (spellError(s, id, side)) continue;
     const add = (score: number, target?: number) =>

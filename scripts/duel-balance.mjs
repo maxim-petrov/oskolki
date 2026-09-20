@@ -63,6 +63,23 @@ const score = (id, s) => {
     infiniteDiploma: 7,
     goldenLining: 10,
     eclipseRing: 9,
+    dullPunch: 2,
+    auditPencil: 3,
+    edgeSleeves: 3,
+    reserveLining: 4,
+    waitingVest: 2,
+    exchangeCoupon: 1,
+    safetyMagnet: 1,
+    agreementSheet: 1,
+    shiftRing: 1,
+    // A speculative enabler is a cost unless the current loadout can use it.
+    openRing: ['fullBlade', 'overflowRobe', 'reserveLining'].some((partner) =>
+      Object.values(s.hero.gear).includes(partner),
+    )
+      ? 4
+      : -2,
+    yieldRing: 2,
+    lastPass: 3,
   };
   return values[id] ?? 1;
 };

@@ -1,4 +1,11 @@
-import { ITEMS, RARITIES, type ItemId, type Rarity } from './catalog.ts';
+import {
+  COLORS,
+  ITEMS,
+  RARITIES,
+  SPELLS,
+  type ItemId,
+  type Rarity,
+} from './catalog.ts';
 import { ENCOUNTERS, type EncounterKind } from './campaign.ts';
 import type { Fighter } from './engine.ts';
 // Weights are selected before build preferences. No off-tier fallback or early pity.
@@ -46,6 +53,13 @@ export function createOffers(
       !(room >= 15 && id === 'scholar') &&
       !(id === 'insurance' && hero.items?.insuranceUsed),
   );
+  const tags = new Set(
+    Object.values(hero.gear).flatMap((id) => ITEMS[id!].tags),
+  );
+  tags.add('skull');
+  tags.add('spell');
+  for (const c of COLORS)
+    if (hero.spells.some((id) => (SPELLS[id].cost[c] ?? 0) > 0)) tags.add(c);
   let legendaryOffered = false;
   const pick = (
     weights: number[],
@@ -95,9 +109,7 @@ export function createOffers(
       firstWeights,
       (id) => ITEMS[id].slot === 'armor' || ITEMS[id].slot === 'weapon',
     ),
-    // A weak enabler stays in the pool without an equipped partner. There is
-    // no build completion filter, waiting-room pity, or hidden partner rescue.
-    pick(weights),
+    pick(weights, (id) => ITEMS[id].tags.some((tag) => tags.has(tag))),
     pick(weights),
   ];
   const stock = Array.from({ length: 3 }, () =>

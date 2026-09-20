@@ -212,19 +212,7 @@ export type ItemId =
   | 'glassNib'
   | 'ledger'
   | 'goldenLining'
-  | 'eclipseRing'
-  | 'dullPunch'
-  | 'auditPencil'
-  | 'edgeSleeves'
-  | 'reserveLining'
-  | 'waitingVest'
-  | 'exchangeCoupon'
-  | 'safetyMagnet'
-  | 'agreementSheet'
-  | 'shiftRing'
-  | 'openRing'
-  | 'yieldRing'
-  | 'lastPass';
+  | 'eclipseRing';
 export type Item = {
   id: ItemId;
   name: string;
@@ -232,7 +220,6 @@ export type Item = {
   rarity: Rarity;
   price: number;
   description: string;
-  risk?: string;
   tags: string[];
 };
 export const ITEMS: Record<ItemId, Item> = {
@@ -395,7 +382,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: RARITY_PRICE.rare,
     description:
       'Первая волна черепов: +4 за каждый полный запас маны, затем тратит по 2 маны из этих запасов.',
-    risk: 'Усиленный удар расходует ману для будущих заклинаний и сбивает полный запас.',
     tags: ['skull', 'reserve'],
   },
   contractBlade: {
@@ -406,7 +392,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: RARITY_PRICE.rare,
     description:
       'При здоровье не выше половины: первая волна черепов за действие получает +5 урона.',
-    risk: 'Выше половины здоровья оружие не даёт бонуса. Низкое HP делает следующий ответ опаснее.',
     tags: ['risk', 'skull'],
   },
   veil: {
@@ -467,7 +452,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: RARITY_PRICE.rare,
     description:
       'Первое заклинание до действия врага: скидка до 2 маны дорогого цвета за 2 здоровья. Минимум 1 мана. При HP ≤2 скидка отключена.',
-    risk: 'Каждая сработавшая скидка стоит 2 HP и не заряжает Плащ ответа.',
     tags: ['risk', 'spell'],
   },
   quarterCutter: {
@@ -478,7 +462,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: RARITY_PRICE.veryRare,
     description:
       'Тройки черепов не наносят урон. Первая группа 4+ черепов: +8 урона за действие. Прямой сбор и взрыв — обычный урон без бонуса.',
-    risk: 'База естественной тройки черепов равна нулю; длинная комбинация может не найтись.',
     tags: ['skull', 'long'],
   },
   mirrorVest: {
@@ -549,7 +532,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: RARITY_PRICE.legendary,
     description:
       'Звёзды больше не дают опыт. Первые 4 за действие дают по 1 мане каждого цвета. Опыт за победу сохраняется.',
-    risk: 'Звёзды перестают развивать уровень персонажа.',
     tags: ['reserve', 'spell'],
   },
   graphite: {
@@ -637,7 +619,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: 34,
     description:
       'Первая волна черепов за действие: +6 урона за 2 HP. При HP ≤2 бонус отключён. Самооплата обходит защиту.',
-    risk: 'Оплата здоровьем не поглощается барьером и не заряжает Плащ ответа.',
     tags: ['risk', 'skull'],
   },
   saltCoat: {
@@ -648,7 +629,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: 34,
     description:
       'Первое заклинание до действия врага даёт 3 барьера. Передышка лечит 7 HP вместо 11.',
-    risk: 'Передышка теряет 4 лечения; для класса без Передышки этого штрафа нет.',
     tags: ['spell', 'defense', 'healing'],
   },
   prism: {
@@ -669,7 +649,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: 34,
     description:
       'Собрать 3 воды за действие → 3 маны земли, но потерять до 2 маны огня.',
-    risk: 'Может убрать огонь, нужный для заклинания. При пустом огне эффект ничего не платит.',
     tags: ['water', 'earth', 'spell'],
   },
   glassNib: {
@@ -680,7 +659,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: 50,
     description:
       'Прямые заклинания: +5 урона. Первое попадание врага за действие получает +1 урона до защиты.',
-    risk: 'Входящий урон растёт даже в действии, когда вы не применяли заклинание.',
     tags: ['spell', 'risk'],
   },
   ledger: {
@@ -701,7 +679,6 @@ export const ITEMS: Record<ItemId, Item> = {
     price: 0,
     description:
       'Собрать 3 монеты за действие → потратить 2 золота и вылечить до 3 HP. Раз до действия врага, не более 12 HP за бой.',
-    risk: 'Лечение автоматически тратит золото, которое могло пойти на покупку.',
     tags: ['gold', 'healing'],
   },
   eclipseRing: {
@@ -712,140 +689,7 @@ export const ITEMS: Record<ItemId, Item> = {
     price: 0,
     description:
       'Первое совпадение 4+ до действия врага: по 2 маны каждой стихии за 2 HP. При HP ≤2 не срабатывает.',
-    risk: 'Плата 2 HP остаётся даже при полных запасах маны.',
     tags: ['long', 'risk', 'elements'],
-  },
-  dullPunch: {
-    id: 'dullPunch',
-    name: 'Тупой дырокол',
-    slot: 'weapon',
-    rarity: 'uncommon',
-    price: RARITY_PRICE.uncommon,
-    description:
-      'Первая естественная тройка обычных черепов за действие: до 2 базового урона превращаются в барьер. Без джокеров, взрывных черепов и прямого сбора.',
-    risk: 'Удар слабее на полученный барьер. Если враг не атакует, защита сгорит.',
-    tags: ['skull', 'defense', 'risk'],
-  },
-  auditPencil: {
-    id: 'auditPencil',
-    name: 'Карандаш аудитора',
-    slot: 'weapon',
-    rarity: 'rare',
-    price: RARITY_PRICE.rare,
-    description:
-      'Первая волна перестановки: группа стихии без джокера отдаёт на 1 маны меньше и уничтожает до 2 такой же маны врага. Раз до реального действия врага; пустой чужой запас не расходует эффект.',
-    risk: 'Вы теряете свою ману, но не забираете чужую. Против пустых запасов бонуса нет.',
-    tags: ['elements', 'denial', 'risk'],
-  },
-  edgeSleeves: {
-    id: 'edgeSleeves',
-    name: 'Нарукавники архивариуса',
-    slot: 'armor',
-    rarity: 'uncommon',
-    price: RARITY_PRICE.uncommon,
-    description:
-      'В первой волне перестановки группа стихии без джокера касается края: −1 полученная мана, +3 барьера. Раз за действие, только при барьере не больше 3.',
-    risk: 'Меньше маны на заклинания. Барьер исчезнет после действия врага даже без удара.',
-    tags: ['elements', 'position', 'defense', 'risk'],
-  },
-  reserveLining: {
-    id: 'reserveLining',
-    name: 'Подкладка запаса',
-    slot: 'armor',
-    rarity: 'rare',
-    price: RARITY_PRICE.rare,
-    description:
-      'После барьера осталось 4+ урона: автоматически тратит 3 маны самого большого подходящего запаса и поглощает 4 урона. После оплаты должно остаться не меньше половины вместимости. Раз за действие врага, до Стены.',
-    risk: 'Защита может потратить цвет для заклинания или сбить полный запас для оружия.',
-    tags: ['reserve', 'defense', 'risk'],
-  },
-  waitingVest: {
-    id: 'waitingVest',
-    name: 'Жилет ожидания',
-    slot: 'armor',
-    rarity: 'veryRare',
-    price: RARITY_PRICE.veryRare,
-    description:
-      'Враг заработал ещё одно действие: после исчезновения старого барьера тратит 2 земли и даёт 4 барьера. Раз за непрерывную серию врага; лимит возвращается после вашего реального действия.',
-    risk: 'Не защищает от первой атаки. Если враг не продолжает серию, вещь ничего не даёт.',
-    tags: ['earth', 'defense', 'tempo', 'risk'],
-  },
-  exchangeCoupon: {
-    id: 'exchangeCoupon',
-    name: 'Обменный талон',
-    slot: 'charm',
-    rarity: 'uncommon',
-    price: RARITY_PRICE.uncommon,
-    description:
-      '3 физических монеты за действие переносят 2 маны из самого полного по доле вместимости запаса в самый пустой. Только если вся оплата и перенос возможны. Золото не расходуется.',
-    risk: 'Дополнительной маны нет; перенос может разрушить полный цвет для оружия.',
-    tags: ['gold', 'reserve'],
-  },
-  safetyMagnet: {
-    id: 'safetyMagnet',
-    name: 'Магнит для скрепок',
-    slot: 'charm',
-    rarity: 'rare',
-    price: RARITY_PRICE.rare,
-    description:
-      '3 воздуха в первой волне перестановки обезвреживают первый оставшийся взрывной череп перед падением. Череп остаётся обычным. Раз до реального действия врага.',
-    risk: 'Может убрать выгодный вам взрыв. В бою без взрывных черепов эффекта нет.',
-    tags: ['air', 'board', 'risk'],
-  },
-  agreementSheet: {
-    id: 'agreementSheet',
-    name: 'Лист согласования',
-    slot: 'charm',
-    rarity: 'rare',
-    price: RARITY_PRICE.rare,
-    description:
-      'Тройка воды без джокера в первой волне перестановки: −1 полученная мана, в средней клетке остаётся земля и падает вместе с полем. Все три воды считаются собранными. Раз до реального действия врага.',
-    risk: 'Подготовленную землю может забрать враг. Следующее совпадение не гарантировано.',
-    tags: ['water', 'earth', 'board', 'risk'],
-  },
-  shiftRing: {
-    id: 'shiftRing',
-    name: 'Кольцо сменщика',
-    slot: 'ring',
-    rarity: 'uncommon',
-    price: RARITY_PRICE.uncommon,
-    description:
-      'Чередуйте обычные стихии первых волн: 1 мана нового совпадения переходит в цвет прошлой перестановки, если там есть место. Заклинание или перестановка без обычного цвета очищают память.',
-    risk: 'Объём добычи не растёт: новый цвет отдаёт одну единицу прошлому.',
-    tags: ['elements', 'reserve'],
-  },
-  openRing: {
-    id: 'openRing',
-    name: 'Разомкнутое кольцо',
-    slot: 'ring',
-    rarity: 'rare',
-    price: RARITY_PRICE.rare,
-    description:
-      'Вместимость каждой стихии −6, минимум 8. Запасы заполняются раньше, но маны помещается меньше. Скидок на заклинания и другой компенсации нет.',
-    risk: 'Без подходящего партнёра только уменьшает резерв. Нужная находка может не появиться.',
-    tags: ['reserve', 'risk'],
-  },
-  yieldRing: {
-    id: 'yieldRing',
-    name: 'Кольцо уступки',
-    slot: 'ring',
-    rarity: 'veryRare',
-    price: RARITY_PRICE.veryRare,
-    description:
-      'После перестановки с совпадением 4+ можно отдать дополнительное действие за 5 барьера (общий предел 6). До 3 раз за бой. Выбор доступен при барьере меньше 5 и неоглушённом враге.',
-    risk: 'Вы отдаёте общее поле и инициативу; враг может не атаковать и обесценить барьер.',
-    tags: ['long', 'defense', 'tempo', 'risk'],
-  },
-  lastPass: {
-    id: 'lastPass',
-    name: 'Последний пропуск',
-    slot: 'ring',
-    rarity: 'legendary',
-    price: RARITY_PRICE.legendary,
-    description:
-      'Раз за бой: тройка без джокера в первой волне перестановки без групп 4+, после которой осталось не больше 6 маны, сохраняет ход. Заряд тратится лишь если каскады, удача и Юла не дали продолжение.',
-    risk: 'Полные запасы мешают подготовке. Даже за весь бой условие может не выполниться.',
-    tags: ['reserve', 'tempo'],
   },
 };
 export type ClassId = 'blade' | 'elementalist' | 'warlock' | 'monk';

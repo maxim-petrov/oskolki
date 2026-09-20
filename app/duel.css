@@ -1136,3 +1136,34 @@
   margin: 8px 0;
   max-width: 28em;
 }
+
+/* A conditional item choice, not a confirmation for ordinary moves. */
+.duel-yield {
+  border: 1px solid currentColor;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+  color: #000;
+}
+.duel-yield p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.duel-yield p b,
+.duel-yield p span {
+  display: block;
+}
+.duel-yield > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.duel-yield button {
+  flex: 1 1 130px;
+  min-height: 40px;
+}
+.duel-cell.is-item-target {
+  outline: 2px dashed currentColor;
+  outline-offset: -5px;
+}

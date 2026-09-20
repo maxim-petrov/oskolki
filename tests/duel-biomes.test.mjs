@@ -6,7 +6,7 @@ import {
   saveDuel,
   loadDuel,
   spellError,
-} from '../game/duel/engine.ts';
+} from '../game/duel/legacy-v3/engine.ts';
 import * as v1 from '../game/duel/legacy-v1/engine.ts';
 import {
   ITEMS,
@@ -15,15 +15,15 @@ import {
   KINDS,
   SPELLS,
   RARITIES,
-} from '../game/duel/catalog.ts';
+} from '../game/duel/legacy-v3/catalog.ts';
 import { findMatches, swapBoard } from '../game/duel/board.ts';
 import {
   freshItems,
   spellPayment,
   itemWarnings,
-} from '../game/duel/item-rules.ts';
-import { createOffers } from '../game/duel/loot.ts';
-import { chooseAction } from '../game/duel/ai.ts';
+} from '../game/duel/legacy-v3/item-rules.ts';
+import { createOffers } from '../game/duel/legacy-v3/loot.ts';
+import { chooseAction } from '../game/duel/legacy-v3/ai.ts';
 const config = { seed: 707, classId: 'blade', mode: 'duel', foe: 0 };
 const start = (patch = {}) => createDuel({ ...config, ...patch });
 const step = (s, c) => {
@@ -88,8 +88,8 @@ import {
   BIOMES,
   victoryReward,
   restHealing,
-} from '../game/duel/campaign.ts';
-import { LOOT_WEIGHTS, SHOP_WEIGHTS } from '../game/duel/loot.ts';
+} from '../game/duel/legacy-v3/campaign.ts';
+import { LOOT_WEIGHTS, SHOP_WEIGHTS } from '../game/duel/legacy-v3/loot.ts';
 test('all invalid actions preserve barrier, charges, health, RNG and initiative', () => {
   const s = gear(loaded(), 'mirrorVest', 'bloodInkwell');
   s.enemy.items.initiative.mint = true;
@@ -803,11 +803,96 @@ test('coin build can heal, charge ledger and create a shared skull without synth
   assert.equal(n.hero.items.initiative.mint, true);
 });
 test('a complete legal four-biome run reaches all bosses and restores from its command journal', async () => {
-  const { run } = await import('../scripts/duel-balance.mjs');
-  const r = run(3, 'elementalist');
-  assert.equal(r.phase, 'won');
-  assert.equal(r.room, 20);
-  assert.equal(r.checkpoints.length, 19);
-  assert.ok(r.commands < 6000);
-  assert.deepEqual(loadDuel(saveDuel(r.state)), r.state);
+  // Freeze the v3 visible policy together with its winning seed. New loot must not
+  // reinterpret an old recorded route or require this old policy to win in v4.
+  const { statPrice } = await import('../game/duel/legacy-v3/engine.ts');
+  const value = {
+    paperKnife: 3,
+    stylus: 6,
+    coat: 10,
+    apron: 5,
+    copperClip: 3,
+    bluePass: 4,
+    scholar: 5,
+    abacus: 4,
+    graphite: 2,
+    cottonCuffs: 6,
+    teaBag: 4,
+    lens: 5,
+    tideNeedle: 5,
+    chargeSeal: 3,
+    pocketVest: 3,
+    answerCloak: 6,
+    tidePurse: 4,
+    reservoir: 4,
+    wick: 3,
+    conductor: 7,
+    emberKnife: 7,
+    archiveVest: 6,
+    metronome: 8,
+    fireSeal: 6,
+    fullBlade: 5,
+    contractBlade: 4,
+    veil: 7,
+    overflowRobe: 4,
+    catalyst: 10,
+    mint: 5,
+    ward: 5,
+    bloodInkwell: 6,
+    mortgage: 3,
+    saltCoat: 6,
+    prism: 5,
+    waterwheel: 5,
+    quarterCutter: 2,
+    mirrorVest: 14,
+    insurance: 3,
+    carbonPaper: 12,
+    capacitor: 7,
+    glassNib: 8,
+    ledger: 6,
+    directorPen: 9,
+    spinningTop: 12,
+    infiniteDiploma: 7,
+    goldenLining: 10,
+    eclipseRing: 9,
+  };
+  let s = start({ mode: 'route', seed: 3, classId: 'elementalist' }),
+    camps = 0;
+  for (let i = 0; i < 4000 && ['battle', 'camp'].includes(s.phase); i++) {
+    if (s.phase === 'battle') s = step(s, chooseAction(s));
+    else {
+      camps++;
+      const upgrade = (id) =>
+        value[id] - (value[s.hero.gear[ITEMS[id].slot]] ?? 0);
+      const best = s.offers.slice().sort((a, b) => upgrade(b) - upgrade(a))[0];
+      s = step(s, {
+        type: 'reward',
+        item: best && upgrade(best) > 0 ? best : null,
+      });
+      const purchase = s.stock
+        .slice()
+        .sort((a, b) => upgrade(b) - upgrade(a))
+        .find((id) => upgrade(id) > 1 && s.hero.gold >= ITEMS[id].price);
+      if (purchase) s = step(s, { type: 'buy', item: purchase });
+      for (let j = 0; j < 20; j++) {
+        const primary =
+          CLASSES.elementalist.cheap.find((k) => k !== 'cunning') ?? 'fire';
+        const choices =
+          s.hero.stats.morale < 9 ? ['morale', primary] : [primary, 'morale'];
+        const stat = choices.find(
+          (k) => s.hero.stats[k] < 18 && s.hero.points >= statPrice(s, k),
+        );
+        if (!stat) break;
+        s = step(s, { type: 'train', stat });
+      }
+      s = step(s, { type: 'next' });
+    }
+  }
+  assert.equal(s.phase, 'won');
+  assert.equal(s.room, 19);
+  assert.equal(camps, 19);
+  assert.ok(s.commands.length < 6000);
+  assert.deepEqual(loadDuel(saveDuel(s)), s);
+  const current = await import('../game/duel/engine.ts');
+  assert.deepEqual(current.loadDuel(current.saveDuel(s)), s);
 });
