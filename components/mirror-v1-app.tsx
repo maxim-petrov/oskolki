@@ -28,7 +28,7 @@ import {
   legalSwaps,
   type Kind,
   type Tile,
-} from '@/game/mirror/board';
+} from '@/game/mirror/legacy-v1/board';
 import {
   createGame,
   dispatch,
@@ -38,19 +38,18 @@ import {
   saveGame,
   DEFAULT_SKILLS,
   TURN_LIMIT,
-} from '@/game/mirror/engine';
-import { MIRROR_ITEMS, resonanceCap } from '@/game/mirror/items';
+} from '@/game/mirror/legacy-v1/engine';
+import { MIRROR_ITEMS, resonanceCap } from '@/game/mirror/legacy-v1/items';
 import type {
   Command,
   Config,
   Frame,
   Loadout,
   State,
-} from '@/game/mirror/types';
+} from '@/game/mirror/legacy-v1/types';
 import { VectorEnemy, VectorPerson } from './vector-art';
 
-const SAVE_KEY = 'oskolki.mirror.session.v2';
-const LEGACY_SAVE_KEY = 'oskolki.mirror.session.v1';
+const SAVE_KEY = 'oskolki.mirror.session.v1';
 const COLORS: Record<Kind, string> = {
   strike: '#b13f54',
   arcane: '#5264bd',
@@ -62,7 +61,7 @@ const CLASS_COPY: Record<ClassId, string> = {
   blade: 'Сильнее физические атаки',
   elementalist: 'Сильнее магические атаки',
   warlock: 'Агрессивный набор и ярость',
-  monk: 'Защитное пальто на старте',
+  monk: 'Надёжное лечение и защита',
 };
 const SKILLS: {
   id: keyof Loadout;
@@ -75,7 +74,7 @@ const SKILLS: {
     options: [
       ['heavy', 'Тяжёлый удар', 'Больше физического урона.'],
       ['pierce', 'Пробивание', 'Атака сквозь защиту.'],
-      ['leech', 'Защитный удар', '10% нанесённого урона в щит, минимум 1.'],
+      ['leech', 'Вампиризм', 'Урон и немного здоровья.'],
     ],
   },
   {
@@ -89,15 +88,11 @@ const SKILLS: {
   },
   {
     id: 'mend',
-    name: 'Усиленная защита',
+    name: 'Усиленное лечение',
     options: [
-      ['restore', 'Стойка', 'Камни II / III: 6 / 8 защиты за приём.'],
-      ['cleanse', 'Очищение', 'Камни II / III: 4 / 6 защиты и очистка угроз.'],
-      [
-        'grow',
-        'Рост',
-        'Камни II / III: 4 / 6 защиты и усиленный камень удара.',
-      ],
+      ['restore', 'Восстановление', 'Больше здоровья.'],
+      ['cleanse', 'Очищение', 'Лечение и помощь против угроз на поле.'],
+      ['grow', 'Рост', 'Подготовить усиленный камень удара.'],
     ],
   },
   {
@@ -106,7 +101,7 @@ const SKILLS: {
     options: [
       ['physical', 'Напор', 'Усилить физические атаки.'],
       ['magic', 'Концентрация', 'Усилить магические атаки.'],
-      ['healing', 'Самообладание', '+2 защиты за каждую группу щитов.'],
+      ['healing', 'Самообладание', 'Усилить лечение.'],
     ],
   },
   {
@@ -114,8 +109,8 @@ const SKILLS: {
     name: 'Суперприём',
     options: [
       ['nova', 'Нова', 'Мощная атака.'],
-      ['renew', 'Обновление', '8 защиты и очистка поля.'],
-      ['surge', 'Прорыв', 'Добавить 20 ярости.'],
+      ['renew', 'Обновление', 'Восстановиться и очистить поле.'],
+      ['surge', 'Прорыв', 'Восстановить здоровье и повысить ярость.'],
     ],
   },
 ];
@@ -159,8 +154,8 @@ export function MirrorGem({ kind, level }: Pick<Tile, 'kind' | 'level'>) {
       )}
       {kind === 'mend' && (
         <>
-          <path d="m20 5 12 5v10c0 8-12 15-12 15S8 28 8 20V10Z" />
-          <path d="M20 12v15" />
+          <path d="M16 7h8v9h9v8h-9v9h-8v-9H7v-8h9Z" />
+          <path d="M20 13v14m-7-7h14" opacity=".3" />
         </>
       )}
       {kind === 'rage' && (
@@ -315,7 +310,7 @@ function ItemCard({
   );
 }
 
-export function MirrorApp({
+export function MirrorV1App({
   defaultMode = 'route',
 }: {
   defaultMode?: Config['mode'];
@@ -342,8 +337,7 @@ export function MirrorApp({
     [frame, setFrame] = useState<Frame | null>(null),
     [fast, setFast] = useState(false),
     [reduceMotion, setReduceMotion] = useState(false),
-    [catalogQuery, setCatalogQuery] = useState(''),
-    [legacyAvailable, setLegacyAvailable] = useState(false);
+    [catalogQuery, setCatalogQuery] = useState('');
   const upload = useRef<HTMLInputElement>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null),
     stateRef = useRef<State | null>(null),
@@ -362,7 +356,6 @@ export function MirrorApp({
     queueMicrotask(() => {
       if (cancelled) return;
       try {
-        setLegacyAvailable(Boolean(localStorage.getItem(LEGACY_SAVE_KEY)));
         const raw = localStorage.getItem(SAVE_KEY);
         if (raw) {
           const loaded = loadGame(raw);
@@ -525,29 +518,14 @@ export function MirrorApp({
     );
     const link = document.createElement('a');
     link.href = url;
-    link.download = `oskolki-mirror-v2-${stateRef.current.config.seed}.json`;
+    link.download = `oskolki-mirror-${stateRef.current.config.seed}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const loadFile = async (file?: File) => {
     if (!file) return;
-    if (file.size > 2_000_000) {
-      setError(
-        'Запись слишком большая. Максимум — 2 МБ. Текущая игра сохранена.',
-      );
-      return;
-    }
     try {
-      const raw = await file.text();
-      if (JSON.parse(raw)?.schema === 'oskolki-mirror-1') {
-        setLegacyAvailable(true);
-        setSheet('menu');
-        setError(
-          'Эта запись — из прежнего режима с лечением. Откройте его по ссылке ниже и загрузите файл там. Текущая игра и прежнее сохранение не изменены.',
-        );
-        return;
-      }
-      const loaded = loadGame(raw);
+      const loaded = loadGame(await file.text());
       if (!loaded) {
         setError(
           'Эта запись не подходит или не прошла проверку. Текущий бой сохранён.',
@@ -628,8 +606,8 @@ export function MirrorApp({
             сразу действие.
           </h1>
           <p className="mirror-lead">
-            Удар, магия, защита и ярость. Готовьте щит к ответу противника и
-            создавайте усиленные камни. Щиты берегут здоровье, но не лечат.
+            Удар, магия, лечение и ярость. Создавайте усиленные камни и
+            успевайте подготовиться к ответу противника.
           </p>
           <fieldset className="mirror-mode" aria-label="Режим игры">
             <button
@@ -847,12 +825,6 @@ export function MirrorApp({
               Как играть
             </button>
           </div>
-          {legacyAvailable && (
-            <p className="mirror-note">
-              Осталась игра по прежним правилам.{' '}
-              <Link href="/mirror-v1">Продолжить режим с лечением ↗</Link>
-            </p>
-          )}
         </section>
       ) : (
         state && (
@@ -899,8 +871,8 @@ export function MirrorApp({
                     name="Здоровье"
                   />
                   <div className="mirror-hero-stats">
-                    <span title="Поглощает урон. Максимум 12; остаток сгорает после действия врага">
-                      ◈ Щит <b>{state.hero.barrier} / 12</b>
+                    <span title="Поглощает входящий урон">
+                      ◈ Щит <b>{state.hero.barrier}</b>
                     </span>
                     <span title="Усиливает приёмы. Максимум 60">
                       ϟ Ярость <b>{state.hero.rage}</b>
@@ -1038,12 +1010,7 @@ export function MirrorApp({
                       <span>
                         {state.last.damage > 0
                           ? `${state.last.damage} урона`
-                          : state.last.barrier > 0
-                            ? `+${state.last.barrier} защиты`
-                            : 'Комбинация завершена'}
-                        {state.last.damage > 0 && state.last.barrier > 0
-                          ? ` · +${state.last.barrier} защиты`
-                          : ''}
+                          : 'Комбинация завершена'}
                         {state.last.healing > 0
                           ? ` · +${state.last.healing} HP`
                           : ''}
@@ -1359,11 +1326,6 @@ export function MirrorApp({
                 Игра сохраняется после каждого действия.
                 {state ? ` Seed: ${state.config.seed}.` : ''}
               </p>
-              <Link className="mirror-old-route" href="/mirror-v1">
-                {legacyAvailable
-                  ? 'Продолжить прежний режим с лечением ↗'
-                  : 'Открыть прежний режим с лечением ↗'}
-              </Link>
               <Link className="mirror-old-route" href="/duel">
                 Открыть прежний режим общей доски ↗
               </Link>
@@ -1379,7 +1341,7 @@ export function MirrorApp({
                   Магия <b>{state.hero.magic}</b>
                 </span>
                 <span>
-                  Защита за тройку <b>{state.hero.healing}</b>
+                  Лечение <b>{state.hero.healing}</b>
                 </span>
                 <span>
                   Золото <b>{state.hero.gold}</b>
@@ -1514,25 +1476,12 @@ export function MirrorApp({
                         : channel === 'arcane'
                           ? 'Магический урон'
                           : channel === 'mend'
-                            ? 'Временный щит'
+                            ? 'Восстановление HP'
                             : 'Усиление приёмов'}
                     </span>
                   </div>
                 ))}
               </div>
-              <h3>Готовьте защиту вовремя</h3>
-              <p>
-                Обычная тройка щитов даёт 4 защиты. Стойка с камнем II / III
-                даёт 6 / 8 за приём; Очищение и Рост — 4 / 6 и дополнительный
-                эффект. Щит поглощает входящий урон; общий запас ограничен 12.
-                После действия врага вся оставшаяся защита сгорает, даже если
-                враг не атаковал. Ярость не усиливает защиту.
-              </p>
-              <p>
-                Комбинации и суперприёмы не восстанавливают HP. Для лечения в
-                бою нужны специальные предметы; между боями можно восстановить
-                здоровье.
-              </p>
               <h3>Готовьте сильные камни</h3>
               <dl className="mirror-combinations">
                 <div>
@@ -1582,9 +1531,8 @@ export function MirrorApp({
                 меняет соседей, включая S. Enter на S активирует суперприём.
               </p>
               <p className="mirror-note">
-                Бой сохраняется автоматически. Записи режима с лечением
-                открываются в прежней версии по ссылке в меню и хранятся
-                отдельно.
+                Бой сохраняется автоматически. Прежняя версия игры и её
+                сохранения доступны по ссылке в меню.
               </p>
             </div>
           )}

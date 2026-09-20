@@ -1,4 +1,4 @@
-import type { ClassId, ItemId, Slot } from '../duel/catalog.ts';
+import type { ClassId, ItemId, Slot } from '../../duel/catalog.ts';
 import type { Channel, Match, Tile } from './board.ts';
 export type Reserves = Record<Channel, number>;
 export type ItemMemory = {
@@ -34,7 +34,6 @@ export type Intent = {
   kind: IntentKind;
   name: string;
   wait: number;
-  /** Total attack budget, divided between hits before first-hit mitigation. */
   damage: number;
   hits: number;
   count?: number;
@@ -46,7 +45,6 @@ export type Enemy = {
   maxHp: number;
   defense: number;
   stage: 0 | 1 | 2;
-  pendingStage: 0 | 1 | 2;
   countdown: number;
   delay: number;
   weaken: number;
@@ -78,7 +76,6 @@ export type Command =
 export type ActionSummary = {
   damage: number;
   healing: number;
-  barrier: number;
   casts: number;
   waves: number;
   created: number;
@@ -88,7 +85,7 @@ export type ActionSummary = {
   delayed: boolean;
 };
 export type State = {
-  version: 2;
+  version: 1;
   config: Config;
   rng: { board: number; effect: number; loot: number };
   nextId: number;
@@ -138,7 +135,6 @@ export type GroupEvent = {
   removed: Set<number>;
   protectedTiles: Map<number, Tile>;
   baseDamage: number;
-  baseBarrier: number;
   bonusDamage: number;
   bonusScale: number;
   income: number;

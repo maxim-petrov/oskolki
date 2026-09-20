@@ -1,0 +1,4454 @@
+{
+  "schema": "oskolki-mirror-defense-audit-1",
+  "rules": 2,
+  "count": 100,
+  "classCount": 25,
+  "totalRuns": 450,
+  "sourceHashes": {
+    "scripts/mirror-defense-audit.mjs": "3139ead9199c6cdf486b184ce027a00066eb3e45dbd7fe6cfea125c7c1ec11cd",
+    "scripts/mirror-balance.mjs": "33c4c575980c45f2aac83dd9812a57d19861bd4c4e22f38b84cf6b02e804f396",
+    "game/mirror/engine.ts": "cfaf954ce953e5495200a07c3569ab6606b8e480073feb09537f3b739ccda83b",
+    "game/mirror/board.ts": "d28c0e12b1007693a8091c26634d0ee9670af6377c345b800e66e75c52ad2249",
+    "game/mirror/items.ts": "5b14ccc3ef2d03b2769a52ea336f2f7403d4a8213ddcbbf1a9013a0d43e21d46",
+    "game/mirror/types.ts": "624c8d811b010c1f716475d2df80aea8fde1ecaa4e51c142e15b17aac2ac71e8",
+    "game/duel/catalog.ts": "0fbb458791450a339b23ded8f35ffce8307ad91b9eff363da4b1078036ee4d79",
+    "game/duel/campaign.ts": "0bc15e7101758bdb9f31c60173db7f0544eba2ff006f4f1664ff5fc3aada387e",
+    "game/duel/loot.ts": "c12c2b196decae062a303c867dc134f8b2870797389bca38ba35835d231ad34d"
+  },
+  "method": {
+    "policy": "Visible first-wave heuristic or uniform legal swap; both use the first unlocked S. Neither simulates future refills.",
+    "randomPolicy": "Independent LCG (1664525*x+1013904223) modulo 2^32, initialized with seed XOR 0x72ef4913; one draw per swap choice.",
+    "rewards": "Highest offered rarity, replace only an empty slot or lower rarity. No purchases, build optimization or skill changes.",
+    "avoidHealing": "Reject cottonCuffs and goldenLining rewards; keep insurance. This changes gear and later offers, not just healing amounts.",
+    "hpSpent": "Actual HP removed including enemy hits, bombs and item payments, reconstructed as beforeHp + combatHealing + 8*levelDelta - afterHp.",
+    "barrierGranted": "Actual barrier added, not a claim about damage absorbed.",
+    "defensiveSwaps": "Chosen exchanges with positive estimated protection from visible first-wave defense groups.",
+    "rawFlurry": "Declared damage before the action. Same-action weaken procs can lower the eventual hit; HP-loss maxima use actual enemy frames.",
+    "denominators": "Run means include deaths. Room means condition on entering that room. Biome means condition on entering that biome and include interrupted routes.",
+    "replay": "First and last seed of each cohort replayed through saveGame/loadGame.",
+    "limitation": "Automated policy comparison, not human win rates, fun or a balance target."
+  },
+  "cohorts": [
+    {
+      "classId": "blade",
+      "policy": "visible",
+      "condition": "default",
+      "seeds": [
+        1,
+        100
+      ],
+      "runs": 100,
+      "wins": 38,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 11,
+        "16": 2,
+        "17": 5,
+        "18": 5,
+        "19": 18,
+        "20": 21
+      },
+      "meanFinalHp": 16.37,
+      "perStartedRun": {
+        "swaps": 103.65,
+        "supers": 13.25,
+        "replies": 36.69,
+        "waves": 243.81,
+        "damage": 7140.46,
+        "hpSpent": 287.72,
+        "healing": 0.57,
+        "barrierGranted": 376.38,
+        "levelHealing": 51.04,
+        "roomHealing": 132.48,
+        "defensiveSwaps": 22.39,
+        "freeDamage": 1383.24
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 30,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 118.72,
+            "swaps": 3.26,
+            "replies": 0.84,
+            "hpSpent": 1.28,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 6
+        },
+        {
+          "room": 2,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 23,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 126.33,
+            "swaps": 3.67,
+            "replies": 1.12,
+            "hpSpent": 1.03,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 3,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 25,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.28,
+            "maxHp": 127.36,
+            "endHp": 126.1,
+            "swaps": 3.46,
+            "replies": 1.07,
+            "hpSpent": 1.82,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 4,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 10,
+          "sawFlurry": 90,
+          "mean": {
+            "startHp": 127.84,
+            "maxHp": 128,
+            "endHp": 124.58,
+            "swaps": 4.35,
+            "replies": 1.52,
+            "hpSpent": 4.7,
+            "healing": 0
+          },
+          "maxFlurryRaw": 15,
+          "maxFlurryHpLoss": 11,
+          "maxReplyHpLoss": 11
+        },
+        {
+          "room": 5,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 3,
+          "sawFlurry": 34,
+          "mean": {
+            "startHp": 128.18,
+            "maxHp": 129.44,
+            "endHp": 123.11,
+            "swaps": 6.3,
+            "replies": 2.06,
+            "hpSpent": 11.63,
+            "healing": 0
+          },
+          "maxFlurryRaw": 23,
+          "maxFlurryHpLoss": 21,
+          "maxReplyHpLoss": 21
+        },
+        {
+          "room": 6,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 13,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133.44,
+            "maxHp": 136,
+            "endHp": 129.8,
+            "swaps": 4.7,
+            "replies": 1.38,
+            "hpSpent": 4.76,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 7,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 11,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133.94,
+            "maxHp": 137.12,
+            "endHp": 133.64,
+            "swaps": 5.11,
+            "replies": 1.92,
+            "hpSpent": 5.5,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 15
+        },
+        {
+          "room": 8,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 14,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 138.48,
+            "maxHp": 142.32,
+            "endHp": 133.61,
+            "swaps": 4.63,
+            "replies": 1.67,
+            "hpSpent": 6.87,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 9,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 5,
+          "sawFlurry": 95,
+          "mean": {
+            "startHp": 138.86,
+            "maxHp": 144.32,
+            "endHp": 125.25,
+            "swaps": 4.87,
+            "replies": 1.81,
+            "hpSpent": 14.49,
+            "healing": 0
+          },
+          "maxFlurryRaw": 22,
+          "maxFlurryHpLoss": 18,
+          "maxReplyHpLoss": 18
+        },
+        {
+          "room": 10,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 1,
+          "sawFlurry": 37,
+          "mean": {
+            "startHp": 132.41,
+            "maxHp": 145.2,
+            "endHp": 120.94,
+            "swaps": 6.84,
+            "replies": 2.28,
+            "hpSpent": 17.23,
+            "healing": 0
+          },
+          "maxFlurryRaw": 29,
+          "maxFlurryHpLoss": 27,
+          "maxReplyHpLoss": 27
+        },
+        {
+          "room": 11,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 9,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 139.51,
+            "maxHp": 150.96,
+            "endHp": 130.88,
+            "swaps": 4.96,
+            "replies": 1.41,
+            "hpSpent": 10.07,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 12,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 137.76,
+            "maxHp": 152.4,
+            "endHp": 126.16,
+            "swaps": 6.18,
+            "replies": 2.39,
+            "hpSpent": 12.4,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 13,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 6,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133.38,
+            "maxHp": 153.2,
+            "endHp": 123.68,
+            "swaps": 5.82,
+            "replies": 2.21,
+            "hpSpent": 15.94,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 19
+        },
+        {
+          "room": 14,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 4,
+          "sawFlurry": 96,
+          "mean": {
+            "startHp": 131.09,
+            "maxHp": 159.44,
+            "endHp": 103.6,
+            "swaps": 5.75,
+            "replies": 2.26,
+            "hpSpent": 28.29,
+            "healing": 0
+          },
+          "maxFlurryRaw": 28,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 15,
+          "entered": 100,
+          "survived": 89,
+          "zeroReplies": 2,
+          "sawFlurry": 59,
+          "mean": {
+            "startHp": 111.49,
+            "maxHp": 160.24,
+            "endHp": 70.03,
+            "swaps": 7.98,
+            "replies": 2.88,
+            "hpSpent": 42.18,
+            "healing": 0
+          },
+          "maxFlurryRaw": 36,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 16,
+          "entered": 89,
+          "survived": 87,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 102.08,
+            "maxHp": 161.08,
+            "endHp": 89.13,
+            "swaps": 5.89,
+            "replies": 1.88,
+            "hpSpent": 18.61,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 17,
+          "entered": 87,
+          "survived": 82,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 99.18,
+            "maxHp": 166.9,
+            "endHp": 78.91,
+            "swaps": 6.86,
+            "replies": 2.82,
+            "hpSpent": 21.36,
+            "healing": 0.07
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 27
+        },
+        {
+          "room": 18,
+          "entered": 82,
+          "survived": 77,
+          "zeroReplies": 4,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 91.72,
+            "maxHp": 168.1,
+            "endHp": 66.46,
+            "swaps": 6.28,
+            "replies": 2.5,
+            "hpSpent": 26.35,
+            "healing": 0.22
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 25
+        },
+        {
+          "room": 19,
+          "entered": 77,
+          "survived": 59,
+          "zeroReplies": 1,
+          "sawFlurry": 76,
+          "mean": {
+            "startHp": 78.78,
+            "maxHp": 169.04,
+            "endHp": 41.23,
+            "swaps": 6.25,
+            "replies": 2.58,
+            "hpSpent": 40.79,
+            "healing": 0.23
+          },
+          "maxFlurryRaw": 35,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 20,
+          "entered": 59,
+          "survived": 38,
+          "zeroReplies": 0,
+          "sawFlurry": 40,
+          "mean": {
+            "startHp": 61.81,
+            "maxHp": 173.15,
+            "endHp": 27.75,
+            "swaps": 7.8,
+            "replies": 2.9,
+            "hpSpent": 36.22,
+            "healing": 0.25
+          },
+          "maxFlurryRaw": 42,
+          "maxFlurryHpLoss": 30,
+          "maxReplyHpLoss": 33
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 21.04,
+            "supers": 2.66,
+            "replies": 6.61,
+            "waves": 49.01,
+            "damage": 951.22,
+            "hpSpent": 20.46,
+            "healing": 0,
+            "barrierGranted": 68.9,
+            "levelHealing": 16,
+            "roomHealing": 7.57,
+            "defensiveSwaps": 4.32,
+            "freeDamage": 165.95
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 26.15,
+            "supers": 3.5,
+            "replies": 9.06,
+            "waves": 61.26,
+            "damage": 1648.29,
+            "hpSpent": 48.85,
+            "healing": 0,
+            "barrierGranted": 92.35,
+            "levelHealing": 14.96,
+            "roomHealing": 31.72,
+            "defensiveSwaps": 5.28,
+            "freeDamage": 316
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 30.69,
+            "supers": 3.91,
+            "replies": 11.15,
+            "waves": 72.37,
+            "damage": 2321.59,
+            "hpSpent": 108.88,
+            "healing": 0,
+            "barrierGranted": 111.4,
+            "levelHealing": 10,
+            "roomHealing": 47.97,
+            "defensiveSwaps": 6.43,
+            "freeDamage": 460.7
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 89,
+          "perEnteredRun": {
+            "swaps": 28.96,
+            "supers": 3.57,
+            "replies": 11.09,
+            "waves": 68.73,
+            "damage": 2493.66,
+            "hpSpent": 123.07,
+            "healing": 0.64,
+            "barrierGranted": 116.55,
+            "levelHealing": 11.33,
+            "roomHealing": 50.81,
+            "defensiveSwaps": 7.15,
+            "freeDamage": 495.04
+          }
+        }
+      ]
+    },
+    {
+      "classId": "blade",
+      "policy": "visible",
+      "condition": "avoid-healing",
+      "seeds": [
+        1,
+        100
+      ],
+      "runs": 100,
+      "wins": 41,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 11,
+        "16": 2,
+        "17": 5,
+        "18": 5,
+        "19": 16,
+        "20": 20
+      },
+      "meanFinalHp": 17.53,
+      "perStartedRun": {
+        "swaps": 103.89,
+        "supers": 13.2,
+        "replies": 36.8,
+        "waves": 244.06,
+        "damage": 7165.14,
+        "hpSpent": 286.9,
+        "healing": 0,
+        "barrierGranted": 377.84,
+        "levelHealing": 51.28,
+        "roomHealing": 133.15,
+        "defensiveSwaps": 22.4,
+        "freeDamage": 1377.49
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 30,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 118.72,
+            "swaps": 3.26,
+            "replies": 0.84,
+            "hpSpent": 1.28,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 6
+        },
+        {
+          "room": 2,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 23,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 126.33,
+            "swaps": 3.67,
+            "replies": 1.12,
+            "hpSpent": 1.03,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 3,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 25,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.28,
+            "maxHp": 127.36,
+            "endHp": 126.1,
+            "swaps": 3.46,
+            "replies": 1.07,
+            "hpSpent": 1.82,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 4,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 10,
+          "sawFlurry": 90,
+          "mean": {
+            "startHp": 127.84,
+            "maxHp": 128,
+            "endHp": 124.84,
+            "swaps": 4.35,
+            "replies": 1.52,
+            "hpSpent": 4.68,
+            "healing": 0
+          },
+          "maxFlurryRaw": 15,
+          "maxFlurryHpLoss": 11,
+          "maxReplyHpLoss": 11
+        },
+        {
+          "room": 5,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 3,
+          "sawFlurry": 34,
+          "mean": {
+            "startHp": 128.44,
+            "maxHp": 129.68,
+            "endHp": 123.13,
+            "swaps": 6.3,
+            "replies": 2.06,
+            "hpSpent": 11.63,
+            "healing": 0
+          },
+          "maxFlurryRaw": 23,
+          "maxFlurryHpLoss": 21,
+          "maxReplyHpLoss": 21
+        },
+        {
+          "room": 6,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 13,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133.44,
+            "maxHp": 136,
+            "endHp": 129.96,
+            "swaps": 4.73,
+            "replies": 1.39,
+            "hpSpent": 4.76,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 7,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 11,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.1,
+            "maxHp": 137.28,
+            "endHp": 133.68,
+            "swaps": 5.08,
+            "replies": 1.91,
+            "hpSpent": 5.46,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 15
+        },
+        {
+          "room": 8,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 13,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 138.48,
+            "maxHp": 142.32,
+            "endHp": 133.56,
+            "swaps": 4.7,
+            "replies": 1.7,
+            "hpSpent": 6.92,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 9,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 5,
+          "sawFlurry": 95,
+          "mean": {
+            "startHp": 138.86,
+            "maxHp": 144.32,
+            "endHp": 125.24,
+            "swaps": 4.91,
+            "replies": 1.84,
+            "hpSpent": 14.74,
+            "healing": 0
+          },
+          "maxFlurryRaw": 22,
+          "maxFlurryHpLoss": 18,
+          "maxReplyHpLoss": 18
+        },
+        {
+          "room": 10,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 1,
+          "sawFlurry": 39,
+          "mean": {
+            "startHp": 132.48,
+            "maxHp": 145.44,
+            "endHp": 120.42,
+            "swaps": 6.95,
+            "replies": 2.33,
+            "hpSpent": 17.66,
+            "healing": 0
+          },
+          "maxFlurryRaw": 29,
+          "maxFlurryHpLoss": 27,
+          "maxReplyHpLoss": 27
+        },
+        {
+          "room": 11,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 7,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 139.3,
+            "maxHp": 151.04,
+            "endHp": 130.63,
+            "swaps": 5.03,
+            "replies": 1.44,
+            "hpSpent": 10.19,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 12,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 137.6,
+            "maxHp": 152.56,
+            "endHp": 125.88,
+            "swaps": 6.17,
+            "replies": 2.39,
+            "hpSpent": 12.52,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 13,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 5,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133.14,
+            "maxHp": 153.36,
+            "endHp": 123.53,
+            "swaps": 5.81,
+            "replies": 2.21,
+            "hpSpent": 15.77,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 19
+        },
+        {
+          "room": 14,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 4,
+          "sawFlurry": 96,
+          "mean": {
+            "startHp": 130.94,
+            "maxHp": 159.52,
+            "endHp": 103.2,
+            "swaps": 5.83,
+            "replies": 2.29,
+            "hpSpent": 28.54,
+            "healing": 0
+          },
+          "maxFlurryRaw": 28,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 15,
+          "entered": 100,
+          "survived": 89,
+          "zeroReplies": 2,
+          "sawFlurry": 58,
+          "mean": {
+            "startHp": 111.09,
+            "maxHp": 160.32,
+            "endHp": 70.31,
+            "swaps": 7.88,
+            "replies": 2.84,
+            "hpSpent": 41.58,
+            "healing": 0
+          },
+          "maxFlurryRaw": 36,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 16,
+          "entered": 89,
+          "survived": 87,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 102.39,
+            "maxHp": 161.26,
+            "endHp": 89.06,
+            "swaps": 5.96,
+            "replies": 1.9,
+            "hpSpent": 19,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 17,
+          "entered": 87,
+          "survived": 82,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 99.1,
+            "maxHp": 167.08,
+            "endHp": 79.11,
+            "swaps": 6.76,
+            "replies": 2.78,
+            "hpSpent": 20.82,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 27
+        },
+        {
+          "room": 18,
+          "entered": 82,
+          "survived": 77,
+          "zeroReplies": 4,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 91.94,
+            "maxHp": 168.1,
+            "endHp": 66.88,
+            "swaps": 6.29,
+            "replies": 2.5,
+            "hpSpent": 26.13,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 25
+        },
+        {
+          "room": 19,
+          "entered": 77,
+          "survived": 61,
+          "zeroReplies": 1,
+          "sawFlurry": 76,
+          "mean": {
+            "startHp": 79.22,
+            "maxHp": 169.25,
+            "endHp": 42.96,
+            "swaps": 6.16,
+            "replies": 2.53,
+            "hpSpent": 39.38,
+            "healing": 0
+          },
+          "maxFlurryRaw": 35,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 20,
+          "entered": 61,
+          "survived": 41,
+          "zeroReplies": 1,
+          "sawFlurry": 41,
+          "mean": {
+            "startHp": 62.23,
+            "maxHp": 173.38,
+            "endHp": 28.74,
+            "swaps": 7.67,
+            "replies": 2.85,
+            "hpSpent": 35.33,
+            "healing": 0
+          },
+          "maxFlurryRaw": 42,
+          "maxFlurryHpLoss": 30,
+          "maxReplyHpLoss": 33
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 21.04,
+            "supers": 2.66,
+            "replies": 6.61,
+            "waves": 48.99,
+            "damage": 951.22,
+            "hpSpent": 20.44,
+            "healing": 0,
+            "barrierGranted": 68.94,
+            "levelHealing": 16,
+            "roomHealing": 7.57,
+            "defensiveSwaps": 4.32,
+            "freeDamage": 166.22
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 26.37,
+            "supers": 3.48,
+            "replies": 9.17,
+            "waves": 61.45,
+            "damage": 1648.29,
+            "hpSpent": 49.54,
+            "healing": 0,
+            "barrierGranted": 93,
+            "levelHealing": 15.04,
+            "roomHealing": 31.79,
+            "defensiveSwaps": 5.38,
+            "freeDamage": 315.1
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 30.72,
+            "supers": 3.92,
+            "replies": 11.17,
+            "waves": 72.22,
+            "damage": 2321.59,
+            "hpSpent": 108.6,
+            "healing": 0,
+            "barrierGranted": 111.29,
+            "levelHealing": 10.08,
+            "roomHealing": 48.41,
+            "defensiveSwaps": 6.37,
+            "freeDamage": 462.02
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 89,
+          "perEnteredRun": {
+            "swaps": 28.94,
+            "supers": 3.53,
+            "replies": 11.07,
+            "waves": 68.99,
+            "damage": 2521.39,
+            "hpSpent": 121.71,
+            "healing": 0,
+            "barrierGranted": 117.54,
+            "levelHealing": 11.42,
+            "roomHealing": 50.99,
+            "defensiveSwaps": 7.11,
+            "freeDamage": 487.81
+          }
+        }
+      ]
+    },
+    {
+      "classId": "elementalist",
+      "policy": "visible",
+      "condition": "default",
+      "seeds": [
+        1,
+        25
+      ],
+      "runs": 25,
+      "wins": 7,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 1,
+        "16": 1,
+        "17": 1,
+        "18": 3,
+        "19": 7,
+        "20": 5
+      },
+      "meanFinalHp": 9.32,
+      "perStartedRun": {
+        "swaps": 111.36,
+        "supers": 14.44,
+        "replies": 40.24,
+        "waves": 263.44,
+        "damage": 7113.8,
+        "hpSpent": 309.44,
+        "healing": 1.56,
+        "barrierGranted": 409.4,
+        "levelHealing": 52.48,
+        "roomHealing": 144.72,
+        "defensiveSwaps": 24.6,
+        "freeDamage": 1404.4
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 6,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 117.36,
+            "swaps": 3.68,
+            "replies": 1,
+            "hpSpent": 2.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 2,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 5,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 119.64,
+            "maxHp": 120,
+            "endHp": 124.56,
+            "swaps": 3.96,
+            "replies": 1.2,
+            "hpSpent": 2.72,
+            "healing": 0.28
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 10
+        },
+        {
+          "room": 3,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 4,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.2,
+            "maxHp": 127.36,
+            "endHp": 125.56,
+            "swaps": 4.44,
+            "replies": 1.44,
+            "hpSpent": 2.52,
+            "healing": 0.24
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 4,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 24,
+          "mean": {
+            "startHp": 127.8,
+            "maxHp": 128,
+            "endHp": 124.28,
+            "swaps": 4.08,
+            "replies": 1.52,
+            "hpSpent": 5.8,
+            "healing": 0.04
+          },
+          "maxFlurryRaw": 13,
+          "maxFlurryHpLoss": 13,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 5,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 12,
+          "mean": {
+            "startHp": 128.56,
+            "maxHp": 130.24,
+            "endHp": 118.76,
+            "swaps": 7.6,
+            "replies": 2.48,
+            "hpSpent": 15.8,
+            "healing": 0.24
+          },
+          "maxFlurryRaw": 20,
+          "maxFlurryHpLoss": 16,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 6,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 131.92,
+            "maxHp": 136,
+            "endHp": 129.6,
+            "swaps": 5.12,
+            "replies": 1.48,
+            "hpSpent": 4.64,
+            "healing": 0.08
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 12
+        },
+        {
+          "room": 7,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.28,
+            "maxHp": 138.24,
+            "endHp": 132.4,
+            "swaps": 5.64,
+            "replies": 2.16,
+            "hpSpent": 7.36,
+            "healing": 0.04
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 8,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 137.2,
+            "maxHp": 143.68,
+            "endHp": 131.16,
+            "swaps": 5.44,
+            "replies": 2.12,
+            "hpSpent": 7.84,
+            "healing": 0.52
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 9,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 23,
+          "mean": {
+            "startHp": 136.8,
+            "maxHp": 144.96,
+            "endHp": 119,
+            "swaps": 5.92,
+            "replies": 2.32,
+            "hpSpent": 19.08,
+            "healing": 0
+          },
+          "maxFlurryRaw": 19,
+          "maxFlurryHpLoss": 17,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 10,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 10,
+          "mean": {
+            "startHp": 126.6,
+            "maxHp": 146.24,
+            "endHp": 112.16,
+            "swaps": 7.24,
+            "replies": 2.4,
+            "hpSpent": 20.2,
+            "healing": 0
+          },
+          "maxFlurryRaw": 26,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 11,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 132.64,
+            "maxHp": 152,
+            "endHp": 124.04,
+            "swaps": 5.24,
+            "replies": 1.52,
+            "hpSpent": 9.56,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 14
+        },
+        {
+          "room": 12,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 131.44,
+            "maxHp": 152.96,
+            "endHp": 118.92,
+            "swaps": 6.64,
+            "replies": 2.68,
+            "hpSpent": 14.12,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 18
+        },
+        {
+          "room": 13,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 125.8,
+            "maxHp": 154.56,
+            "endHp": 112.32,
+            "swaps": 6.68,
+            "replies": 2.68,
+            "hpSpent": 19.56,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 14,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 25,
+          "mean": {
+            "startHp": 120.04,
+            "maxHp": 160.64,
+            "endHp": 90.96,
+            "swaps": 5.84,
+            "replies": 2.28,
+            "hpSpent": 29.4,
+            "healing": 0
+          },
+          "maxFlurryRaw": 28,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 15,
+          "entered": 25,
+          "survived": 24,
+          "zeroReplies": 0,
+          "sawFlurry": 14,
+          "mean": {
+            "startHp": 98.96,
+            "maxHp": 160.96,
+            "endHp": 61.12,
+            "swaps": 8.28,
+            "replies": 2.96,
+            "hpSpent": 39.12,
+            "healing": 0
+          },
+          "maxFlurryRaw": 36,
+          "maxFlurryHpLoss": 29,
+          "maxReplyHpLoss": 29
+        },
+        {
+          "room": 16,
+          "entered": 24,
+          "survived": 23,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 87.63,
+            "maxHp": 162.33,
+            "endHp": 75.38,
+            "swaps": 5.75,
+            "replies": 1.88,
+            "hpSpent": 17.92,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 17,
+          "entered": 23,
+          "survived": 22,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 86.57,
+            "maxHp": 168.35,
+            "endHp": 69.57,
+            "swaps": 6.13,
+            "replies": 2.35,
+            "hpSpent": 17.35,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 18,
+          "entered": 22,
+          "survived": 19,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 80.36,
+            "maxHp": 168.73,
+            "endHp": 52.91,
+            "swaps": 6.68,
+            "replies": 2.82,
+            "hpSpent": 29.41,
+            "healing": 0.14
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 24
+        },
+        {
+          "room": 19,
+          "entered": 19,
+          "survived": 12,
+          "zeroReplies": 1,
+          "sawFlurry": 18,
+          "mean": {
+            "startHp": 69.26,
+            "maxHp": 170.95,
+            "endHp": 38.32,
+            "swaps": 5.74,
+            "replies": 2.47,
+            "hpSpent": 34.32,
+            "healing": 0
+          },
+          "maxFlurryRaw": 35,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 20,
+          "entered": 12,
+          "survived": 7,
+          "zeroReplies": 0,
+          "sawFlurry": 11,
+          "mean": {
+            "startHp": 68.67,
+            "maxHp": 175.33,
+            "endHp": 19.42,
+            "swaps": 8.67,
+            "replies": 3.5,
+            "hpSpent": 49.92,
+            "healing": 0
+          },
+          "maxFlurryRaw": 40,
+          "maxFlurryHpLoss": 36,
+          "maxReplyHpLoss": 36
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 23.76,
+            "supers": 3.04,
+            "replies": 7.64,
+            "waves": 54.16,
+            "damage": 951.24,
+            "hpSpent": 29.48,
+            "healing": 0.8,
+            "barrierGranted": 81.52,
+            "levelHealing": 16,
+            "roomHealing": 11.44,
+            "defensiveSwaps": 5.08,
+            "freeDamage": 180.28
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 29.36,
+            "supers": 3.2,
+            "replies": 10.48,
+            "waves": 67.8,
+            "damage": 1650.76,
+            "hpSpent": 59.12,
+            "healing": 0.64,
+            "barrierGranted": 102.76,
+            "levelHealing": 16,
+            "roomHealing": 35.88,
+            "defensiveSwaps": 5.96,
+            "freeDamage": 269.96
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 32.68,
+            "supers": 4.2,
+            "replies": 12.12,
+            "waves": 78.32,
+            "damage": 2346.16,
+            "hpSpent": 111.76,
+            "healing": 0,
+            "barrierGranted": 119.28,
+            "levelHealing": 10.24,
+            "roomHealing": 50.48,
+            "defensiveSwaps": 7.24,
+            "freeDamage": 455.48
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 24,
+          "perEnteredRun": {
+            "swaps": 26.63,
+            "supers": 4.17,
+            "replies": 10.42,
+            "waves": 65.79,
+            "damage": 2255.88,
+            "hpSpent": 113.63,
+            "healing": 0.13,
+            "barrierGranted": 110.25,
+            "levelHealing": 10.67,
+            "roomHealing": 48.88,
+            "defensiveSwaps": 6.58,
+            "freeDamage": 519.46
+          }
+        }
+      ]
+    },
+    {
+      "classId": "elementalist",
+      "policy": "visible",
+      "condition": "avoid-healing",
+      "seeds": [
+        1,
+        25
+      ],
+      "runs": 25,
+      "wins": 7,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 2,
+        "16": 1,
+        "17": 1,
+        "18": 3,
+        "19": 6,
+        "20": 5
+      },
+      "meanFinalHp": 9.04,
+      "perStartedRun": {
+        "swaps": 110.36,
+        "supers": 14.32,
+        "replies": 39.76,
+        "waves": 261.56,
+        "damage": 7039,
+        "hpSpent": 305.12,
+        "healing": 0,
+        "barrierGranted": 406.16,
+        "levelHealing": 51.52,
+        "roomHealing": 142.64,
+        "defensiveSwaps": 24.24,
+        "freeDamage": 1392.56
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 6,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 117.36,
+            "swaps": 3.68,
+            "replies": 1,
+            "hpSpent": 2.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 2,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 5,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 119.64,
+            "maxHp": 120,
+            "endHp": 124.36,
+            "swaps": 3.96,
+            "replies": 1.2,
+            "hpSpent": 2.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 3,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 4,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.08,
+            "maxHp": 127.36,
+            "endHp": 125.36,
+            "swaps": 4.44,
+            "replies": 1.44,
+            "hpSpent": 2.36,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 4,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 24,
+          "mean": {
+            "startHp": 127.8,
+            "maxHp": 128,
+            "endHp": 124,
+            "swaps": 4.08,
+            "replies": 1.52,
+            "hpSpent": 5.72,
+            "healing": 0
+          },
+          "maxFlurryRaw": 13,
+          "maxFlurryHpLoss": 13,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 5,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 12,
+          "mean": {
+            "startHp": 128.24,
+            "maxHp": 129.92,
+            "endHp": 118.52,
+            "swaps": 7.64,
+            "replies": 2.52,
+            "hpSpent": 15.8,
+            "healing": 0
+          },
+          "maxFlurryRaw": 20,
+          "maxFlurryHpLoss": 16,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 6,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 131.92,
+            "maxHp": 136,
+            "endHp": 129.72,
+            "swaps": 5,
+            "replies": 1.4,
+            "hpSpent": 4.12,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 12
+        },
+        {
+          "room": 7,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.16,
+            "maxHp": 137.92,
+            "endHp": 132.36,
+            "swaps": 5.72,
+            "replies": 2.2,
+            "hpSpent": 7.56,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 8,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 137.2,
+            "maxHp": 143.68,
+            "endHp": 130.4,
+            "swaps": 5.44,
+            "replies": 2.12,
+            "hpSpent": 7.76,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 14
+        },
+        {
+          "room": 9,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 23,
+          "mean": {
+            "startHp": 136.04,
+            "maxHp": 144.64,
+            "endHp": 118.48,
+            "swaps": 5.88,
+            "replies": 2.32,
+            "hpSpent": 18.84,
+            "healing": 0
+          },
+          "maxFlurryRaw": 19,
+          "maxFlurryHpLoss": 17,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 10,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 10,
+          "mean": {
+            "startHp": 126.08,
+            "maxHp": 145.92,
+            "endHp": 112.28,
+            "swaps": 7.2,
+            "replies": 2.36,
+            "hpSpent": 19.88,
+            "healing": 0
+          },
+          "maxFlurryRaw": 26,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 11,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 132.2,
+            "maxHp": 152,
+            "endHp": 123.36,
+            "swaps": 5.16,
+            "replies": 1.48,
+            "hpSpent": 9.48,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 14
+        },
+        {
+          "room": 12,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 130.88,
+            "maxHp": 152.64,
+            "endHp": 119.08,
+            "swaps": 6.36,
+            "replies": 2.56,
+            "hpSpent": 13.4,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 18
+        },
+        {
+          "room": 13,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 125.96,
+            "maxHp": 154.24,
+            "endHp": 111.64,
+            "swaps": 6.84,
+            "replies": 2.76,
+            "hpSpent": 20.4,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 14,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 25,
+          "mean": {
+            "startHp": 119.36,
+            "maxHp": 160.32,
+            "endHp": 89.28,
+            "swaps": 5.92,
+            "replies": 2.32,
+            "hpSpent": 30.4,
+            "healing": 0
+          },
+          "maxFlurryRaw": 28,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 15,
+          "entered": 25,
+          "survived": 23,
+          "zeroReplies": 0,
+          "sawFlurry": 15,
+          "mean": {
+            "startHp": 97.28,
+            "maxHp": 160.64,
+            "endHp": 57.8,
+            "swaps": 8.44,
+            "replies": 3.04,
+            "hpSpent": 40.76,
+            "healing": 0
+          },
+          "maxFlurryRaw": 36,
+          "maxFlurryHpLoss": 29,
+          "maxReplyHpLoss": 29
+        },
+        {
+          "room": 16,
+          "entered": 23,
+          "survived": 22,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 86.78,
+            "maxHp": 162.09,
+            "endHp": 74.17,
+            "swaps": 5.87,
+            "replies": 1.91,
+            "hpSpent": 18.17,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 17,
+          "entered": 22,
+          "survived": 21,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 85.45,
+            "maxHp": 168,
+            "endHp": 68.55,
+            "swaps": 6.18,
+            "replies": 2.36,
+            "hpSpent": 17.27,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 18,
+          "entered": 21,
+          "survived": 18,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 79.43,
+            "maxHp": 168.38,
+            "endHp": 54.05,
+            "swaps": 6.48,
+            "replies": 2.67,
+            "hpSpent": 26.9,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 24
+        },
+        {
+          "room": 19,
+          "entered": 18,
+          "survived": 12,
+          "zeroReplies": 1,
+          "sawFlurry": 17,
+          "mean": {
+            "startHp": 71.06,
+            "maxHp": 170.22,
+            "endHp": 40.28,
+            "swaps": 5.72,
+            "replies": 2.44,
+            "hpSpent": 34.33,
+            "healing": 0
+          },
+          "maxFlurryRaw": 35,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 20,
+          "entered": 12,
+          "survived": 7,
+          "zeroReplies": 0,
+          "sawFlurry": 11,
+          "mean": {
+            "startHp": 68.42,
+            "maxHp": 175.33,
+            "endHp": 18.83,
+            "swaps": 8.75,
+            "replies": 3.5,
+            "hpSpent": 50.25,
+            "healing": 0
+          },
+          "maxFlurryRaw": 40,
+          "maxFlurryHpLoss": 36,
+          "maxReplyHpLoss": 36
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 23.8,
+            "supers": 3.08,
+            "replies": 7.68,
+            "waves": 54.4,
+            "damage": 951.24,
+            "hpSpent": 29.16,
+            "healing": 0,
+            "barrierGranted": 82.44,
+            "levelHealing": 16,
+            "roomHealing": 11.68,
+            "defensiveSwaps": 5.08,
+            "freeDamage": 180.88
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 29.24,
+            "supers": 3.2,
+            "replies": 10.4,
+            "waves": 68.04,
+            "damage": 1650.76,
+            "hpSpent": 58.16,
+            "healing": 0,
+            "barrierGranted": 102.88,
+            "levelHealing": 16,
+            "roomHealing": 35.92,
+            "defensiveSwaps": 6,
+            "freeDamage": 269.48
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 32.72,
+            "supers": 4.12,
+            "replies": 12.16,
+            "waves": 78.2,
+            "damage": 2339.04,
+            "hpSpent": 114.44,
+            "healing": 0,
+            "barrierGranted": 118.56,
+            "levelHealing": 9.92,
+            "roomHealing": 50.04,
+            "defensiveSwaps": 7.12,
+            "freeDamage": 449.16
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 23,
+          "perEnteredRun": {
+            "swaps": 26.74,
+            "supers": 4.26,
+            "replies": 10.35,
+            "waves": 66.22,
+            "damage": 2280.39,
+            "hpSpent": 112.35,
+            "healing": 0,
+            "barrierGranted": 111.17,
+            "levelHealing": 10.43,
+            "roomHealing": 48.91,
+            "defensiveSwaps": 6.57,
+            "freeDamage": 535.91
+          }
+        }
+      ]
+    },
+    {
+      "classId": "warlock",
+      "policy": "visible",
+      "condition": "default",
+      "seeds": [
+        1,
+        25
+      ],
+      "runs": 25,
+      "wins": 9,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 2,
+        "17": 2,
+        "18": 1,
+        "19": 6,
+        "20": 5
+      },
+      "meanFinalHp": 14.8,
+      "perStartedRun": {
+        "swaps": 112.52,
+        "supers": 14.92,
+        "replies": 41.08,
+        "waves": 267.44,
+        "damage": 7138.64,
+        "hpSpent": 303.68,
+        "healing": 2,
+        "barrierGranted": 428.04,
+        "levelHealing": 52.48,
+        "roomHealing": 144,
+        "defensiveSwaps": 25.88,
+        "freeDamage": 1486.76
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 7,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 117.36,
+            "swaps": 3.52,
+            "replies": 0.96,
+            "hpSpent": 2.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 2,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 119.64,
+            "maxHp": 120,
+            "endHp": 125.08,
+            "swaps": 4.36,
+            "replies": 1.52,
+            "hpSpent": 2.76,
+            "healing": 0.2
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 10
+        },
+        {
+          "room": 3,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.68,
+            "maxHp": 128,
+            "endHp": 123.72,
+            "swaps": 5.12,
+            "replies": 1.88,
+            "hpSpent": 4.24,
+            "healing": 0.28
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 10
+        },
+        {
+          "room": 4,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 5,
+          "sawFlurry": 20,
+          "mean": {
+            "startHp": 127.24,
+            "maxHp": 128,
+            "endHp": 125.12,
+            "swaps": 3.88,
+            "replies": 1.44,
+            "hpSpent": 4.4,
+            "healing": 0.04
+          },
+          "maxFlurryRaw": 15,
+          "maxFlurryHpLoss": 12,
+          "maxReplyHpLoss": 12
+        },
+        {
+          "room": 5,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 11,
+          "mean": {
+            "startHp": 129.12,
+            "maxHp": 130.24,
+            "endHp": 120.16,
+            "swaps": 7.68,
+            "replies": 2.52,
+            "hpSpent": 15.08,
+            "healing": 0.36
+          },
+          "maxFlurryRaw": 20,
+          "maxFlurryHpLoss": 15,
+          "maxReplyHpLoss": 15
+        },
+        {
+          "room": 6,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 132.16,
+            "maxHp": 136,
+            "endHp": 129.72,
+            "swaps": 4.96,
+            "replies": 1.48,
+            "hpSpent": 4.84,
+            "healing": 0.16
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 12
+        },
+        {
+          "room": 7,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.56,
+            "maxHp": 138.24,
+            "endHp": 136.24,
+            "swaps": 5.84,
+            "replies": 2.2,
+            "hpSpent": 4.2,
+            "healing": 0.12
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 8,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 140.28,
+            "maxHp": 144,
+            "endHp": 130.72,
+            "swaps": 5.8,
+            "replies": 2.28,
+            "hpSpent": 10.88,
+            "healing": 0.36
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 9,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 24,
+          "mean": {
+            "startHp": 136.8,
+            "maxHp": 144.96,
+            "endHp": 120.4,
+            "swaps": 6,
+            "replies": 2.4,
+            "hpSpent": 17.68,
+            "healing": 0
+          },
+          "maxFlurryRaw": 19,
+          "maxFlurryHpLoss": 17,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 10,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 10,
+          "mean": {
+            "startHp": 127.84,
+            "maxHp": 146.24,
+            "endHp": 114.88,
+            "swaps": 6.68,
+            "replies": 2.24,
+            "hpSpent": 18.72,
+            "healing": 0
+          },
+          "maxFlurryRaw": 26,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 11,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 135.68,
+            "maxHp": 152,
+            "endHp": 126.56,
+            "swaps": 5.32,
+            "replies": 1.64,
+            "hpSpent": 10.08,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 12,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133.88,
+            "maxHp": 152.96,
+            "endHp": 125.6,
+            "swaps": 6.08,
+            "replies": 2.32,
+            "hpSpent": 9.56,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 13,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 132.88,
+            "maxHp": 154.24,
+            "endHp": 124.08,
+            "swaps": 5.88,
+            "replies": 2.32,
+            "hpSpent": 14.88,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 19
+        },
+        {
+          "room": 14,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 24,
+          "mean": {
+            "startHp": 131.56,
+            "maxHp": 160.32,
+            "endHp": 107.52,
+            "swaps": 5.68,
+            "replies": 2.28,
+            "hpSpent": 24.68,
+            "healing": 0
+          },
+          "maxFlurryRaw": 26,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 15,
+          "entered": 25,
+          "survived": 23,
+          "zeroReplies": 0,
+          "sawFlurry": 17,
+          "mean": {
+            "startHp": 115.52,
+            "maxHp": 160.96,
+            "endHp": 73,
+            "swaps": 8.2,
+            "replies": 2.96,
+            "hpSpent": 43.8,
+            "healing": 0
+          },
+          "maxFlurryRaw": 32,
+          "maxFlurryHpLoss": 28,
+          "maxReplyHpLoss": 28
+        },
+        {
+          "room": 16,
+          "entered": 23,
+          "survived": 23,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 102.91,
+            "maxHp": 162.43,
+            "endHp": 86.91,
+            "swaps": 6.57,
+            "replies": 2.04,
+            "hpSpent": 21.22,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 17,
+          "entered": 23,
+          "survived": 21,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 94.57,
+            "maxHp": 167.65,
+            "endHp": 72.61,
+            "swaps": 7.35,
+            "replies": 3.09,
+            "hpSpent": 22.65,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 24
+        },
+        {
+          "room": 18,
+          "entered": 21,
+          "survived": 20,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 87.52,
+            "maxHp": 168.76,
+            "endHp": 61.33,
+            "swaps": 6.57,
+            "replies": 2.62,
+            "hpSpent": 27.86,
+            "healing": 0.14
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 21
+        },
+        {
+          "room": 19,
+          "entered": 20,
+          "survived": 14,
+          "zeroReplies": 2,
+          "sawFlurry": 18,
+          "mean": {
+            "startHp": 72.4,
+            "maxHp": 170.4,
+            "endHp": 32.4,
+            "swaps": 6.65,
+            "replies": 2.9,
+            "hpSpent": 43.75,
+            "healing": 0.15
+          },
+          "maxFlurryRaw": 35,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 20,
+          "entered": 14,
+          "survived": 9,
+          "zeroReplies": 0,
+          "sawFlurry": 5,
+          "mean": {
+            "startHp": 54.29,
+            "maxHp": 174.86,
+            "endHp": 26.43,
+            "swaps": 6.93,
+            "replies": 2.5,
+            "hpSpent": 29.43,
+            "healing": 0.43
+          },
+          "maxFlurryRaw": 37,
+          "maxFlurryHpLoss": 33,
+          "maxReplyHpLoss": 33
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 24.56,
+            "supers": 3.24,
+            "replies": 8.32,
+            "waves": 55.24,
+            "damage": 952.56,
+            "hpSpent": 29.12,
+            "healing": 0.88,
+            "barrierGranted": 84.6,
+            "levelHealing": 16,
+            "roomHealing": 12.4,
+            "defensiveSwaps": 5.08,
+            "freeDamage": 173.76
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 29.28,
+            "supers": 3.68,
+            "replies": 10.6,
+            "waves": 67.6,
+            "damage": 1653.36,
+            "hpSpent": 56.32,
+            "healing": 0.64,
+            "barrierGranted": 107.12,
+            "levelHealing": 16,
+            "roomHealing": 34.4,
+            "defensiveSwaps": 6.08,
+            "freeDamage": 319.36
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 31.16,
+            "supers": 4.48,
+            "replies": 11.52,
+            "waves": 77.08,
+            "damage": 2340.28,
+            "hpSpent": 103,
+            "healing": 0,
+            "barrierGranted": 124.48,
+            "levelHealing": 10.24,
+            "roomHealing": 50.88,
+            "defensiveSwaps": 7.52,
+            "freeDamage": 529.4
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 23,
+          "perEnteredRun": {
+            "swaps": 29.91,
+            "supers": 3.83,
+            "replies": 11.57,
+            "waves": 73.39,
+            "damage": 2383.09,
+            "hpSpent": 125.26,
+            "healing": 0.52,
+            "barrierGranted": 121.57,
+            "levelHealing": 11.13,
+            "roomHealing": 50.35,
+            "defensiveSwaps": 7.83,
+            "freeDamage": 504.61
+          }
+        }
+      ]
+    },
+    {
+      "classId": "warlock",
+      "policy": "visible",
+      "condition": "avoid-healing",
+      "seeds": [
+        1,
+        25
+      ],
+      "runs": 25,
+      "wins": 7,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 3,
+        "17": 2,
+        "18": 2,
+        "19": 5,
+        "20": 6
+      },
+      "meanFinalHp": 14.4,
+      "perStartedRun": {
+        "swaps": 111.24,
+        "supers": 14.64,
+        "replies": 40.6,
+        "waves": 264.76,
+        "damage": 6992.92,
+        "hpSpent": 298.04,
+        "healing": 0,
+        "barrierGranted": 424.88,
+        "levelHealing": 51.2,
+        "roomHealing": 141.24,
+        "defensiveSwaps": 25.52,
+        "freeDamage": 1450.64
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 7,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 117.36,
+            "swaps": 3.52,
+            "replies": 0.96,
+            "hpSpent": 2.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 2,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 119.64,
+            "maxHp": 120,
+            "endHp": 124.96,
+            "swaps": 4.36,
+            "replies": 1.52,
+            "hpSpent": 2.68,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 3,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.56,
+            "maxHp": 128,
+            "endHp": 123.48,
+            "swaps": 5.12,
+            "replies": 1.88,
+            "hpSpent": 4.08,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 10
+        },
+        {
+          "room": 4,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 5,
+          "sawFlurry": 20,
+          "mean": {
+            "startHp": 127.12,
+            "maxHp": 128,
+            "endHp": 124.76,
+            "swaps": 3.88,
+            "replies": 1.44,
+            "hpSpent": 4.28,
+            "healing": 0
+          },
+          "maxFlurryRaw": 15,
+          "maxFlurryHpLoss": 10,
+          "maxReplyHpLoss": 11
+        },
+        {
+          "room": 5,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 11,
+          "mean": {
+            "startHp": 128.76,
+            "maxHp": 129.92,
+            "endHp": 119.96,
+            "swaps": 7.72,
+            "replies": 2.56,
+            "hpSpent": 14.88,
+            "healing": 0
+          },
+          "maxFlurryRaw": 20,
+          "maxFlurryHpLoss": 15,
+          "maxReplyHpLoss": 15
+        },
+        {
+          "room": 6,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 132.24,
+            "maxHp": 136,
+            "endHp": 129.84,
+            "swaps": 4.84,
+            "replies": 1.4,
+            "hpSpent": 4.32,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 12
+        },
+        {
+          "room": 7,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.44,
+            "maxHp": 137.92,
+            "endHp": 136.12,
+            "swaps": 5.92,
+            "replies": 2.24,
+            "hpSpent": 4.4,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 8,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 140.2,
+            "maxHp": 144,
+            "endHp": 130.04,
+            "swaps": 5.8,
+            "replies": 2.28,
+            "hpSpent": 10.8,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 9,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 24,
+          "mean": {
+            "startHp": 136.16,
+            "maxHp": 144.64,
+            "endHp": 120,
+            "swaps": 5.96,
+            "replies": 2.4,
+            "hpSpent": 17.44,
+            "healing": 0
+          },
+          "maxFlurryRaw": 19,
+          "maxFlurryHpLoss": 17,
+          "maxReplyHpLoss": 17
+        },
+        {
+          "room": 10,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 10,
+          "mean": {
+            "startHp": 127.44,
+            "maxHp": 145.92,
+            "endHp": 115.12,
+            "swaps": 6.64,
+            "replies": 2.2,
+            "hpSpent": 18.4,
+            "healing": 0
+          },
+          "maxFlurryRaw": 26,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 11,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 135.36,
+            "maxHp": 152,
+            "endHp": 126,
+            "swaps": 5.24,
+            "replies": 1.6,
+            "hpSpent": 10,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 12,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133.44,
+            "maxHp": 152.64,
+            "endHp": 125.72,
+            "swaps": 5.8,
+            "replies": 2.2,
+            "hpSpent": 9,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 14
+        },
+        {
+          "room": 13,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 133,
+            "maxHp": 153.92,
+            "endHp": 123.36,
+            "swaps": 6.04,
+            "replies": 2.4,
+            "hpSpent": 15.72,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 19
+        },
+        {
+          "room": 14,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 24,
+          "mean": {
+            "startHp": 130.84,
+            "maxHp": 160,
+            "endHp": 105.8,
+            "swaps": 5.76,
+            "replies": 2.32,
+            "hpSpent": 25.68,
+            "healing": 0
+          },
+          "maxFlurryRaw": 26,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 15,
+          "entered": 25,
+          "survived": 22,
+          "zeroReplies": 0,
+          "sawFlurry": 18,
+          "mean": {
+            "startHp": 113.8,
+            "maxHp": 160.64,
+            "endHp": 69.64,
+            "swaps": 8.36,
+            "replies": 3.04,
+            "hpSpent": 45.44,
+            "healing": 0
+          },
+          "maxFlurryRaw": 32,
+          "maxFlurryHpLoss": 28,
+          "maxReplyHpLoss": 28
+        },
+        {
+          "room": 16,
+          "entered": 22,
+          "survived": 22,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 102.68,
+            "maxHp": 162.18,
+            "endHp": 86.14,
+            "swaps": 6.73,
+            "replies": 2.09,
+            "hpSpent": 21.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 17,
+          "entered": 22,
+          "survived": 20,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 93.77,
+            "maxHp": 167.27,
+            "endHp": 71.68,
+            "swaps": 7.45,
+            "replies": 3.14,
+            "hpSpent": 22.82,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 24
+        },
+        {
+          "room": 18,
+          "entered": 20,
+          "survived": 18,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 86.85,
+            "maxHp": 168.4,
+            "endHp": 60.8,
+            "swaps": 6.55,
+            "replies": 2.6,
+            "hpSpent": 27.25,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 25
+        },
+        {
+          "room": 19,
+          "entered": 18,
+          "survived": 13,
+          "zeroReplies": 2,
+          "sawFlurry": 16,
+          "mean": {
+            "startHp": 75.56,
+            "maxHp": 169.78,
+            "endHp": 35.11,
+            "swaps": 6.78,
+            "replies": 2.94,
+            "hpSpent": 44,
+            "healing": 0
+          },
+          "maxFlurryRaw": 35,
+          "maxFlurryHpLoss": 31,
+          "maxReplyHpLoss": 31
+        },
+        {
+          "room": 20,
+          "entered": 13,
+          "survived": 7,
+          "zeroReplies": 0,
+          "sawFlurry": 5,
+          "mean": {
+            "startHp": 56.62,
+            "maxHp": 174.77,
+            "endHp": 27.69,
+            "swaps": 7.08,
+            "replies": 2.62,
+            "hpSpent": 30.15,
+            "healing": 0
+          },
+          "maxFlurryRaw": 37,
+          "maxFlurryHpLoss": 33,
+          "maxReplyHpLoss": 33
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 24.6,
+            "supers": 3.28,
+            "replies": 8.36,
+            "waves": 55.48,
+            "damage": 952.56,
+            "hpSpent": 28.56,
+            "healing": 0,
+            "barrierGranted": 85.92,
+            "levelHealing": 16,
+            "roomHealing": 12.52,
+            "defensiveSwaps": 5.08,
+            "freeDamage": 174.04
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 29.16,
+            "supers": 3.68,
+            "replies": 10.52,
+            "waves": 67.84,
+            "damage": 1653.36,
+            "hpSpent": 55.36,
+            "healing": 0,
+            "barrierGranted": 107.16,
+            "levelHealing": 16,
+            "roomHealing": 34.52,
+            "defensiveSwaps": 6.12,
+            "freeDamage": 319.44
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 31.2,
+            "supers": 4.4,
+            "replies": 11.56,
+            "waves": 76.96,
+            "damage": 2333.44,
+            "hpSpent": 105.84,
+            "healing": 0,
+            "barrierGranted": 123.76,
+            "levelHealing": 9.92,
+            "roomHealing": 50.44,
+            "defensiveSwaps": 7.4,
+            "freeDamage": 522.88
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 22,
+          "perEnteredRun": {
+            "swaps": 29.86,
+            "supers": 3.73,
+            "replies": 11.55,
+            "waves": 73.27,
+            "damage": 2333.59,
+            "hpSpent": 123.05,
+            "healing": 0,
+            "barrierGranted": 122.77,
+            "levelHealing": 10.55,
+            "roomHealing": 49.73,
+            "defensiveSwaps": 7.86,
+            "freeDamage": 493.5
+          }
+        }
+      ]
+    },
+    {
+      "classId": "monk",
+      "policy": "visible",
+      "condition": "default",
+      "seeds": [
+        1,
+        25
+      ],
+      "runs": 25,
+      "wins": 3,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 3,
+        "16": 1,
+        "17": 1,
+        "18": 5,
+        "19": 7,
+        "20": 5
+      },
+      "meanFinalHp": 6.2,
+      "perStartedRun": {
+        "swaps": 108.6,
+        "supers": 12.56,
+        "replies": 39.56,
+        "waves": 250.72,
+        "damage": 6715.68,
+        "hpSpent": 302.12,
+        "healing": 0.12,
+        "barrierGranted": 393.6,
+        "levelHealing": 48.96,
+        "roomHealing": 139.24,
+        "defensiveSwaps": 23.28,
+        "freeDamage": 1278.64
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 7,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 118.28,
+            "swaps": 3.48,
+            "replies": 0.96,
+            "hpSpent": 1.72,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 7
+        },
+        {
+          "room": 2,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 6,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 119.88,
+            "maxHp": 120,
+            "endHp": 125.76,
+            "swaps": 4.04,
+            "replies": 1.32,
+            "hpSpent": 1.8,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 3,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.64,
+            "maxHp": 127.68,
+            "endHp": 123.44,
+            "swaps": 4.84,
+            "replies": 1.72,
+            "hpSpent": 4.52,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 4,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 4,
+          "sawFlurry": 21,
+          "mean": {
+            "startHp": 126.88,
+            "maxHp": 128,
+            "endHp": 124.52,
+            "swaps": 4.76,
+            "replies": 1.68,
+            "hpSpent": 4.92,
+            "healing": 0
+          },
+          "maxFlurryRaw": 15,
+          "maxFlurryHpLoss": 10,
+          "maxReplyHpLoss": 10
+        },
+        {
+          "room": 5,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 11,
+          "mean": {
+            "startHp": 128.92,
+            "maxHp": 130.56,
+            "endHp": 116.24,
+            "swaps": 7.48,
+            "replies": 2.52,
+            "hpSpent": 18.12,
+            "healing": 0
+          },
+          "maxFlurryRaw": 20,
+          "maxFlurryHpLoss": 16,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 6,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 129.24,
+            "maxHp": 136,
+            "endHp": 127.84,
+            "swaps": 5.52,
+            "replies": 1.64,
+            "hpSpent": 3.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 12
+        },
+        {
+          "room": 7,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 132.8,
+            "maxHp": 138.24,
+            "endHp": 133,
+            "swaps": 5.84,
+            "replies": 2.12,
+            "hpSpent": 5.24,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 11
+        },
+        {
+          "room": 8,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 137.6,
+            "maxHp": 143.68,
+            "endHp": 129.8,
+            "swaps": 5.04,
+            "replies": 1.88,
+            "hpSpent": 8.76,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 14
+        },
+        {
+          "room": 9,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 25,
+          "mean": {
+            "startHp": 135,
+            "maxHp": 144.64,
+            "endHp": 122.72,
+            "swaps": 5.44,
+            "replies": 2.04,
+            "hpSpent": 13.88,
+            "healing": 0
+          },
+          "maxFlurryRaw": 22,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 10,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 14,
+          "mean": {
+            "startHp": 129.64,
+            "maxHp": 146.24,
+            "endHp": 112.72,
+            "swaps": 6.96,
+            "replies": 2.36,
+            "hpSpent": 22.36,
+            "healing": 0
+          },
+          "maxFlurryRaw": 29,
+          "maxFlurryHpLoss": 26,
+          "maxReplyHpLoss": 26
+        },
+        {
+          "room": 11,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.56,
+            "maxHp": 151.68,
+            "endHp": 126.64,
+            "swaps": 5.44,
+            "replies": 1.6,
+            "hpSpent": 9.52,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 12,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.24,
+            "maxHp": 153.28,
+            "endHp": 123.88,
+            "swaps": 6,
+            "replies": 2.4,
+            "hpSpent": 11.32,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 13,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 130.84,
+            "maxHp": 154.24,
+            "endHp": 117,
+            "swaps": 6.16,
+            "replies": 2.56,
+            "hpSpent": 19.6,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 14,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 25,
+          "mean": {
+            "startHp": 124.52,
+            "maxHp": 160,
+            "endHp": 97.8,
+            "swaps": 5.44,
+            "replies": 2.16,
+            "hpSpent": 27.36,
+            "healing": 0
+          },
+          "maxFlurryRaw": 28,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 15,
+          "entered": 25,
+          "survived": 22,
+          "zeroReplies": 0,
+          "sawFlurry": 12,
+          "mean": {
+            "startHp": 105.8,
+            "maxHp": 160.64,
+            "endHp": 65.56,
+            "swaps": 7.48,
+            "replies": 2.6,
+            "hpSpent": 41.52,
+            "healing": 0
+          },
+          "maxFlurryRaw": 32,
+          "maxFlurryHpLoss": 28,
+          "maxReplyHpLoss": 28
+        },
+        {
+          "room": 16,
+          "entered": 22,
+          "survived": 21,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 98.18,
+            "maxHp": 162.18,
+            "endHp": 70.23,
+            "swaps": 7.95,
+            "replies": 2.77,
+            "hpSpent": 33.41,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 21
+        },
+        {
+          "room": 17,
+          "entered": 21,
+          "survived": 20,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 81.57,
+            "maxHp": 168,
+            "endHp": 57.24,
+            "swaps": 7.71,
+            "replies": 3.29,
+            "hpSpent": 24.71,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 18,
+          "entered": 20,
+          "survived": 15,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 68.1,
+            "maxHp": 168.4,
+            "endHp": 34,
+            "swaps": 7.65,
+            "replies": 3.35,
+            "hpSpent": 35.3,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 19,
+          "entered": 15,
+          "survived": 8,
+          "zeroReplies": 2,
+          "sawFlurry": 13,
+          "mean": {
+            "startHp": 53.33,
+            "maxHp": 170.13,
+            "endHp": 25.27,
+            "swaps": 5,
+            "replies": 2.2,
+            "hpSpent": 29.67,
+            "healing": 0
+          },
+          "maxFlurryRaw": 31,
+          "maxFlurryHpLoss": 25,
+          "maxReplyHpLoss": 25
+        },
+        {
+          "room": 20,
+          "entered": 8,
+          "survived": 3,
+          "zeroReplies": 0,
+          "sawFlurry": 4,
+          "mean": {
+            "startHp": 55.38,
+            "maxHp": 174,
+            "endHp": 19.38,
+            "swaps": 6.5,
+            "replies": 2.5,
+            "hpSpent": 36.38,
+            "healing": 0.38
+          },
+          "maxFlurryRaw": 37,
+          "maxFlurryHpLoss": 27,
+          "maxReplyHpLoss": 30
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 24.6,
+            "supers": 2.72,
+            "replies": 8.2,
+            "waves": 53.12,
+            "damage": 951.68,
+            "hpSpent": 31.08,
+            "healing": 0,
+            "barrierGranted": 75.44,
+            "levelHealing": 16,
+            "roomHealing": 11.32,
+            "defensiveSwaps": 4.84,
+            "freeDamage": 152.84
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 28.8,
+            "supers": 2.92,
+            "replies": 10.04,
+            "waves": 65.52,
+            "damage": 1650.2,
+            "hpSpent": 53.88,
+            "healing": 0,
+            "barrierGranted": 105.16,
+            "levelHealing": 15.68,
+            "roomHealing": 34.68,
+            "defensiveSwaps": 5.68,
+            "freeDamage": 274.88
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 30.52,
+            "supers": 4.2,
+            "replies": 11.32,
+            "waves": 77.2,
+            "damage": 2329.88,
+            "hpSpent": 109.32,
+            "healing": 0,
+            "barrierGranted": 120.16,
+            "levelHealing": 10.24,
+            "roomHealing": 51.92,
+            "defensiveSwaps": 6.68,
+            "freeDamage": 479.84
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 22,
+          "perEnteredRun": {
+            "swaps": 28.05,
+            "supers": 3.09,
+            "replies": 11.36,
+            "waves": 62.36,
+            "damage": 2027.18,
+            "hpSpent": 122.55,
+            "healing": 0.14,
+            "barrierGranted": 105.5,
+            "levelHealing": 8,
+            "roomHealing": 46.95,
+            "defensiveSwaps": 6.91,
+            "freeDamage": 421.68
+          }
+        }
+      ]
+    },
+    {
+      "classId": "monk",
+      "policy": "visible",
+      "condition": "avoid-healing",
+      "seeds": [
+        1,
+        25
+      ],
+      "runs": 25,
+      "wins": 4,
+      "firstDeath": 15,
+      "deaths": {
+        "15": 3,
+        "16": 1,
+        "17": 1,
+        "18": 4,
+        "19": 7,
+        "20": 5
+      },
+      "meanFinalHp": 6.12,
+      "perStartedRun": {
+        "swaps": 108.68,
+        "supers": 12.76,
+        "replies": 39.52,
+        "waves": 251.96,
+        "damage": 6778.36,
+        "hpSpent": 302.68,
+        "healing": 0,
+        "barrierGranted": 394.8,
+        "levelHealing": 49.28,
+        "roomHealing": 139.52,
+        "defensiveSwaps": 23.24,
+        "freeDamage": 1307.76
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 7,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 118.28,
+            "swaps": 3.48,
+            "replies": 0.96,
+            "hpSpent": 1.72,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 7
+        },
+        {
+          "room": 2,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 6,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 119.88,
+            "maxHp": 120,
+            "endHp": 125.76,
+            "swaps": 4.04,
+            "replies": 1.32,
+            "hpSpent": 1.8,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 3,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 127.64,
+            "maxHp": 127.68,
+            "endHp": 123.44,
+            "swaps": 4.84,
+            "replies": 1.72,
+            "hpSpent": 4.52,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 4,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 4,
+          "sawFlurry": 21,
+          "mean": {
+            "startHp": 126.88,
+            "maxHp": 128,
+            "endHp": 124.84,
+            "swaps": 4.8,
+            "replies": 1.68,
+            "hpSpent": 4.92,
+            "healing": 0
+          },
+          "maxFlurryRaw": 15,
+          "maxFlurryHpLoss": 10,
+          "maxReplyHpLoss": 10
+        },
+        {
+          "room": 5,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 10,
+          "mean": {
+            "startHp": 129.24,
+            "maxHp": 130.88,
+            "endHp": 116.92,
+            "swaps": 7.36,
+            "replies": 2.44,
+            "hpSpent": 17.44,
+            "healing": 0
+          },
+          "maxFlurryRaw": 20,
+          "maxFlurryHpLoss": 16,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 6,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 129.48,
+            "maxHp": 136,
+            "endHp": 128.08,
+            "swaps": 5.56,
+            "replies": 1.68,
+            "hpSpent": 3.64,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 12
+        },
+        {
+          "room": 7,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 132.8,
+            "maxHp": 138.24,
+            "endHp": 132.08,
+            "swaps": 6.16,
+            "replies": 2.28,
+            "hpSpent": 6.16,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 11
+        },
+        {
+          "room": 8,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 137,
+            "maxHp": 143.68,
+            "endHp": 129.52,
+            "swaps": 4.92,
+            "replies": 1.84,
+            "hpSpent": 8.44,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 14
+        },
+        {
+          "room": 9,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 25,
+          "mean": {
+            "startHp": 134.72,
+            "maxHp": 144.64,
+            "endHp": 122.36,
+            "swaps": 5.44,
+            "replies": 2.04,
+            "hpSpent": 13.96,
+            "healing": 0
+          },
+          "maxFlurryRaw": 22,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 10,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 14,
+          "mean": {
+            "startHp": 129.28,
+            "maxHp": 146.24,
+            "endHp": 112.72,
+            "swaps": 6.92,
+            "replies": 2.36,
+            "hpSpent": 22,
+            "healing": 0
+          },
+          "maxFlurryRaw": 29,
+          "maxFlurryHpLoss": 25,
+          "maxReplyHpLoss": 25
+        },
+        {
+          "room": 11,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.56,
+            "maxHp": 151.68,
+            "endHp": 126.64,
+            "swaps": 5.48,
+            "replies": 1.64,
+            "hpSpent": 9.52,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 12,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 134.24,
+            "maxHp": 153.28,
+            "endHp": 124.6,
+            "swaps": 5.68,
+            "replies": 2.24,
+            "hpSpent": 10.6,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 13,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 131.56,
+            "maxHp": 154.24,
+            "endHp": 117.24,
+            "swaps": 6.24,
+            "replies": 2.6,
+            "hpSpent": 20.08,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 14,
+          "entered": 25,
+          "survived": 25,
+          "zeroReplies": 0,
+          "sawFlurry": 25,
+          "mean": {
+            "startHp": 124.76,
+            "maxHp": 160,
+            "endHp": 99.44,
+            "swaps": 5.24,
+            "replies": 2.04,
+            "hpSpent": 25.96,
+            "healing": 0
+          },
+          "maxFlurryRaw": 28,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 15,
+          "entered": 25,
+          "survived": 22,
+          "zeroReplies": 0,
+          "sawFlurry": 13,
+          "mean": {
+            "startHp": 107.44,
+            "maxHp": 160.64,
+            "endHp": 66.52,
+            "swaps": 7.56,
+            "replies": 2.64,
+            "hpSpent": 42.2,
+            "healing": 0
+          },
+          "maxFlurryRaw": 32,
+          "maxFlurryHpLoss": 28,
+          "maxReplyHpLoss": 28
+        },
+        {
+          "room": 16,
+          "entered": 22,
+          "survived": 21,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 99.27,
+            "maxHp": 162.18,
+            "endHp": 71.32,
+            "swaps": 8,
+            "replies": 2.77,
+            "hpSpent": 33.41,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 21
+        },
+        {
+          "room": 17,
+          "entered": 21,
+          "survived": 20,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 82.71,
+            "maxHp": 168,
+            "endHp": 59.67,
+            "swaps": 7.57,
+            "replies": 3.19,
+            "hpSpent": 23.43,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 18,
+          "entered": 20,
+          "survived": 16,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 70.65,
+            "maxHp": 168.4,
+            "endHp": 39.25,
+            "swaps": 7.3,
+            "replies": 3.15,
+            "hpSpent": 32.6,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 19,
+          "entered": 16,
+          "survived": 9,
+          "zeroReplies": 2,
+          "sawFlurry": 14,
+          "mean": {
+            "startHp": 57.06,
+            "maxHp": 170,
+            "endHp": 24.75,
+            "swaps": 5.44,
+            "replies": 2.38,
+            "hpSpent": 34.31,
+            "healing": 0
+          },
+          "maxFlurryRaw": 31,
+          "maxFlurryHpLoss": 28,
+          "maxReplyHpLoss": 28
+        },
+        {
+          "room": 20,
+          "entered": 9,
+          "survived": 4,
+          "zeroReplies": 0,
+          "sawFlurry": 4,
+          "mean": {
+            "startHp": 52,
+            "maxHp": 174.22,
+            "endHp": 17,
+            "swaps": 6.22,
+            "replies": 2.44,
+            "hpSpent": 35,
+            "healing": 0
+          },
+          "maxFlurryRaw": 37,
+          "maxFlurryHpLoss": 27,
+          "maxReplyHpLoss": 30
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 24.52,
+            "supers": 2.76,
+            "replies": 8.12,
+            "waves": 52.92,
+            "damage": 951.68,
+            "hpSpent": 30.4,
+            "healing": 0,
+            "barrierGranted": 75.44,
+            "levelHealing": 16,
+            "roomHealing": 11.32,
+            "defensiveSwaps": 4.84,
+            "freeDamage": 156.84
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 29,
+            "supers": 2.96,
+            "replies": 10.2,
+            "waves": 65.76,
+            "damage": 1651.96,
+            "hpSpent": 54.2,
+            "healing": 0,
+            "barrierGranted": 106.12,
+            "levelHealing": 15.68,
+            "roomHealing": 34.32,
+            "defensiveSwaps": 5.72,
+            "freeDamage": 279.44
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 25,
+          "perEnteredRun": {
+            "swaps": 30.2,
+            "supers": 4.28,
+            "replies": 11.16,
+            "waves": 76.64,
+            "damage": 2327.32,
+            "hpSpent": 108.36,
+            "healing": 0,
+            "barrierGranted": 118.44,
+            "levelHealing": 10.24,
+            "roomHealing": 51.92,
+            "defensiveSwaps": 6.64,
+            "freeDamage": 492.8
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 22,
+          "perEnteredRun": {
+            "swaps": 28.36,
+            "supers": 3.14,
+            "replies": 11.41,
+            "waves": 64.36,
+            "damage": 2099.32,
+            "hpSpent": 124.68,
+            "healing": 0,
+            "barrierGranted": 107.73,
+            "levelHealing": 8.36,
+            "roomHealing": 47.68,
+            "defensiveSwaps": 6.86,
+            "freeDamage": 430.32
+          }
+        }
+      ]
+    },
+    {
+      "classId": "blade",
+      "policy": "random",
+      "condition": "default",
+      "seeds": [
+        1,
+        100
+      ],
+      "runs": 100,
+      "wins": 0,
+      "firstDeath": 9,
+      "deaths": {
+        "9": 5,
+        "10": 14,
+        "11": 9,
+        "12": 9,
+        "13": 21,
+        "14": 28,
+        "15": 8,
+        "17": 3,
+        "18": 2,
+        "19": 1
+      },
+      "meanFinalHp": 0,
+      "perStartedRun": {
+        "swaps": 111.31,
+        "supers": 3.21,
+        "replies": 44.18,
+        "waves": 239.65,
+        "damage": 3670.93,
+        "hpSpent": 258.73,
+        "healing": 0.09,
+        "barrierGranted": 327.26,
+        "levelHealing": 31.6,
+        "roomHealing": 107.04,
+        "defensiveSwaps": 27.75,
+        "freeDamage": 266.58
+      },
+      "rooms": [
+        {
+          "room": 1,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 9,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120,
+            "maxHp": 120,
+            "endHp": 117.35,
+            "swaps": 5.87,
+            "replies": 1.84,
+            "hpSpent": 2.65,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 2,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 4,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 119.68,
+            "maxHp": 120,
+            "endHp": 119.54,
+            "swaps": 7.46,
+            "replies": 3.02,
+            "hpSpent": 4.94,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 8
+        },
+        {
+          "room": 3,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 6,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 123.91,
+            "maxHp": 124.8,
+            "endHp": 119.55,
+            "swaps": 7.5,
+            "replies": 3.08,
+            "hpSpent": 7.56,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 9
+        },
+        {
+          "room": 4,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 6,
+          "sawFlurry": 94,
+          "mean": {
+            "startHp": 124.71,
+            "maxHp": 128,
+            "endHp": 111.99,
+            "swaps": 7.24,
+            "replies": 2.95,
+            "hpSpent": 13.2,
+            "healing": 0
+          },
+          "maxFlurryRaw": 15,
+          "maxFlurryHpLoss": 13,
+          "maxReplyHpLoss": 13
+        },
+        {
+          "room": 5,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 1,
+          "sawFlurry": 78,
+          "mean": {
+            "startHp": 118.93,
+            "maxHp": 128.48,
+            "endHp": 99.24,
+            "swaps": 10.49,
+            "replies": 3.83,
+            "hpSpent": 27.21,
+            "healing": 0
+          },
+          "maxFlurryRaw": 23,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 23
+        },
+        {
+          "room": 6,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 120.4,
+            "maxHp": 136,
+            "endHp": 110.77,
+            "swaps": 8.02,
+            "replies": 2.67,
+            "hpSpent": 9.79,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 15
+        },
+        {
+          "room": 7,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 2,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 118.12,
+            "maxHp": 136.16,
+            "endHp": 104.63,
+            "swaps": 9.92,
+            "replies": 4.27,
+            "hpSpent": 15.09,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 15
+        },
+        {
+          "room": 8,
+          "entered": 100,
+          "survived": 100,
+          "zeroReplies": 1,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 112.02,
+            "maxHp": 137.76,
+            "endHp": 96.52,
+            "swaps": 9.26,
+            "replies": 3.97,
+            "hpSpent": 21.74,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 9,
+          "entered": 100,
+          "survived": 95,
+          "zeroReplies": 1,
+          "sawFlurry": 99,
+          "mean": {
+            "startHp": 104.3,
+            "maxHp": 144,
+            "endHp": 72.26,
+            "swaps": 8.55,
+            "replies": 3.58,
+            "hpSpent": 32.44,
+            "healing": 0
+          },
+          "maxFlurryRaw": 22,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 10,
+          "entered": 95,
+          "survived": 81,
+          "zeroReplies": 0,
+          "sawFlurry": 81,
+          "mean": {
+            "startHp": 84.06,
+            "maxHp": 144.42,
+            "endHp": 44.59,
+            "swaps": 11.44,
+            "replies": 4.35,
+            "hpSpent": 40.48,
+            "healing": 0
+          },
+          "maxFlurryRaw": 29,
+          "maxFlurryHpLoss": 27,
+          "maxReplyHpLoss": 27
+        },
+        {
+          "room": 11,
+          "entered": 81,
+          "survived": 72,
+          "zeroReplies": 3,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 76.3,
+            "maxHp": 145.68,
+            "endHp": 53.7,
+            "swaps": 9.43,
+            "replies": 3.31,
+            "hpSpent": 28.12,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 18
+        },
+        {
+          "room": 12,
+          "entered": 72,
+          "survived": 63,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 68.42,
+            "maxHp": 152,
+            "endHp": 43.43,
+            "swaps": 10.4,
+            "replies": 4.58,
+            "hpSpent": 25.43,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 20
+        },
+        {
+          "room": 13,
+          "entered": 63,
+          "survived": 42,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 57.63,
+            "maxHp": 152.51,
+            "endHp": 30.24,
+            "swaps": 8.54,
+            "replies": 3.79,
+            "hpSpent": 28.03,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 14,
+          "entered": 42,
+          "survived": 14,
+          "zeroReplies": 0,
+          "sawFlurry": 42,
+          "mean": {
+            "startHp": 53.36,
+            "maxHp": 153.33,
+            "endHp": 15.31,
+            "swaps": 7.64,
+            "replies": 3.6,
+            "hpSpent": 39.95,
+            "healing": 0
+          },
+          "maxFlurryRaw": 28,
+          "maxFlurryHpLoss": 22,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 15,
+          "entered": 14,
+          "survived": 6,
+          "zeroReplies": 1,
+          "sawFlurry": 10,
+          "mean": {
+            "startHp": 53.93,
+            "maxHp": 160,
+            "endHp": 12.79,
+            "swaps": 8.29,
+            "replies": 3.21,
+            "hpSpent": 41.14,
+            "healing": 0
+          },
+          "maxFlurryRaw": 36,
+          "maxFlurryHpLoss": 32,
+          "maxReplyHpLoss": 32
+        },
+        {
+          "room": 16,
+          "entered": 6,
+          "survived": 6,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 53.83,
+            "maxHp": 160,
+            "endHp": 34.17,
+            "swaps": 8.83,
+            "replies": 2.67,
+            "hpSpent": 21,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 16
+        },
+        {
+          "room": 17,
+          "entered": 6,
+          "survived": 3,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 42.17,
+            "maxHp": 161.33,
+            "endHp": 19.67,
+            "swaps": 7.17,
+            "replies": 3.5,
+            "hpSpent": 25.17,
+            "healing": 0
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 22
+        },
+        {
+          "room": 18,
+          "entered": 3,
+          "survived": 1,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 47.33,
+            "maxHp": 168,
+            "endHp": 25.33,
+            "swaps": 6.33,
+            "replies": 3,
+            "hpSpent": 24,
+            "healing": 2
+          },
+          "maxFlurryRaw": 0,
+          "maxFlurryHpLoss": 0,
+          "maxReplyHpLoss": 14
+        },
+        {
+          "room": 19,
+          "entered": 1,
+          "survived": 0,
+          "zeroReplies": 0,
+          "sawFlurry": 1,
+          "mean": {
+            "startHp": 84,
+            "maxHp": 168,
+            "endHp": 0,
+            "swaps": 10,
+            "replies": 5,
+            "hpSpent": 87,
+            "healing": 3
+          },
+          "maxFlurryRaw": 31,
+          "maxFlurryHpLoss": 23,
+          "maxReplyHpLoss": 24
+        },
+        {
+          "room": 20,
+          "entered": 0,
+          "survived": 0,
+          "zeroReplies": 0,
+          "sawFlurry": 0,
+          "mean": {
+            "startHp": 0,
+            "maxHp": 0,
+            "endHp": 0,
+            "swaps": 0,
+            "replies": 0,
+            "hpSpent": 0,
+            "healing": 0
+          },
+          "maxFlurryRaw": null,
+          "maxFlurryHpLoss": null,
+          "maxReplyHpLoss": null
+        }
+      ],
+      "biomes": [
+        {
+          "biome": 1,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 38.56,
+            "supers": 1,
+            "replies": 14.72,
+            "waves": 83.38,
+            "damage": 960.62,
+            "hpSpent": 55.56,
+            "healing": 0,
+            "barrierGranted": 108.14,
+            "levelHealing": 16,
+            "roomHealing": 18.8,
+            "defensiveSwaps": 9.44,
+            "freeDamage": 59.99
+          }
+        },
+        {
+          "biome": 2,
+          "entered": 100,
+          "perEnteredRun": {
+            "swaps": 46.62,
+            "supers": 1.47,
+            "replies": 18.62,
+            "waves": 100.02,
+            "damage": 1617.63,
+            "hpSpent": 117.52,
+            "healing": 0,
+            "barrierGranted": 138,
+            "levelHealing": 9.36,
+            "roomHealing": 51.28,
+            "defensiveSwaps": 11.7,
+            "freeDamage": 125.18
+          }
+        },
+        {
+          "biome": 3,
+          "entered": 81,
+          "perEnteredRun": {
+            "swaps": 30.72,
+            "supers": 0.83,
+            "replies": 12.75,
+            "waves": 65.63,
+            "damage": 1262.74,
+            "hpSpent": 100.36,
+            "healing": 0,
+            "barrierGranted": 93.85,
+            "levelHealing": 7.41,
+            "roomHealing": 42.86,
+            "defensiveSwaps": 7.84,
+            "freeDamage": 90.59
+          }
+        },
+        {
+          "biome": 4,
+          "entered": 6,
+          "perEnteredRun": {
+            "swaps": 20.83,
+            "supers": 1.17,
+            "replies": 8.5,
+            "waves": 51.5,
+            "damage": 1164.33,
+            "hpSpent": 72.67,
+            "healing": 1.5,
+            "barrierGranted": 85,
+            "levelHealing": 4,
+            "roomHealing": 37.33,
+            "defensiveSwaps": 4.33,
+            "freeDamage": 133.83
+          }
+        }
+      ]
+    }
+  ]
+}

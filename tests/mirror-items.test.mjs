@@ -112,6 +112,7 @@ function fixture(...gear) {
       baseDamage:
         options.damage ??
         (kind === 'strike' || kind === 'arcane' || kind === 'super' ? 8 : 0),
+      baseBarrier: options.baseBarrier ?? 0,
       bonusDamage: 0,
       bonusScale: 1,
       income: kind === 'super' ? 0 : cells.length,
@@ -123,6 +124,7 @@ function fixture(...gear) {
       event.baseDamage * event.bonusScale * event.match.casts +
         event.bonusDamage,
     );
+    if (event.baseBarrier) ctx.addBarrier(event.baseBarrier);
     items.afterGroup(ctx, event);
     return event;
   };
@@ -135,6 +137,7 @@ function fixture(...gear) {
     state.action++;
     items.startAction(ctx);
   };
+  ctx.free = () => items.startAction(ctx, false);
   ctx.hit = (n, index = 0) => {
     let damage = items.beforeEnemyHit(ctx, n, index);
     const absorbed = Math.min(damage, hero.barrier);
@@ -161,7 +164,7 @@ test('all 60 items retain identity/slot/rarity, with explicit Mirror description
     assert.notEqual(converted.description, old.description);
     assert.doesNotMatch(
       converted.description,
-      /маны|звёзд|Передышка|ход переходит/i,
+      /маны|звёзд|Передышка|ход переходит|камн\S* лечения|резонанс\S* лечения|лечебн\S* групп/i,
       id,
     );
   }
@@ -209,7 +212,7 @@ test('battle starts grant blue pass/pocket vest without erasing spent run insura
   assert.equal(f.hero.itemState.run.insurance, 1);
 });
 
-test('tide needle and cotton cuffs count physical healing stones and enforce encounter cap', () => {
+test('tide needle and cotton cuffs count physical defense stones and enforce encounter cap', () => {
   const f = fixture('tideNeedle', 'cottonCuffs');
   for (let i = 0; i < 10; i++) {
     f.group('mend');
@@ -525,7 +528,7 @@ test('wick promotes only a surviving normal strike, once per enemy cycle', () =>
   assert.equal(f.state.board.filter((t) => t.level === 2).length, 1);
 });
 
-test('shift ring remembers only accepted prior action and trades one native unit', () => {
+test('shift ring remembers the accepted swap across free supers and trades one native unit', () => {
   const f = fixture('shiftRing');
   f.group('strike');
   items.afterAction(f);
@@ -535,10 +538,134 @@ test('shift ring remembers only accepted prior action and trades one native unit
   assert.equal(f.hero.resonance.strike, 4);
   assert.equal(f.hero.resonance.mend, 2);
   items.afterAction(f);
-  f.next();
+  f.free();
   f.group('super');
-  items.afterAction(f);
-  assert.equal(f.hero.itemState.previous, undefined);
+  items.afterAction(f, false);
+  assert.equal(f.hero.itemState.previous, 'mend');
+  f.next();
+  const following = f.group('rage');
+  assert.equal(following.income, 2);
+  assert.equal(f.hero.resonance.mend, 3);
+});
+
+test('free supers preserve item scope without farming opening barriers or HP payments', () => {
+  const f = fixture('mortgage', 'mirrorVest', 'tidePurse', 'fireSeal');
+  items.startAction(f);
+  f.group('strike');
+  f.group('mend');
+  assert.equal(f.hero.hp, 88);
+  assert.equal(f.hero.barrier, 2);
+  assert.equal(f.hero.gold, 2);
+  const action = f.hero.itemState.action;
+  for (let i = 0; i < 4; i++) {
+    f.free();
+    f.group('super');
+    f.group('strike', { manual: false, firstWave: false });
+    f.group('mend', { manual: false, firstWave: false });
+    items.afterAction(f, false);
+  }
+  assert.equal(f.hero.itemState.action, action);
+  assert.equal(f.hero.itemState.action['collected:strike'], 15);
+  assert.equal(f.hero.hp, 88, 'S cascades do not pay Mortgage again');
+  assert.equal(f.hero.barrier, 2, 'S does not renew Mirror Vest');
+  assert.equal(f.hero.gold, 2, 'S cannot repeat the purse gift');
+  f.next();
+  f.group('strike');
+  assert.equal(f.hero.hp, 86);
+  assert.equal(f.hero.barrier, 4);
+});
+
+test('Cotton Cuffs are weak finite healing, not base healing or a free-S loop', () => {
+  const f = fixture('cottonCuffs');
+  f.hero.hp = 119;
+  f.group('mend');
+  assert.equal(f.hero.hp, 120);
+  assert.equal(f.hero.itemState.battle.cuffs, 1);
+  f.hero.hp = 90;
+  for (let i = 0; i < 5; i++) {
+    f.free();
+    f.group('mend', { manual: false, firstWave: false });
+  }
+  assert.equal(f.hero.hp, 90);
+  for (let i = 0; i < 10; i++) {
+    f.next();
+    f.group('mend');
+    f.group('mend', { firstWave: false });
+  }
+  assert.equal(f.hero.hp, 95);
+  assert.equal(f.hero.itemState.battle.cuffs, 6);
+  const full = fixture('cottonCuffs');
+  full.hero.hp = 120;
+  full.group('mend');
+  assert.equal(
+    full.hero.itemState.battle.cuffs,
+    0,
+    'overhealing spends no battle allowance',
+  );
+  assert.equal(items.MIRROR_ITEMS.cottonCuffs.rarity, 'common');
+  assert.equal(
+    items.MIRROR_ITEMS.cottonCuffs.slot,
+    items.MIRROR_ITEMS.goldenLining.slot,
+  );
+});
+
+test('Golden Lining cannot reuse an old gold threshold through S after an enemy response', () => {
+  const f = fixture('goldenLining');
+  f.income('gold', 3);
+  assert.equal(f.hero.hp, 93);
+  assert.equal(f.hero.gold, 1);
+  items.afterEnemyAction(f);
+  f.free();
+  f.income('gold', 1);
+  assert.equal(f.hero.hp, 93);
+  assert.equal(
+    f.hero.gold,
+    2,
+    'the next enemy cycle does not reopen the paid threshold',
+  );
+  assert.equal(f.hero.itemState.battle.goldenHealed, 3);
+  f.next();
+  f.income('gold', 3);
+  assert.equal(f.hero.hp, 96);
+  assert.equal(f.hero.gold, 3);
+});
+
+test('Capacitor waits for a successful later swap, while free supers preserve Veil lifetime', () => {
+  const f = fixture('fullBlade', 'veil', 'capacitor');
+  for (let i = 0; i < 2; i++) {
+    for (const k of CHANNELS) f.hero.resonance[k] = 12;
+    f.group('strike');
+    if (!i) f.next();
+  }
+  const readyAt = f.hero.itemState.battle.capacitorReady;
+  f.group('arcane', { shape: 'four' });
+  const expiresAt = f.hero.itemState.battle.veilUntil;
+  f.hero.resonance.arcane = 0;
+  for (let i = 0; i < 5; i++) {
+    f.free();
+    f.group('super');
+  }
+  f.group('arcane', { manual: false, firstWave: false });
+  assert.equal(f.hero.resonance.arcane, 3);
+  assert.equal(f.hero.itemState.battle.capacitorReady, readyAt);
+  assert.equal(f.hero.itemState.battle.veilUntil, expiresAt);
+  f.next();
+  f.group('mend');
+  assert.equal(f.hero.itemState.battle.capacitorReady, undefined);
+  assert.equal(f.hero.resonance.mend, 12);
+});
+
+test('a free S cannot reinterpret the previous swap as a new Last Pass candidate', () => {
+  const f = fixture('lastPass');
+  f.hero.itemState.action.firstTriple = 1;
+  f.hero.itemState.action.lastPassCandidate = 1;
+  f.hero.itemState.previous = 'strike';
+  f.free();
+  f.group('super');
+  items.afterAction(f, false);
+  assert.equal(f.enemy.delay, 0);
+  assert.equal(f.hero.itemState.battle.lastPassUsed, undefined);
+  assert.equal(f.hero.itemState.previous, 'strike');
 });
 
 test('yield ring sacrifices an upgrade only with deliberate guard mode, capacity and battle uses', () => {
@@ -558,6 +685,38 @@ test('yield ring sacrifices an upgrade only with deliberate guard mode, capacity
   f.hero.barrier = 0;
   assert.equal(f.group('arcane', { shape: 'four' }).cancelUpgrade, false);
   assert.equal(f.hero.itemState.battle.yieldUses, 3);
+});
+
+test('paid barrier items reserve capacity for defense already guaranteed by the group', () => {
+  const edge = fixture('edgeSleeves');
+  edge.hero.barrier = 9;
+  const triple = edge.group('mend', {
+    cells: [0, 1, 2],
+    baseBarrier: 4,
+  });
+  assert.equal(triple.income, 3);
+  assert.equal(edge.hero.itemState.action.edgeSleeves, undefined);
+  const yieldRing = fixture('yieldRing');
+  yieldRing.state.guard = true;
+  yieldRing.hero.barrier = 4;
+  const alreadyFull = yieldRing.group('mend', {
+    shape: 'four',
+    baseBarrier: 8,
+  });
+  assert.equal(alreadyFull.cancelUpgrade, false);
+  assert.equal(yieldRing.hero.itemState.battle.yieldUses, undefined);
+  yieldRing.hero.barrier = 0;
+  const extra = yieldRing.group('mend', {
+    shape: 'four',
+    baseBarrier: 8,
+  });
+  assert.equal(extra.cancelUpgrade, true);
+  assert.equal(
+    yieldRing.hero.barrier,
+    12,
+    'eight native defense plus four useful defense from the ring',
+  );
+  assert.equal(yieldRing.hero.itemState.battle.yieldUses, 1);
 });
 
 test('last pass captures first-wave poverty, does not reward long groups and shares bounded delay with top', () => {
@@ -622,6 +781,18 @@ test('waiting vest answers only a second hit, with a real reserve payment; answe
   assert.equal(answer.hero.itemState.battle.answer, 1);
   answer.group('strike');
   assert.equal(answer.enemy.hp, 989);
+});
+
+test('waiting vest skips already-covered hits and keeps its payment available for a later threat', () => {
+  const f = fixture('waitingVest', 'bluePass');
+  items.startBattle(f);
+  f.hero.barrier = 6;
+  assert.deepEqual(f.hit(6, 1), { lost: 0, absorbed: 6 });
+  assert.equal(f.hero.resonance.rage, 2);
+  assert.equal(f.hero.itemState.cycle.waitingVest, undefined);
+  assert.deepEqual(f.hit(6, 2), { lost: 2, absorbed: 4 });
+  assert.equal(f.hero.resonance.rage, 0);
+  assert.equal(f.hero.itemState.cycle.waitingVest, 1);
 });
 
 test('ward only cancels the first hit, never later hits or resource effects', () => {

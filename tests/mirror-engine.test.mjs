@@ -53,7 +53,7 @@ test('new Mirror state isolates 8x7 and its journal from frozen duels', () => {
   assert.equal(s.board.length, 56);
   assert.equal(findMatches(s.board).length, 0);
   assert.ok(legalSwaps(s.board).length);
-  assert.equal(s.enemy.countdown, 3);
+  assert.equal(s.enemy.countdown, 2);
   assert.equal(s.hero.hp, 120);
   assert.deepEqual(loadGame(saveGame(s)), s);
   assert.equal(loadGame('{"schema":"oskolki-shared-board-4"}'), null);
@@ -87,7 +87,7 @@ test('a successful swap resolves all waves before a single countdown step, witho
   assert.equal(r.error, undefined);
   assert.deepEqual(s, before);
   assert.equal(r.state.turn, 1);
-  assert.equal(r.state.enemy.countdown, 2);
+  assert.equal(r.state.enemy.countdown, 1);
   assert.equal(r.state.enemy.cycle, 0);
   assert.ok(r.state.last.damage >= 10);
   assert.ok(r.frames.length >= 1);
@@ -104,7 +104,7 @@ test('four and five reward upgraded stones and repeated attacks, not natural bon
     const cmd = triple(s, 'strike', size);
     const r = dispatch(s, cmd);
     assert.equal(r.error, undefined);
-    assert.equal(r.state.enemy.countdown, 2);
+    assert.equal(r.state.enemy.countdown, 1);
     assert.equal(r.state.turn, 1);
     assert.ok(r.state.last.casts >= size - 2);
     assert.ok(r.state.last.created >= 1);
@@ -124,7 +124,7 @@ test('enhanced tiles select stronger automatic skills; bonuses add to the coeffi
   const r1 = dispatch(normal, a),
     r2 = dispatch(enhanced, a);
   assert.ok(r2.frames[0].enemyHp < r1.frames[0].enemyHp);
-  assert.equal(r2.state.enemy.countdown, 2);
+  assert.equal(r2.state.enemy.countdown, 1);
   assert.ok(r2.state.last.xp >= 1);
 });
 test('S activates on click for free; cascades never advance enemy or hazard timers', () => {
@@ -135,20 +135,22 @@ test('S activates on click for free; cascades never advance enemy or hazard time
   const r = dispatch(s, { type: 'super', cell: 9 });
   assert.equal(r.error, undefined);
   assert.equal(r.state.turn, 0);
-  assert.equal(r.state.enemy.countdown, 3);
+  assert.equal(r.state.enemy.countdown, 2);
   assert.equal(r.state.metrics.supers, 1);
   assert.ok(r.state.last.damage >= 45);
   const bomb = r.state.board.find((t) => t.id === s.board[55].id);
   if (bomb) assert.equal(bomb.bomb, 3);
 });
-test('ordinary healing and rage immediately act rather than waiting for a manual cast', () => {
+test('ordinary defense and rage immediately act rather than waiting for a manual cast', () => {
   for (const kind of ['mend', 'rage']) {
     const s = createGame(config({ testGear: [] }));
     s.hero.hp = 50;
     s.enemy.hp = 9999;
     const r = dispatch(s, triple(s, kind));
-    if (kind === 'mend') assert.ok(r.state.hero.hp > 50);
-    else assert.ok(r.state.hero.rage >= 4);
+    if (kind === 'mend') {
+      assert.equal(r.state.hero.hp, 50);
+      assert.ok(r.state.hero.barrier >= 4);
+    } else assert.ok(r.state.hero.rage >= 4);
     assert.ok(r.state.hero.resonance[kind] >= 3);
   }
 });
@@ -160,7 +162,7 @@ test('enemy attack occurs on zero, resets to the next telegraphed intent and fir
   assert.equal(r.error, undefined);
   assert.equal(r.state.enemy.cycle, 1);
   assert.equal(r.state.enemy.countdown, 3);
-  assert.equal(r.state.hero.hp, 114);
+  assert.equal(r.state.hero.hp, 112);
   assert.ok(r.frames.some((f) => f.kind === 'enemy'));
   assert.ok(enemyFor(19).maxHp > enemyFor(0).maxHp);
   assert.ok(enemyFor(19).intents[0].damage > enemyFor(1).intents[0].damage);

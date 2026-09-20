@@ -8,7 +8,7 @@ export type Kind = (typeof KINDS)[number];
 export const CHANNEL_NAMES: Record<Kind, string> = {
   strike: 'Удар',
   arcane: 'Магия',
-  mend: 'Защита',
+  mend: 'Лечение',
   rage: 'Ярость',
   super: 'Суперприём',
 };

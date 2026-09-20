@@ -1,6 +1,6 @@
-import { CLASSES, ITEMS, RARITIES, type ItemId } from '../duel/catalog.ts';
-import { ENCOUNTERS, BIOMES } from '../duel/campaign.ts';
-import { LOOT_WEIGHTS, SHOP_WEIGHTS } from '../duel/loot.ts';
+import { CLASSES, ITEMS, RARITIES, type ItemId } from '../../duel/catalog.ts';
+import { ENCOUNTERS, BIOMES } from '../../duel/campaign.ts';
+import { LOOT_WEIGHTS, SHOP_WEIGHTS } from '../../duel/loot.ts';
 import {
   CHANNELS,
   CHANNEL_NAMES,
@@ -39,12 +39,10 @@ export const DEFAULT_SKILLS: Loadout = {
   super: 'nova',
 };
 export const TURN_LIMIT = 40;
-export const BARRIER_CAP = 12;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 const summary = (): ActionSummary => ({
   damage: 0,
   healing: 0,
-  barrier: 0,
   casts: 0,
   waves: 0,
   created: 0,
@@ -74,16 +72,16 @@ function upgradeStats(s: State) {
   const c = CLASSES[s.config.classId];
   s.hero.physical = 8 + Math.floor(c.stats.battle / 2) + (s.hero.level - 1) * 2;
   s.hero.magic = 8 + Math.floor(c.stats.air / 2) + (s.hero.level - 1) * 2;
-  // Kept as an internal compatibility name; v2 uses it as base guard strength.
-  s.hero.healing = 4;
+  s.hero.healing =
+    5 + Math.floor(c.stats.water / 3) + Math.floor((s.hero.level - 1) / 2);
 }
 export function enemyFor(room: number): Enemy {
   const e = ENCOUNTERS[room],
     b = e.biome,
     pos = room % 5,
     boss = e.kind === 'boss';
-  const damage = 8 + b * 4 + Math.floor(pos / 2),
-    wait = 2;
+  const damage = 6 + b * 6 + Math.floor(pos / 2),
+    wait = b === 0 ? 3 : 2;
   const attack: Intent = {
     kind: 'attack',
     name: boss ? 'Тяжёлый удар' : 'Удар',
@@ -99,7 +97,7 @@ export function enemyFor(room: number): Enemy {
             kind: 'bomb',
             name: 'Чернильная бомба',
             wait: 3,
-            damage: Math.ceil(damage * 0.5),
+            damage: damage - 2,
             hits: 1,
             count: 2,
           }
@@ -107,7 +105,7 @@ export function enemyFor(room: number): Enemy {
             kind: 'lock',
             name: 'Скрепить поле',
             wait: 3,
-            damage: Math.ceil(damage * 0.5),
+            damage: 3 + b * 2,
             hits: 1,
             count: 2,
           };
@@ -115,7 +113,7 @@ export function enemyFor(room: number): Enemy {
     skill = {
       kind: 'heal',
       name: 'Восстановление',
-      wait: 2,
+      wait: 3,
       damage: Math.ceil(damage / 2),
       hits: 1,
     };
@@ -124,7 +122,7 @@ export function enemyFor(room: number): Enemy {
       kind: 'drain',
       name: 'Изъять резонанс',
       wait: 2,
-      damage: Math.ceil(damage * 0.75),
+      damage,
       hits: 1,
     };
   else if (pos === 3)
@@ -132,7 +130,7 @@ export function enemyFor(room: number): Enemy {
       kind: 'flurry',
       name: 'Двойная правка',
       wait: 2,
-      damage: Math.ceil(damage * 1.25),
+      damage: Math.max(4, damage - 3),
       hits: 2,
     };
   else
@@ -140,26 +138,11 @@ export function enemyFor(room: number): Enemy {
       kind: b % 2 ? 'lock' : 'bomb',
       name: b % 2 ? 'Печать директора' : 'Взрывная печать',
       wait: 3,
-      damage: Math.ceil((damage + 4) * 0.5),
+      damage: damage + 2,
       hits: 1,
       count: 2 + b,
     };
-  const hp = 110 + room * 26 + (boss ? 120 + b * 30 : 0) + (pos === 3 ? 12 : 0);
-  const intents: Intent[] = boss
-    ? [
-        attack,
-        skill,
-        {
-          kind: 'flurry',
-          name: 'Серия ударов',
-          wait: 2,
-          damage: Math.ceil((damage + 4) * 1.25),
-          hits: 3,
-        },
-      ]
-    : pos === 0
-      ? [attack, skill]
-      : [skill, attack];
+  const hp = 90 + room * 26 + (boss ? 120 + b * 30 : 0) + (pos === 3 ? 12 : 0);
   return {
     name: e.name,
     art: e.art,
@@ -167,55 +150,43 @@ export function enemyFor(room: number): Enemy {
     maxHp: hp,
     defense: b * 6 + (boss ? 4 : 0),
     stage: 0,
-    pendingStage: 0,
-    countdown: intents[0].wait,
+    countdown: wait,
     delay: 0,
     weaken: 0,
     cycle: 0,
-    intents,
+    intents: boss
+      ? [
+          attack,
+          skill,
+          {
+            kind: 'flurry',
+            name: 'Серия ударов',
+            wait: 2,
+            damage: damage - 2,
+            hits: 3,
+          },
+        ]
+      : [attack, skill],
   };
 }
 export const currentIntent = (s: State) =>
   s.enemy.intents[s.enemy.cycle % s.enemy.intents.length];
-/** Shared by the telegraph and execution: phases never reprice an announced hit. */
-export function enemyHitDamage(s: State): number[] {
-  const i = currentIntent(s);
-  if (i.hits <= 0) return [];
-  const total = Math.floor(
-    i.damage * (1 + s.enemy.stage * 0.15) * (s.buffs.weakness > 0 ? 0.7 : 1),
-  );
-  const each = Math.floor(total / i.hits),
-    remainder = total % i.hits;
-  return Array.from({ length: i.hits }, (_, hit) =>
-    Math.max(
-      0,
-      each + (hit < remainder ? 1 : 0) - (hit === 0 ? s.enemy.weaken : 0),
-    ),
-  );
-}
 export function intentText(s: State) {
   const i = currentIntent(s),
-    hits = enemyHitDamage(s);
-  const attack = !hits.length
-    ? '0'
-    : hits.every((n) => n === hits[0])
-      ? hits[0] + (hits.length > 1 ? ` × ${hits.length}` : '')
-      : hits.join(' + ');
+    damage = Math.floor(i.damage * (1 + s.enemy.stage * 0.15));
+  const attack =
+    Math.max(0, damage - s.enemy.weaken) + (i.hits > 1 ? ` × ${i.hits}` : '');
   const effect =
     i.kind === 'lock'
       ? ` · ${i.count} скрепки`
       : i.kind === 'bomb'
         ? ` · ${i.count} бомбы на 3 хода`
         : i.kind === 'drain'
-          ? ' · −2 каждого резонанса · −4 ярости'
+          ? ' · −2 каждого резонанса'
           : i.kind === 'heal'
             ? ' · лечится на 8% HP'
             : '';
-  const surcharge =
-    s.hero.gear.weapon === 'glassNib' && hits.length
-      ? ' · +1 к первому удару от Стеклянного пера'
-      : '';
-  return `${i.name}: ${attack} урона${effect}${surcharge}`;
+  return `${i.name}: ${attack} урона${effect}`;
 }
 export function createGame(config: Config): State {
   if (!validConfig(config)) throw new Error('Неверные настройки испытания');
@@ -229,7 +200,7 @@ export function createGame(config: Config): State {
       gear: {},
       physical: 8,
       magic: 8,
-      healing: 4,
+      healing: 5,
       gold: config.mode === 'route' ? 10 : 0,
       xp: 0,
       level: 1,
@@ -238,7 +209,7 @@ export function createGame(config: Config): State {
   for (const id of config.testGear ?? c.gear) hero.gear[ITEMS[id].slot] = id;
   const room = config.mode === 'route' ? 0 : config.foe;
   const s: State = {
-    version: 2,
+    version: 1,
     config: clone(config),
     rng: {
       board: (config.seed ^ 0x9e3779b9) >>> 0,
@@ -293,12 +264,8 @@ function context(s: State): ItemContext {
     damage: (n) => damage(s, n, 0),
     heal: (n) => heal(s, n),
     addBarrier: (n) => {
-      const gain = Math.max(
-        0,
-        Math.min(BARRIER_CAP - s.hero.barrier, Math.floor(n)),
-      );
+      const gain = Math.max(0, Math.min(12 - s.hero.barrier, n));
       s.hero.barrier += gain;
-      s.last.barrier += gain;
       return gain;
     },
     grantResonance: (c, n) => {
@@ -379,18 +346,6 @@ function baseDamage(s: State, g: Match, special: boolean) {
   }
   return 0;
 }
-/** Visible base effect only; item procs are resolved separately and share the cap. */
-export function defenseForGroup(s: State, g: Match, board = s.board) {
-  if (g.kind !== 'mend') return 0;
-  const level = Math.max(...g.cells.map((i) => board[i].level));
-  const utilityCost = level > 1 && s.skills.mend !== 'restore' ? 2 : 0;
-  return Math.max(
-    0,
-    (s.hero.healing + (level - 1) * 2 - utilityCost) * g.casts +
-      (s.buffs.healing > 0 ? 2 : 0) -
-      (s.hero.gear.armor === 'saltCoat' ? 2 : 0),
-  );
-}
 function promote(s: State, cells: number[], kind: Channel) {
   const index = s.board.findIndex(
     (t, i) =>
@@ -450,7 +405,6 @@ function resolve(
         removed,
         protectedTiles,
         baseDamage: baseDamage(s, g, special),
-        baseBarrier: defenseForGroup(s, g, before),
         bonusDamage: 0,
         bonusScale: 1,
         income: channel ? g.cells.length : 0,
@@ -481,15 +435,26 @@ function resolve(
             s.skills.strike === 'leech' &&
             previous > s.enemy.hp
           )
-            ctx.addBarrier(
-              Math.max(1, Math.floor((previous - s.enemy.hp) * 0.1)),
-            );
+            heal(s, Math.max(1, Math.floor((previous - s.enemy.hp) * 0.1)));
           if (special && g.kind === 'arcane' && s.skills.arcane === 'weaken')
             s.buffs.weakness = 4;
           if (special && g.kind === 'arcane' && s.skills.arcane === 'delay')
             ctx.delayEnemy();
         } else if (g.kind === 'mend') {
-          if (cast === 0) ctx.addBarrier(defenseForGroup(s, g, before));
+          const k = special
+            ? s.skills.mend === 'restore'
+              ? 1.9
+              : s.skills.mend === 'cleanse'
+                ? 1.1
+                : 0.9
+            : 1;
+          let n =
+            s.hero.healing *
+            (k + g.bonus) *
+            (1 + s.hero.rage / 100) *
+            (s.buffs.healing > 0 ? 1.5 : 1);
+          if (s.hero.gear.armor === 'saltCoat') n *= 0.6;
+          heal(s, n);
           if (special && cast === 0) {
             if (s.skills.mend === 'cleanse') cleanse(s);
             if (s.skills.mend === 'grow') promote(s, [...removed], 'strike');
@@ -521,9 +486,10 @@ function resolve(
               0,
             );
           } else if (s.skills.super === 'renew') {
-            ctx.addBarrier(8);
+            heal(s, s.hero.healing * 3 * (1 + s.hero.rage / 100));
             cleanse(s, true);
           } else {
+            heal(s, s.hero.healing);
             s.hero.rage = Math.min(60, s.hero.rage + 20);
           }
         }
@@ -566,7 +532,7 @@ function resolve(
       board: before,
       after: clone(s.board),
       cells: [...removed],
-      text: `Попаданий: ${s.last.casts} · ${s.last.damage} урона${s.last.barrier ? ` · +${s.last.barrier} защиты` : ''}${s.last.healing ? ` · +${s.last.healing} HP` : ''}`,
+      text: `Попаданий: ${s.last.casts} · ${s.last.damage} урона${s.last.healing ? ` · +${s.last.healing} HP` : ''}`,
       kind: initialSuper !== undefined && wave === 0 ? 'super' : 'match',
       heroHp: s.hero.hp,
       enemyHp: s.enemy.hp,
@@ -598,15 +564,25 @@ function incoming(s: State, n: number, index: number) {
 function enemyAct(s: State, frames: Frame[]) {
   const intent = currentIntent(s),
     before = clone(s.board),
-    ctx = context(s),
-    hits = enemyHitDamage(s);
+    ctx = context(s);
   {
     for (
       let hit = 0;
       hit < intent.hits && s.hero.hp > 0 && s.enemy.hp > 0;
       hit++
     )
-      incoming(s, hits[hit], hit);
+      incoming(
+        s,
+        Math.max(
+          0,
+          Math.floor(
+            intent.damage *
+              (1 + s.enemy.stage * 0.15) *
+              (s.buffs.weakness > 0 ? 0.7 : 1),
+          ) - (hit === 0 ? s.enemy.weaken : 0),
+        ),
+        hit,
+      );
     if (s.hero.hp > 0 && s.enemy.hp > 0) {
       if (intent.kind === 'heal') {
         const amount = Math.min(
@@ -638,13 +614,6 @@ function enemyAct(s: State, frames: Frame[]) {
   items.afterEnemyAction(ctx);
   s.enemy.weaken = 0;
   s.enemy.cycle++;
-  if (s.enemy.pendingStage > s.enemy.stage) {
-    s.enemy.stage = s.enemy.pendingStage;
-    note(
-      s,
-      `Враг переходит в фазу ${s.enemy.stage + 1}. Следующее намерение усилено.`,
-    );
-  }
   s.enemy.countdown = currentIntent(s).wait;
   frames.push({
     board: before,
@@ -804,23 +773,17 @@ function finishAction(
   oldHazards: Set<number>,
 ) {
   const ctx = context(s);
-  // Free S belongs to the preceding swap, including its income and proc quotas.
-  const scope = s.hero.itemState.action;
-  scope.hostileCasts = (scope.hostileCasts ?? 0) + s.last.casts;
-  const totalGold = Math.min(6, Math.max(0, scope.hostileCasts - 1));
-  const gold = Math.max(0, totalGold - (scope.goldPaid ?? 0));
-  scope.goldPaid = totalGold;
+  const gold = Math.min(6, Math.max(0, s.last.casts - 1));
   if (gold) {
     ctx.addGold(gold);
     items.onIncome(ctx, 'gold', gold);
   }
-  if (scope.enhanced && !scope.nativeXpPaid) {
-    scope.nativeXpPaid = 1;
+  if (s.hero.itemState.action.enhanced) {
     // Diploma trades this earned XP only; victory experience remains intact.
     if (s.hero.gear.ring !== 'infiniteDiploma') ctx.addXp(1);
     items.onIncome(ctx, 'xp', 1);
   }
-  items.afterAction(ctx, spendsTurn);
+  items.afterAction(ctx);
   if (spendsTurn) {
     s.turn++;
     s.metrics.swaps++;
@@ -829,12 +792,12 @@ function finishAction(
   if (s.last.casts >= 7) award(s, 'seven-hit-combo');
   if (outcome(s)) return;
   if (s.last.casts >= 11 || s.last.damage >= s.enemy.maxHp * 0.3)
-    s.enemy.pendingStage = 2;
+    s.enemy.stage = 2;
   else if (
-    s.enemy.pendingStage === 0 &&
+    s.enemy.stage === 0 &&
     (s.last.casts >= 7 || s.last.damage >= s.enemy.maxHp * 0.18)
   )
-    s.enemy.pendingStage = 1;
+    s.enemy.stage = 1;
   if (spendsTurn) {
     // The final legal swap can win; a failed forty-first opportunity cannot.
     if (s.turn >= TURN_LIMIT) {
@@ -913,9 +876,9 @@ export function dispatch(original: State, command: Command): Result {
     const oldHazards = new Set(
       s.board.filter((t) => t.locked || t.bomb).map((t) => t.id),
     );
-    if (command.type === 'swap') s.action++;
+    s.action++;
     s.last = summary();
-    items.startAction(context(s), command.type === 'swap');
+    items.startAction(context(s));
     if (command.type === 'swap')
       resolve(s, frames, true, [command.a, command.b]);
     else {
@@ -987,7 +950,7 @@ export function previewSwap(s: State, a: number, b: number) {
     text: matches
       .map(
         (g) =>
-          `${CHANNEL_NAMES[g.kind]}: ${g.kind === 'mend' ? `+${defenseForGroup(s, g, swapBoard(s.board, { a, b }))} барьера (предел ${BARRIER_CAP})` : `${g.casts} ${g.kind === 'rage' ? 'усиления' : 'приёма'}`}${g.upgrade ? ` + ${g.upgrade === 'super' ? 'S' : `камень ${g.upgrade}`}` : ''}`,
+          `${CHANNEL_NAMES[g.kind]}: ${g.casts} ${g.kind === 'mend' ? 'лечения' : g.kind === 'rage' ? 'усиления' : 'приёма'}${g.upgrade ? ` + ${g.upgrade === 'super' ? 'S' : `камень ${g.upgrade}`}` : ''}`,
       )
       .join(' · '),
   };
@@ -1062,7 +1025,7 @@ const fingerprint = (s: State) => {
 };
 export function saveGame(s: State) {
   return JSON.stringify({
-    schema: 'oskolki-mirror-2',
+    schema: 'oskolki-mirror-1',
     config: s.config,
     commands: s.commands,
     fingerprint: fingerprint(s),
@@ -1073,7 +1036,7 @@ export function loadGame(raw: string): State | null {
     if (raw.length > 2_000_000) return null;
     const data = JSON.parse(raw);
     if (
-      data.schema !== 'oskolki-mirror-2' ||
+      data.schema !== 'oskolki-mirror-1' ||
       !validConfig(data.config) ||
       !Array.isArray(data.commands) ||
       data.commands.length > 5000

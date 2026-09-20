@@ -159,7 +159,7 @@ test('an entirely pinned board recovers after a free S without losing earned til
   const { state: next, frames } = step(state, { type: 'super', cell: 0 });
   assert.equal(next.phase, 'battle');
   assert.equal(next.turn, 0);
-  assert.equal(next.enemy.countdown, 3);
+  assert.equal(next.enemy.countdown, 2);
   assert.equal(findMatches(next.board).length, 0);
   assert.ok(
     legalSwaps(next.board).length > 0 ||
