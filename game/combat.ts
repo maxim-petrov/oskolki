@@ -437,7 +437,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast) {
       }
     }
     ctx.rocketsThisMove += rocketsNow;
-    if (rocketsNow && mods.pyroBlast) {
+    if (blasts.length && mods.pyroBlast) {
       const t = targetEnemy(c);
       if (t) {
         t.burn = Math.max(t.burn, 2);

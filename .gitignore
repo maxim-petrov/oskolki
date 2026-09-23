@@ -42,3 +42,6 @@ next-env.d.ts
 # Browser verification artifacts
 /output/playwright/
 /.playwright-cli/
+
+# Sprite previews and scratch renders
+/output/

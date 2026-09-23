@@ -163,6 +163,13 @@ function exploreAction(run: RunState, opts: BotOptions, r: Rng): Action | null {
   return doors.length ? { type: 'go', dir: doors[int(r, doors.length)] } : null;
 }
 
+/** One decision for the current state (used by the in-browser autoplay debug hook). */
+export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
+  if (run.phase === 'combat') return combatAction(run, opts.policy, r);
+  if (run.phase === 'explore') return exploreAction(run, opts, r);
+  return null;
+}
+
 export interface SimResult {
   won: boolean;
   floor: number;

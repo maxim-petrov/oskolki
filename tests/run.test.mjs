@@ -24,7 +24,12 @@ test('floors are connected, with the boss in the farthest dead end', () => {
       // All visible rooms reachable from start.
       const seen = new Set([map.start]);
       const q = [map.start];
-      while (q.length) for (const id of Object.values(map.rooms[q.shift()].doors)) if (!seen.has(id)) (seen.add(id), q.push(id));
+      while (q.length)
+        for (const id of Object.values(map.rooms[q.shift()].doors))
+          if (!seen.has(id)) {
+            seen.add(id);
+            q.push(id);
+          }
       assert.equal(seen.size, visible.length);
     }
   }
