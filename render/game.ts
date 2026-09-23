@@ -1395,7 +1395,8 @@ export class GameView {
   }
 
   private drawBanners(ctx: Ctx2D) {
-    let y = 70;
+    // Above the board's queue preview (y≈88), between the hearts and the minimap.
+    let y = 34;
     for (const b of this.banners) {
       const a = Math.min(1, b.t * 5, (b.max - b.t) * 3);
       if (b.big) {
