@@ -50,7 +50,7 @@ export const FLOORS: FloorDef[] = [
     ],
     rooms: [7, 9],
     budget: { base: 2.0, perDist: 0.6, max: 5.2 },
-    hpMul: 2.0,
+    hpMul: 2.3,
     dmgAdd: 0,
     fx: 'archive',
   },
@@ -71,7 +71,7 @@ export const FLOORS: FloorDef[] = [
     rooms: [8, 10],
     budget: { base: 3.0, perDist: 0.6, max: 6.6 },
     hpMul: 3.1,
-    dmgAdd: 0,
+    dmgAdd: 1,
     fx: 'boiler',
   },
   {
@@ -91,7 +91,7 @@ export const FLOORS: FloorDef[] = [
     rooms: [8, 10],
     budget: { base: 3.2, perDist: 0.7, max: 7.5 },
     hpMul: 3.6,
-    dmgAdd: 0,
+    dmgAdd: 1,
     fx: 'directorate',
   },
 ];
