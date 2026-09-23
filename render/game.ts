@@ -1411,7 +1411,8 @@ export class GameView {
       const v = this.enemies.get(bossE.uid);
       if (v && v.dying === 0) drawBossBar(ctx, ENEMIES[bossE.def].name, v.hp, v.maxHp, t);
     }
-    if (this.inCombat && c && this.run.stats.moves === 0 && !this.busy()) {
+    // The boss bar owns the bottom line, so the hint only shows in ordinary fights.
+    if (this.inCombat && c && !c.boss && this.run.stats.moves === 0 && !this.busy()) {
       const a = 0.65 + Math.sin(t * 4) * 0.3;
       text(ctx, 'Потяни фишку вдоль строки или столбца: сдвиг, который собирает 3+ одинаковых, — это ход', 320, 306, 'gold4', { align: 'center', outline: 'ink0', alpha: a });
       text(ctx, 'Враги ходят после тебя — следи за их таймерами', 320, 318, 'cold5', { align: 'center', outline: 'ink0', alpha: a });
