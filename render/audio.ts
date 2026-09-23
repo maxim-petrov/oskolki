@@ -14,6 +14,7 @@ type Sfx =
   | 'prism'
   | 'door'
   | 'pickup'
+  | 'chest'
   | 'item'
   | 'invalid'
   | 'enemy'
@@ -154,6 +155,10 @@ export class Audio {
       case 'pickup':
         this.tone(784, 0.07, 'square', 0.06);
         this.tone(1175, 0.1, 'square', 0.05, 0, 0.06);
+        break;
+      case 'chest':
+        this.noise(0.22, 0.22, 320, 0.6);
+        [659, 784, 988, 1319].forEach((f, k) => this.tone(f, 0.12, 'triangle', 0.05, 0, 0.12 + k * 0.05));
         break;
       case 'item':
         [523, 659, 784, 1047].forEach((f, k) => this.tone(f, 0.22, 'square', 0.06, 0, k * 0.09));

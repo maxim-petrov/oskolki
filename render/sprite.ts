@@ -167,6 +167,30 @@ function tag(f: Frame): number {
   return c.__id;
 }
 
+/** 1px ring just outside the opaque pixels: a glow rim that leaves the sprite itself untouched. Cached. */
+export function halo(f: Frame, color: string): Frame {
+  const key = `${tag(f)}:halo:${color}`;
+  let v = variants.get(key);
+  if (v) return v;
+  const w = f.w + 2;
+  const h = f.h + 2;
+  const src = ctx2d(makeCanvas(w, h));
+  src.drawImage(f.canvas as CanvasImageSource, 1, 1);
+  const a = src.getImageData(0, 0, w, h).data;
+  const on = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && a[(y * w + x) * 4 + 3] > 0;
+  const canvas = makeCanvas(w, h);
+  const ctx = ctx2d(canvas);
+  ctx.fillStyle = hex(color);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!on(x, y) && (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1))) ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  v = { canvas, w, h, ox: f.ox + 1, oy: f.oy + 1 };
+  variants.set(key, v);
+  return v;
+}
+
 export function flipped(f: Frame): Frame {
   const key = `${tag(f)}:flip`;
   let v = variants.get(key);

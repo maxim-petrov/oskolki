@@ -833,6 +833,9 @@ const sign = [
   'kUukvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkuVk',
   'kUukvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkuVk',
   'kUukvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkuVk',
+  'kUukvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkuVk',
+  'kUukvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkuVk',
+  'kUukvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvkuVk',
   'kUukkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkuVk',
   'kuVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVfk',
   '.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk.',
@@ -864,5 +867,5 @@ export const CAST: Record<string, SpriteDef> = {
   chest_locked: { w: 16, h: 13, legend: goldLegend, frames: { closed: goldClosed, open: goldOpen }, ox: 8, oy: 12 },
   door_arrow: { w: 11, h: 11, legend: arrowLegend, frames: { idle0: arrowRight }, ox: 5, oy: 5 },
   door_arrow_up: { w: 11, h: 11, legend: arrowLegend, frames: { idle0: arrowUp }, ox: 5, oy: 5 },
-  shopkeeper_sign: { w: 40, h: 14, legend: signLegend, frames: { idle0: sign }, ox: 20, oy: 13 },
+  shopkeeper_sign: { w: 40, h: 17, legend: signLegend, frames: { idle0: sign }, ox: 20, oy: 16 },
 };

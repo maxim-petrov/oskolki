@@ -18,7 +18,7 @@ import { FLOOR_Y, RoomScene, VH, VW, ditherFade, drawDanger, drawVignette } from
 import { draw, getFrame, type Ctx2D } from './sprite.ts';
 import { easeIn, easeOut } from './tween.ts';
 import { panel, type UI } from './ui.ts';
-import { drawRoomUI, drawRoomWorld } from './room.ts';
+import { CHEST_SPRITES, drawRoomUI, drawRoomWorld, trapdoorX } from './room.ts';
 import type { App } from './app.ts';
 
 interface Step {
@@ -72,6 +72,11 @@ export class GameView {
   ending: null | { kind: 'dead' | 'won'; t: number } = null;
   coinFlash = 0;
   heartPulse = 0;
+  /** Where each floor pickup was last drawn, so a collected one flies from its own spot. */
+  pickupPos = new Map<number, [number, number]>();
+  /** Opened chests stay on the floor for a moment after their loot flies out. */
+  openChests: { x: number; y: number; sprite: string; t: number }[] = [];
+  private lootFrom: { x: number; y: number; t: number } | null = null;
   rocketsSeen = 0;
 
   constructor(
@@ -131,6 +136,8 @@ export class GameView {
     this.lighting.lights = this.scene.lights;
     this.sceneRoom = room.id;
     this.ps.clear();
+    this.pickupPos.clear();
+    this.openChests = [];
     this.app.audio.ambience(this.floorFx());
   }
 
@@ -417,14 +424,27 @@ export class GameView {
           },
         });
         break;
-      case 'pickup':
+      case 'pickup': {
+        const chest = CHEST_SPRITES[e.pickup.kind];
         this.push({
-          dur: 0.06,
+          dur: chest ? 0.35 : 0.06,
           begin: () => {
+            const at = this.pickupPos.get(e.pickup.id);
+            if (chest) {
+              // The chest opens where it stood; its contents fly out of it.
+              const [x, y] = at ?? [300, FLOOR_Y + 16];
+              this.openChests.push({ x, y, sprite: chest, t: 1.8 });
+              this.lootFrom = { x, y: y - 10, t: this.t };
+              burst(this.ps, x, y - 8, 22, { ramp: ['cream', 'gold4', 'gold3', 'orange3'], add: true, layer: 'ui', speed: [25, 80], max: 0.6, dir: -Math.PI / 2, spread: Math.PI * 0.8 });
+              this.app.audio.play('chest');
+              return;
+            }
+            const from = this.lootFrom && this.t - this.lootFrom.t < 1 ? this.lootFrom : null;
+            const [x0, y0] = at ? [at[0], at[1] - 6] : from ? [from.x + rand(-6, 6), from.y] : [320 + rand(-40, 40), FLOOR_Y - 4];
             const target = this.pickupTarget(e.pickup.kind);
             this.juice.shoot({
-              x0: 320 + rand(-40, 40),
-              y0: FLOOR_Y - 4,
+              x0,
+              y0,
               x1: target[0],
               y1: target[1],
               dur: 0.45,
@@ -441,6 +461,7 @@ export class GameView {
           },
         });
         break;
+      }
       case 'item':
         this.push({
           dur: e.transformation ? 1.6 : 1.3,
@@ -985,6 +1006,8 @@ export class GameView {
     }
     this.coinFlash = Math.max(0, this.coinFlash - dt);
     this.heartPulse = Math.max(0, this.heartPulse - dt);
+    for (const c of this.openChests) c.t -= dt;
+    this.openChests = this.openChests.filter((c) => c.t > 0);
     if (this.ending) this.ending.t += dt;
     this.updatePreview();
   }
@@ -1274,6 +1297,14 @@ export class GameView {
     extra.push({ x: this.hero.x + 6, y: FLOOR_Y - 22, r: 46, color: '#ffc88a', intensity: 0.55, flicker: 'none', seed: 0 });
     for (const v of this.enemies.values()) if (v.dying === 0) extra.push({ x: v.x - 6, y: FLOOR_Y - 24, r: v.size === 'boss' ? 70 : 44, color: '#c9d4ff', intensity: 0.4, flicker: 'none', seed: v.uid });
     if (this.mods.lamp) extra.push({ x: this.hero.x, y: FLOOR_Y - 30, r: 70, color: '#ffd08a', intensity: 0.8, flicker: 'lantern', seed: 1 });
+    if (showRoom) {
+      // Loot on the floor and the trapdoor get a soft pool of light so they read in dark rooms.
+      for (const p of room.pickups) {
+        const at = this.pickupPos.get(p.id);
+        if (at) extra.push({ x: at[0], y: at[1] - 4, r: 20, color: '#ffe2a8', intensity: 0.5, flicker: 'none', seed: p.id });
+      }
+      if (room.trapdoor) extra.push({ x: trapdoorX(room), y: FLOOR_Y + 24, r: 34, color: '#ffcf8a', intensity: 0.8, flicker: 'candle', seed: 7 });
+    }
     for (const v of this.enemies.values())
       if (ENEMIES[v.def]?.traits?.includes('light') && v.dying === 0)
         extra.push({ x: v.x, y: v.top(t) + 8, r: 60, color: '#ffae4a', intensity: 0.9, flicker: 'candle', seed: v.uid });

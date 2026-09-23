@@ -191,7 +191,10 @@ export function drawEnding(ctx: Ctx2D, ui: UI, app: App, run: RunState, earned: 
   panel(ctx, 110, 30, 420, 300, { border: won ? 'gold3' : 'red2', fill: 'ink1' });
   text(ctx, won ? 'ОТЧЁТ СДАН' : 'СМЕНА ОКОНЧЕНА', 320, 42, won ? 'gold4' : 'red4', { align: 'center', scale: 2, outline: 'ink0' });
   const cause = run.stats.deathCause;
-  text(ctx, won ? 'Ты прошёл все этажи. Главный офис молчит — до следующей смены.' : `Тебя уволил: ${cause || 'офис'}`, 320, 66, 'cream', { align: 'center' });
+  // A win on a profile without the last floor unlocked is a win, but not the end of the office.
+  const next = FLOORS[run.lastFloor + 1];
+  const winLine = next ? `Смена закрыта. Ниже есть ещё этаж — ${next.name}.` : 'Ты прошёл все этажи. Главный офис молчит — до следующей смены.';
+  text(ctx, won ? winLine : `Тебя уволил: ${cause || 'офис'}`, 320, 66, 'cream', { align: 'center' });
   const st = run.stats;
   const lines = [
     `Этаж: ${FLOORS[run.floor].name} (${run.floor + 1})`,
@@ -220,7 +223,7 @@ export function drawEnding(ctx: Ctx2D, ui: UI, app: App, run: RunState, earned: 
       y += LINE + 2;
     }
   }
-  text(ctx, `seed ${run.seed}${run.customSeed ? ' (свой)' : ''}`, 320, 270, 'grey3', { align: 'center' });
+  text(ctx, `seed ${run.seed}${run.customSeed ? ' (свой: без достижений)' : ''}`, 320, 270, 'grey3', { align: 'center' });
   if (ui.button(ctx, 'again', 200, 290, 110, 22, 'Ещё смена', { accent: 'gold3' })) app.startNew(run.hero.char);
   if (ui.button(ctx, 'tomenu', 330, 290, 110, 22, 'В меню')) app.toMenu();
   text(ctx, 'Пробел — ещё смена', 320, 318, 'cold3', { align: 'center' });

@@ -7,7 +7,7 @@ import type { GameView } from './game.ts';
 import { hex } from './palette.ts';
 import { rand } from './particles.ts';
 import { FLOOR_Y } from './scene.ts';
-import { draw, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
+import { draw, getFrame, halo, hasSprite, type Ctx2D } from './sprite.ts';
 import type { UI } from './ui.ts';
 
 export const DOOR_X: Record<Dir, number> = { w: 22, n: 262, s: 378, e: 618 };
@@ -40,6 +40,14 @@ function frameColor(target: Room) {
 
 function pedestalX(i: number, n: number) {
   return 320 + (i - (n - 1) / 2) * 60;
+}
+
+/** Chests on the floor use the bigger cast sprites; the 12px icons stay for flights to the HUD. */
+export const CHEST_SPRITES: Partial<Record<string, string>> = { chest: 'chest', lockedChest: 'chest_locked' };
+
+/** The trapdoor moves aside when a devil deal adds pedestals, so price labels never cover it. */
+export function trapdoorX(room: Room) {
+  return room.pedestals.length > 1 ? 452 : 320;
 }
 
 function pickupXY(k: number): [number, number] {
@@ -90,7 +98,11 @@ export function drawRoomWorld(v: GameView, ctx: Ctx2D, room: Room) {
   }
   if (room.kind === 'shop') {
     if (hasSprite('merchant')) draw(ctx, getFrame('merchant', Math.floor(t * 1.5) % 2 ? 'idle0' : 'idle1'), 320, FLOOR_Y - 2);
-    if (hasSprite('shopkeeper_sign')) draw(ctx, getFrame('shopkeeper_sign'), 320, FLOOR_Y - 44);
+    if (hasSprite('shopkeeper_sign')) {
+      draw(ctx, getFrame('shopkeeper_sign'), 320, FLOOR_Y - 44);
+      // Painted letters sit on the 5px-tall recessed panel of the board.
+      text(ctx, 'ЛАВКА', 320, FLOOR_Y - 54, 'gold4', { align: 'center' });
+    }
     // Display table in front of the merchant.
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(232, FLOOR_Y + 1, 176, 9);
@@ -109,9 +121,13 @@ export function drawRoomWorld(v: GameView, ctx: Ctx2D, room: Room) {
   });
   room.pickups.forEach((p, k) => {
     const [x, y] = pickupXY(k);
-    draw(ctx, getFrame(`pk_${p.kind}`, Math.floor(t * 2 + k) % 2 ? 'idle0' : 'idle1'), x, y);
+    v.pickupPos.set(p.id, [x, y]);
+    const chest = CHEST_SPRITES[p.kind];
+    if (chest && hasSprite(chest)) draw(ctx, getFrame(chest, 'closed'), x, y);
+    else draw(ctx, getFrame(`pk_${p.kind}`, Math.floor(t * 2 + k) % 2 ? 'idle0' : 'idle1'), x, y);
   });
-  if (room.trapdoor) draw(ctx, getFrame('trapdoor', 'open'), 320, FLOOR_Y + 30);
+  for (const c of v.openChests) if (hasSprite(c.sprite)) draw(ctx, getFrame(c.sprite, 'open'), c.x, c.y, Math.min(1, c.t * 2));
+  if (room.trapdoor) draw(ctx, getFrame('trapdoor', 'open'), trapdoorX(room), FLOOR_Y + 30);
 }
 
 /** Unlit pass: floating items, beams, labels, tooltips and clicks. */
@@ -237,7 +253,10 @@ export function drawRoomUI(v: GameView, ctx: Ctx2D, ui: UI, room: Room) {
       ui.tooltip(PICKUP_NAMES[p.kind], p.kind === 'lockedChest' ? 'Открыть ключом' : p.kind === 'half' || p.kind === 'heart' ? 'Подберёшь, когда сердца неполны' : 'Взять', ui.p.x, ui.p.y);
   });
   if (room.trapdoor) {
-    if (exploring && ui.area('trapdoor', 300, FLOOR_Y + 16, 40, 18)) v.act({ type: 'descend' });
+    // Pulsing rim: the way down must be obvious even in the darkest room.
+    const pulse = 0.55 + Math.sin(t * 3) * 0.3;
+    draw(ctx, halo(getFrame('trapdoor', 'open'), 'gold4'), trapdoorX(room), FLOOR_Y + 30, ui.hovered === 'trapdoor' ? 1 : pulse);
+    if (exploring && ui.area('trapdoor', trapdoorX(room) - 20, FLOOR_Y + 16, 40, 18)) v.act({ type: 'descend' });
     if (ui.hovered === 'trapdoor') ui.tooltip('Люк вниз', `Спуститься на этаж ${v.run.floor + 2}. Пробел.`, ui.p.x, ui.p.y - 30, 'gold4');
     if (exploring) text(ctx, 'Пробел — спуститься', 320, FLOOR_Y + 40, 'gold4', { align: 'center', outline: 'ink0', alpha: 0.6 + Math.sin(t * 4) * 0.3 });
   }
