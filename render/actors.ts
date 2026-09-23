@@ -257,12 +257,13 @@ export class EnemyView {
     }
   }
 
-  tooltip(): { title: string; body: string } {
+  /** `dmg` is the real hit in half-hearts (floor bonus and overtime included), as in the bubble. */
+  tooltip(dmg: number): { title: string; body: string } {
     const def = ENEMIES[this.def];
     const i = this.intent;
     const what = INTENT_TEXT[i.kind] ?? i.kind;
-    const whole = Math.floor(i.value / 2);
-    const hearts = `${whole || ''}${i.value % 2 ? '½' : ''}`;
+    const whole = Math.floor(dmg / 2);
+    const hearts = `${whole || ''}${dmg % 2 ? '½' : ''}`;
     const detail =
       i.kind === 'attack' || i.kind === 'heavy' || i.kind === 'strike'
         ? `${what}: ${hearts} сердца`

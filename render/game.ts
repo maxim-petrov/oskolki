@@ -1337,7 +1337,7 @@ export class GameView {
           } else this.act({ type: 'target', uid: v.uid });
         }
         if (ui.hovered === `enemy-${v.uid}`) {
-          const tip = v.tooltip();
+          const tip = v.tooltip(dmg);
           ui.tooltip(tip.title, tip.body, ui.p.x, ui.p.y, 'red4');
         }
       }
