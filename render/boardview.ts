@@ -303,19 +303,9 @@ export class BoardView {
     const ox = BX + sx;
     const oy = BY;
     const a = this.visible;
-    // Frame.
+    // Frame: a wooden tray with a bevel, brass corner brackets and rivets.
     ctx.globalAlpha = a;
-    ctx.fillStyle = hex('ink0');
-    ctx.fillRect(ox - 6, oy - 6, BW + 12, BH + 12);
-    ctx.fillStyle = hex('wood1');
-    ctx.fillRect(ox - 5, oy - 5, BW + 10, BH + 10);
-    ctx.fillStyle = hex('wood2');
-    ctx.fillRect(ox - 5, oy - 5, BW + 10, 1);
-    ctx.fillRect(ox - 5, oy - 5, 1, BH + 10);
-    ctx.fillStyle = hex('ink0');
-    ctx.fillRect(ox - 2, oy - 2, BW + 4, BH + 4);
-    ctx.fillStyle = hex('ink1');
-    ctx.fillRect(ox - 1, oy - 1, BW + 2, BH + 2);
+    this.drawFrame(ctx, ox, oy);
     // Grid dots.
     ctx.fillStyle = hex('ink2');
     for (let r = 1; r < H; r++) for (let c = 1; c < W; c++) ctx.fillRect(ox + c * T - 1, oy + r * T - 1, 2, 2);
@@ -446,6 +436,62 @@ export class BoardView {
     // Queue preview above the columns.
     this.drawQueue(ctx, ox, oy);
     if (this.previewText) text(ctx, this.previewText, BX + BW / 2, oy + BH + 8, 'cream', { align: 'center', outline: 'ink0' });
+  }
+
+  private drawFrame(ctx: Ctx2D, ox: number, oy: number) {
+    const fill = (c: string, x: number, y: number, w: number, h: number) => {
+      ctx.fillStyle = hex(c);
+      ctx.fillRect(x, y, w, h);
+    };
+    const L = ox - 7;
+    const Tp = oy - 7;
+    const W2 = BW + 14;
+    const H2 = BH + 14;
+    fill('ink0', L, Tp, W2, H2);
+    // Wood: lit top-left, cold shadow bottom-right, a grain line through the middle.
+    fill('wood2', L + 1, Tp + 1, W2 - 2, H2 - 2);
+    fill('wood3', L + 1, Tp + 1, W2 - 2, 1);
+    fill('wood3', L + 1, Tp + 1, 1, H2 - 2);
+    fill('wood4', L + 2, Tp + 1, W2 - 12, 1);
+    fill('wood1', L + 1, Tp + H2 - 2, W2 - 2, 1);
+    fill('wood1', L + W2 - 2, Tp + 1, 1, H2 - 2);
+    fill('ink3', L + W2 - 2, Tp + 6, 1, H2 - 12);
+    for (let x = L + 5; x < L + W2 - 5; x += 9) fill('wood1', x, Tp + 3, 4, 1);
+    for (let x = L + 9; x < L + W2 - 5; x += 11) fill('wood1', x, Tp + H2 - 4, 5, 1);
+    for (let y = Tp + 6; y < Tp + H2 - 5; y += 10) {
+      fill('wood1', L + 3, y, 1, 4);
+      fill('wood1', L + W2 - 4, y + 5, 1, 4);
+    }
+    // Recessed well around the tiles.
+    fill('ink0', ox - 2, oy - 2, BW + 4, BH + 4);
+    fill('ink1', ox - 1, oy - 1, BW + 2, BH + 2);
+    fill('wood0', ox - 2, oy - 3, BW + 4, 1);
+    fill('wood0', ox - 3, oy - 2, 1, BH + 4);
+    // Brass brackets on the corners.
+    const bracket = (x: number, y: number, fx: number, fy: number) => {
+      for (let k = 0; k < 8; k++) {
+        fill(k < 2 ? 'gold4' : 'gold3', x + fx * k, y, 1, 1);
+        fill(k < 2 ? 'gold4' : 'gold2', x, y + fy * k, 1, 1);
+        fill('gold1', x + fx * k, y + fy, 1, 1);
+        fill('gold1', x + fx, y + fy * k, 1, 1);
+      }
+      fill('cream', x + fx * 2, y + fy * 2, 1, 1);
+      fill('gold1', x + fx * 3, y + fy * 3, 1, 1);
+    };
+    bracket(L + 1, Tp + 1, 1, 1);
+    bracket(L + W2 - 2, Tp + 1, -1, 1);
+    bracket(L + 1, Tp + H2 - 2, 1, -1);
+    bracket(L + W2 - 2, Tp + H2 - 2, -1, -1);
+    // Rivets between the cells along the long edges.
+    for (let c = 2; c < W; c += 2) {
+      const x = ox + c * T;
+      fill('gold3', x - 1, Tp + 2, 2, 2);
+      fill('gold4', x - 1, Tp + 2, 1, 1);
+      fill('gold1', x, Tp + 3, 1, 1);
+      fill('gold3', x - 1, Tp + H2 - 4, 2, 2);
+      fill('gold4', x - 1, Tp + H2 - 4, 1, 1);
+      fill('gold1', x, Tp + H2 - 3, 1, 1);
+    }
   }
 
   private frameRect(ctx: Ctx2D, x: number, y: number, w: number, h: number) {

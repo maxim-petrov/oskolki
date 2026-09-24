@@ -1570,7 +1570,7 @@ export class GameView {
       if (this.boardDim > 0.02) {
         ctx.globalAlpha = this.boardDim * 0.5 * this.board.visible;
         ctx.fillStyle = hex('ink0');
-        ctx.fillRect(BX - 6, BY - 6, BW + 12, BH + 12);
+        ctx.fillRect(BX - 7, BY - 7, BW + 14, BH + 14);
         ctx.globalAlpha = 1;
       }
       this.drawThreatLines(ctx);
