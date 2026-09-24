@@ -56,7 +56,7 @@ test('travel goes only to reachable nodes and starts a fight', () => {
 
 test('winning a fight gives coins and a choice of three cards', () => {
   const { run } = newRun({ seed: 4 });
-  let r = dispatch(run, { type: 'travel', node: reachable(run.map, -1)[0] }).run;
+  const r = dispatch(run, { type: 'travel', node: reachable(run.map, -1)[0] }).run;
   for (const e of r.combat.enemies) e.hp = 1;
   r.combat.enemies[0].hp = 1;
   // Kill with a guaranteed hit: set a blade line ready to swap.
