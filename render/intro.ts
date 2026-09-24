@@ -45,6 +45,8 @@ export class IntroView {
   /** The stack on the archive floor, then the monster assembling from it. */
   stack: { x: number; frame: string } | null = null;
   flicker = false;
+  /** He types until the phone rings. */
+  typing = true;
   done = false;
   shake = 0;
 
@@ -52,7 +54,7 @@ export class IntroView {
     this.archive = new Stage('archive', true, Math.max(L.w, 640), 4);
     this.stage = this.office;
     this.hero.char = 'intern';
-    this.hero.x = HUB_SPOTS.desk - 64;
+    this.hero.x = HUB_SPOTS.seat;
     this.hero.state = 'pose';
     this.hero.pose = 'sit0';
     this.office.cam = this.camFor(this.office, this.hero.x);
@@ -64,13 +66,15 @@ export class IntroView {
     b(2.4, () => {
       au.play('phone');
       this.talk('Дзынь!', HUB_SPOTS.desk + 20, STAGE_FEET - 60);
-      this.hero.pose = 'look';
+      this.typing = false;
+      this.hero.pose = 'sit0';
     });
     b(3.2, () => au.play('phone'));
     b(4.0, () => this.talk('Стажёр. Отнесите стопку в архив. Сейчас.', HUB_SPOTS.desk + 10, STAGE_FEET - 70));
     b(6.6, () => {
-      this.hero.state = 'idle';
+      // Up from the chair, the stack from the desk in his arms.
       this.hero.x = HUB_SPOTS.desk + 10;
+      this.hero.pose = 'carry1';
     });
     b(7.2, () => (this.walk = { to: HUB_SPOTS.cubicles + 330, speed: 110, carry: true }));
     b(8.4, () => this.talk('Осторожно, не урони.', HUB_SPOTS.cubicles - 12, STAGE_FEET - 90));
@@ -80,19 +84,20 @@ export class IntroView {
       // ── The archive ──
       this.stage = this.archive;
       this.walk = null;
-      this.hero.x = 60;
-      this.archive.cam = Math.round((this.archive.worldW - L.w) / 2);
+      this.hero.x = this.archive.propX.os_archive_door ?? 70;
+      this.archive.cam = this.archiveCam();
       au.ambience('dark');
       au.play('door');
       this.fadeTo = 0;
       this.say('Архив. Минус первый этаж.');
-      this.walk = { to: this.archive.cam + L.w * 0.42, speed: 70, carry: true };
+      this.walk = { to: this.dropX(), speed: 80, carry: true };
     });
     b(15.0, () => {
+      // He stops with the stack in his arms while the bulb stutters.
       this.flicker = true;
       au.play('flicker');
       this.hero.state = 'pose';
-      this.hero.pose = 'look';
+      this.hero.pose = 'carry1';
     });
     b(16.4, () => {
       this.hero.pose = 'kneel';
@@ -100,12 +105,14 @@ export class IntroView {
       au.play('paper', 0.6);
     });
     b(17.2, () => {
+      // Back to the switch by the door; he reaches it facing the door, the stack behind him.
       this.hero.state = 'idle';
-      this.walk = { to: this.archive.cam + Math.max(70, L.w * 0.12) + 60, speed: 80, carry: false };
       this.hero.flip = true;
+      this.walk = { to: this.switchX() + 19, speed: 100, carry: false };
     });
     b(19.0, () => {
-      this.hero.flip = false;
+      this.walk = null;
+      this.hero.x = this.switchX() + 19;
       this.hero.state = 'pose';
       this.hero.pose = 'reach';
       this.talk('Где тут свет…', this.hero.x, STAGE_FEET - 104);
@@ -118,7 +125,7 @@ export class IntroView {
     b(20.4, () => au.play('paper', 1.4));
     b(21.2, () => au.play('paper', 1));
     b(22.0, () => {
-      // The light comes back: the stack is standing up.
+      // The light comes back: he looks over his shoulder, and the stack is standing up.
       this.archive.blackout = 0;
       au.play('flicker');
       this.hero.state = 'pose';
@@ -134,6 +141,7 @@ export class IntroView {
     });
     b(23.3, () => this.stack && (this.stack.frame = 'idle0'));
     b(23.6, () => {
+      this.hero.flip = false;
       this.hero.pose = 'grab';
       au.play('item');
       this.say('Канцелярский нож. Бумага его боится.');
@@ -144,6 +152,21 @@ export class IntroView {
       this.say('Дверь за спиной захлопнулась.');
     });
     b(27.2, () => this.finish());
+  }
+
+  /** The wall switch by the archive door (world x). */
+  switchX() {
+    return this.archive.propX.os_switch ?? 128;
+  }
+
+  /** Where he puts the stack down: far enough from the switch, close enough to share one screen with it. */
+  dropX() {
+    return this.switchX() + 19 + Math.round(Math.max(80, Math.min(160, L.w * 0.25)));
+  }
+
+  /** The archive camera holds still: the door and the switch at the left edge, the stack in view. */
+  archiveCam() {
+    return Math.round(Math.max(0, Math.min(this.archive.worldW - L.w, this.switchX() - 60)));
   }
 
   camFor(stage: Stage, x: number) {
@@ -193,8 +216,10 @@ export class IntroView {
     if (w) {
       const d = w.to - this.hero.x;
       if (Math.abs(d) < 2) {
+        // Arrived: with the stack he stays holding it.
         this.walk = null;
-        this.hero.state = 'idle';
+        if (w.carry) this.hero.pose = 'carry1';
+        else this.hero.state = 'idle';
       } else {
         this.hero.x += Math.sign(d) * Math.min(Math.abs(d), w.speed * dt);
         if (w.carry) {
@@ -203,7 +228,7 @@ export class IntroView {
         } else this.hero.state = 'walk';
         if (Math.floor(this.t * 4.5) !== Math.floor((this.t - dt) * 4.5)) this.app.audio.play('step');
       }
-    } else if (this.stage === this.office && this.hero.state === 'pose' && this.hero.pose.startsWith('sit')) {
+    } else if (this.stage === this.office && this.typing && this.hero.state === 'pose' && this.hero.pose.startsWith('sit')) {
       this.hero.pose = Math.floor(this.t * 3) % 4 === 0 ? 'sit1' : 'sit0';
       if (Math.random() < dt * 2) this.app.audio.play('keys');
     }

@@ -25,7 +25,7 @@ export class TitleView {
   private next: (() => void) | null = null;
 
   constructor(public app: App) {
-    this.hero.x = HUB_SPOTS.desk - 64;
+    this.hero.x = HUB_SPOTS.seat;
     this.hero.state = 'pose';
     this.hero.pose = 'sit0';
     this.hero.char = 'intern';

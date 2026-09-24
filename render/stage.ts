@@ -43,6 +43,8 @@ export const HUB_SPOTS = {
   elevator: 80,
   board: 236,
   desk: 440,
+  /** Where the intern sits: his seated frames put him on os_chair (desk − 64) at chair + 20. */
+  seat: 396,
   /** Two rows of cubicles: four next to the intern, two past the kitchen corner. */
   cubicles: 600,
   cubiclesB: 1200,
@@ -372,7 +374,7 @@ function room(id: RoomId, dark: boolean, worldW: number, seed: number): RoomDef 
       const row = (x0: number, n: number) => {
         for (let k = 0; k < n; k++) {
           const x = x0 + k * 96;
-          props.push({ id: 'os_cubicle', x, y: F, frames: ['idle0', 'idle1'], fps: 1 + k * 0.3 });
+          props.push({ id: 'os_cubicle', x, y: F, frames: ['open0', 'open1'], fps: 1 + k * 0.3 });
           crt(lights, x, 106, false);
         }
       };
@@ -596,6 +598,8 @@ export class Stage {
   time = 0;
   /** Extra darkness for scripted moments (the light goes out): 0..1. */
   blackout = 0;
+  /** World x of the props by id (the last one wins): scripted scenes walk actors up to them. */
+  propX: Record<string, number> = {};
 
   constructor(id: RoomId, dark: boolean, worldW: number, seed = 0, extra: Prop[] = []) {
     this.id = id;
@@ -627,6 +631,7 @@ export class Stage {
     tile(def.floor ?? 'os_floor', STAGE_FEET, STAGE_H - STAGE_FEET, 'slate1');
     tile(def.ceil ?? 'os_ceiling', 0, STAGE_CEIL + 2, 'drab3');
     for (const p of props) {
+      this.propX[p.id] = p.x;
       if (p.frames && p.frames.length > 1) {
         this.animated.push(p);
         continue;

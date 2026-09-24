@@ -153,7 +153,7 @@ export const EVENTS: EventDef[] = [
         hint: '+25% здоровья',
         run: (a) => {
           a.heal(Math.round(a.run.hero.maxHp * 0.25));
-          return 'Тебе снится офис. Ты не уверен, что проснулся.';
+          return 'Тебе снится офис. Проснуться до конца не получается.';
         },
       },
       {

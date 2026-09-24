@@ -90,7 +90,7 @@ export class HubView {
     };
     const a = HUB_SPOTS.cubicles;
     const b = HUB_SPOTS.cubiclesB;
-    npc('npc_girl', a - 12, ['Привет. Ты сегодня какой-то бледный.', 'Опять задержался? Я тоже.', 'Ты уже был в архиве? Мне кажется, был.', 'Кофе в кулере закончился. Как всегда.']);
+    npc('npc_girl', a - 12, ['Привет. Ты сегодня {какой-то бледный|какая-то бледная}.', 'Опять {задержался|задержалась}? Я тоже.', 'Ты уже {был|была} в архиве? Мне кажется, {был|была}.', 'Кофе в кулере закончился. Как всегда.']);
     if (!st.neighbourGone) npc('npc_neighbor', a + 84, ['Мы знакомы?', 'Я тебя видел. Во сне, кажется.', 'Не заглядывай ко мне в монитор.', 'Скоро квартальный. Или уже был?']);
     npc('npc_sil_sit_a', a + 180, [], 'shadow');
     npc('npc_analyst', a + 276, ['Не мешай, у меня созвон.', 'Ты в архив? Ну-ну.', 'Графики опять смотрят на меня.', 'Шшш.']);
@@ -98,14 +98,14 @@ export class HubView {
     npc('npc_sil_copier', HUB_SPOTS.copier + 5, [], 'shadow');
     npc('npc_accountant', b - 12, ['Цифры не сходятся. Опять.', 'Цельность — это ты. Понимаешь? Ты.', 'Сдача после шестнадцати сорока.', 'Скрепки не трогай.']);
     npc('npc_sil_sit_b', b + 84, [], 'shadow');
-    if (!st.supervisorGone) npc('npc_supervisor', HUB_SPOTS.glass - 60, ['Отчёт к 16:40.', 'Архив ждёт, стажёр.', 'Улыбайтесь. Мы — одна команда.', 'Я запомню.'], 'stand');
+    if (!st.supervisorGone) npc('npc_supervisor', HUB_SPOTS.glass - 60, ['Отчёт к 16:40.', 'Архив ждёт, {role}.', 'Улыбайтесь. Мы — одна команда.', 'Я запомню.'], 'stand');
     npc('npc_janitor', HUB_SPOTS.vending + 70, ['Осторожно, мокро.', 'Внизу опять бумага шуршит.', 'Я всё вижу. Всё.', 'Не ходи туда после шести.'], 'mop');
     if (hasSprite('npc_sil_walk')) {
       this.walkers.push({ x: 700, from: 520, to: 1330, dir: 1, speed: 22, pause: 0 });
       this.walkers.push({ x: 1500, from: 1150, to: 1760, dir: -1, speed: 17, pause: 1.5 });
     }
     // Start: at the desk.
-    this.hero.x = HUB_SPOTS.desk - 64;
+    this.hero.x = HUB_SPOTS.seat;
     if (how === 'wake' || how === 'won') {
       this.script = { t: 0, how };
       this.hero.state = 'pose';
@@ -227,7 +227,7 @@ export class HubView {
       sc.t += dt;
       if (sc.t > 1.6 && this.hero.pose === 'sleep') {
         this.hero.pose = 'wake';
-        this.say(sc.how === 'won' ? 'Отчёт… сдан? Я что, уснул?' : '…Опять задремал?', this.hero.x + 10, STAGE_FEET - 96, 2.6);
+        this.say(this.line(sc.how === 'won' ? 'Отчёт… сдан? Я что, {уснул|уснула}?' : '…Опять {задремал|задремала}?'), this.hero.x + 10, STAGE_FEET - 96, 2.6);
       }
       if (sc.t > 3.6) {
         this.hero.state = 'idle';
@@ -256,8 +256,8 @@ export class HubView {
         if (n.say.t <= 0) n.say = null;
       }
       const someoneTalks = this.npcs.some((o) => o.say) || !!this.bubble;
-      if (n.lines.length && !this.script && !someoneTalks && n.cool <= 0 && Math.abs(n.x - this.hero.x) < 40) {
-        n.say = { s: n.lines[Math.floor(Math.random() * n.lines.length)], t: 2.2 };
+      if (n.lines.length && this.present(n) && !this.script && !someoneTalks && n.cool <= 0 && Math.abs(n.x - this.hero.x) < 40) {
+        n.say = { s: this.line(n.lines[Math.floor(Math.random() * n.lines.length)]), t: 2.2 };
         n.cool = 9 + Math.random() * 6;
         this.app.audio.play('enemy', 1.6);
       }
@@ -371,8 +371,20 @@ export class HubView {
     if (this.leaving > 0) ditherFade(ctx, Math.min(1, this.leaving / 0.8), L.w, L.h);
   }
 
+  /** The coworker who is the current hero stays out of the office (the seat is empty). */
+  private present(n: Npc) {
+    return n.sprite !== `npc_${this.hero.char}`;
+  }
+
+  /** A line addressed to the hero: «{он|она}» picks the form, «{role}» is the hero's job. */
+  private line(s: string) {
+    const she = this.hero.char === 'janitor';
+    const role = this.hero.char === 'janitor' ? 'уборщица' : this.hero.char === 'accountant' ? 'бухгалтер' : 'стажёр';
+    return s.replace(/\{([^|}]*)\|([^}]*)\}/g, (_, m: string, f: string) => (she ? f : m)).replace('{role}', role);
+  }
+
   private drawNpc(ctx: Ctx2D, n: Npc, x: number) {
-    if (x < -80 || x > L.w + 80) return;
+    if (x < -80 || x > L.w + 80 || !this.present(n)) return;
     const names = frameNames(n.sprite);
     let frame = names[0];
     const beat = Math.floor(this.t * 2.2 + n.seed) % 2;
@@ -568,7 +580,7 @@ export class HubView {
     y += 12;
     for (const h of p.history.slice(0, 4)) {
       if (y > f.y + f.h - 30) break;
-      text(ctx, `${h.won ? 'Сдал отчёт' : `Отдел ${h.act + 1}: ${h.cause || '—'}`} · +${h.shards} осколков`, f.x + 10, y, h.won ? 'gold4' : 'grey3');
+      text(ctx, `${h.won ? 'Отчёт сдан' : `Отдел ${h.act + 1}: ${h.cause || '—'}`} · +${h.shards} осколков`, f.x + 10, y, h.won ? 'gold4' : 'grey3');
       y += 10;
     }
     if (ui.button(ctx, 'desk-close', f.x + f.w - 80, f.y + f.h - 22, 72, 16, 'Закрыть', { accent: 'grey3' })) this.overlay = null;
