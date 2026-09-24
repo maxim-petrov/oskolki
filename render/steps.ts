@@ -20,7 +20,7 @@ export class Steps {
   }
 
   /** Runs `fn` when the queue reaches this point. */
-  then(fn: () => void) {
+  at(fn: () => void) {
     this.push({ dur: 0, end: fn });
   }
 

@@ -510,6 +510,9 @@ export class Stage {
 export function roomFor(act: number, look: number, kind: string): { id: RoomId; dark: boolean } {
   if (act === 0) {
     if (kind === 'boss') return { id: 'glass', dark: true };
+    // The till and the cooler live in the break room, the safe in the storage.
+    if (kind === 'shop' || kind === 'rest') return { id: 'breakroom', dark: true };
+    if (kind === 'treasure') return { id: 'storage', dark: true };
     return { id: ACT1_ROOMS[look % ACT1_ROOMS.length], dark: true };
   }
   if (act === 1) return { id: 'flooded', dark: true };

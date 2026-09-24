@@ -54,6 +54,7 @@ export class RunView implements CombatHost {
   bufW = 0;
   lighting!: Lighting;
   t = 0;
+  speed = 1;
   banners: Banner[] = [];
   toastMsg: { s: string; t: number } | null = null;
   fade = 1;
@@ -77,7 +78,7 @@ export class RunView implements CombatHost {
     this.buildStage(true);
     if (initial.length) for (const e of initial) this.enqueue(e);
     else if (run.combat) this.combat.show(false);
-    this.steps.then(() => this.settle());
+    this.steps.at(() => this.settle());
     this.steps.push({ dur: 0.3, tick: (k) => (this.fade = Math.min(this.fade, 1 - k)) });
   }
 
@@ -133,7 +134,7 @@ export class RunView implements CombatHost {
     this.run = run;
     this.mods = modsOf(run);
     for (const e of events) this.enqueue(e);
-    this.steps.then(() => this.settle());
+    this.steps.at(() => this.settle());
     this.persist();
     return true;
   }
@@ -330,7 +331,8 @@ export class RunView implements CombatHost {
   update(dt: number) {
     this.t += dt;
     const speed = this.app.profile.settings.speed * (this.app.fastForward ? 3 : 1);
-    this.juice.update(dt);
+    this.speed = speed;
+    this.juice.update(dt * Math.min(2, speed));
     const frozen = this.juice.hitstop > 0;
     if (!this.paused && !frozen) this.steps.run(dt * speed);
     this.combat.update(dt, frozen, speed);

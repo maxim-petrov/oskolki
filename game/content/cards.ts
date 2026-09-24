@@ -93,10 +93,26 @@ export function cardValue(id: string, up: boolean): number {
   return def ? (up ? def.vUp : def.v) : 0;
 }
 
+/** Russian plural: 1 заряд, 2 заряда, 5 зарядов. */
+export function plural(n: number, one: string, few: string, many: string) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b === 1) return one;
+  if (b >= 2 && b <= 4) return few;
+  return many;
+}
+
+const NOUNS: [RegExp, string, string, string][] = [
+  [/(\d+) заряда/g, 'заряд', 'заряда', 'зарядов'],
+  [/(\d+) монет[аы]?/g, 'монета', 'монеты', 'монет'],
+];
+
 export function cardText(id: string, up: boolean): string {
   const def = CARDS[id];
   if (!def) return '';
   let t = def.text.replace('{v}', String(cardValue(id, up)));
+  for (const [re, one, few, many] of NOUNS) t = t.replace(re, (_m, n) => `${n} ${plural(Number(n), one, few, many)}`);
   if (id === 'goldclip' && up) t = t.replace('×1,5 (улучшенная — ×2)', '×2');
   else if (id === 'goldclip') t = t.replace(' (улучшенная — ×2)', '');
   return t;

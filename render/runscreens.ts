@@ -118,8 +118,10 @@ export class RewardScreen {
     const colW = Math.min(118, Math.floor((L.w - 16) / n));
     const w = colW * n + 12;
     const x = Math.round((L.w - w) / 2);
-    const y = L.mode === 'wide' ? L.top.h + 24 : L.stage.y + 30;
-    const hgt = Math.min(L.h - y - 6, 240);
+    // Height follows the longest rules text.
+    const textH = Math.max(...row.cards.map((id, k) => wrap(cardRules({ id, up: !!row.ups?.[k] }), colW - 4).length)) * (LINE + 1);
+    const hgt = Math.min(L.h - L.top.h - 12, 28 + CARD_H + 24 + textH + 34);
+    const y = L.mode === 'wide' ? Math.max(L.top.h + 6, Math.round((L.h - hgt) / 2)) : L.stage.y + 30;
     panel(ctx, x, y, w, hgt, { border: 'gold3', fill: 'ink0', alpha: 0.96 });
     title(ctx, 'ВЫБЕРИ ФИШКУ', x + w / 2, y + 6);
     row.cards.forEach((id, k) => {
@@ -263,7 +265,7 @@ export function drawEvent(ctx: Ctx2D, ui: UI, h: ScreenHost) {
   const hh = 34 + lines.length * (LINE + 1) + 8 + (opts.length ? opts.length * 26 : 24) + 8;
   const y = Math.max(L.top.h + 6, Math.round(L.mode === 'wide' ? (L.h - hh) / 2 + 20 : L.stage.y + L.stage.h * 0.3));
   paperPanel(ctx, x, y, w, hh);
-  bigText(ctx, def.title, x + w / 2, y + 7, 'ink1', { align: 'center' });
+  bigText(ctx, def.title, x + w / 2, y + 7, 'red3', { align: 'center', outline: 'cream' });
   const ty = y + 28;
   paragraph(ctx, body, x + 22, ty, tw, st.result !== undefined ? 'red1' : 'ink1');
   let oy = ty + lines.length * (LINE + 1) + 8;

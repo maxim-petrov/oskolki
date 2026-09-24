@@ -5,8 +5,9 @@ import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
 import type { Blast, Effect, GameEvent, Move, RunState, TileScore } from '../game/types.ts';
 import { EnemyView, HeroView, enemySlots, heroX } from './actors.ts';
+import { cardName, cardRules } from './cardview.ts';
 import { BoardView } from './boardview.ts';
-import { text } from './font.ts';
+import { paragraph, text } from './font.ts';
 import { drawBossBar, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
 import type { Juice } from './juice.ts';
 import { FAM_COLORS, hex } from './palette.ts';
@@ -77,6 +78,8 @@ export interface CombatHost {
   banner(title: string, sub: string, color: string, big?: boolean): void;
   busy(): boolean;
   t: number;
+  /** Current playback speed (settings × fast-forward). */
+  speed: number;
 }
 
 export class CombatView {
@@ -120,8 +123,7 @@ export class CombatView {
 
   layoutActors() {
     const hx = heroX(L.w);
-    this.hero.x += (hx - this.hero.x) * 0;
-    this.hero.x = this.hero.state === 'walk' ? this.hero.x : hx;
+    if (this.hero.state !== 'walk') this.hero.x = hx;
     const c = this.run.combat;
     const list = [...this.enemies.values()].filter((v) => v.dying === 0).sort((a, b) => a.uid - b.uid);
     const slots = enemySlots(list.length, c?.kind === 'boss', L.w, hx);
@@ -453,10 +455,12 @@ export class CombatView {
     const b = this.board;
     const S = this.h.steps;
     const juice = this.h.juice;
+    // Long cascades speed up: every next wave plays faster, so a chain of nine stays a thrill, not a wait.
+    const pace = Math.max(0.3, 1 / (1 + 0.45 * Math.max(0, e.n - 1)));
     // 1. Matched groups flash.
     if (e.groups.length)
       S.push({
-        dur: 0.09,
+        dur: 0.09 * pace,
         begin: () => {
           for (const g of e.groups)
             for (const i of g.cells) {
@@ -471,22 +475,34 @@ export class CombatView {
     // 2. Special activations.
     if (e.blasts.length)
       S.push({
-        dur: 0.16,
+        dur: 0.16 * Math.max(0.5, pace),
         begin: () => {
           for (const bl of e.blasts) this.blastFx(bl);
         },
       });
     // 3. Tiles score one by one (fast), flying into the counter.
     const scored = e.scores;
-    const per = scored.length ? Math.min(0.045, 0.55 / scored.length) : 0;
-    if (scored.length)
+    const per = scored.length ? Math.min(0.045, 0.5 / scored.length) * pace : 0;
+    if (scored.length) {
+      // Tiles fire in order on the step clock (pauses, hit-stop and fast-forward stay in sync).
+      let fired = 0;
+      const span = per * scored.length;
+      const dur = span + 0.1 * pace;
+      const fire = (upTo: number) => {
+        while (fired < Math.min(upTo, scored.length)) {
+          this.scoreFx(scored[fired], fired);
+          fired++;
+        }
+      };
       S.push({
-        dur: per * scored.length + 0.12,
-        begin: () => scored.forEach((s, k) => window.setTimeout(() => this.scoreFx(s, k), k * per * 1000)),
+        dur,
+        tick: (k) => fire(span > 0 ? Math.floor(((k * dur) / span) * scored.length) + 1 : scored.length),
+        end: () => fire(scored.length),
       });
+    }
     // 4. Clear.
     S.push({
-      dur: 0.12,
+      dur: 0.12 * pace,
       begin: () => {
         for (const c of e.cleared) {
           const v = b.tiles.get(c.id);
@@ -510,7 +526,7 @@ export class CombatView {
     });
     // 5. Created specials, falls and spawns.
     S.push({
-      dur: 0.22,
+      dur: 0.22 * Math.max(0.6, pace),
       begin: () => {
         const T = b.T;
         for (const cr of e.created) {
@@ -522,7 +538,7 @@ export class CombatView {
           const [cx, cy] = b.center(cr.at);
           burst(this.h.ps, cx, cy, 14, { ramp: ['white', 'gold4', 'orange3'], add: true, layer: 'ui', speed: [30, 80], max: 0.4 });
         }
-        for (const f of e.falls) b.moveTo(f.id, f.to, 0.2);
+        for (const f of e.falls) b.moveTo(f.id, f.to, 0.2 * Math.max(0.6, pace));
         const byCol = new Map<number, number>();
         for (const s of e.spawns) byCol.set(s.to % 6, Math.max(byCol.get(s.to % 6) ?? 0, s.rank + 1));
         for (const s of e.spawns) {
@@ -531,7 +547,7 @@ export class CombatView {
           const n = byCol.get(s.to % 6) ?? 1;
           const v = b.make(tile, x, -T * (n - s.rank), this.h.t);
           b.tiles.set(tile.id, v);
-          b.moveTo(tile.id, s.to, 0.2 + 0.02 * n);
+          b.moveTo(tile.id, s.to, (0.2 + 0.02 * n) * Math.max(0.6, pace));
         }
         b.queue = e.queue;
         b.flood = e.flood;
@@ -1125,6 +1141,7 @@ export class CombatView {
 
   pointerUp() {
     const b = this.board;
+    if (L.touch) b.hover = -1;
     const d = b.drag;
     if (!d) return;
     if (!d.moved) {
@@ -1263,6 +1280,47 @@ export class CombatView {
     return false;
   }
 
+  /** Card rules of the tile under the pointer: after a short hover, or a long press on touch. */
+  private tipCell = -1;
+  private tipFrom = 0;
+  private tileTip(ctx: import('./sprite.ts').Ctx2D, ui: UI) {
+    const b = this.board;
+    const p = ui.p;
+    const cell = p.inside && this.active ? b.cellAt(p.x, p.y) : -1;
+    const still = !b.drag || !b.drag.moved;
+    if (cell !== this.tipCell || !still) {
+      this.tipCell = cell;
+      this.tipFrom = this.h.t;
+      return;
+    }
+    const wait = L.touch ? 0.45 : 0.6;
+    if (cell < 0 || this.h.t - this.tipFrom < wait || (L.touch && !p.down)) return;
+    const tile = this.run.combat?.board.cells[cell];
+    if (!tile || tile.hidden) return;
+    if (L.touch && b.drag) {
+      // A long press is a look, not a move.
+      b.drag = null;
+      b.selected = -1;
+    }
+    const [cx, cy] = b.center(cell);
+    let title = '';
+    let body = '';
+    if (tile.kind === 'junk') {
+      title = tile.card === 'redtape' ? 'Волокита' : 'Клякса';
+      body = 'Не собирается. Исчезает, если рядом собрать группу или взорвать.';
+    } else if (tile.kind === 'prism') {
+      title = 'Призма';
+      body = 'Подходит к любому семейству. Обменяй с фишкой — сотрёт всё её семейство.';
+    } else if (tile.card) {
+      title = cardName({ id: tile.card, up: !!tile.up, finish: tile.finish });
+      body = cardRules({ id: tile.card, up: !!tile.up, finish: tile.finish });
+    }
+    if (tile.special) body += tile.special === 'bomb' ? '\nБомба: взрыв 3×3.' : '\nРакета: чистит линию.';
+    if (tile.pin) body += '\nПрибита скобой: не двигается.';
+    if (tile.fuse) body += `\nУголёк: сгорит через ${tile.fuse}.`;
+    if (title) ui.tooltip(title, body, cx + b.T / 2, cy - 30, FAM_COLORS[tile.kind as keyof typeof FAM_COLORS]?.light ?? 'gold4');
+  }
+
   // ── Draw ──────────────────────────────────────────────────────────
 
   /** Actors inside the stage buffer (before lighting). */
@@ -1339,21 +1397,26 @@ export class CombatView {
       drawRelics(ctx, ui, L.side2, this.run);
       const bag = c?.board.bag.length ?? 0;
       const total = c?.board.source.length ?? 0;
-      text(ctx, `Мешок ${bag}/${total}`, L.side.x, py + this.pocketSize() + 6, 'cold3');
+      if (c) text(ctx, bag > 0 ? `Мешок: ${bag} из ${total}` : `Мешок: ${total} фишек`, L.side.x, py + this.pocketSize() + 6, 'cold3');
       if (ui.area('bag', L.side.x, py + this.pocketSize() + 4, 70, 10)) void 0;
       if (ui.hovered === 'bag') ui.tooltip('Мешок фишек', 'Поле пополняется из мешка: каждая карта колоды — 3 фишки. Кончится — соберётся заново.', ui.p.x, ui.p.y - 40);
       if (c) text(ctx, `ход ${c.moves + 1}${c.moves >= 20 ? ' · сверхурочные!' : ''}`, L.side.x, py + this.pocketSize() + 16, c.moves >= 20 ? 'red4' : 'cold3');
     } else {
       drawRelics(ctx, ui, { x: 4, y: L.top.h + 2, w: Math.min(L.w - 8, 17 * 8), h: 17 }, this.run);
     }
-    // First-move hint.
+    // First-move hint, in the counter's place while it is still empty.
     if (c && this.run.stats.moves === 0 && this.canPlay()) {
-      const a = 0.65 + Math.sin(t * 4) * 0.3;
-      const hy = L.mode === 'wide' ? L.stage.y + 30 : L.stage.y + 22;
-      text(ctx, 'Потяни фишку на соседнюю клетку: 3 в ряд — это ход', L.w / 2, hy, 'gold4', { align: 'center', outline: 'ink0', alpha: a });
-      text(ctx, 'Враги ходят после тебя — следи за таймерами', L.w / 2, hy + 11, 'cold5', { align: 'center', outline: 'ink0', alpha: a });
+      const a = 0.7 + Math.sin(t * 4) * 0.25;
+      const r = L.tally;
+      ctx.fillStyle = hex('ink0');
+      ctx.fillRect(r.x, r.y, r.w, L.mode === 'wide' ? 60 : r.h);
+      if (L.mode === 'wide') {
+        paragraph(ctx, 'Потяни фишку на соседнюю клетку: три одинаковых в ряд — это ход.', r.x + 6, r.y + 6, r.w - 12, 'gold4', { alpha: a });
+        paragraph(ctx, 'Все фишки хода складываются в УРОН × МНОЖ. Враги ходят по таймерам.', r.x + 6, r.y + 32, r.w - 12, 'cold5', { alpha: a });
+      } else text(ctx, 'Потяни фишку к соседней: 3 в ряд — ход', r.x + r.w / 2, r.y + r.h / 2 - 4, 'gold4', { align: 'center', alpha: a });
     }
     if (this.targeting) text(ctx, L.touch ? 'Коснись цели · вне поля — отмена' : 'Выбери цель · Esc — отмена', L.w / 2, b.by - 20, 'orange4', { align: 'center', outline: 'ink0' });
+    this.tileTip(ctx, ui);
     void CARDS;
   }
 }

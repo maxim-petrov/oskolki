@@ -234,25 +234,18 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
       }
       return mapAction(run, r);
     case 'reward': {
-      const i = run.rewards.findIndex((x) => !x.taken);
-      if (i < 0) return { type: 'leave' };
-      const x = run.rewards[i];
-      if (x.kind === 'card') {
-        const cards = (x.cards ?? []).map((id, k) => ({ id, up: !!x.ups?.[k], k }));
-        if (policy === 'noCards') return { type: 'leave' };
-        if (policy === 'random' || policy === 'randomCards') return { type: 'reward', index: i, card: int(r, cards.length) };
+      // Rows the bot still wants: pockets only with a free slot, cards only when worth it.
+      const free = run.hero.pockets.includes(null);
+      const open = run.rewards.map((x, k) => ({ x, k })).filter(({ x }) => !x.taken && (x.kind !== 'pocket' || free));
+      for (const { x, k } of open) {
+        if (x.kind !== 'card') return { type: 'reward', index: k };
+        const cards = (x.cards ?? []).map((id, c) => ({ id, up: !!x.ups?.[c], c }));
+        if (policy === 'noCards' || !cards.length) continue;
+        if (policy === 'random' || policy === 'randomCards') return { type: 'reward', index: k, card: int(r, cards.length) };
         const best = cards.sort((a, b) => cardScore(b) - cardScore(a))[0];
-        if (!best || !wantCard(run, best)) {
-          const rest = run.rewards.findIndex((y, k) => k !== i && !y.taken && y.kind !== 'card');
-          return rest >= 0 ? { type: 'reward', index: rest } : { type: 'leave' };
-        }
-        return { type: 'reward', index: i, card: best.k };
+        if (best && wantCard(run, best)) return { type: 'reward', index: k, card: best.c };
       }
-      if (x.kind === 'pocket' && !run.hero.pockets.includes(null)) {
-        const rest = run.rewards.findIndex((y, k) => k !== i && !y.taken && y.kind !== 'pocket');
-        return rest >= 0 ? { type: 'reward', index: rest } : { type: 'leave' };
-      }
-      return { type: 'reward', index: i };
+      return { type: 'leave' };
     }
     case 'shop': {
       const s = run.shop!;

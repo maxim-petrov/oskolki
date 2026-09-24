@@ -221,7 +221,8 @@ export class HubView {
         n.say.t -= dt;
         if (n.say.t <= 0) n.say = null;
       }
-      if (!this.script && n.cool <= 0 && Math.abs(n.x - this.hero.x) < 40) {
+      const someoneTalks = this.npcs.some((o) => o.say) || !!this.bubble;
+      if (!this.script && !someoneTalks && n.cool <= 0 && Math.abs(n.x - this.hero.x) < 40) {
         n.say = { s: n.lines[Math.floor(Math.random() * n.lines.length)], t: 2.2 };
         n.cool = 9 + Math.random() * 6;
         this.app.audio.play('enemy', 1.6);

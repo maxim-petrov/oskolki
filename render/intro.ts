@@ -6,10 +6,19 @@ import { hex } from './palette.ts';
 import { Particles, rand } from './particles.ts';
 import { saveProfile } from './profile.ts';
 import { draw, frameNames, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
+
 import { HUB_SPOTS, HUB_W, Stage } from './stage.ts';
 import { StageRenderer } from './stagedraw.ts';
 import type { UI } from './ui.ts';
 import { L, STAGE_FEET, STAGE_H } from './view.ts';
+
+/** Coworkers at their cubicles in the opening (the same seats as in the office hub). */
+const SEATED = [
+  ['npc_cardigan', -12],
+  ['npc_neighbor', 84],
+  ['npc_analyst', 180],
+  ['npc_accountant', 276],
+] as const;
 
 /**
  * The first shift's opening, played once (skippable): the intern types at his desk, the phone
@@ -221,6 +230,13 @@ export class IntroView {
           if (st.frame === 'stack') draw(b, getFrame('os_reams'), st.x - cam, STAGE_FEET);
           else if (hasSprite('kipa') && frameNames('kipa').includes(st.frame)) draw(b, getFrame('kipa', st.frame), st.x + 40 - cam, STAGE_FEET);
         }
+        if (this.stage === this.office)
+          for (const [id, dx] of SEATED) {
+            if (!hasSprite(id)) continue;
+            const nx = HUB_SPOTS.cubicles + dx;
+            const near = Math.abs(nx - this.hero.x) < 70;
+            draw(b, getFrame(id, near ? 'look' : Math.floor(t * 2.2 + dx) % 2 ? 'sit1' : 'sit0'), nx - cam, STAGE_FEET);
+          }
         const x = this.hero.x;
         this.hero.x = x - cam;
         this.hero.draw(b, t);

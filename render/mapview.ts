@@ -37,6 +37,8 @@ function jitter(id: number, k: number) {
 export class MapView {
   /** Pointer over a node (for hover pulse). */
   hover = -1;
+  /** Touch: the first tap picks a node and shows what it is, the second one goes. */
+  picked = -1;
   /** Read-only mode (opened from the top bar). */
   viewOnly = false;
 
@@ -97,7 +99,7 @@ export class MapView {
         const [x1, y1] = this.pos(run, nodes[k]);
         const walked = path.has(`${n.id}>${k}`);
         const open = n.id === run.node && next.has(k);
-        this.dashes(ctx, x0, y0, x1, y1, walked ? 'green2' : open ? 'red3' : 'slate3', walked || open ? 2 : 1, open ? t : 0);
+        this.dashes(ctx, x0, y0, x1, y1, walked ? 'green2' : open ? 'red3' : 'slate2', walked || open ? 2 : 1, open ? t : 0);
       }
     if (run.node < 0 && next.size)
       for (const id of next) {
@@ -117,8 +119,11 @@ export class MapView {
       const f = getFrame(icon, done ? 'done' : 'idle0');
       const can = next.has(n.id);
       const id = `node-${n.id}`;
-      if (ui.area(id, x - hit, y - hit, hit * 2, hit * 2) && can) chosen = n.id;
-      const hot = ui.hovered === id;
+      if (ui.area(id, x - hit, y - hit, hit * 2, hit * 2) && can) {
+        if (!L.touch || this.picked === n.id) chosen = n.id;
+        else this.picked = n.id;
+      }
+      const hot = ui.hovered === id || this.picked === n.id;
       if (hot) this.hover = n.id;
       if (can) {
         // Reachable: a red ring pulses around it.
@@ -131,6 +136,7 @@ export class MapView {
         ui.tooltip(title, can ? `${body}\n${L.touch ? 'Коснись ещё раз — идти.' : 'Клик — идти.'}` : body, x, y, can ? 'red4' : 'slate3');
       }
     }
+    if (chosen >= 0) this.picked = -1;
     // «Вы здесь».
     const here = run.node >= 0 ? nodes[run.node] : null;
     const [hx, hy] = here ? this.pos(run, here) : [s.x + s.w / 2, s.y + s.h - 12];
@@ -152,11 +158,11 @@ export class MapView {
   /** Dashed route line; `t` animates the dashes crawling towards the target. */
   private dashes(ctx: Ctx2D, x0: number, y0: number, x1: number, y1: number, color: string, size: number, t: number) {
     const len = Math.hypot(x1 - x0, y1 - y0);
-    const n = Math.floor(len / 4);
-    const shift = t ? Math.floor(t * 8) % 4 : 0;
+    const n = Math.floor(len / 3);
+    const shift = t ? Math.floor(t * 8) % 3 : 0;
     ctx.fillStyle = hex(color);
-    for (let k = 1; k < n; k++) {
-      if ((k + shift) % 4 >= 2) continue;
+    for (let k = 2; k < n - 1; k++) {
+      if ((k + shift) % 3 === 2) continue;
       const a = k / n;
       ctx.fillRect(Math.round(x0 + (x1 - x0) * a), Math.round(y0 + (y1 - y0) * a), size, size);
     }
