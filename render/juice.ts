@@ -29,6 +29,8 @@ export interface Projectile {
   trail: string[];
   sprite?: string;
   size: number;
+  /** Colour of the light the shot casts on the room as it flies (enemy blows). */
+  light?: string;
   onArrive?: () => void;
   done?: boolean;
 }
@@ -118,10 +120,19 @@ export class Juice {
       const [x, y] = this.pos(s, k);
       if (s.kind === 'sprite' && s.sprite) draw(ctx, getFrame(s.sprite), x, y);
       else {
+        const px = Math.round(x - s.size / 2);
+        const py = Math.round(y - s.size / 2);
+        if (s.size >= 4) {
+          // Big shots get a dark rim so they read against the bright board and lamps.
+          ctx.fillStyle = hex('ink0');
+          ctx.fillRect(px - 1, py, s.size + 2, s.size);
+          ctx.fillRect(px, py - 1, s.size, s.size + 2);
+        }
         ctx.fillStyle = hex(s.color);
-        ctx.fillRect(Math.round(x - s.size / 2), Math.round(y - s.size / 2), s.size, s.size);
+        ctx.fillRect(px, py, s.size, s.size);
         ctx.fillStyle = hex('white');
-        ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+        const core = s.size >= 5 ? 2 : 1;
+        ctx.fillRect(Math.round(x) - (core > 1 ? 1 : 0), Math.round(y) - (core > 1 ? 1 : 0), core, core);
       }
     }
   }

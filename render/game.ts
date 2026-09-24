@@ -1,5 +1,5 @@
 import { alive, intentDamage, activeCost, previewMove } from '../game/combat.ts';
-import { ENEMIES } from '../game/content/enemies.ts';
+import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { FLOORS } from '../game/content/floors.ts';
 import { ITEMS, TRANSFORMATIONS, type Mods, type Tag } from '../game/content/items.ts';
 import { adjacent, isValidMove, swapBlock } from '../game/board.ts';
@@ -16,7 +16,7 @@ import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
 import { FLOOR_Y, RoomScene, VH, VW, ditherFade, drawDanger, drawVignette } from './scene.ts';
 import { draw, getFrame, type Ctx2D } from './sprite.ts';
-import { easeIn, easeOut } from './tween.ts';
+import { easeOut } from './tween.ts';
 import { panel, type UI } from './ui.ts';
 import { CHEST_SPRITES, drawRoomUI, drawRoomWorld, trapdoorX } from './room.ts';
 import type { App } from './app.ts';
@@ -46,6 +46,37 @@ const FAM_TRAIL: Record<string, string[]> = {
   coin: ['cream', 'gold4', 'gold3', 'gold2'],
   prism: ['white', 'cold6', 'vio5', 'gold4'],
 };
+
+const FIRE = ['cream', 'gold4', 'orange3', 'red2'];
+
+/** How each enemy's blow crosses the room to the hero: colour, trail, size and arc of the shot. */
+const SHOTS: Record<string, { color: string; trail: string[]; size?: number; arc?: number }> = {
+  rat: { color: 'paper', trail: ['cream', 'paper', 'paper2'] },
+  stapler: { color: 'grey4', trail: ['white', 'grey4', 'grey2'], arc: 10 },
+  blot: { color: 'vio3', trail: FAM_TRAIL.ink },
+  drop: { color: 'teal4', trail: ['teal5', 'teal4', 'teal2'] },
+  moth: { color: 'paper2', trail: ['cream', 'paper2', 'grey2'], arc: 40 },
+  eraser: { color: 'red4', trail: ['red5', 'red4', 'red2'], size: 4 },
+  cabinet: { color: 'wood4', trail: ['paper', 'wood4', 'wood2'], size: 5 },
+  scribe: { color: 'vio4', trail: FAM_TRAIL.ink },
+  crab: { color: 'teal3', trail: ['teal5', 'teal3', 'teal1'], size: 4 },
+  eel: { color: 'vio3', trail: ['vio5', 'vio3', 'teal2'] },
+  angler: { color: 'gold4', trail: ['cream', 'gold4', 'teal3'] },
+  anchor: { color: 'grey3', trail: ['grey4', 'grey3', 'teal2'], size: 5, arc: 50 },
+  tide: { color: 'teal5', trail: ['white', 'teal5', 'teal3'], size: 5 },
+  candle: { color: 'orange3', trail: FIRE },
+  stoker: { color: 'orange4', trail: FIRE, size: 4, arc: 40 },
+  bell: { color: 'gold4', trail: ['cream', 'gold4', 'gold2'], arc: 0 },
+  safe: { color: 'grey4', trail: ['white', 'grey4', 'gold3'], size: 5 },
+  archivist: { color: 'paper', trail: ['cream', 'paper', 'teal3'] },
+  mirror: { color: 'cold6', trail: ['white', 'cold6', 'teal5'], size: 4, arc: 10 },
+  shard: { color: 'cold5', trail: ['white', 'cold5', 'cold3'], arc: 8 },
+  stamp: { color: 'red3', trail: ['red5', 'red3', 'red1'], size: 4 },
+  secretary: { color: 'paper', trail: ['cream', 'paper', 'grey3'], arc: 40 },
+  censor: { color: 'red3', trail: ['red4', 'red2', 'ink0'], size: 6 },
+};
+
+const halves = (n: number) => `${Math.floor(n / 2) || ''}${n % 2 ? '½' : ''}` || '0';
 
 export class GameView {
   run: RunState;
@@ -78,6 +109,9 @@ export class GameView {
   openChests: { x: number; y: number; sprite: string; t: number }[] = [];
   private lootFrom: { x: number; y: number; t: number } | null = null;
   rocketsSeen = 0;
+  /** Enemy turn on screen: the board steps back into the dark so the actors read. */
+  boardDim = 0;
+  boardDimTarget = 0;
 
   constructor(
     public app: App,
@@ -170,8 +204,18 @@ export class GameView {
     else this.app.saveRun(saveRun(this.run));
   }
 
+  /** The enemy turn is over: everyone back in the light. */
+  endEnemyTurn() {
+    this.boardDimTarget = 0;
+    for (const v of this.enemies.values()) {
+      v.acting = false;
+      v.dimTarget = 0;
+    }
+  }
+
   /** Exact sync with the engine once animations are done. */
   settle() {
+    this.endEnemyTurn();
     const c = this.run.combat;
     if (c && this.inCombat) {
       this.board.set(c.board.cells, this.t);
@@ -325,10 +369,17 @@ export class GameView {
         this.push({
           dur: 0.05,
           begin: () => {
+            let alarm = false;
             for (const tm of e.timers) {
               const v = this.enemies.get(tm.uid);
-              if (v) v.countdown = tm.countdown;
+              if (!v) continue;
+              v.countdown = tm.countdown;
+              if (tm.countdown === 1 && v.intentDamages()) {
+                v.alertT = 0.6;
+                alarm = true;
+              }
             }
+            if (alarm) this.app.audio.play('alarm');
           },
         });
         break;
@@ -866,117 +917,195 @@ export class GameView {
   private hurtHero(h: { amount: number; armor: number; soul: number; red: number } | undefined, burnArmor: boolean) {
     if (!h) return;
     const lost = h.soul + h.red;
+    const armorBefore = this.disp.armor;
     if (burnArmor) this.disp.armor = 0;
     else this.disp.armor = Math.max(0, this.disp.armor - h.armor);
     this.disp.soul = Math.max(0, this.disp.soul - h.soul);
+    const hpBefore = this.disp.hp;
     this.disp.hp = Math.max(0, this.disp.hp - h.red);
-    const hx = HERO_X;
-    const hy = FLOOR_Y - 34;
-    if (lost > 0) {
-      this.hero.set('hurt', 0.35);
-      this.hero.flash = 1;
-      this.hero.offX = -6;
-      this.juice.shake(0.35 + lost * 0.12);
-      this.juice.flash('red2', 0.2 + lost * 0.05);
-      this.juice.stop(0.05);
-      const whole = Math.floor(lost / 2);
-      const label = `−${whole ? whole : ''}${lost % 2 ? '½' : ''}`;
-      this.juice.float(label, hx, hy - 10, 'red4', { scale: 2, outline: 'ink0' });
-      burst(this.ps, hx, hy, 14, { ramp: ['red4', 'red3', 'red1'], layer: 'ui', speed: [30, 90], ay: 180, max: 0.5 });
-      this.heartPulse = 0.4;
-      this.app.audio.play('hurt');
-    } else if (h.armor > 0) {
-      this.juice.float('Броня!', hx, hy - 8, 'cold5');
-      burst(this.ps, hx + 10, hy, 12, { ramp: ['cold6', 'cold5', 'cold3'], add: true, layer: 'ui', speed: [30, 80], max: 0.4 });
+    const [hx, hy] = this.hero.chest();
+    if (h.armor > 0) {
+      // Armor takes the blow first: a cold barrier flares in front of the hero and shatters.
+      this.hero.set('block', lost > 0 ? 0.12 : 0.4);
+      this.hero.flash = 0.8;
+      this.hero.flashColor = 'cold6';
+      for (let k = 0; k < 7; k++) this.ps.spawn({ x: hx + 14, y: hy - 12 + k * 4, vx: rand(20, 60), vy: rand(-30, 30), max: 0.4, ramp: ['white', 'cold6', 'cold4'], add: true, layer: 'ui', size: 2 });
+      burst(this.ps, hx + 12, hy, 16, { ramp: ['white', 'cold6', 'cold5', 'cold3'], add: true, layer: 'ui', speed: [30, 100], max: 0.45 });
+      this.juice.float(lost > 0 ? `броня −${h.armor}` : 'БЛОК', hx, hy - 30, 'cold5', { outline: 'ink0' });
+      // The spent armor pips burst in the HUD.
+      for (let a = armorBefore - 1; a >= Math.max(0, armorBefore - Math.max(h.armor, burnArmor ? armorBefore : 0)); a--)
+        burst(this.ps, HUD.armor[0] + a * 10 + 4, HUD.armor[1] + 4, 6, { ramp: ['cold6', 'cold4', 'cold2'], add: true, layer: 'ui', speed: [20, 60], max: 0.4 });
       this.app.audio.play('armor', 0.7);
       this.juice.shake(0.15);
+    }
+    if (lost > 0) {
+      this.hero.set('hurt', 0.4);
+      this.hero.flash = 1;
+      this.hero.flashColor = 'red4';
+      this.hero.offX = -9;
+      this.juice.shake(0.35 + lost * 0.12);
+      this.juice.flash('red2', 0.2 + lost * 0.05);
+      this.juice.stop(0.07);
+      this.juice.float(`−${halves(lost)}`, hx, hy - 36, 'red4', { outline: 'ink0' });
+      burst(this.ps, hx, hy, 16, { ramp: ['red4', 'red3', 'red1'], layer: 'ui', speed: [30, 100], ay: 180, max: 0.5 });
+      // The lost heart halves break in the HUD.
+      for (let p = hpBefore - 1; p >= this.disp.hp; p--) {
+        const x = HUD.hearts[0] + Math.floor(p / 2) * 10 + 4;
+        burst(this.ps, x, HUD.hearts[1] + 4, 8, { ramp: ['red5', 'red3', 'red1'], layer: 'ui', speed: [20, 70], ay: 160, max: 0.5 });
+      }
+      this.heartPulse = 0.4;
+      this.app.audio.play('hurt');
+    }
+  }
+
+  /** Spotlight one enemy: its bubble rises with a caption, the others and the board go dark. */
+  private focusEnemy(uid: number, caption: string) {
+    this.boardDimTarget = 1;
+    for (const [id, v] of this.enemies) {
+      v.acting = id === uid;
+      v.dimTarget = id === uid ? 0 : 1;
+      if (id === uid) {
+        v.caption = caption;
+        v.captionT = 1.6;
+        v.offX = -4;
+      }
     }
   }
 
   private enqueueEnemyAct(e: Extract<GameEvent, { t: 'enemyAct' }>) {
     const kind = e.intent.kind;
-    // Wind-up.
+    const view = () => this.enemies.get(e.uid);
+    const def = view()?.def ?? '';
+    const boss = ENEMIES[def]?.size === 'boss';
+    const blow = kind === 'attack' || kind === 'heavy' || kind === 'strike' || (kind === 'erase' && !e.cells) || (kind === 'pinch' && !e.cells);
+    const heavy = blow && (kind === 'heavy' || boss);
+    const name = INTENT_TEXT[kind] ?? kind;
+    const caption = e.skipped ? 'Пропускает ход' : blow ? `${name} ${halves(e.hurt?.amount ?? 0)}` : `${name}${e.intent.value > 1 && kind !== 'heal' && kind !== 'block' ? ` ×${e.intent.value}` : ''}`;
+    // 1. Spotlight: this enemy is up.
     this.push({
-      dur: 0.12,
+      dur: 0.16,
       begin: () => {
-        const v = this.enemies.get(e.uid);
-        if (!v) return;
-        v.offX = 4;
-        v.flash = 0.6;
-        v.flashColor = 'red4';
+        this.focusEnemy(e.uid, caption);
         this.app.audio.play('enemy', 0.8 + Math.random() * 0.3);
       },
     });
     if (e.skipped) {
       this.push({
-        dur: 0.3,
+        dur: 0.45,
         begin: () => {
           const [x, y] = this.enemyPos(e.uid);
-          this.juice.float(kind === 'censor' ? 'Цензура не действует' : 'Пропускает ход', x, y - 20, 'gold4');
+          this.juice.float(kind === 'censor' ? 'Цензура не действует' : 'z z z', x, y - 24, 'gold4');
         },
       });
       return;
     }
-    const lunge = kind === 'attack' || kind === 'heavy' || kind === 'strike' || (kind === 'erase' && !e.cells) || (kind === 'pinch' && !e.cells);
-    if (lunge) {
+    // 2. Wind-up: the anticipation pose, the body heats up; heavy blows take longer and shake.
+    const windDur = heavy ? 0.46 : blow ? 0.3 : 0.24;
+    this.push({
+      dur: windDur,
+      begin: () => {
+        const v = view();
+        if (!v) return;
+        v.windT = windDur + 0.04;
+        v.offX = 5;
+      },
+      tick: (k) => {
+        const v = view();
+        if (v) v.charge = k;
+        if (heavy && k > 0.5) this.juice.shake(0.015);
+      },
+    });
+    if (blow) {
+      // 3. The blow: attack pose, a lunge and a shot across the room; it lands on the hero's chest.
+      const shot = SHOTS[def] ?? { color: 'cream', trail: ['cream', 'grey3', 'grey2'] };
+      const travel = heavy ? 0.26 : 0.22;
       this.push({
-        dur: kind === 'heavy' ? 0.16 : 0.1,
+        dur: travel,
         begin: () => {
-          const v = this.enemies.get(e.uid);
-          if (v) v.attackT = 0.3;
-        },
-        tick: (k) => {
-          const v = this.enemies.get(e.uid);
-          if (v) v.offX = -easeIn(k) * (kind === 'heavy' ? 26 : 16);
+          const v = view();
+          if (!v) return;
+          v.windT = 0;
+          v.charge = 0;
+          v.attackT = travel + 0.2;
+          v.offX = heavy ? -26 : -16;
+          const [mx, my] = v.muzzle(this.t);
+          const [hx, hy] = this.hero.chest();
+          this.juice.shoot({ x0: mx, y0: my, x1: hx, y1: hy, dur: travel, arc: shot.arc ?? 22, color: shot.color, trail: shot.trail, size: (shot.size ?? 4) + (heavy ? 2 : 0), light: hex(shot.trail[1] ?? shot.color) });
+          this.app.audio.play(heavy ? 'rocket' : 'swap', heavy ? 0.7 : 0.8);
         },
         end: () => {
+          const [hx, hy] = this.hero.chest();
+          burst(this.ps, hx, hy, heavy ? 22 : 12, { ramp: ['white', ...shot.trail], add: true, layer: 'ui', speed: [30, heavy ? 150 : 100], max: 0.4 });
           this.hurtHero(e.hurt, true);
-          if (kind === 'heavy') this.juice.shake(0.5);
-          const [x, y] = this.enemyPos(e.uid);
-          burst(this.ps, x - 20, y + 10, 10, { ramp: ['white', 'cream', 'grey3'], layer: 'ui', speed: [20, 70], max: 0.3 });
+          if (heavy) this.juice.shake(0.5);
+          if (e.board) {
+            // The red stamp also staples a tile.
+            this.board.set(e.board, this.t);
+            for (const i of e.cells ?? []) {
+              const vt = this.board.tiles.get(e.board[i]?.id ?? -1);
+              if (vt) vt.flash = 1;
+            }
+          }
         },
       });
-      this.push({ dur: 0.14 });
-    }
-    // Board-affecting intents: throw something at the cells.
-    if (e.cells?.length && e.board) {
+      this.push({ dur: heavy ? 0.36 : 0.28 });
+    } else if (e.cells?.length && e.board) {
+      // Board curses fly from the enemy to the cells they spoil.
       const color =
-        kind === 'ink' ? 'vio3' : kind === 'ember' ? 'orange3' : kind === 'censor' ? 'ink0' : kind === 'pin' || kind === 'strike' ? 'grey4' : kind === 'anchor' ? 'teal3' : 'cold4';
-      const trail = kind === 'ember' ? ['cream', 'gold4', 'orange3', 'red2'] : kind === 'ink' ? FAM_TRAIL.ink : ['grey4', 'grey3', 'grey2'];
+        kind === 'ink' ? 'vio3' : kind === 'ember' ? 'orange3' : kind === 'censor' ? 'ink0' : kind === 'pin' ? 'grey4' : kind === 'anchor' ? 'teal3' : 'cold4';
+      const trail = kind === 'ember' ? FIRE : kind === 'ink' ? FAM_TRAIL.ink : ['grey4', 'grey3', 'grey2'];
       this.push({
-        dur: kind === 'pinch' ? 0.25 : 0.3,
+        dur: kind === 'pinch' ? 0.3 : 0.34,
         begin: () => {
-          const [x, y] = this.enemyPos(e.uid);
-          if (kind === 'pinch') {
-            this.juice.float('Клешня!', x, y - 16, 'teal5');
-            return;
+          const v = view();
+          if (v) {
+            v.windT = 0;
+            v.charge = 0;
+            v.attackT = 0.4;
+            v.offX = -10;
           }
+          const [x, y] = v ? v.muzzle(this.t) : this.enemyPos(e.uid);
+          if (kind === 'pinch') return;
           for (const i of e.cells!) {
             const [tx, ty] = this.board.center(i);
-            this.juice.shoot({ x0: x, y0: y, x1: tx, y1: ty, dur: 0.26, arc: 40, color, trail, size: 3 });
+            this.juice.shoot({ x0: x, y0: y, x1: tx, y1: ty, dur: 0.3, arc: 40, color, trail, size: 3 });
           }
         },
         end: () => {
           if (e.board) this.board.set(e.board, this.t);
+          if (kind === 'anchor' && this.run.combat) this.board.colLock = this.run.combat.board.colLock.slice();
           for (const i of e.cells!) {
             const [tx, ty] = this.board.center(i);
-            burst(this.ps, tx, ty, 8, { ramp: trail, layer: 'ui', speed: [20, 60], max: 0.35 });
+            burst(this.ps, tx, ty, 10, { ramp: trail, layer: 'ui', speed: [20, 70], max: 0.4 });
+            const vt = this.board.tiles.get(e.board![i]?.id ?? -1);
+            if (vt) vt.flash = 0.8;
           }
           if (kind === 'ink') this.app.audio.play('match', 0.5);
-          if (kind === 'pin' || kind === 'strike') this.app.audio.play('armor', 1.4);
+          if (kind === 'pin' || kind === 'anchor') this.app.audio.play('armor', 1.4);
           if (kind === 'ember') this.app.audio.play('ember');
+          if (kind === 'pinch') this.app.audio.play('swap', 0.6);
         },
       });
-    } else if (!lunge) {
+      this.push({ dur: 0.22 });
+    } else {
       this.push({
-        dur: 0.3,
+        dur: 0.4,
         begin: () => {
-          const v = this.enemies.get(e.uid);
+          const v = view();
+          if (v) {
+            v.windT = 0;
+            v.charge = 0;
+            v.attackT = 0.3;
+          }
           const [x, y] = this.enemyPos(e.uid);
           switch (kind) {
             case 'block':
               this.juice.float(`+${e.intent.value} щит`, x, y - 14, 'cold5');
-              if (v) v.block = e.intent.value;
+              if (v) {
+                v.block = e.intent.value;
+                v.flash = 0.8;
+                v.flashColor = 'cold5';
+              }
               this.app.audio.play('armor', 0.8);
               break;
             case 'heal':
@@ -991,6 +1120,7 @@ export class GameView {
             case 'summon':
               for (const s of e.summoned ?? []) {
                 const nv = new EnemyView(s, 660);
+                nv.dimTarget = 1;
                 this.enemies.set(s.uid, nv);
                 burst(this.ps, 600, FLOOR_Y - 10, 18, { ramp: ['grey3', 'grey2', 'grey1'], layer: 'mid', speed: [10, 50], max: 0.8, kind: 'smoke', len: 4, grow: 5 });
               }
@@ -1030,6 +1160,29 @@ export class GameView {
           }
         },
       });
+      this.push({ dur: 0.12 });
+    }
+  }
+
+  /** A dashed red line on the floor from each enemy that strikes on the next move to the hero. */
+  private drawThreatLines(ctx: Ctx2D) {
+    const c = this.run.combat;
+    if (!c || !this.inCombat || this.busy()) return;
+    const y = FLOOR_Y + 14;
+    const hx = Math.round(this.hero.x + 14);
+    for (const v of this.enemies.values()) {
+      if (v.dying > 0 || v.countdown > 1 || !v.intentDamages() || v.stunned) continue;
+      const x0 = Math.round(v.x - 16);
+      const shift = Math.floor(this.t * 24) % 7;
+      for (let x = x0 - shift; x > hx; x -= 7) {
+        const w = Math.min(4, x - hx);
+        ctx.fillStyle = hex('ink0');
+        ctx.fillRect(x - w, y + 1, w, 1);
+        ctx.fillStyle = hex('red3');
+        ctx.fillRect(x - w, y, w, 1);
+      }
+      ctx.fillStyle = hex('red4');
+      for (let k = 0; k < 3; k++) ctx.fillRect(hx - 2 + k, y - 2 + k, 1, 5 - k * 2);
     }
   }
 
@@ -1060,6 +1213,7 @@ export class GameView {
     }
     this.coinFlash = Math.max(0, this.coinFlash - dt);
     this.heartPulse = Math.max(0, this.heartPulse - dt);
+    this.boardDim += (this.boardDimTarget - this.boardDim) * Math.min(1, dt * 8);
     for (const c of this.openChests) c.t -= dt;
     this.openChests = this.openChests.filter((c) => c.t > 0);
     if (this.ending) this.ending.t += dt;
@@ -1371,8 +1525,18 @@ export class GameView {
     const extra: Light[] = [];
     // Key lights keep the actors readable against the dark room.
     extra.push({ x: this.hero.x + 6, y: FLOOR_Y - 22, r: 46, color: '#ffc88a', intensity: 0.55, flicker: 'none', seed: 0 });
-    for (const v of this.enemies.values()) if (v.dying === 0) extra.push({ x: v.x - 6, y: FLOOR_Y - 24, r: v.size === 'boss' ? 70 : 44, color: '#c9d4ff', intensity: 0.4, flicker: 'none', seed: v.uid });
+    for (const v of this.enemies.values())
+      if (v.dying === 0) {
+        const r = v.size === 'boss' ? 80 : 50;
+        extra.push({ x: v.x - 6, y: FLOOR_Y - 28, r: v.acting ? r + 14 : r, color: v.acting ? '#ffd6b0' : '#c9d4ff', intensity: v.acting ? 0.95 : 0.4 * (1 - v.dim * 0.6), flicker: 'none', seed: v.uid });
+      }
     if (this.mods.lamp) extra.push({ x: this.hero.x, y: FLOOR_Y - 30, r: 70, color: '#ffd08a', intensity: 0.8, flicker: 'lantern', seed: 1 });
+    // Enemy blows light up the room as they fly.
+    for (const sh of this.juice.shots)
+      if (sh.light) {
+        const [x, y] = this.juice.pos(sh, Math.min(1, sh.t / sh.dur));
+        extra.push({ x, y, r: 30 + sh.size * 3, color: sh.light, intensity: 0.85, flicker: 'none', seed: 3 });
+      }
     if (showRoom) {
       // Loot on the floor and the trapdoor get a soft pool of light so they read in dark rooms.
       for (const p of room.pickups) {
@@ -1402,6 +1566,13 @@ export class GameView {
     if (this.board.visible > 0) {
       const c = this.run.combat;
       this.board.draw(ctx, t, (a, b) => (c ? !swapBlock(c.board, { from: a, to: b }, this.mods.wrap) : false));
+      if (this.boardDim > 0.02) {
+        ctx.globalAlpha = this.boardDim * 0.5 * this.board.visible;
+        ctx.fillStyle = hex('ink0');
+        ctx.fillRect(BX - 6, BY - 6, BW + 12, BH + 12);
+        ctx.globalAlpha = 1;
+      }
+      this.drawThreatLines(ctx);
       for (const v of this.enemies.values()) {
         const e = c?.enemies.find((x) => x.uid === v.uid);
         const dmg = e && c ? intentDamage(c, e) : 0;
@@ -1490,8 +1661,8 @@ export class GameView {
     // The boss bar owns the bottom line, so the hint only shows in ordinary fights.
     if (this.inCombat && c && !c.boss && this.run.stats.moves === 0 && !this.busy()) {
       const a = 0.65 + Math.sin(t * 4) * 0.3;
-      text(ctx, 'Потяни фишку на соседнюю клетку: обмен, который собирает 3 в ряд, — это ход', 320, 306, 'gold4', { align: 'center', outline: 'ink0', alpha: a });
-      text(ctx, 'Враги ходят после тебя — следи за их таймерами', 320, 318, 'cold5', { align: 'center', outline: 'ink0', alpha: a });
+      text(ctx, 'Потяни фишку на соседнюю клетку: обмен, который собирает 3 в ряд, — это ход', 320, 322, 'gold4', { align: 'center', outline: 'ink0', alpha: a });
+      text(ctx, 'Враги ходят после тебя — следи за их таймерами', 320, 334, 'cold5', { align: 'center', outline: 'ink0', alpha: a });
     }
     if (this.inCombat && c) {
       const turns = c.moves;
