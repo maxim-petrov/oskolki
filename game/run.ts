@@ -48,6 +48,8 @@ export interface NewRunOptions {
   intro?: boolean;
   /** Consumables bought on the board of requests. */
   pockets?: string[];
+  /** Extra starting coins (the advance). */
+  coins?: number;
 }
 
 export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[] } {
@@ -77,7 +79,7 @@ export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[
       ward: 0,
       reflect: 0,
       charge: 0,
-      coins: ch.coins,
+      coins: ch.coins + (opts.coins ?? 0),
       active: ch.active,
       relics: [ch.relic],
       pockets: [],

@@ -1,17 +1,25 @@
 import { currentIntent } from '../game/combat.ts';
-import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
+import { ENEMIES, INTENT_TEXT, MATERIAL_NAME } from '../game/content/enemies.ts';
 import type { EnemyState, Intent } from '../game/types.ts';
 import { text } from './font.ts';
 import { hex } from './palette.ts';
-import { draw, frameNames, getFrame, hasSprite, silhouette, type Ctx2D, type Frame } from './sprite.ts';
-import { FLOOR_Y } from './scene.ts';
+import { draw, flipped as flippedFrame, frameNames, getFrame, hasSprite, silhouette, type Ctx2D, type Frame } from './sprite.ts';
+import { STAGE_FEET } from './view.ts';
 
-export const HERO_X = 176;
+const FLOOR_Y = STAGE_FEET;
+
+/** Where the hero stands on a stage of width w. */
+export function heroX(w: number) {
+  return Math.round(Math.max(40, Math.min(150, w * 0.2)));
+}
+
+/** Intent icons: new intents borrow the closest existing icon. */
+const INTENT_ICON: Record<string, string> = { tape: 'int_ink', hurry: 'int_summon', stealCharge: 'int_steal', stealCoins: 'int_steal' };
 
 /** Enemies drawn hovering above the floor: they bob gently. */
 const HOVER = new Set(['moth', 'shard']);
 
-type HeroState = 'idle' | 'windup' | 'attack' | 'hurt' | 'block' | 'hold' | 'walk' | 'dead';
+type HeroState = 'idle' | 'windup' | 'attack' | 'hurt' | 'block' | 'hold' | 'walk' | 'dead' | 'pose';
 
 /** Frame with a fallback chain: new art may not have every pose yet. */
 function frameOf(id: string, ...names: string[]): Frame {
@@ -21,7 +29,7 @@ function frameOf(id: string, ...names: string[]): Frame {
 }
 
 export class HeroView {
-  x = HERO_X;
+  x = 130;
   y = FLOOR_Y;
   offX = 0;
   offY = 0;
@@ -33,6 +41,10 @@ export class HeroView {
   char = 'intern';
   alpha = 1;
   walkFrom = 0;
+  /** Scripted frame for cutscenes (sit, sleep, carry…), used in the 'pose' state. */
+  pose = 'idle0';
+  /** Faces left (walking back through the office). */
+  flip = false;
 
   set(state: HeroView['state'], dur = 0.3) {
     this.state = state;
@@ -71,19 +83,24 @@ export class HeroView {
         const k = Math.floor(t * 9) % 4;
         return frameNames(id).includes('walk0') ? getFrame(id, `walk${k}`) : getFrame(id, k % 2 ? 'idle0' : 'idle1');
       }
+      case 'pose':
+        return frameOf(id, this.pose, 'idle0');
       default:
         return getFrame(id, Math.floor(t * 1.6) % 2 ? 'idle1' : 'idle0');
     }
   }
 
-  draw(ctx: Ctx2D, t: number) {
-    const f = this.frame(t);
+  draw(ctx: Ctx2D, t: number, shadow = true) {
+    let f = this.frame(t);
+    if (this.flip) f = flippedFrame(f);
     const x = Math.round(this.x + this.offX);
     const y = Math.round(this.y + this.offY);
     // Contact shadow.
-    ctx.fillStyle = 'rgba(7,7,15,0.45)';
-    ctx.fillRect(x - 11, y, 22, 2);
-    ctx.fillRect(x - 8, y + 2, 16, 1);
+    if (shadow) {
+      ctx.fillStyle = 'rgba(7,7,15,0.45)';
+      ctx.fillRect(x - 16, y, 32, 2);
+      ctx.fillRect(x - 12, y + 2, 24, 1);
+    }
     if (this.state === 'dead') {
       ctx.globalAlpha = this.alpha;
       draw(ctx, f, x, y + 2);
@@ -93,14 +110,14 @@ export class HeroView {
     draw(ctx, f, x, y, this.alpha);
     if (this.flash > 0) draw(ctx, silhouette(f, this.flashColor), x, y, this.flash);
     if (this.state === 'hold' && this.holdItem) {
-      const icon = getFrame(`item_${this.holdItem}`);
-      draw(ctx, icon, x, y - f.oy - 2 + Math.round(Math.sin(t * 6)));
+      const icon = getFrame(this.holdItem.startsWith('item_') || this.holdItem.startsWith('card_') ? this.holdItem : `item_${this.holdItem}`);
+      draw(ctx, icon, x, y - 88 + Math.round(Math.sin(t * 6)));
     }
   }
 
   /** Chest height, where enemy shots land. */
   chest(): [number, number] {
-    return [Math.round(this.x + this.offX + 4), this.y - 26];
+    return [Math.round(this.x + this.offX + 6), this.y - 54];
   }
 }
 
@@ -254,44 +271,45 @@ export class EnemyView {
     return k === 'attack' || k === 'heavy' || k === 'strike';
   }
 
-  drawUI(ctx: Ctx2D, t: number, targeted: boolean, dmg: number) {
+  /** HP bar under the feet, intent bubble over the head. (ox, oy): stage origin on screen. */
+  drawUI(ctx: Ctx2D, t: number, targeted: boolean, dmg: number, ox: number, oy: number, minY = 20) {
     if (this.dying > 0) return;
-    const top = this.top(t);
-    const x = Math.round(this.x + this.offX);
-    // HP bar under feet.
-    const bw = this.size === 'boss' ? 72 : 36;
-    const bx = x - bw / 2;
-    const by = this.y + 6;
+    const x = Math.round(ox + this.x + this.offX);
+    const feet = oy + this.y;
+    // HP bar under the feet (numbers, not hearts).
+    const size = this.size;
+    const bw = size === 'boss' ? 92 : size === 'L' ? 64 : size === 'M' ? 50 : 40;
+    const bx = x - Math.round(bw / 2);
+    const by = feet + 6;
     ctx.fillStyle = hex('ink0');
-    ctx.fillRect(bx - 1, by - 1, bw + 2, 6);
+    ctx.fillRect(bx - 1, by - 1, bw + 2, 7);
     ctx.fillStyle = hex('red0');
-    ctx.fillRect(bx, by, bw, 4);
+    ctx.fillRect(bx, by, bw, 5);
     const k = Math.max(0, this.hp / this.maxHp);
     ctx.fillStyle = hex('red3');
-    ctx.fillRect(bx, by, Math.round(bw * k), 4);
+    ctx.fillRect(bx, by, Math.round(bw * k), 5);
     ctx.fillStyle = hex('red5');
     ctx.fillRect(bx, by, Math.round(bw * k), 1);
-    text(ctx, `${this.hp}`, x, by + 6, 'red5', { align: 'center', outline: 'ink0' });
+    text(ctx, `${this.hp}/${this.maxHp}`, x, by + 7, 'cream', { align: 'center', outline: 'ink0' });
     if (this.block > 0) {
-      draw(ctx, getFrame('hud_armor'), bx - 12, by + 4);
-      text(ctx, `${this.block}`, bx - 3, by, 'cold5', { outline: 'ink0', align: 'right' });
+      draw(ctx, getFrame('ui_armor'), bx - 8, by + 3);
+      text(ctx, `${this.block}`, bx - 14, by, 'cold5', { outline: 'ink0', align: 'right' });
     }
-    // Status pips.
+    // Status pips right of the bar.
     let sx = bx + bw + 3;
     if (this.bleed > 0) {
-      text(ctx, `${this.bleed}`, sx, by - 2, 'red4', { outline: 'ink0' });
-      sx += 8;
+      text(ctx, `${this.bleed}`, sx, by - 1, 'red4', { outline: 'ink0' });
+      sx += 9;
     }
-    if (this.burn > 0) {
-      draw(ctx, getFrame('tile_ember'), sx + 3, by + 8);
-      sx += 8;
-    }
-    // Intent bubble: raised and framed while this enemy acts.
-    const iy = top - 20 - (this.acting ? 3 : 0);
-    const kind = this.intent.kind === 'stealCharge' || this.intent.kind === 'stealCoins' ? 'steal' : this.intent.kind;
-    const icon = getFrame(`int_${kind}`);
-    const label = dmg > 0 ? `${Math.floor(dmg / 2) || ''}${dmg % 2 ? '½' : ''}` : this.intent.kind === 'ink' || this.intent.kind === 'pin' || this.intent.kind === 'censor' || this.intent.kind === 'ember' ? `×${this.intent.value}` : '';
-    const w = 14 + (label ? label.length * 5 + 2 : 0);
+    if (this.burn > 0) draw(ctx, getFrame('tile_ember'), sx + 3, by + 8);
+    // Intent bubble: icon + number, raised while this enemy acts; never above minY.
+    const top = oy + this.top(t);
+    const iy = Math.max(minY, top - 18 - (this.acting ? 3 : 0));
+    const kind = this.intent.kind;
+    const icon = getFrame(INTENT_ICON[kind] ?? `int_${kind}`);
+    const counts = kind === 'ink' || kind === 'pin' || kind === 'censor' || kind === 'ember' || kind === 'tape';
+    const label = dmg > 0 ? `${dmg}` : counts ? `×${this.intent.value}` : '';
+    const w = 14 + (label ? label.length * 5 + 3 : 0);
     const danger = this.countdown <= 1;
     const bxI = x - Math.round(w / 2);
     const blink = this.alertT > 0 && Math.floor(this.alertT * 12) % 2 === 0;
@@ -301,7 +319,7 @@ export class EnemyView {
     ctx.fillRect(bxI, iy, w, 13);
     draw(ctx, icon, bxI + 1 + icon.ox, iy + 1 + icon.oy);
     if (label) text(ctx, label, bxI + 14, iy + 3, danger || this.acting ? 'cream' : 'cold6', { outline: 'ink0' });
-    // Countdown pips: one per move left; the last one blinks red.
+    // Countdown pips: one per move left; the last one blinks.
     const n = Math.max(0, Math.min(6, this.countdown));
     for (let p = 0; p < n; p++) {
       ctx.fillStyle = hex(p === 0 && danger ? (Math.floor(t * 8) % 2 ? 'red4' : 'gold4') : 'cold4');
@@ -311,14 +329,15 @@ export class EnemyView {
     if (this.stunned) text(ctx, 'z z', x, iy - 10, 'gold4', { align: 'center', outline: 'ink0' });
     if (this.captionT > 0 && this.caption) {
       const a = Math.min(1, this.captionT * 4);
-      text(ctx, this.caption, x, iy - 12, this.intentDamages() ? 'red5' : 'vio5', { align: 'center', outline: 'ink0', alpha: a });
+      text(ctx, this.caption, x, Math.max(2, iy - 11), this.intentDamages() ? 'red5' : 'vio5', { align: 'center', outline: 'ink0', alpha: a });
     } else if (targeted) {
       const b = Math.floor(t * 4) % 2;
       ctx.fillStyle = hex('gold4');
-      ctx.fillRect(x - 3, iy - 7 - b, 7, 1);
-      ctx.fillRect(x - 2, iy - 6 - b, 5, 1);
-      ctx.fillRect(x - 1, iy - 5 - b, 3, 1);
-      ctx.fillRect(x, iy - 4 - b, 1, 1);
+      const ty = Math.max(2, iy - 8);
+      ctx.fillRect(x - 3, ty - b, 7, 1);
+      ctx.fillRect(x - 2, ty + 1 - b, 5, 1);
+      ctx.fillRect(x - 1, ty + 2 - b, 3, 1);
+      ctx.fillRect(x, ty + 3 - b, 1, 1);
     }
   }
 
@@ -326,23 +345,20 @@ export class EnemyView {
     const def = ENEMIES[this.def];
     const i = this.intent;
     const what = INTENT_TEXT[i.kind] ?? i.kind;
-    const whole = Math.floor(dmg / 2);
-    const hearts = `${whole || ''}${dmg % 2 ? '½' : ''}`;
-    const detail =
-      i.kind === 'attack' || i.kind === 'heavy' || i.kind === 'strike'
-        ? `${what}: ${hearts} сердца`
-        : `${what}${i.value > 1 ? ` ×${i.value}` : ''}`;
+    const detail = dmg > 0 ? `${what}: ${dmg} урона` : `${what}${i.value > 1 ? ` ×${i.value}` : ''}`;
+    const mat = def ? MATERIAL_NAME[def.material] : '';
     return {
       title: def?.name ?? this.def,
-      body: `${def?.blurb ?? ''}\nДальше: ${detail}, через ${this.countdown} ход(а).${def?.armor ? `\nБроня ${def.armor}.` : ''}`,
+      body: `${def?.blurb ?? ''}\nДальше: ${detail}, через ${this.countdown} ход(а).${def?.armor ? `\nБроня ${def.armor}.` : ''}${mat ? `\nМатериал: ${mat}.` : ''}`,
     };
   }
 }
 
-export function enemySlots(n: number, boss: boolean): number[] {
-  if (boss && n === 1) return [528];
-  if (boss) return [540, 444, 616].slice(0, n);
-  if (n === 1) return [520];
-  if (n === 2) return [480, 574];
-  return [456, 530, 604].slice(0, n);
+/** Enemy x positions (stage coordinates) for n enemies on a stage of width w. */
+export function enemySlots(n: number, boss: boolean, w: number, hx: number): number[] {
+  const left = Math.max(hx + 110, Math.round(w * 0.5));
+  const right = w - (boss ? 70 : 44);
+  const span = Math.max(0, right - left);
+  if (n <= 1) return [Math.round(boss ? left + span * 0.6 : left + span * 0.5)];
+  return Array.from({ length: n }, (_, k) => Math.round(left + (span * k) / (n - 1)));
 }

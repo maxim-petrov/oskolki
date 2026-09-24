@@ -1,14 +1,9 @@
 import { H, W, type Group, type Move, type Tile } from '../game/types.ts';
 import { text } from './font.ts';
 import { FAM_COLORS, hex } from './palette.ts';
-import { draw, getFrame, type Ctx2D } from './sprite.ts';
+import { draw, drawScaled, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
 import { clamp, easeDrop, easeOut, easeOutBack } from './tween.ts';
-
-export const T = 26;
-export const BX = 242;
-export const BY = 102;
-export const BW = W * T;
-export const BH = H * T;
+import { L } from './view.ts';
 
 export interface VTile {
   tile: Tile;
@@ -50,10 +45,17 @@ const CARD: Record<string, [string, string, string]> = {
   prism: ['grey1', 'grey3', 'ink2'],
 };
 
-/** How far (px) a drag must travel before it counts as a swap. */
-const COMMIT = Math.round(T * 0.4);
-
 export class BoardView {
+  /** Geometry from the layout: tile size and the grid's top-left corner. */
+  T = 26;
+  bx = 0;
+  by = 0;
+  get bw() {
+    return W * this.T;
+  }
+  get bh() {
+    return H * this.T;
+  }
   tiles = new Map<number, VTile>();
   queue: Tile[][] = [];
   flood = 0;
@@ -79,18 +81,37 @@ export class BoardView {
   active = false;
   preview = 1;
 
+  /** Follows the layout; tiles keep their cell (positions are rescaled when the tile size changes). */
+  layout() {
+    const t = L.tile;
+    if (t !== this.T)
+      for (const v of this.tiles.values()) {
+        const k = t / this.T;
+        v.x *= k;
+        v.y *= k;
+        v.fx *= k;
+        v.fy *= k;
+        v.tx *= k;
+        v.ty *= k;
+      }
+    this.T = t;
+    this.bx = L.board.x;
+    this.by = L.board.y;
+  }
+
   cellXY(i: number): [number, number] {
-    return [(i % W) * T, Math.floor(i / W) * T];
+    return [(i % W) * this.T, Math.floor(i / W) * this.T];
   }
 
   center(i: number): [number, number] {
     const [x, y] = this.cellXY(i);
-    return [BX + x + T / 2, BY + y + T / 2];
+    return [this.bx + x + this.T / 2, this.by + y + this.T / 2];
   }
 
   cellAt(px: number, py: number): number {
-    const c = Math.floor((px - BX) / T);
-    const r = Math.floor((py - BY) / T);
+    const T = this.T;
+    const c = Math.floor((px - this.bx) / T);
+    const r = Math.floor((py - this.by) / T);
     if (c < 0 || r < 0 || c >= W || r >= H) return -1;
     return r * W + c;
   }
@@ -181,6 +202,7 @@ export class BoardView {
 
   /** Tile id per cell at rest (ignores in-flight tiles). */
   gridIds(): (number | null)[] {
+    const { T } = this;
     const grid: (number | null)[] = Array(W * H).fill(null);
     for (const v of this.tiles.values()) {
       if (v.popping || v.dur > 0) continue;
@@ -199,6 +221,7 @@ export class BoardView {
 
   /** Pointer moved: the held tile follows along the dominant axis, at most one cell. */
   dragTo(x: number, y: number) {
+    const { T } = this;
     const d = this.drag;
     if (!d) return;
     const rx = x - d.sx;
@@ -224,6 +247,7 @@ export class BoardView {
 
   /** The swap the current drag would make if released now. */
   dragMove(): Move | null {
+    const COMMIT = Math.round(this.T * 0.4);
     const d = this.drag;
     if (!d || Math.max(Math.abs(d.dx), Math.abs(d.dy)) < COMMIT) return null;
     const to = this.dragPartner();
@@ -299,6 +323,7 @@ export class BoardView {
 
   /** `swappable(a, b)`: that pair may physically swap (no staple, anchor or water in the way). */
   draw(ctx: Ctx2D, t: number, swappable: (a: number, b: number) => boolean) {
+    const { T, bx: BX, by: BY, bw: BW, bh: BH } = this;
     const sx = this.shake > 0 ? Math.round(Math.sin(t * 90) * this.shake * 3) : 0;
     const ox = BX + sx;
     const oy = BY;
@@ -439,6 +464,7 @@ export class BoardView {
   }
 
   private drawFrame(ctx: Ctx2D, ox: number, oy: number) {
+    const { T, bw: BW, bh: BH } = this;
     const fill = (c: string, x: number, y: number, w: number, h: number) => {
       ctx.fillStyle = hex(c);
       ctx.fillRect(x, y, w, h);
@@ -503,6 +529,7 @@ export class BoardView {
 
   /** Small gold chevrons on the sides of a tile where a swap is possible. */
   private drawArrows(ctx: Ctx2D, cell: number, ox: number, oy: number, swappable: (a: number, b: number) => boolean, t: number) {
+    const { T } = this;
     const [x, y] = this.cellXY(cell);
     const cx = ox + x + T / 2;
     const cy = oy + y + T / 2;
@@ -527,6 +554,7 @@ export class BoardView {
   }
 
   private drawQueue(ctx: Ctx2D, ox: number, oy: number) {
+    const { T } = this;
     for (let c = 0; c < W; c++) {
       if (this.colLock[c] > 0) continue;
       const q = this.queue[c] ?? [];
@@ -539,6 +567,7 @@ export class BoardView {
   }
 
   drawTile(ctx: Ctx2D, v: VTile, px: number, py: number, t: number) {
+    const { T } = this;
     const tile = v.tile;
     const x = Math.round(px);
     const y = Math.round(py);
@@ -552,7 +581,11 @@ export class BoardView {
     ctx.rect(x + inset, y + inset, w, w);
     ctx.clip();
     if (tile.kind === 'junk') {
-      draw(ctx, getFrame('tile_junk'), x + T / 2, y + T / 2);
+      // Paperwork (red tape) and ink blots: dead tiles that only a match next to them clears.
+      const id = tile.card === 'redtape' && hasSprite('card_redtape') ? 'card_redtape' : 'tile_junk';
+      ctx.fillStyle = hex('ink1');
+      ctx.fillRect(x + inset, y + inset, w, w);
+      this.icon(ctx, id, x + T / 2, y + T / 2);
     } else {
       const hidden = !!tile.hidden;
       const card = hidden ? ['ink2', 'ink3', 'ink0'] : CARD[tile.kind] ?? CARD.prism;
@@ -578,7 +611,11 @@ export class BoardView {
         ctx.fillRect(x + 5, y + 10, T - 10, 6);
         ctx.fillStyle = hex('grey2');
         ctx.fillRect(x + 6, y + 11, T - 12, 1);
-      } else draw(ctx, getFrame(`tile_${tile.kind}`), x + T / 2, y + T / 2);
+      } else {
+        const id = tile.card && hasSprite(`card_${tile.card}`) ? `card_${tile.card}` : `tile_${tile.kind}`;
+        this.icon(ctx, id, x + T / 2, y + T / 2);
+        this.drawMarks(ctx, tile, x + inset, y + inset, w, t);
+      }
       this.drawSpecial(ctx, tile, x, y, t);
     }
     ctx.restore();
@@ -611,7 +648,61 @@ export class BoardView {
     ctx.globalAlpha = 1;
   }
 
+  /** Card icon: 18 px, doubled on big phone tiles (whole-number scale only). */
+  private icon(ctx: Ctx2D, id: string, cx: number, cy: number) {
+    const f = getFrame(id);
+    const k = this.T >= 42 ? 2 : 1;
+    if (k === 1) draw(ctx, f, Math.round(cx - f.w / 2 + f.ox), Math.round(cy - f.h / 2 + f.oy));
+    else drawScaled(ctx, f, Math.round(cx - f.w + f.ox * 2), Math.round(cy - f.h + f.oy * 2), 2);
+  }
+
+  /** Upgrade plus and finish marks (Balatro-like enhancements) on a tile. */
+  private drawMarks(ctx: Ctx2D, tile: Tile, x: number, y: number, w: number, t: number) {
+    const px = (c: string, dx: number, dy: number, pw = 1, ph = 1) => {
+      ctx.fillStyle = hex(c);
+      ctx.fillRect(x + dx, y + dy, pw, ph);
+    };
+    if (tile.up) {
+      // A gold plus in the top-right corner.
+      px('ink0', w - 7, 1, 5, 5);
+      px('gold4', w - 6, 3, 3, 1);
+      px('gold4', w - 5, 2, 1, 3);
+    }
+    switch (tile.finish) {
+      case 'sharp':
+        // A bright steel edge along the top.
+        px('white', 2, 1, w - 4, 1);
+        px('grey4', 2, 2, w - 4, 1);
+        break;
+      case 'gild': {
+        const c = Math.floor(t * 4) % 2 ? 'gold4' : 'gold3';
+        px(c, 1, 1, w - 2, 1);
+        px(c, 1, w - 2, w - 2, 1);
+        px(c, 1, 1, 1, w - 2);
+        px(c, w - 2, 1, 1, w - 2);
+        break;
+      }
+      case 'seal':
+        // A red stamp in the bottom-left corner.
+        px('ink0', 1, w - 7, 6, 6);
+        px('red3', 2, w - 6, 4, 4);
+        px('red5', 3, w - 5, 2, 1);
+        break;
+      case 'copy':
+        px('cold5', 2, w - 3, w - 4, 1);
+        px('cold3', 3, w - 4, w - 6, 1);
+        break;
+      case 'laminate':
+        // A glossy sheen on the top-left corner.
+        px('white', 2, 2, 4, 1);
+        px('white', 2, 3, 1, 3);
+        px('cold6', 3, 3, 1, 1);
+        break;
+    }
+  }
+
   private drawSpecial(ctx: Ctx2D, tile: Tile, x: number, y: number, t: number) {
+    const { T } = this;
     if (tile.special === 'rocketH' || tile.special === 'rocketV') {
       ctx.fillStyle = hex(Math.floor(t * 8) % 2 ? 'cream' : 'gold4');
       if (tile.special === 'rocketH') {

@@ -180,13 +180,13 @@ export const ITEMS: Record<string, ItemDef> = {
   }),
 
   // ── Rare ──────────────────────────────────────────────────────────
-  ring: i({ id: 'ring', name: 'Кольцевая скоба', desc: 'Края поля соединены: линии и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'rare', apply: (m) => (m.wrap = true) }),
-  pen: i({ id: 'pen', name: 'Бесконечная ручка', desc: 'Ракеты очищают строку и столбец сразу.', kind: 'passive', icon: 'item_pen', pool: 'rare', apply: (m) => (m.crossRockets = true) }),
+  ring: i({ id: 'ring', unlock: 'bundle_relics', name: 'Кольцевая скоба', desc: 'Края поля соединены: линии и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'rare', apply: (m) => (m.wrap = true) }),
+  pen: i({ id: 'pen', unlock: 'bundle_relics', name: 'Бесконечная ручка', desc: 'Ракеты очищают строку и столбец сразу.', kind: 'passive', icon: 'item_pen', pool: 'rare', apply: (m) => (m.crossRockets = true) }),
   clock: i({ id: 'clock', name: 'Сломанные часы', desc: 'Каждый 4-й ход не тратит время: враги не тикают.', kind: 'passive', icon: 'item_clock', pool: 'rare', apply: (m) => (m.clockEvery = 4) }),
   puncher: i({ id: 'puncher', name: 'Пробойник', desc: 'Итоговый удар пробивает броню и щит врагов.', kind: 'passive', icon: 'item_punch', pool: 'rare', apply: (m) => (m.pierce = true) }),
   poster: i({ id: 'poster', name: 'Мотивационный плакат', desc: 'Каждая волна каскада даёт ещё +1 множ.', kind: 'passive', icon: 'item_poster', pool: 'rare', apply: (m) => (m.cascadeMult += 1) }),
   coffeemachine: i({ id: 'coffeemachine', name: 'Кофемашина', desc: 'Первый ход каждого боя — множ ×2.', kind: 'passive', icon: 'item_coffeemachine', pool: 'rare', apply: (m) => (m.firstMoveX = true) }),
-  carbonpack: i({ id: 'carbonpack', name: 'Пачка копирки', desc: 'Первая группа каждого хода срабатывает дважды.', kind: 'passive', icon: 'item_carbon', pool: 'rare', apply: (m) => (m.echo = true) }),
+  carbonpack: i({ id: 'carbonpack', unlock: 'bundle_relics', name: 'Пачка копирки', desc: 'Первая группа каждого хода срабатывает дважды.', kind: 'passive', icon: 'item_carbon', pool: 'rare', apply: (m) => (m.echo = true) }),
   flash: i({ id: 'flash', name: 'Флешка', desc: 'Раз за отдел смертельный удар оставляет тебе 1 здоровье.', kind: 'passive', icon: 'item_flash', pool: 'rare', apply: (m) => (m.flash = true) }),
 
   // ── Boss ──────────────────────────────────────────────────────────

@@ -1,35 +1,60 @@
-import { ITEMS } from '../game/content/items.ts';
 import type { RunState } from '../game/types.ts';
 
-/** Persistent profile: unlocks, collection, stats, settings. localStorage only. */
+/**
+ * Persistent profile (localStorage only): shards of memory and what they bought on the board
+ * of requests, how the office has changed, the collection, stats and settings.
+ */
+export interface RunRecord {
+  seed: number;
+  char: string;
+  won: boolean;
+  act: number;
+  cause: string;
+  shards: number;
+  date: string;
+}
+
 export interface Profile {
-  v: 1;
-  achievements: string[];
-  seenItems: string[];
-  seenEnemies: string[];
+  v: 3;
+  /** Shards of memory not spent yet. */
+  shards: number;
+  shardsTotal: number;
+  /** Requests bought on the board (meta unlocks). */
+  unlocks: string[];
+  /** The intro has been played (the first shift). */
+  introDone: boolean;
+  /** Bosses ever beaten. */
+  bosses: string[];
+  deaths: number;
   runs: number;
   wins: number;
-  streak: number;
-  bestStreak: number;
-  totalBombs: number;
-  history: { seed: number; char: string; won: boolean; floor: number; cause: string; items: string[]; date: string }[];
+  seenCards: string[];
+  seenRelics: string[];
+  seenEnemies: string[];
+  /** Notes pinned to the office board (story beats already shown). */
+  notes: string[];
+  history: RunRecord[];
   settings: { volume: number; muted: boolean; speed: number; shake: number; char: string };
 }
 
-const KEY = 'oskolki.rebirth.profile';
-const RUN_KEY = 'oskolki.rebirth.run';
+const KEY = 'oskolki.office.profile';
+const RUN_KEY = 'oskolki.office.run';
 
 export function blankProfile(): Profile {
   return {
-    v: 1,
-    achievements: [],
-    seenItems: [],
-    seenEnemies: [],
+    v: 3,
+    shards: 0,
+    shardsTotal: 0,
+    unlocks: [],
+    introDone: false,
+    bosses: [],
+    deaths: 0,
     runs: 0,
     wins: 0,
-    streak: 0,
-    bestStreak: 0,
-    totalBombs: 0,
+    seenCards: [],
+    seenRelics: [],
+    seenEnemies: [],
+    notes: [],
     history: [],
     settings: { volume: 0.6, muted: false, speed: 1, shake: 1, char: 'intern' },
   };
@@ -40,7 +65,7 @@ export function loadProfile(): Profile {
     const raw = localStorage.getItem(KEY);
     if (!raw) return blankProfile();
     const p = JSON.parse(raw);
-    if (p?.v !== 1) return blankProfile();
+    if (p?.v !== 3) return blankProfile();
     return { ...blankProfile(), ...p, settings: { ...blankProfile().settings, ...p.settings } };
   } catch {
     return blankProfile();
@@ -72,36 +97,81 @@ export function loadRunRaw(): string | null {
   }
 }
 
-export interface Achievement {
+// ── Board of requests (meta unlocks bought with shards) ──────────────
+
+export interface Request {
   id: string;
-  name: string;
-  desc: string;
-  unlocks: string;
-  check: (run: RunState, p: Profile) => boolean;
+  title: string;
+  text: string;
+  cost: number;
+  /** Shown only once this holds. */
+  visible?: (p: Profile) => boolean;
 }
 
-export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'killCabinet', name: 'Архив разобран', desc: 'Победи Картотеку', unlocks: 'Лупа', check: (r) => r.stats.bossesKilled.includes('cabinet') },
-  { id: 'rockets3', name: 'Салют', desc: '3 ракеты за один ход', unlocks: 'Бесконечная ручка', check: (r) => r.stats.maxRocketsInMove >= 3 },
-  { id: 'bossNoHit', name: 'Без единой царапины', desc: 'Победи босса без урона', unlocks: 'Мятная жвачка', check: (r) => r.stats.bossesNoHit > 0 },
-  { id: 'bombs10', name: 'Сапёр', desc: 'Используй 10 бомб за всё время', unlocks: 'Праздничный динамит', check: (_r, p) => p.totalBombs >= 10 },
-  { id: 'coins50', name: 'Годовой бюджет', desc: 'Заработай 50 монет за забег', unlocks: 'Персонаж: Бухгалтер', check: (r) => r.stats.coinsEarned >= 50 },
-  { id: 'killTide', name: 'Отлив', desc: 'Победи Хранителя прилива', unlocks: 'Персонаж: Уборщица', check: (r) => r.stats.bossesKilled.includes('tide') },
-  { id: 'killMirror', name: 'Отражение разбито', desc: 'Победи Кривое зеркало', unlocks: 'Этаж: Дирекция', check: (r) => r.stats.bossesKilled.includes('mirror') },
-  { id: 'killCensor', name: 'Одобрено', desc: 'Победи Главного цензора', unlocks: 'Титул «Сотрудник года»', check: (r) => r.stats.bossesKilled.includes('censor') },
-  { id: 'combo6', name: 'Цепная реакция', desc: 'Каскад из 6 волн', unlocks: '—', check: (r) => r.stats.maxCombo >= 6 },
-  { id: 'items12', name: 'Коллекционер', desc: '12 предметов за забег', unlocks: '—', check: (r) => r.stats.itemsTaken >= 12 },
+export const REQUESTS: Request[] = [
+  { id: 'start_coffee', title: 'Аптечка', text: 'Каждая смена начинается с кофе в кармане.', cost: 3 },
+  { id: 'bundle_paper', title: 'Канцелярия+', text: 'В наградах и кассе: Резак, Шило, Тревожная кнопка.', cost: 4 },
+  { id: 'start_coins', title: 'Аванс', text: '+25 монет в начале смены.', cost: 4 },
+  { id: 'bundle_accounting', title: 'Бухгалтерия+', text: 'Квартальный отчёт, Золотая скрепка, Кредитка.', cost: 5 },
+  { id: 'char_accountant', title: 'Перевод: Бухгалтер', text: 'Коллега из бухгалтерии выйдет в смену вместо тебя.', cost: 6 },
+  { id: 'bundle_ink', title: 'Чернильные дела', text: 'Штамп «Копия», Копирка, Пресс-папье.', cost: 5 },
+  { id: 'bundle_relics', title: 'Склад находок', text: 'Кольцевая скоба, Бесконечная ручка, Пачка копирки.', cost: 6 },
+  { id: 'char_janitor', title: 'Перевод: Уборщица', text: 'Она видела всё. И моет пол шваброй, которая делает броню.', cost: 10 },
+  {
+    id: 'act4',
+    title: 'Пропуск в дирекцию',
+    text: 'После котельной смена продолжится на этаже дирекции.',
+    cost: 8,
+    visible: (p) => p.bosses.includes('mirror'),
+  },
 ];
 
-export function unlockedItemKeys(p: Profile): string[] {
-  return p.achievements;
+export function buyRequest(p: Profile, id: string): boolean {
+  const r = REQUESTS.find((x) => x.id === id);
+  if (!r || p.unlocks.includes(id) || p.shards < r.cost) return false;
+  p.shards -= r.cost;
+  p.unlocks.push(id);
+  saveProfile(p);
+  return true;
 }
 
-export function newlyEarned(run: RunState, p: Profile): Achievement[] {
-  if (run.customSeed) return [];
-  return ACHIEVEMENTS.filter((a) => !p.achievements.includes(a.id) && a.check(run, p));
+/** Bank the shards of a finished run and record it. */
+export function recordRun(p: Profile, run: RunState) {
+  if (run.customSeed) return;
+  p.runs++;
+  if (run.phase === 'won') p.wins++;
+  else p.deaths++;
+  p.shards += run.stats.shards;
+  p.shardsTotal += run.stats.shards;
+  for (const b of run.stats.bossesKilled) if (!p.bosses.includes(b)) p.bosses.push(b);
+  for (const c of run.hero.deck) if (!p.seenCards.includes(c.id)) p.seenCards.push(c.id);
+  for (const r of run.hero.relics) if (!p.seenRelics.includes(r)) p.seenRelics.push(r);
+  p.history.unshift({
+    seed: run.seed,
+    char: run.hero.char,
+    won: run.phase === 'won',
+    act: run.act,
+    cause: run.stats.deathCause,
+    shards: run.stats.shards,
+    date: new Date().toISOString(),
+  });
+  p.history = p.history.slice(0, 30);
+  saveProfile(p);
 }
 
-export function itemCount() {
-  return Object.values(ITEMS).filter((i) => i.pools.length).length;
+/** How the office looks after what has happened so far (the hub reads this). */
+export function officeState(p: Profile) {
+  return {
+    /** After the first death: a note on the board that was not there yesterday. */
+    note: p.deaths >= 1,
+    /** After the supervisor falls, the neighbour's desk stands empty (he is in the shift now). */
+    neighbourGone: p.bosses.includes('supervisor'),
+    /** The supervisor's glass office goes dark after she is beaten. */
+    supervisorGone: p.bosses.includes('supervisor'),
+    /** After the archive keeper, the elevator doors stay open. */
+    elevatorOpen: p.bosses.includes('tide'),
+    /** After the boiler room: the directorate pass hangs by the door. */
+    directorate: p.bosses.includes('mirror'),
+    shifts: p.runs,
+  };
 }

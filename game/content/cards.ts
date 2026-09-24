@@ -33,9 +33,9 @@ export const CARDS: Record<string, CardDef> = {
   scissors: c({ id: 'scissors', name: 'Ножницы', fam: 'blade', rarity: 'uncommon', v: 3, vUp: 4, text: '{v} урона. Группа из 4+ фишек — ещё +1 множ.' }),
   ruler: c({ id: 'ruler', name: 'Линейка', fam: 'blade', rarity: 'uncommon', v: 1, vUp: 2, text: '{v} урона за каждую фишку своей группы.' }),
   stapler: c({ id: 'stapler', name: 'Степлер', fam: 'blade', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} урона и +1 за каждую красную фишку, собранную раньше в этом ходу.' }),
-  awl: c({ id: 'awl', name: 'Шило', fam: 'blade', rarity: 'rare', v: 8, vUp: 11, text: '{v} урона. Ты теряешь 2 здоровья.' }),
-  cutter: c({ id: 'cutter', name: 'Резак', fam: 'blade', rarity: 'rare', v: 4, vUp: 6, text: '{v} урона, по бумажным врагам — втрое больше.' }),
-  alarm: c({ id: 'alarm', name: 'Тревожная кнопка', fam: 'blade', rarity: 'rare', v: 1, vUp: 2, text: '{v} урона. Группа даёт +1 множ за каждую красную группу этого хода.' }),
+  awl: c({ id: 'awl', name: 'Шило', fam: 'blade', rarity: 'rare', v: 8, vUp: 11, text: '{v} урона. Ты теряешь 2 здоровья.', unlock: 'bundle_paper' }),
+  cutter: c({ id: 'cutter', name: 'Резак', fam: 'blade', rarity: 'rare', v: 4, vUp: 6, text: '{v} урона, по бумажным врагам — втрое больше.', unlock: 'bundle_paper' }),
+  alarm: c({ id: 'alarm', name: 'Тревожная кнопка', fam: 'blade', rarity: 'rare', v: 1, vUp: 2, text: '{v} урона. Группа даёт +1 множ за каждую красную группу этого хода.', unlock: 'bundle_paper' }),
 
   // ── Защита (blue): armor ──────────────────────────────────────────
   folder: c({ id: 'folder', name: 'Папка', fam: 'shield', rarity: 'starter', v: 1, vUp: 2, text: '{v} брони.' }),
@@ -54,19 +54,19 @@ export const CARDS: Record<string, CardDef> = {
   urgent: c({ id: 'urgent', name: 'Печать «Срочно»', fam: 'ink', rarity: 'common', v: 1, vUp: 2, text: '{v} заряда. Таймер цели +1.' }),
   blotcurse: c({ id: 'blotcurse', name: 'Клякса', fam: 'ink', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} урона каждому врагу (умножается).' }),
   quill: c({ id: 'quill', name: 'Перо', fam: 'ink', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} заряда. Группа с пером даёт +1 множ, если навык заряжен.' }),
-  copystamp: c({ id: 'copystamp', name: 'Штамп «Копия»', fam: 'ink', rarity: 'rare', v: 1, vUp: 2, text: '{v} заряда. 2 случайные фишки поля становятся копией лучшей карты колоды.' }),
-  carbon: c({ id: 'carbon', name: 'Копирка', fam: 'ink', rarity: 'rare', v: 1, vUp: 2, text: '{v} заряда. Следующая группа этого хода срабатывает дважды.' }),
-  weight: c({ id: 'weight', name: 'Пресс-папье', fam: 'ink', rarity: 'uncommon', v: 1, vUp: 2, text: '{v} заряда. Группа из 4+ оглушает цель.' }),
+  copystamp: c({ id: 'copystamp', name: 'Штамп «Копия»', fam: 'ink', rarity: 'rare', v: 1, vUp: 2, text: '{v} заряда. 2 случайные фишки поля становятся копией лучшей карты колоды.', unlock: 'bundle_ink' }),
+  carbon: c({ id: 'carbon', name: 'Копирка', fam: 'ink', rarity: 'rare', v: 1, vUp: 2, text: '{v} заряда. Следующая группа этого хода срабатывает дважды.', unlock: 'bundle_ink' }),
+  weight: c({ id: 'weight', name: 'Пресс-папье', fam: 'ink', rarity: 'uncommon', v: 1, vUp: 2, text: '{v} заряда. Группа из 4+ оглушает цель.', unlock: 'bundle_ink' }),
 
   // ── Бухгалтерия (gold): coins and multiplier ─────────────────────
   clip: c({ id: 'clip', name: 'Скрепка', fam: 'coin', rarity: 'starter', v: 1, vUp: 2, text: '{v} монета.' }),
   coin: c({ id: 'coin', name: 'Монетка', fam: 'coin', rarity: 'common', v: 2, vUp: 3, text: '{v} монеты.' }),
   receipt: c({ id: 'receipt', name: 'Чек', fam: 'coin', rarity: 'common', v: 1, vUp: 2, text: '{v} монета за каждую фишку своей группы.' }),
   bonus: c({ id: 'bonus', name: 'Премия', fam: 'coin', rarity: 'uncommon', v: 1, vUp: 2, text: '+{v} множ.' }),
-  card: c({ id: 'card', name: 'Кредитка', fam: 'coin', rarity: 'uncommon', v: 2, vUp: 3, text: '+{v} множ, но стоит 2 монеты (без денег не работает).' }),
+  card: c({ id: 'card', name: 'Кредитка', fam: 'coin', rarity: 'uncommon', v: 2, vUp: 3, text: '+{v} множ, но стоит 2 монеты (без денег не работает).', unlock: 'bundle_accounting' }),
   piggy: c({ id: 'piggy', name: 'Копилка', fam: 'coin', rarity: 'uncommon', v: 1, vUp: 2, text: '{v} монета. После боя +3 монеты.' }),
-  report: c({ id: 'report', name: 'Квартальный отчёт', fam: 'coin', rarity: 'rare', v: 1, vUp: 2, text: '1 монета. Раз за ход: +{v} множ за каждое семейство, собранное до отчёта.' }),
-  goldclip: c({ id: 'goldclip', name: 'Золотая скрепка', fam: 'coin', rarity: 'rare', v: 3, vUp: 4, text: 'Раз за ход: множ ×1,5 (улучшенная — ×2). {v} монеты.' }),
+  report: c({ id: 'report', name: 'Квартальный отчёт', fam: 'coin', rarity: 'rare', v: 1, vUp: 2, text: '1 монета. Раз за ход: +{v} множ за каждое семейство, собранное до отчёта.', unlock: 'bundle_accounting' }),
+  goldclip: c({ id: 'goldclip', name: 'Золотая скрепка', fam: 'coin', rarity: 'rare', v: 3, vUp: 4, text: 'Раз за ход: множ ×1,5 (улучшенная — ×2). {v} монеты.', unlock: 'bundle_accounting' }),
 
   // ── Status: enemies slip these in ────────────────────────────────
   redtape: c({ id: 'redtape', name: 'Волокита', fam: 'status', rarity: 'status', v: 0, vUp: 0, text: 'Не собирается. Исчезает, если рядом собрать группу или взорвать.' }),

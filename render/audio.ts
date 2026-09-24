@@ -27,7 +27,18 @@ type Sfx =
   | 'step'
   | 'buy'
   | 'select'
-  | 'ember';
+  | 'ember'
+  | 'chip'
+  | 'mult'
+  | 'strike'
+  | 'phone'
+  | 'keys'
+  | 'flicker'
+  | 'switch'
+  | 'paper'
+  | 'wake'
+  | 'ash'
+  | 'card';
 
 export class Audio {
   ctx: AudioContext | null = null;
@@ -208,6 +219,48 @@ export class Audio {
       case 'ember':
         this.noise(0.3, 0.35, 1400, 1.5, 0, 'bandpass');
         break;
+      case 'chip':
+        // One tile adds to the tally: a short blip that climbs with every tile of the move.
+        this.tone(440 * pitch, 0.05, 'square', 0.045);
+        break;
+      case 'mult':
+        this.tone(330 * pitch, 0.09, 'sawtooth', 0.06, 1.8);
+        this.tone(660 * pitch, 0.06, 'square', 0.035, 0, 0.03);
+        break;
+      case 'strike':
+        this.noise(0.22, 0.5, 900);
+        this.tone(110 * pitch, 0.28, 'square', 0.16, 0.5);
+        this.tone(55, 0.35, 'sine', 0.25, 0.7);
+        break;
+      case 'phone':
+        for (let k = 0; k < 6; k++) this.tone(k % 2 ? 1180 : 940, 0.045, 'square', 0.03, 0, k * 0.05);
+        break;
+      case 'keys':
+        for (let k = 0; k < 4; k++) this.noise(0.018, 0.05 + Math.random() * 0.05, 3500, 1, k * (0.05 + Math.random() * 0.06), 'highpass');
+        break;
+      case 'flicker':
+        this.noise(0.05, 0.12, 5000, 1, 0, 'highpass');
+        this.tone(120, 0.08, 'sawtooth', 0.05);
+        break;
+      case 'switch':
+        this.noise(0.02, 0.3, 2500, 1, 0, 'highpass');
+        this.tone(1800, 0.015, 'square', 0.05);
+        break;
+      case 'paper':
+        this.noise(0.35, 0.18 * pitch, 3200, 0.8, 0, 'bandpass');
+        this.noise(0.25, 0.12, 5200, 0.8, 0.12, 'bandpass');
+        break;
+      case 'wake':
+        [392, 523, 659].forEach((f, k) => this.tone(f, 0.5, 'sine', 0.05, 0, k * 0.18));
+        break;
+      case 'ash':
+        this.noise(1.4, 0.25, 1500, 0.5);
+        this.tone(160, 1.2, 'sine', 0.08, 0.5);
+        break;
+      case 'card':
+        this.noise(0.08, 0.2, 4000, 1, 0, 'bandpass');
+        this.tone(1100 * pitch, 0.05, 'triangle', 0.04);
+        break;
     }
   }
 
@@ -247,7 +300,25 @@ export class Audio {
       nodes.push(o);
     };
     let crackle: number | null = null;
-    if (kind === 'office') {
+    if (kind === 'hub') {
+      // The open space: fluorescent hum, air conditioning, keyboards and a phone now and then.
+      rain(0.06, 700);
+      hum(60, 0.014);
+      hum(120, 0.008);
+      crackle = window.setInterval(() => {
+        const r = Math.random();
+        if (r < 0.35) this.play('keys');
+        else if (r < 0.37) this.play('phone');
+      }, 700);
+    } else if (kind === 'dark') {
+      // The other side: the same hum, lower, with buzzing tubes.
+      rain(0.05, 300);
+      hum(50, 0.02);
+      hum(100, 0.008);
+      crackle = window.setInterval(() => {
+        if (Math.random() < 0.08) this.play('flicker');
+      }, 500);
+    } else if (kind === 'office') {
       rain(0.18, 1800);
       hum(60, 0.012);
       hum(120, 0.006);

@@ -1,5 +1,4 @@
 import { LIGHT_STYLE, resetLightCache } from './lighting.ts';
-import { resetVignette } from './scene.ts';
 
 /**
  * Light lab (F2): live sliders for the look of the light pools, so the style is tuned by eye
@@ -40,7 +39,7 @@ function save() {
 export function setLightStyle(patch: Partial<typeof LIGHT_STYLE>) {
   Object.assign(LIGHT_STYLE, patch);
   resetLightCache();
-  resetVignette();
+  
   save();
 }
 
