@@ -194,7 +194,7 @@ const BOILER: Look = {
 
 const DIRECTORATE: Look = {
   fx: 'directorate',
-  ambient: '#262846',
+  ambient: '#2e3154',
   sky: ['#05060f', '#1d2342'],
   wall: 'di_wall',
   floor: 'di_floor',

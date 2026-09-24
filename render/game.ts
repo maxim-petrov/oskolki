@@ -1,4 +1,4 @@
-import { alive, intentDamage, activeCost, previewMove } from '../game/combat.ts';
+import { alive, intentDamage, activeCost, overtimeBonus, previewMove } from '../game/combat.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { FLOORS } from '../game/content/floors.ts';
 import { ITEMS, TRANSFORMATIONS, type Mods, type Tag } from '../game/content/items.ts';
@@ -1534,7 +1534,7 @@ export class GameView {
       if (v.dying === 0) {
         const r = v.size === 'boss' ? 80 : 50;
         // A near-neutral key light so paper, wax and steel keep their colours in cold rooms.
-        extra.push({ x: v.x - 6, y: FLOOR_Y - 28, r: v.acting ? r + 14 : r + 4, color: v.acting ? '#ffd6b0' : '#e2dcff', intensity: v.acting ? 0.95 : 0.5 * (1 - v.dim * 0.6), flicker: 'none', seed: v.uid });
+        extra.push({ x: v.x - 6, y: FLOOR_Y - 28, r: v.acting ? r + 14 : r + 4, color: v.acting ? '#ffd6b0' : '#e2dcff', intensity: v.acting ? 0.95 : 0.62 * (1 - v.dim * 0.6), flicker: 'none', seed: v.uid });
       }
     if (this.mods.lamp) extra.push({ x: this.hero.x, y: FLOOR_Y - 30, r: 70, color: '#ffd08a', intensity: 0.8, flicker: 'lantern', seed: 1 });
     // Enemy blows light up the room as they fly.
@@ -1581,7 +1581,9 @@ export class GameView {
       this.drawThreatLines(ctx);
       for (const v of this.enemies.values()) {
         const e = c?.enemies.find((x) => x.uid === v.uid);
-        const dmg = e && c ? intentDamage(c, e) : 0;
+        // Damage of the intent this view shows (during playback the engine may already be a step ahead).
+        const k = v.intent.kind;
+        const dmg = e && c && (k === 'attack' || k === 'heavy' || k === 'strike') ? v.intent.value + e.dmgBonus + overtimeBonus(c) : 0;
         v.drawUI(ctx, t, v.uid === target, dmg);
         if (this.inCombat && this.canPlay() && ui.area(`enemy-${v.uid}`, v.x - 20, v.top(t) - 24, 40, v.y - v.top(t) + 36)) {
           if (this.targeting?.kind === 'active' && this.targeting.aim === 'enemy') {

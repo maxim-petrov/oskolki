@@ -50,7 +50,9 @@ export function trapdoorX(room: Room) {
   return room.pedestals.length > 1 ? 452 : 320;
 }
 
-function pickupXY(k: number): [number, number] {
+/** Floor loot spreads over the middle of the room; with pedestals present it keeps to their left. */
+function pickupXY(k: number, room: Room): [number, number] {
+  if (room.pedestals.some((p) => !p.taken)) return [206 + ((k * 13) % 26), FLOOR_Y + 16 + (k % 2) * 6];
   return [262 + ((k * 37) % 120), FLOOR_Y + 16 + (k % 2) * 6];
 }
 
@@ -123,7 +125,7 @@ export function drawRoomWorld(v: GameView, ctx: Ctx2D, room: Room) {
     draw(ctx, getFrame(p.hearts ? 'pedestal_deal' : 'pedestal'), x, y);
   });
   room.pickups.forEach((p, k) => {
-    const [x, y] = pickupXY(k);
+    const [x, y] = pickupXY(k, room);
     v.pickupPos.set(p.id, [x, y]);
     const chest = CHEST_SPRITES[p.kind];
     if (chest && hasSprite(chest)) draw(ctx, getFrame(chest, 'closed'), x, y);
@@ -250,7 +252,7 @@ export function drawRoomUI(v: GameView, ctx: Ctx2D, ui: UI, room: Room) {
     }
   });
   room.pickups.forEach((p, k) => {
-    const [x, y] = pickupXY(k);
+    const [x, y] = pickupXY(k, room);
     if (exploring && ui.area(`pk-${p.id}`, x - 8, y - 12, 16, 14)) v.act({ type: 'take', pickup: p.id });
     if (ui.hovered === `pk-${p.id}`)
       ui.tooltip(PICKUP_NAMES[p.kind], p.kind === 'lockedChest' ? 'Открыть ключом' : p.kind === 'half' || p.kind === 'heart' ? 'Подберёшь, когда сердца неполны' : 'Взять', ui.p.x, ui.p.y);
