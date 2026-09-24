@@ -65,6 +65,28 @@ export const PAL = {
   paper: '#ebe1cb',
   paper2: '#c9bc9f',
   white: '#ffffff',
+  // Office drab: the sickly green-grey of cubicle partitions and endless corridors.
+  drab0: '#1b201e',
+  drab1: '#2e3531',
+  drab2: '#4a544e',
+  drab3: '#6e7a72',
+  drab4: '#99a59c',
+  drab5: '#c7d0c8',
+  // Slate: blue-grey carpet, filing steel, cold plastic.
+  slate0: '#22272d',
+  slate1: '#333a42',
+  slate2: '#4a535d',
+  slate3: '#6b7682',
+  slate4: '#97a2ad',
+  // Beige: old computer plastic, manila folders.
+  beige0: '#5a5344',
+  beige1: '#877d66',
+  beige2: '#b0a68b',
+  beige3: '#d5ccb1',
+  // CRT glow.
+  crt0: '#12301e',
+  crt1: '#2c7a45',
+  crt2: '#8dfc9e',
   // Skin
   skin0: '#7d4a37',
   skin1: '#bf8261',
