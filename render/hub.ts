@@ -95,7 +95,7 @@ export class HubView {
     npc('npc_sil_sit_a', a + 180, [], 'shadow');
     npc('npc_analyst', a + 276, ['Не мешай, у меня созвон.', 'Ты в архив? Ну-ну.', 'Графики опять смотрят на меня.', 'Шшш.']);
     npc('npc_sil_stand', HUB_SPOTS.cooler - 30, [], 'shadow');
-    npc('npc_sil_copier', HUB_SPOTS.copier - 44, [], 'shadow');
+    npc('npc_sil_copier', HUB_SPOTS.copier + 5, [], 'shadow');
     npc('npc_accountant', b - 12, ['Цифры не сходятся. Опять.', 'Цельность — это ты. Понимаешь? Ты.', 'Сдача после шестнадцати сорока.', 'Скрепки не трогай.']);
     npc('npc_sil_sit_b', b + 84, [], 'shadow');
     if (!st.supervisorGone) npc('npc_supervisor', HUB_SPOTS.glass - 60, ['Отчёт к 16:40.', 'Архив ждёт, стажёр.', 'Улыбайтесь. Мы — одна команда.', 'Я запомню.'], 'stand');
@@ -319,7 +319,8 @@ export class HubView {
       for (const w of this.walkers) {
         const x = Math.round(w.x - cam);
         if (x < -40 || x > L.w + 40) continue;
-        let f = getFrame('npc_sil_walk', w.pause > 0 ? 'walk0' : `walk${Math.floor(t * 6 + w.from) % 4}`);
+        // A step covers about 20 px: the cycle runs at speed/10 frames per second so feet don't slide.
+        let f = getFrame('npc_sil_walk', w.pause > 0 ? 'walk0' : `walk${Math.floor(t * (w.speed / 10) + w.from) % 4}`);
         if (w.dir < 0) f = flipped(f);
         draw(b, f, x, STAGE_FEET - 2);
       }
@@ -376,7 +377,12 @@ export class HubView {
     let frame = names[0];
     const beat = Math.floor(this.t * 2.2 + n.seed) % 2;
     const near = Math.abs(n.x - this.hero.x) < 70;
-    if (n.kind === 'shadow') frame = names.includes('sit0') ? (near && names.includes('look') ? 'look' : beat ? 'sit1' : 'sit0') : beat ? 'idle1' : 'idle0';
+    if (n.kind === 'shadow') {
+      if (names.includes('sit0')) frame = near && names.includes('look') ? 'look' : beat ? 'sit1' : 'sit0';
+      else if (n.sprite === 'npc_sil_copier') frame = Math.floor(this.t * 1.6 + n.seed) % 3 === 0 ? 'idle1' : 'idle0';
+      // The one with the mug takes a sip now and then.
+      else frame = Math.floor(this.t * 0.5 + n.seed) % 5 === 0 ? 'idle1' : 'idle0';
+    }
     else if (n.kind === 'sit') frame = n.say ? (names.includes('grumble') ? 'grumble' : names.includes('talk') ? 'talk' : 'look') : near ? 'look' : beat ? 'sit1' : 'sit0';
     else if (n.kind === 'mop') frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : beat ? 'mop1' : 'mop0';
     else frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : beat ? 'idle1' : 'idle0';
