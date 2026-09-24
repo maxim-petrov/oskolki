@@ -23,7 +23,19 @@ export type RoomId =
   | 'hub'
   | 'flooded'
   | 'boiler'
-  | 'directorate';
+  | 'directorate'
+  | 'ar_hall'
+  | 'ar_reading'
+  | 'ar_pump'
+  | 'ar_vault'
+  | 'di_reception'
+  | 'di_meeting'
+  | 'di_library'
+  | 'di_boss'
+  | 'bo_furnace'
+  | 'bo_lockers'
+  | 'bo_valves'
+  | 'bo_mirrors';
 
 /** Where things stand in the office hub (world x). */
 export const HUB_W = 1640;
@@ -70,6 +82,9 @@ interface Emitter {
 
 interface RoomDef {
   wall: string;
+  /** Ceiling strip and floor tiles (the open-space ones unless a kit brings its own). */
+  ceil?: string;
+  floor?: string;
   ambient: string;
   props: Prop[];
   lights: Light[];
@@ -128,9 +143,217 @@ function room(id: RoomId, dark: boolean, worldW: number, seed: number): RoomDef 
   const dust = () => emitters.push({ kind: 'dust', x: 0, y: 60, w: worldW, h: 100, rate: dark ? 2.5 : 1.5 });
   const paper = (rate = 0.8) => emitters.push({ kind: 'paper', x: 0, y: STAGE_CEIL + 2, w: worldW, h: 4, rate });
   let wall = 'os_wall';
+  let ceil: string | undefined;
+  let floor: string | undefined;
+  let water: number | undefined;
   let ambient = dark ? '#262c3a' : '#8e98a6';
-  ceiling(props, lights, worldW, dark, seed);
+  const kit = id.startsWith('ar_') || id.startsWith('di_') || id.startsWith('bo_');
+  if (!kit) ceiling(props, lights, worldW, dark, seed);
+  /** A lamp prop whose frames follow its light (on / flicker / off). */
+  const lamp = (sprite: string, x: number, y: number, lx: number, ly: number, r: number, color: string, k: number, flicker: Light['flicker'], frames = ['on', 'flicker', 'off']) => {
+    lights.push(light(x + o + lx, ly, r, color, k, flicker));
+    props.push({ id: sprite, x: x + o, y, frames, light: lights.length - 1 });
+  };
+  const glow = (x: number, y: number, r: number, color: string, k: number, flicker: Light['flicker'] = 'none') => lights.push(light(x + o, y, r, color, k, flicker));
   switch (id) {
+    // ── Act 2 · the flooded archive (env-archive2.ts) ──
+    case 'ar_hall':
+    case 'ar_reading':
+    case 'ar_pump':
+    case 'ar_vault': {
+      ceil = 'ar2_ceiling';
+      floor = 'ar2_floor';
+      wall = id === 'ar_pump' || id === 'ar_vault' ? 'ar2_wall_b' : 'ar2_wall';
+      ambient = '#15262c';
+      water = F + 4;
+      const hang = (x: number, off = false) => lamp('ar2_lamp_hang', x, 20, 0, 50, 140, '#ffc47a', off ? 0 : 0.85, off ? 'none' : 'candle', off ? ['off', 'off', 'off'] : ['on', 'on', 'off']);
+      const drip = (x: number) => {
+        P({ id: 'ar2_drip', x, y: 8, frames: ['drip0', 'drip1', 'drip2'], fps: 3 });
+        emitters.push({ kind: 'drip', x: x + o - 2, y: 40, w: 4, h: 1, rate: 1.4 });
+      };
+      if (id === 'ar_hall') {
+        P({ id: 'ar2_shelf_tall', x: 36, y: F });
+        P({ id: 'ar2_shelf', x: 128, y: F });
+        hang(240);
+        P({ id: 'ar2_boxes', x: 250, y: F });
+        drip(320);
+        P({ id: 'ar2_bucket', x: 320, y: F, frames: ['idle0', 'idle1', 'idle2'], fps: 4 });
+        P({ id: 'ar2_boat', x: 340, y: F + 13, frames: ['idle0', 'idle1'], fps: 1.2 });
+        P({ id: 'ar2_cage', x: 430, y: F });
+        P({ id: 'ar2_papers', x: 470, y: F + 18 });
+        P({ id: 'ar2_shelf', x: 574, y: F, flip: true });
+      } else if (id === 'ar_reading') {
+        P({ id: 'ar2_cardindex', x: 46, y: F, frames: ['idle0', 'idle1'], fps: 3 });
+        P({ id: 'ar2_clock', x: 124, y: 64 });
+        hang(150, true);
+        P({ id: 'ar2_papers', x: 150, y: F + 18 });
+        P({ id: 'ar2_desk', x: 300, y: F });
+        lamp('ar2_lamp', 264, F - 41, 0, F - 54, 90, '#d8ff9a', 0.8, 'lantern', ['on', 'on', 'off']);
+        P({ id: 'ar2_tube', x: 420, y: F });
+        glow(433, F - 43, 20, '#ff4a4a', 0.5, 'pulse');
+        P({ id: 'ar2_shelf_tall', x: 486, y: F });
+        P({ id: 'ar2_shelf', x: 586, y: F, flip: true });
+      } else if (id === 'ar_pump') {
+        P({ id: 'ar2_pipes', x: 44, y: F, frames: ['idle0', 'idle1'], fps: 3 });
+        P({ id: 'ar2_motor', x: 150, y: F });
+        hang(232);
+        P({ id: 'ar2_pump', x: 262, y: F, frames: ['idle0', 'idle1'], fps: 2 });
+        P({ id: 'ar2_sandbags', x: 352, y: F });
+        drip(416);
+        P({ id: 'ar2_bucket', x: 416, y: F, frames: ['idle0', 'idle1', 'idle2'], fps: 4 });
+        P({ id: 'ar2_boxes', x: 500, y: F });
+        P({ id: 'ar2_pipes', x: 596, y: F, flip: true, frames: ['idle1', 'idle0'], fps: 3 });
+      } else {
+        P({ id: 'ar2_pipes', x: 40, y: F, frames: ['idle0', 'idle1'], fps: 3 });
+        P({ id: 'ar2_sandbags', x: 146, y: F });
+        hang(150);
+        hang(400);
+        P({ id: 'ar2_gauge', x: 318, y: F });
+        drip(380);
+        P({ id: 'ar2_vault', x: 528, y: F });
+        glow(528, 100, 170, '#3fb8b0', 0.45, 'pulse');
+      }
+      emitters.push({ kind: 'mist', x: 0, y: F - 20, w: worldW, h: 24, rate: 1 });
+      glow(320, F + 8, 240, '#3fb8b0', 0.35, 'pulse');
+      break;
+    }
+    // ── Act 3 · the boiler room (env-boiler2.ts) ──
+    case 'bo_furnace':
+    case 'bo_lockers':
+    case 'bo_valves':
+    case 'bo_mirrors': {
+      ceil = 'bo2_ceiling';
+      floor = 'bo2_floor';
+      wall = id === 'bo_lockers' || id === 'bo_mirrors' ? 'bo2_wall_b' : 'bo2_wall';
+      ambient = id === 'bo_mirrors' ? '#23121a' : '#2e1612';
+      const cage = (x: number) => lamp('bo2_lamp', x, 22, 0, 49, 120, '#ffb45a', 0.7, 'candle', ['on', 'on', 'off']);
+      const vent = (x: number) => {
+        P({ id: 'bo2_vent', x, y: F, frames: ['idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'puff0', 'puff1', 'puff2', 'puff3'], fps: 5 });
+        emitters.push({ kind: 'steam', x: x + o - 6, y: 40, w: 12, h: 4, rate: 1.2 });
+      };
+      if (id === 'bo_furnace') {
+        cage(32);
+        cage(452);
+        P({ id: 'bo2_coal', x: 34, y: F });
+        P({ id: 'bo2_furnace', x: 128, y: F, frames: ['fire0', 'fire1', 'fire2', 'fire3'], fps: 6 });
+        glow(128, F - 50, 170, '#ff7a2a', 1.05, 'fire');
+        P({ id: 'bo2_pipe', x: 200, y: F });
+        P({ id: 'bo2_gauges', x: 238, y: 64 });
+        P({ id: 'bo2_incinerator', x: 350, y: F, frames: ['run0', 'run1', 'run2', 'run3'], fps: 6 });
+        glow(304, F - 32, 90, '#ff8a3a', 0.9, 'fire');
+        vent(458);
+        P({ id: 'bo2_furnace', x: 556, y: F, flip: true, frames: ['fire2', 'fire3', 'fire0', 'fire1'], fps: 6 });
+        glow(556, F - 50, 170, '#ff7a2a', 1.05, 'fire');
+        P({ id: 'bo2_coal', x: 628, y: F, flip: true });
+        emitters.push({ kind: 'embers', x: 0, y: F - 6, w: worldW, h: 6, rate: 4 });
+      } else if (id === 'bo_lockers') {
+        cage(150);
+        cage(470);
+        P({ id: 'bo2_door', x: 38, y: F, frame: 'closed' });
+        P({ id: 'bo2_lockers', x: 124, y: F });
+        P({ id: 'bo2_calendar', x: 204, y: 84 });
+        P({ id: 'bo2_bench', x: 270, y: F });
+        P({ id: 'bo2_intercom', x: 334, y: 92, frames: ['idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'call'], fps: 2 });
+        P({ id: 'bo2_kettle', x: 380, y: F, frames: ['idle0', 'boil0', 'boil1'], fps: 4 });
+        glow(380, F - 30, 40, '#ff5a2a', 0.7, 'pulse');
+        P({ id: 'bo2_pipe', x: 416, y: F });
+        P({ id: 'bo2_lockers', x: 478, y: F, flip: true });
+        P({ id: 'bo2_gauges', x: 566, y: 64 });
+        vent(614);
+      } else if (id === 'bo_valves') {
+        cage(190);
+        cage(536);
+        P({ id: 'bo2_pipe', x: 16, y: F });
+        P({ id: 'bo2_switchboard', x: 98, y: F, frames: ['idle0', 'idle0', 'idle0', 'idle0', 'spark0', 'spark1', 'spark2'], fps: 8 });
+        glow(96, F - 60, 50, '#8aff7a', 0.6, 'fluor');
+        glow(132, F - 78, 40, '#fff0a0', 0.6, 'fluor');
+        P({ id: 'bo2_manifold', x: 290, y: F, frames: ['turn0', 'turn1', 'turn2', 'turn3'], fps: 4 });
+        P({ id: 'bo2_intercom', x: 384, y: 92 });
+        P({ id: 'bo2_gauges', x: 420, y: 60 });
+        P({ id: 'bo2_door', x: 472, y: F, frame: 'open' });
+        vent(548);
+        P({ id: 'bo2_pipe', x: 590, y: F });
+        P({ id: 'bo2_coal', x: 630, y: F, flip: true });
+      } else {
+        cage(250);
+        P({ id: 'bo2_curtain', x: 34, y: F });
+        P({ id: 'bo2_mirror_tall', x: 100, y: F });
+        P({ id: 'bo2_mirror_draped', x: 162, y: F });
+        P({ id: 'bo2_chandelier', x: 268, y: F });
+        P({ id: 'bo2_mirror_oval', x: 340, y: F });
+        P({ id: 'bo2_mirror_tall', x: 420, y: F, flip: true });
+        P({ id: 'bo2_mirror_draped', x: 486, y: F, flip: true });
+        P({ id: 'bo2_curtain', x: 606, y: F, flip: true });
+        glow(528, 90, 160, '#b8c8ff', 0.45, 'pulse');
+      }
+      emitters.push({ kind: 'smoke', x: 0, y: 34, w: worldW, h: 30, rate: 0.8 });
+      break;
+    }
+    // ── Act 4 · the directorate (env-directorate2.ts) ──
+    case 'di_reception':
+    case 'di_meeting':
+    case 'di_library':
+    case 'di_boss': {
+      ceil = 'di2_ceiling';
+      floor = 'di2_floor';
+      wall = id === 'di_meeting' ? 'di2_wall_b' : 'di2_wall';
+      ambient = '#221a1e';
+      const brass = (x: number, flick = false) => lamp('di2_lamp', x, 4, 0, 40, 150, '#ffd08a', 0.72, flick ? 'fluor' : 'lantern');
+      const clock = (x: number) => P({ id: 'di2_clock', x, y: F, frames: ['swing0', 'swing1', 'swing2', 'swing3'], fps: 2 });
+      if (id === 'di_reception') {
+        [145, 337, 561].forEach((x, k) => brass(x, k === 2));
+        P({ id: 'di2_door', x: 44, y: F, frame: 'closed' });
+        P({ id: 'di2_palm', x: 112, y: F });
+        P({ id: 'di2_emblem', x: 236, y: 62 });
+        P({ id: 'di2_reception', x: 236, y: F });
+        glow(182, 108, 50, '#e6ff9a', 0.55, 'lantern');
+        P({ id: 'di2_rope', x: 344, y: F });
+        P({ id: 'di2_portrait', x: 396, y: 66, frame: 'a' });
+        P({ id: 'di2_portrait', x: 452, y: 66, frame: 'b' });
+        glow(424, 40, 60, '#ffc27a', 0.4);
+        P({ id: 'di2_sofa', x: 424, y: F });
+        P({ id: 'di2_window', x: 520, y: 76, frames: ['idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'flash'], fps: 1.5 });
+        clock(604);
+      } else if (id === 'di_meeting') {
+        [177, 433].forEach((x) => brass(x));
+        P({ id: 'di2_window', x: 52, y: 76, frames: ['idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'flash'], fps: 1.2 });
+        P({ id: 'di2_portrait', x: 136, y: 66, frame: 'b' });
+        P({ id: 'di2_projector', x: 306, y: 22, frames: ['on0', 'on1'], fps: 6 });
+        glow(307, 57, 90, '#cfe3ff', 0.55, 'fluor');
+        P({ id: 'di2_emblem', x: 480, y: 60 });
+        for (const x of [242, 278, 314, 350, 386]) P({ id: 'di2_chair', x, y: F });
+        P({ id: 'di2_table', x: 314, y: F });
+        P({ id: 'di2_decanter', x: 262, y: 131 });
+        clock(530);
+        P({ id: 'di2_door', x: 596, y: F, frame: 'closed' });
+      } else if (id === 'di_library') {
+        [209, 401].forEach((x) => brass(x));
+        P({ id: 'di2_bookcase', x: 40, y: F });
+        P({ id: 'di2_bookcase', x: 110, y: F });
+        P({ id: 'di2_globe', x: 226, y: F, frame: 'open' });
+        P({ id: 'di2_portrait', x: 344, y: 64, frame: 'a' });
+        P({ id: 'di2_chair', x: 344, y: F });
+        P({ id: 'di2_desk', x: 344, y: F });
+        glow(409, 115, 60, '#e6ff9a', 0.55, 'lantern');
+        P({ id: 'di2_window', x: 484, y: 76 });
+        clock(540);
+        P({ id: 'di2_bookcase', x: 604, y: F });
+      } else {
+        [241, 401].forEach((x, k) => brass(x, k === 1));
+        P({ id: 'di2_door', x: 44, y: F, frame: 'closed' });
+        P({ id: 'di2_drawers', x: 112, y: F });
+        P({ id: 'di2_drawers', x: 176, y: F });
+        P({ id: 'di2_seal', x: 322, y: 76 });
+        glow(322, 76, 110, '#ff4a4a', 0.4, 'pulse');
+        P({ id: 'di2_throne', x: 322, y: F });
+        P({ id: 'di2_desk', x: 322, y: F });
+        P({ id: 'di2_rope', x: 440, y: F });
+        P({ id: 'di2_drawers', x: 544, y: F });
+        P({ id: 'di2_drawers', x: 608, y: F });
+      }
+      dust();
+      break;
+    }
     case 'hub': {
       // The office between shifts: one long bright floor, the archive door at the far right end.
       // Positions are absolute (HUB_SPOTS), not centred.
@@ -332,10 +555,21 @@ function room(id: RoomId, dark: boolean, worldW: number, seed: number): RoomDef 
   }
   // Wider worlds get a couple of edge props so the room does not end in bare wall.
   if (o > 40 && id !== 'hub') {
-    props.push({ id: 'os_cabinet', x: o - 30, y: F });
-    props.push({ id: 'os_plant', x: worldW - o + 26, y: F, frame: dark ? 'dead' : 'alive' });
+    if (id.startsWith('ar_')) {
+      props.push({ id: 'ar2_boxes', x: o - 36, y: F });
+      props.push({ id: 'ar2_sandbags', x: worldW - o + 38, y: F });
+    } else if (id.startsWith('bo_')) {
+      props.push({ id: 'bo2_coal', x: o - 40, y: F });
+      props.push({ id: 'bo2_pipe', x: worldW - o + 14, y: F });
+    } else if (id.startsWith('di_')) {
+      props.push({ id: 'di2_palm', x: o - 34, y: F });
+      props.push({ id: 'di2_palm', x: worldW - o + 34, y: F });
+    } else {
+      props.push({ id: 'os_cabinet', x: o - 30, y: F });
+      props.push({ id: 'os_plant', x: worldW - o + 26, y: F, frame: dark ? 'dead' : 'alive' });
+    }
   }
-  return { wall, ambient, props, lights, emitters, water: id === 'flooded' ? F + 6 : undefined };
+  return { wall, ceil, floor, ambient, props, lights, emitters, water: water ?? (id === 'flooded' ? F + 6 : undefined) };
 }
 
 /** A pre-rendered room with animated props, lights and ambient particles. */
@@ -383,8 +617,8 @@ export class Stage {
       for (let x = 0; x < this.worldW; x += f.w) ctx.drawImage(f.canvas as CanvasImageSource, x, y);
     };
     tile(def.wall, STAGE_CEIL, STAGE_FEET - STAGE_CEIL, 'drab2');
-    tile('os_floor', STAGE_FEET, STAGE_H - STAGE_FEET, 'slate1');
-    tile('os_ceiling', 0, STAGE_CEIL + 2, 'drab3');
+    tile(def.floor ?? 'os_floor', STAGE_FEET, STAGE_H - STAGE_FEET, 'slate1');
+    tile(def.ceil ?? 'os_ceiling', 0, STAGE_CEIL + 2, 'drab3');
     for (const p of props) {
       if (p.frames && p.frames.length > 1) {
         this.animated.push(p);
@@ -515,9 +749,24 @@ export function roomFor(act: number, look: number, kind: string): { id: RoomId; 
     if (kind === 'treasure') return { id: 'storage', dark: true };
     return { id: ACT1_ROOMS[look % ACT1_ROOMS.length], dark: true };
   }
-  if (act === 1) return { id: 'flooded', dark: true };
-  if (act === 2) return { id: 'boiler', dark: true };
-  return { id: 'directorate', dark: false };
+  if (act === 1) {
+    if (!hasSprite('ar2_wall')) return { id: 'flooded', dark: true };
+    if (kind === 'boss') return { id: 'ar_vault', dark: true };
+    if (kind === 'shop' || kind === 'rest') return { id: 'ar_reading', dark: true };
+    if (kind === 'treasure') return { id: 'ar_hall', dark: true };
+    return { id: (['ar_hall', 'ar_reading', 'ar_pump'] as const)[look % 3], dark: true };
+  }
+  if (act === 2) {
+    if (!hasSprite('bo2_wall')) return { id: 'boiler', dark: true };
+    if (kind === 'boss') return { id: 'bo_mirrors', dark: true };
+    if (kind === 'shop' || kind === 'rest') return { id: 'bo_lockers', dark: true };
+    return { id: (['bo_furnace', 'bo_lockers', 'bo_valves'] as const)[look % 3], dark: true };
+  }
+  if (!hasSprite('di2_wall')) return { id: 'directorate', dark: false };
+  if (kind === 'boss') return { id: 'di_boss', dark: true };
+  if (kind === 'shop' || kind === 'rest') return { id: 'di_reception', dark: true };
+  if (kind === 'treasure') return { id: 'di_library', dark: true };
+  return { id: (['di_reception', 'di_meeting', 'di_library'] as const)[look % 3], dark: true };
 }
 
 export function stageBuffer(w: number): { canvas: Canvas; ctx: Ctx2D } {
