@@ -616,7 +616,7 @@ export class GameView {
               if (v) v.flash = 1;
             }
           this.app.audio.play('match', 1 + (e.n - 1) * 0.12);
-          if (e.n >= 2) this.juice.float(`КАСКАД ×${e.n}`, BX + BW / 2, BY - 20, e.n >= 4 ? 'gold4' : 'cream', { scale: e.n >= 3 ? 2 : 1 });
+          if (e.n >= 2) this.juice.float(`КАСКАД ×${e.n}`, BX + BW / 2, BY - 30, e.n >= 4 ? 'gold4' : 'cream', { scale: e.n >= 3 ? 2 : 1 });
         },
       });
     // 2. Special activations.
@@ -1533,7 +1533,8 @@ export class GameView {
     for (const v of this.enemies.values())
       if (v.dying === 0) {
         const r = v.size === 'boss' ? 80 : 50;
-        extra.push({ x: v.x - 6, y: FLOOR_Y - 28, r: v.acting ? r + 14 : r, color: v.acting ? '#ffd6b0' : '#c9d4ff', intensity: v.acting ? 0.95 : 0.4 * (1 - v.dim * 0.6), flicker: 'none', seed: v.uid });
+        // A near-neutral key light so paper, wax and steel keep their colours in cold rooms.
+        extra.push({ x: v.x - 6, y: FLOOR_Y - 28, r: v.acting ? r + 14 : r + 4, color: v.acting ? '#ffd6b0' : '#e2dcff', intensity: v.acting ? 0.95 : 0.5 * (1 - v.dim * 0.6), flicker: 'none', seed: v.uid });
       }
     if (this.mods.lamp) extra.push({ x: this.hero.x, y: FLOOR_Y - 30, r: 70, color: '#ffd08a', intensity: 0.8, flicker: 'lantern', seed: 1 });
     // Enemy blows light up the room as they fly.
