@@ -1391,7 +1391,25 @@ export class CombatView {
     const slot = drawPockets(ctx, ui, px, py, this.pocketSize(), this.run, this.targeting?.kind === 'pocket' ? (this.targeting.slot ?? -1) : -1);
     if (slot >= 0) this.usePocket(slot);
     if (L.mode === 'wide') {
-      drawRelics(ctx, ui, L.side2, this.run);
+      drawRelics(ctx, ui, { ...L.side2, h: L.side2.h - 12 }, this.run);
+      // Deck by family: what the bag is made of.
+      const counts: Record<string, number> = { blade: 0, shield: 0, ink: 0, coin: 0, status: 0 };
+      for (const d of this.run.hero.deck) counts[CARDS[d.id]?.fam ?? 'status']++;
+      let dx = L.side2.x;
+      const dy = L.side2.y + L.side2.h - 10;
+      dx += text(ctx, `Колода ${this.run.hero.deck.length}:`, dx, dy, 'cold3') + 4;
+      for (const [f, col] of [
+        ['blade', 'red4'],
+        ['shield', 'cold5'],
+        ['ink', 'vio5'],
+        ['coin', 'gold4'],
+        ['status', 'grey3'],
+      ] as const) {
+        if (!counts[f]) continue;
+        ctx.fillStyle = hex(col);
+        ctx.fillRect(dx, dy + 2, 4, 4);
+        dx += 6 + text(ctx, `${counts[f]}`, dx + 6, dy, col) + 4;
+      }
       const bag = c?.board.bag.length ?? 0;
       const total = c?.board.source.length ?? 0;
       if (c) text(ctx, bag > 0 ? `Мешок: ${bag} из ${total}` : `Мешок: ${total} фишек`, L.side.x, py + this.pocketSize() + 6, 'cold3');
@@ -1414,6 +1432,5 @@ export class CombatView {
     }
     if (this.targeting) text(ctx, L.touch ? 'Коснись цели · вне поля — отмена' : 'Выбери цель · Esc — отмена', L.w / 2, b.by - 20, 'orange4', { align: 'center', outline: 'ink0' });
     this.tileTip(ctx, ui);
-    void CARDS;
   }
 }
