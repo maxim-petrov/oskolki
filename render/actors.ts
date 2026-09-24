@@ -8,6 +8,9 @@ import { FLOOR_Y } from './scene.ts';
 
 export const HERO_X = 176;
 
+/** Enemies drawn hovering above the floor: they bob gently. */
+const HOVER = new Set(['moth', 'shard']);
+
 type HeroState = 'idle' | 'windup' | 'attack' | 'hurt' | 'block' | 'hold' | 'walk' | 'dead';
 
 /** Frame with a fallback chain: new art may not have every pose yet. */
@@ -214,7 +217,13 @@ export class EnemyView {
   draw(ctx: Ctx2D, t: number, targeted: boolean) {
     if (this.dying > 0.6) return;
     const f = this.frame(t);
-    const bob = this.size === 'boss' && !this.acting ? Math.round(Math.sin(t * 1.3 + this.seed)) : 0;
+    const bob = this.acting
+      ? 0
+      : this.size === 'boss'
+        ? Math.round(Math.sin(t * 1.3 + this.seed))
+        : HOVER.has(this.def)
+          ? Math.round(Math.sin(t * 3 + this.seed) * 1.5)
+          : 0;
     const x = Math.round(this.x + this.offX);
     const y = Math.round(this.y + this.offY + bob);
     const alpha = this.dying > 0 ? Math.max(0, 1 - this.dying / 0.6) : this.alpha;
