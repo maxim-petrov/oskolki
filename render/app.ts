@@ -224,6 +224,11 @@ export class App {
     const devW = Math.round(window.innerWidth * dpr);
     const devH = Math.round(window.innerHeight * dpr);
     const r = pickResolution(devW, devH);
+    // The CSS size must come out in whole CSS pixels, or the browser resamples the canvas and
+    // the pixels smear (e.g. 292×4/3 = 389.33 on an iPhone). Trim a few internal pixels if needed.
+    const whole = (n: number) => Math.abs((n * r.scale) / dpr - Math.round((n * r.scale) / dpr)) < 0.001;
+    for (let k = 0; k < 12 && !whole(r.w); k++) r.w--;
+    for (let k = 0; k < 12 && !whole(r.h); k++) r.h--;
     const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     const key = `${r.w}x${r.h}@${r.scale}:${touch}`;
     if (key !== this.sizeKey) {
@@ -233,8 +238,8 @@ export class App {
       this.canvas.height = r.h;
       this.ctx.imageSmoothingEnabled = false;
     }
-    this.canvas.style.width = `${(r.w * r.scale) / dpr}px`;
-    this.canvas.style.height = `${(r.h * r.scale) / dpr}px`;
+    this.canvas.style.width = `${Math.round((r.w * r.scale) / dpr * 1000) / 1000}px`;
+    this.canvas.style.height = `${Math.round((r.h * r.scale) / dpr * 1000) / 1000}px`;
   }
 
   toggleFullscreen() {

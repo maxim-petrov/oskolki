@@ -6,7 +6,7 @@ import type { Action, DeckCard, RunState } from '../game/types.ts';
 import { CARD_H, CARD_W, cardName, cardRules, drawCard, drawCardBlock } from './cardview.ts';
 import { LINE, bigText, measure, paragraph, text, wrap } from './font.ts';
 import { hex } from './palette.ts';
-import { draw, drawScaled, getFrame, type Ctx2D } from './sprite.ts';
+import { draw, drawScaled, frameNames, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
 import { panel, type UI } from './ui.ts';
 import { L } from './view.ts';
 
@@ -256,19 +256,36 @@ export function drawEvent(ctx: Ctx2D, ui: UI, h: ScreenHost) {
   const st = run.event;
   const def = st ? EVENT_BY_ID[st.id] : undefined;
   if (!st || !def) return;
-  const w = Math.min(L.w - 16, 340);
+  const w = Math.min(L.w - 16, 360);
   const x = Math.round((L.w - w) / 2);
-  const tw = w - 30;
+  // A photo pinned to the memo: beside the text on wide memos, above it on narrow ones.
+  const art = hasSprite(def.art) ? getFrame(def.art, Math.floor(h.t * 2) % 2 && frameNames(def.art).includes('idle1') ? 'idle1' : 'idle0') : null;
+  const side = !!art && w >= 300;
+  const tw = w - 30 - (side ? art!.w + 10 : 0);
   const body = st.result ?? def.text;
   const lines = wrap(body, tw);
   const opts = st.result === undefined ? def.options : [];
-  const hh = 34 + lines.length * (LINE + 1) + 8 + (opts.length ? opts.length * 26 : 24) + 8;
+  const textH = Math.max(lines.length * (LINE + 1), side ? art!.h - 4 : 0) + (art && !side ? art.h + 8 : 0);
+  const hh = 34 + textH + 8 + (opts.length ? opts.length * 26 : 24) + 8;
   const y = Math.max(L.top.h + 6, Math.round(L.mode === 'wide' ? (L.h - hh) / 2 + 20 : L.stage.y + L.stage.h * 0.3));
   paperPanel(ctx, x, y, w, hh);
   bigText(ctx, def.title, x + w / 2, y + 7, 'red3', { align: 'center', outline: 'cream' });
-  const ty = y + 28;
+  let ty = y + 28;
+  if (art) {
+    const ax = side ? x + w - art.w - 10 : Math.round(x + (w - art.w) / 2);
+    const ay = ty - 2;
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(ax + 2, ay + 2, art.w, art.h);
+    draw(ctx, art, ax + art.ox, ay + art.oy);
+    // A paper clip holds it.
+    ctx.fillStyle = hex('grey4');
+    ctx.fillRect(ax + 8, ay - 3, 2, 8);
+    ctx.fillRect(ax + 12, ay - 3, 2, 8);
+    ctx.fillRect(ax + 8, ay - 3, 6, 2);
+    if (!side) ty += art.h + 8;
+  }
   paragraph(ctx, body, x + 22, ty, tw, st.result !== undefined ? 'red1' : 'ink1');
-  let oy = ty + lines.length * (LINE + 1) + 8;
+  let oy = y + 28 + textH + 8;
   if (opts.length) {
     opts.forEach((o, k) => {
       const locked = o.locked?.(run) ?? null;
