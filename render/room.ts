@@ -97,11 +97,14 @@ export function drawRoomWorld(v: GameView, ctx: Ctx2D, room: Room) {
     }
   }
   if (room.kind === 'shop') {
-    if (hasSprite('merchant')) draw(ctx, getFrame('merchant', Math.floor(t * 1.5) % 2 ? 'idle0' : 'idle1'), 320, FLOOR_Y - 2);
+    const merchant = getFrame('merchant', Math.floor(t * 1.5) % 2 ? 'idle0' : 'idle1');
+    if (hasSprite('merchant')) draw(ctx, merchant, 320, FLOOR_Y - 2);
     if (hasSprite('shopkeeper_sign')) {
-      draw(ctx, getFrame('shopkeeper_sign'), 320, FLOOR_Y - 44);
+      // The sign hangs just above the merchant's head, whatever his sprite size.
+      const signBottom = Math.min(FLOOR_Y - 44, FLOOR_Y - 2 - merchant.oy - 6);
+      draw(ctx, getFrame('shopkeeper_sign'), 320, signBottom);
       // Painted letters sit on the 5px-tall recessed panel of the board.
-      text(ctx, 'ЛАВКА', 320, FLOOR_Y - 54, 'gold4', { align: 'center' });
+      text(ctx, 'ЛАВКА', 320, signBottom - 10, 'gold4', { align: 'center' });
     }
     // Display table in front of the merchant.
     ctx.fillStyle = hex('ink0');

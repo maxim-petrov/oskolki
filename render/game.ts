@@ -806,7 +806,11 @@ export class GameView {
             size: f.amount >= 8 ? 4 : 3,
             onArrive: () => this.hitEnemyFx(f),
           });
-          if (fam === 'blade' && src === 'blade') this.hero.set('attack', 0.22);
+          if (fam === 'blade' && src === 'blade') {
+            // The hero lunges with the blades he sends.
+            this.hero.set('attack', 0.26);
+            this.hero.offX = 6;
+          }
           break;
         }
         case 'armor':
