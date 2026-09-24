@@ -779,6 +779,8 @@ export class CombatView {
     const juice = this.h.juice;
     const [x, y] = this.enemyPos(v.uid);
     if (f.amount > 0) {
+      if (v.chip <= v.hp) v.chip = v.hp;
+      v.chipHold = 0.35;
       v.hp = Math.max(0, v.hp - f.amount);
       v.flash = 1;
       v.flashColor = 'white';
@@ -1046,6 +1048,7 @@ export class CombatView {
     for (const v of this.enemies.values()) v.update(dt);
     for (const [uid, v] of this.enemies) if (v.dying > 0.8) this.enemies.delete(uid);
     this.tally.update(dt);
+    if (!frozen) this.tally.burn(this.h.ps);
     this.heartPulse = Math.max(0, this.heartPulse - dt);
     this.boardDim += (this.boardDimTarget - this.boardDim) * Math.min(1, dt * 8);
     this.updatePreview();

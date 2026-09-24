@@ -14,7 +14,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'M',
     material: 'paper',
     intents: [
-      { kind: 'attack', value: 15, timer: 3 },
+      { kind: 'attack', value: 8, timer: 3 },
       { kind: 'tape', value: 2, timer: 3 },
     ],
     blurb: 'Стопка, которую ты нёс в архив. Теперь она несёт тебя.',

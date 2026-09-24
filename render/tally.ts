@@ -67,6 +67,31 @@ export class TallyView {
     this.idleT = 0;
   }
 
+  /** Flames over the counter when the multiplier runs hot (Balatro-style), in screen particles. */
+  burn(ps: import('./particles.ts').Particles) {
+    const heat = this.live ? Math.max(0, Math.min(1, (this.mult - 3) / 9)) : 0;
+    if (heat <= 0) return;
+    const r = L.tally;
+    const wide = L.mode === 'wide';
+    const bw = wide ? Math.floor((r.w - 26) / 2) : Math.min(88, Math.floor((r.w - 70) / 2));
+    const mx = wide ? r.x + r.w - 4 - bw : Math.round(r.x + r.w / 2) + 10;
+    const my = wide ? r.y + 14 : r.y + 3;
+    const n = Math.round(1 + heat * 4);
+    for (let k = 0; k < n; k++)
+      ps.spawn({
+        x: mx + Math.random() * bw,
+        y: my,
+        vx: (Math.random() - 0.5) * 10,
+        vy: -20 - Math.random() * 40 * (0.5 + heat),
+        wobble: 10,
+        max: 0.35 + Math.random() * 0.4 * (0.5 + heat),
+        ramp: heat > 0.6 ? ['white', 'cold6', 'vio5', 'vio3'] : ['cream', 'gold4', 'orange3', 'red2'],
+        add: true,
+        layer: 'ui',
+        size: Math.random() < 0.3 ? 2 : 1,
+      });
+  }
+
   update(dt: number) {
     this.bumpD = Math.max(0, this.bumpD - dt * 6);
     this.bumpM = Math.max(0, this.bumpM - dt * 5);

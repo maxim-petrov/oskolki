@@ -160,6 +160,9 @@ export class EnemyView {
   captionT = 0;
   /** The timer just reached "next move": the bubble blinks. */
   alertT = 0;
+  /** HP before the last hits (the pale chunk of the bar) and how long it lingers. */
+  chip = 0;
+  chipHold = 0;
 
   constructor(e: EnemyState, x: number) {
     this.uid = e.uid;
@@ -192,6 +195,11 @@ export class EnemyView {
   }
 
   update(dt: number) {
+    // The pale chunk of the HP bar lingers, then drains down to the real value.
+    if (this.chip > this.hp) {
+      this.chipHold -= dt;
+      if (this.chipHold <= 0) this.chip = Math.max(this.hp, this.chip - Math.max(1, this.maxHp * dt * 1.2));
+    } else this.chip = this.hp;
     this.flash = Math.max(0, this.flash - dt * 5);
     this.hurtT = Math.max(0, this.hurtT - dt);
     this.attackT = Math.max(0, this.attackT - dt);
@@ -286,6 +294,12 @@ export class EnemyView {
     ctx.fillStyle = hex('red0');
     ctx.fillRect(bx, by, bw, 5);
     const k = Math.max(0, this.hp / this.maxHp);
+    // The chunk just lost stays as a pale bar and drains after the hit.
+    const kc = Math.max(k, Math.min(1, this.chip / this.maxHp));
+    if (kc > k) {
+      ctx.fillStyle = hex(Math.floor(t * 20) % 2 ? 'cream' : 'gold4');
+      ctx.fillRect(bx + Math.round(bw * k), by, Math.round(bw * (kc - k)), 5);
+    }
     ctx.fillStyle = hex('red3');
     ctx.fillRect(bx, by, Math.round(bw * k), 5);
     ctx.fillStyle = hex('red5');
@@ -306,7 +320,7 @@ export class EnemyView {
     const top = oy + this.top(t);
     const iy = Math.max(minY, top - 18 - (this.acting ? 3 : 0));
     const kind = this.intent.kind;
-    const icon = getFrame(INTENT_ICON[kind] ?? `int_${kind}`);
+    const icon = getFrame(hasSprite(`int_${kind}`) ? `int_${kind}` : (INTENT_ICON[kind] ?? 'int_attack'));
     const counts = kind === 'ink' || kind === 'pin' || kind === 'censor' || kind === 'ember' || kind === 'tape';
     const label = dmg > 0 ? `${dmg}` : counts ? `×${this.intent.value}` : '';
     const w = 14 + (label ? label.length * 5 + 3 : 0);
