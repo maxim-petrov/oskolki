@@ -30,7 +30,7 @@ export const FLOORS: FloorDef[] = [
     ],
     rooms: [6, 8],
     budget: { base: 0.6, perDist: 0.6, max: 3.2 },
-    hpMul: 1.6,
+    hpMul: 1.45,
     dmgAdd: 0,
     fx: 'office',
   },

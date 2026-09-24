@@ -1,13 +1,15 @@
 import {
   area,
-  canShift,
   cloneCells,
   colOf,
   createBoard,
   findGroups,
   gravity,
   idx,
+  isSpecialTile,
   isValidMove,
+  lineCells,
+  lineFree,
   makeTile,
   moveCells,
   neighbors,
@@ -16,6 +18,8 @@ import {
   reshuffle,
   rowOf,
   shiftCells,
+  swapBlock,
+  swapCells,
   validMoves,
 } from './board.ts';
 import { chance, next, pick } from './rng.ts';
@@ -35,6 +39,7 @@ import {
   type GameEvent,
   type Group,
   type Intent,
+  type LineShift,
   type Move,
   type Room,
   type RunState,
@@ -372,6 +377,63 @@ function mostCommonFam(cells: Tile[]): Fam {
   return best;
 }
 
+const rowCells = (i: number) => Array.from({ length: W }, (_, k) => idx(rowOf(i), k));
+const colCells = (i: number) => Array.from({ length: H }, (_, k) => idx(k, colOf(i)));
+const uniq = (list: number[]) => [...new Set(list)].sort((a, b) => a - b);
+
+/** Cells a rocket or a bomb clears from cell i. */
+function specialArea(t: Tile, i: number, mods: Mods): number[] {
+  if (t.special === 'rocketH') return uniq(mods.crossRockets ? [...rowCells(i), ...colCells(i)] : rowCells(i));
+  if (t.special === 'rocketV') return uniq(mods.crossRockets ? [...colCells(i), ...rowCells(i)] : colCells(i));
+  return area(i, mods.bombRadius);
+}
+
+/**
+ * What a swap sets off by itself (on the board after the swap). A lone special fires where it
+ * lands; a prism wipes the family it was swapped with; two specials swapped together combine.
+ * `spent` are the swapped specials, already used up by this blast.
+ */
+export function swapBlast(cells: Tile[], m: Move, mods: Mods): { blast: Blast; spent: number[] } | null {
+  const a = cells[m.to];
+  const b = cells[m.from];
+  const sa = isSpecialTile(a);
+  const sb = isSpecialTile(b);
+  if (!sa && !sb) return null;
+  const at = m.to;
+  const all = cells.map((_, k) => k);
+  const famCells = (fam: TileKind) => all.filter((k) => cells[k].kind === fam);
+  if (sa && sb) {
+    const spent = [m.to, m.from];
+    if (a.kind === 'prism' && b.kind === 'prism') return { blast: { kind: 'nova', at, cells: all }, spent };
+    if (a.kind === 'prism' || b.kind === 'prism') {
+      const [other, otherAt] = a.kind === 'prism' ? [b, m.from] : [a, m.to];
+      return { blast: { kind: 'prism', at, cells: uniq([...famCells(other.kind), ...specialArea(other, otherAt, mods), m.to, m.from]) }, spent };
+    }
+    const rocketA = a.special === 'rocketH' || a.special === 'rocketV';
+    const rocketB = b.special === 'rocketH' || b.special === 'rocketV';
+    if (rocketA && rocketB) return { blast: { kind: 'cross', at, cells: uniq([...rowCells(at), ...colCells(at)]) }, spent };
+    if (rocketA || rocketB) {
+      const wide: number[] = [];
+      for (const d of [-1, 0, 1]) {
+        const r = rowOf(at) + d;
+        const c = colOf(at) + d;
+        if (r >= 0 && r < H) wide.push(...rowCells(idx(r, 0)));
+        if (c >= 0 && c < W) wide.push(...colCells(idx(0, c)));
+      }
+      return { blast: { kind: 'bigCross', at, cells: uniq(wide) }, spent };
+    }
+    return { blast: { kind: 'bigBomb', at, cells: area(at, mods.bombRadius + 1) }, spent };
+  }
+  const i = sa ? m.to : m.from;
+  const t = cells[i];
+  if (t.kind === 'prism') {
+    const partner = cells[sa ? m.from : m.to];
+    const fam = partner.kind === 'junk' || partner.kind === 'prism' ? mostCommonFam(cells) : partner.kind;
+    return { blast: { kind: 'prism', at: i, cells: uniq([...famCells(fam), i]) }, spent: [i] };
+  }
+  return { blast: { kind: t.special!, at: i, cells: specialArea(t, i, mods) }, spent: [i] };
+}
+
 function blastArea(ctx: Ctx, i: number, t: Tile, fam: Fam | undefined, cells: Tile[]): { kind: Blast['kind']; cells: number[] } {
   const r = rowOf(i);
   const col = colOf(i);
@@ -386,11 +448,14 @@ function blastArea(ctx: Ctx, i: number, t: Tile, fam: Fam | undefined, cells: Ti
   return { kind: 'bomb', cells: area(i, ctx.mods.bombRadius) };
 }
 
+const ROCKETS_IN: Partial<Record<Blast['kind'], number>> = { rocketH: 1, rocketV: 1, cross: 2, bigCross: 1 };
+
 /**
  * Resolve matches and cascades until the board is stable.
- * `forced` is an initial blast (player bomb, shredder) that happens before matching.
+ * `forced` is an initial blast (player bomb, shredder, a swapped special) that happens with the
+ * first wave; `spent` are specials that blast already used up.
  */
-export function resolve(ctx: Ctx, prefer: number[], forced?: Blast) {
+export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: number[] = []) {
   const { c, mods } = ctx;
   let first = true;
   for (let wave = 1; wave <= 30; wave++) {
@@ -406,10 +471,12 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast) {
     // Specials activated by this wave (matched specials, forced blasts, chains).
     const blasts: Blast[] = [];
     const blasted = new Set<number>();
-    const activated = new Set<number>();
+    const activated = new Set<number>(forced ? spent : []);
     const queue: { i: number; fam?: Fam }[] = [];
+    let rocketsNow = 0;
     if (forced) {
       blasts.push(forced);
+      rocketsNow += ROCKETS_IN[forced.kind] ?? 0;
       for (const i of forced.cells) {
         if (!matched.has(i)) blasted.add(i);
         if (cells[i].special || cells[i].kind === 'prism') queue.push({ i });
@@ -417,7 +484,6 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast) {
     }
     for (const g of groups)
       for (const i of g.cells) if (cells[i].special || cells[i].kind === 'prism') queue.push({ i, fam: g.fam });
-    let rocketsNow = 0;
     while (queue.length) {
       const { i, fam } = queue.shift()!;
       if (activated.has(i)) continue;
@@ -730,17 +796,17 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'pinch': {
-      const rows = Array.from({ length: H }, (_, r) => r).filter((r) => canShift(c.board, 'row', r));
-      const options: Move[] = [];
+      const rows = Array.from({ length: H }, (_, r) => r).filter((r) => lineFree(c.board, 'row', r));
+      const options: LineShift[] = [];
       for (const r of rows)
         for (const d of [1, W - 1]) {
-          const m: Move = { line: 'row', index: r, delta: d };
+          const m: LineShift = { line: 'row', index: r, delta: d };
           if (!findGroups(shiftCells(cells, m), mods.wrap).length) options.push(m);
         }
       if (options.length) {
         const m = pick(run.rng.ai, options);
         c.board.cells = shiftCells(cells, m);
-        act.cells = moveCells(m);
+        act.cells = lineCells(m.line, m.index);
         act.board = snap(c.board.cells);
         ctx.ev.push(act);
       } else attack(1 + e.dmgBonus);
@@ -885,18 +951,19 @@ export function newCtx(run: RunState, mods: Mods, ev: GameEvent[]): Ctx {
 
 export function playerMove(run: RunState, mods: Mods, move: Move, ev: GameEvent[]): boolean {
   const c = run.combat!;
-  const size = move.line === 'row' ? W : H;
-  const m: Move = { ...move, delta: ((move.delta % size) + size) % size };
-  if (!isValidMove(c.board, m, mods.wrap)) {
-    ev.push({ t: 'invalid', reason: canShift(c.board, m.line, m.index) ? 'Нет совпадения' : 'Линия закреплена' });
+  const m: Move = { from: move.from, to: move.to };
+  const block = swapBlock(c.board, m, mods.wrap);
+  if (block || !isValidMove(c.board, m, mods.wrap)) {
+    ev.push({ t: 'invalid', reason: block ?? 'Нет совпадения' });
     return false;
   }
   const ctx = newCtx(run, mods, ev);
-  c.board.cells = shiftCells(c.board.cells, m);
+  c.board.cells = swapCells(c.board.cells, m);
   c.moves++;
   run.stats.moves++;
-  ev.push({ t: 'shift', move: m, board: snap(c.board.cells) });
-  resolve(ctx, moveCells(m));
+  ev.push({ t: 'swap', move: m, board: snap(c.board.cells) });
+  const set = swapBlast(c.board.cells, m, mods);
+  resolve(ctx, moveCells(m), set?.blast, set?.spent);
   run.stats.maxRocketsInMove = Math.max(run.stats.maxRocketsInMove, ctx.rocketsThisMove);
   afterAction(ctx, true);
   return true;
@@ -1050,6 +1117,8 @@ export function setTarget(run: RunState, uid: number, ev: GameEvent[]) {
 export interface MovePreview {
   valid: boolean;
   groups: Group[];
+  /** What the swap sets off by itself (a swapped special or combo), if anything. */
+  blast: Blast | null;
   damage: number;
   armor: number;
   charge: number;
@@ -1059,14 +1128,11 @@ export interface MovePreview {
 
 export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview {
   const c = run.combat;
-  const empty = { valid: false, groups: [], damage: 0, armor: 0, charge: 0, coins: 0, specials: 0 };
-  if (!c) return empty;
-  const size = move.line === 'row' ? W : H;
-  const m: Move = { ...move, delta: ((move.delta % size) + size) % size };
-  if (m.delta === 0 || !canShift(c.board, m.line, m.index)) return empty;
-  const cells = shiftCells(c.board.cells, m);
-  const groups = findGroups(cells, mods.wrap, moveCells(m));
-  if (!groups.length) return empty;
+  const empty: MovePreview = { valid: false, groups: [], blast: null, damage: 0, armor: 0, charge: 0, coins: 0, specials: 0 };
+  if (!c || !isValidMove(c.board, move, mods.wrap)) return empty;
+  const cells = swapCells(c.board.cells, move);
+  const groups = findGroups(cells, mods.wrap, moveCells(move));
+  const set = swapBlast(cells, move, mods);
   const dmgStat = damageStat(run, mods);
   let damage = 0;
   let armor = 0;
@@ -1081,6 +1147,14 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
     if (g.fam === 'coin') coins += Math.max(0, n - 2) + mods.coinBonus;
     if (g.make) specials++;
   }
-  return { valid: true, groups, damage, armor, charge, coins, specials };
+  if (set) {
+    // First blast only: chained specials and cascades stay a surprise, as for matches.
+    const matched = new Set(groups.flatMap((g) => g.cells));
+    const count = (fam: Fam) => set.blast.cells.filter((i) => !matched.has(i) && cells[i].kind === fam).length;
+    damage += Math.round(count('blade') * dmgStat);
+    armor += Math.max(0, count('shield') - 2);
+    charge += count('ink');
+    coins += Math.max(0, count('coin') - 2);
+  }
+  return { valid: true, groups, blast: set?.blast ?? null, damage, armor, charge, coins, specials };
 }
-

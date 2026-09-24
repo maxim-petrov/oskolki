@@ -1,6 +1,6 @@
 # Осколки — agent contract
 
-Browser pixel-art roguelike (Russian UI): cyclic row/column-shift match-3 fights inside Isaac-like floors of rooms, with items that rewrite board rules.
+Browser pixel-art roguelike (Russian UI): single-tile swap match-3 fights inside Isaac-like floors of rooms, with items that rewrite board rules.
 
 - Start: `npm run dev` (port 4531). Build: `npm run build`. Tests: `npm test`. Balance: `npm run sim [runs] [policy]`.
 - Keep `.openai/hosting.json` project_id unchanged; never store credentials.
@@ -19,4 +19,4 @@ Browser pixel-art roguelike (Russian UI): cyclic row/column-shift match-3 fights
 - One active engine, no frozen legacy copies. When the save format or rules change incompatibly, bump `RULES` in `game/run.ts`; old saves are simply discarded.
 - Numbers are tuned with `npm run sim`, then with people. A bot win rate is a diagnostic, not proof of fun. Targets live in GDD §11.
 - Pixel crispness: integer positions, no rotation or fractional scaling of sprites, palette colours only, text via `render/font.ts` (Tiny5 on the 8 px grid).
-- Earlier combat cores are preserved in git tags `core/classic-shift-lab`, `core/shared-board-duel`, `core/mirror-combat`.
+- Earlier combat cores are preserved in git tags `core/classic-shift-lab`, `core/shared-board-duel`, `core/mirror-combat`, `core/rebirth-shift` (row/column shifts, before single-tile swaps).

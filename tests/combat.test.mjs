@@ -6,14 +6,15 @@ import { cells, combatRun, FILLER } from './helpers.mjs';
 
 const moveOf = (events) => events.filter((e) => e.t === 'wave');
 
+/** Swapping (0,2) down into (1,2) completes the blade line in row 1 on these boards. */
+const DOWN = { type: 'move', move: { from: idx(0, 2), to: idx(1, 2) } };
+
 test('a blade line damages the target; shields, ink and coins pay out', () => {
-  // Row 0 "bbsbc..." : shifting col 2 up? Simpler: row 0 = b b i b s c ; moving row 0 is complex,
-  // so craft a board where shifting row 1 right by 1 completes a blade line in row 1.
   const run = combatRun({ rows: ['sicbsi', 'bbicsc', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'] });
-  // Row 1: b b i c s c → shift col 2 so a blade lands at (1,2)? Use a column shift instead:
   run.combat.board.cells[idx(0, 2)].kind = 'blade';
   const hp = run.combat.enemies[0].hp;
-  const res = dispatch(run, { type: 'move', move: { line: 'col', index: 2, delta: 1 } });
+  const res = dispatch(run, DOWN);
+  assert.ok(res.events.some((e) => e.t === 'swap'));
   const waves = moveOf(res.events);
   assert.ok(waves.length >= 1);
   assert.equal(waves[0].groups[0].fam, 'blade');
@@ -23,8 +24,9 @@ test('a blade line damages the target; shields, ink and coins pay out', () => {
 
 test('invalid moves change nothing and spend no time', () => {
   const run = combatRun();
-  const res = dispatch(run, { type: 'move', move: { line: 'row', index: 0, delta: 1 } });
+  const res = dispatch(run, { type: 'move', move: { from: idx(0, 0), to: idx(0, 1) } });
   assert.ok(res.events.some((e) => e.t === 'invalid'));
+  assert.equal(dispatch(run, { type: 'move', move: { from: idx(0, 0), to: idx(1, 1) } }).events[0].reason, 'Только с соседней фишкой');
   assert.equal(res.run.combat.moves, 0);
   assert.equal(res.run.combat.enemies[0].countdown, run.combat.enemies[0].countdown);
 });
@@ -37,7 +39,7 @@ test('armor absorbs a blow and burns out; then soul, then red hearts', () => {
   e.countdown = 1; // attacks on the next tick (attack 2)
   run.combat.board.cells[idx(0, 2)].kind = 'blade';
   run.combat.board.cells = run.combat.board.cells.map((t, i) => (i === idx(1, 0) || i === idx(1, 1) ? { ...t, kind: 'blade' } : t));
-  const res = dispatch(run, { type: 'move', move: { line: 'col', index: 2, delta: 1 } });
+  const res = dispatch(run, DOWN);
   const act = res.events.find((x) => x.t === 'enemyAct');
   assert.ok(act, 'enemy acted');
   assert.ok(act.hurt.armor >= 1, 'armor took part of the blow');
@@ -45,16 +47,35 @@ test('armor absorbs a blow and burns out; then soul, then red hearts', () => {
   assert.equal(res.run.hero.armor, 0, 'remaining armor burns after the blow');
 });
 
-test('a rocket clears its row and blasted tiles pay their family', () => {
+test('a swapped rocket fires where it lands, even without a match', () => {
   const run = combatRun({ enemies: ['anchor'] });
   const c = run.combat;
-  c.board.cells = cells(['bbbics', 'cbsicb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb']);
   c.board.cells[idx(2, 1)] = { id: 5000, kind: 'blade', special: 'rocketH' };
-  // Move col 1 up by 1: row 0 col 1 gets the rocket? We want a match containing the rocket.
-  const res = dispatch(run, { type: 'move', move: { line: 'col', index: 1, delta: 5 } });
+  const res = dispatch(run, { type: 'move', move: { from: idx(2, 1), to: idx(2, 2) } });
   const wave = res.events.find((e) => e.t === 'wave');
-  assert.ok(wave.blasts.some((b) => b.kind === 'rocketH'), 'rocket fired');
+  const rocket = wave.blasts.find((b) => b.kind === 'rocketH');
+  assert.ok(rocket, 'rocket fired');
+  assert.equal(rocket.at, idx(2, 2));
+  assert.deepEqual(rocket.cells, [12, 13, 14, 15, 16, 17]);
+  assert.equal(wave.blasts.filter((b) => b.kind === 'rocketH').length, 1, 'it fires once');
   assert.ok(wave.cleared.some((x) => x.cause === 'blast'));
+});
+
+test('two swapped specials combine; a prism wipes the family it touches', () => {
+  const run = combatRun({ enemies: ['anchor'] });
+  const c = run.combat;
+  c.board.cells[idx(2, 1)] = { id: 5000, kind: 'blade', special: 'rocketH' };
+  c.board.cells[idx(2, 2)] = { id: 5001, kind: 'coin', special: 'rocketV' };
+  const cross = dispatch(run, { type: 'move', move: { from: idx(2, 1), to: idx(2, 2) } }).events.find((e) => e.t === 'wave');
+  assert.equal(cross.blasts[0].kind, 'cross');
+  assert.equal(cross.blasts[0].cells.length, 11);
+
+  const run2 = combatRun({ enemies: ['anchor'] });
+  run2.combat.board.cells[idx(3, 3)] = { id: 5002, kind: 'prism' };
+  const coins = run2.combat.board.cells.filter((t) => t.kind === 'coin').length;
+  const wave = dispatch(run2, { type: 'move', move: { from: idx(3, 3), to: idx(3, 4) } }).events.find((e) => e.t === 'wave');
+  assert.equal(wave.blasts[0].kind, 'prism');
+  assert.equal(wave.cleared.filter((x) => x.kind === 'coin').length, coins);
 });
 
 test('ink junk next to a match is washed away', () => {
@@ -62,7 +83,7 @@ test('ink junk next to a match is washed away', () => {
   const c = run.combat;
   c.board.cells = cells(['sicbsi', 'bbicsc', 'jicbsi', 'cbsicb', 'sicbsi', 'cbsicb']);
   c.board.cells[idx(0, 2)].kind = 'blade';
-  const res = dispatch(run, { type: 'move', move: { line: 'col', index: 2, delta: 1 } });
+  const res = dispatch(run, DOWN);
   const wave = res.events.find((e) => e.t === 'wave');
   assert.ok(wave.cleared.some((x) => x.kind === 'junk' && x.cause === 'splash'));
 });
@@ -76,7 +97,7 @@ test('an ember burns the hero when its fuse runs out', () => {
   c.board.cells[idx(0, 2)].kind = 'blade';
   c.board.cells[idx(1, 0)].kind = 'blade';
   c.board.cells[idx(1, 1)].kind = 'blade';
-  const res = dispatch(run, { type: 'move', move: { line: 'col', index: 2, delta: 1 } });
+  const res = dispatch(run, DOWN);
   const ember = res.events.find((e) => e.t === 'ember');
   assert.ok(ember, 'ember burnt out');
   assert.equal(ember.hurt.amount, 1);
@@ -114,7 +135,7 @@ test('killing the last enemy clears the room and opens the doors', () => {
   run.combat.board.cells[idx(0, 2)].kind = 'blade';
   run.combat.board.cells[idx(1, 0)].kind = 'blade';
   run.combat.board.cells[idx(1, 1)].kind = 'blade';
-  const res = dispatch(run, { type: 'move', move: { line: 'col', index: 2, delta: 1 } });
+  const res = dispatch(run, DOWN);
   assert.equal(res.run.phase, 'explore');
   assert.ok(res.events.some((e) => e.t === 'roomClear'));
   assert.equal(res.run.combat, null);

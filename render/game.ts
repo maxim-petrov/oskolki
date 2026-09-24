@@ -2,7 +2,7 @@ import { alive, intentDamage, activeCost, previewMove } from '../game/combat.ts'
 import { ENEMIES } from '../game/content/enemies.ts';
 import { FLOORS } from '../game/content/floors.ts';
 import { ITEMS, TRANSFORMATIONS, type Mods, type Tag } from '../game/content/items.ts';
-import { canShift, isValidMove } from '../game/board.ts';
+import { adjacent, isValidMove, swapBlock } from '../game/board.ts';
 import { currentRoom, dispatch, modsOf, saveRun } from '../game/run.ts';
 import { STEP } from '../game/mapgen.ts';
 import type { Action, Dir, Effect, GameEvent, Move, RunState } from '../game/types.ts';
@@ -159,8 +159,8 @@ export class GameView {
     return true;
   }
 
-  fail(reason: string) {
-    this.board.shake = 1;
+  fail(reason: string, shake = true) {
+    if (shake) this.board.shake = 1;
     this.app.audio.play('invalid');
     if (reason) this.toast = { s: reason, t: 1.4 };
   }
@@ -180,6 +180,7 @@ export class GameView {
       this.board.colLock = c.board.colLock.slice();
       this.board.rowLock = c.board.rowLock.slice();
       this.board.preview = this.mods.preview;
+      this.board.wrap = this.mods.wrap;
       const live = alive(c);
       for (const e of live) {
         let v = this.enemies.get(e.uid);
@@ -227,7 +228,10 @@ export class GameView {
     this.board.set(c.board.cells, this.t);
     this.board.queue = c.board.queue;
     this.board.flood = c.board.flood;
+    this.board.colLock = c.board.colLock.slice();
     this.board.preview = this.mods.preview;
+    this.board.wrap = this.mods.wrap;
+    this.board.selected = -1;
     if (animate) {
       this.board.visible = 0;
       for (const v of this.board.tiles.values()) {
@@ -295,15 +299,17 @@ export class GameView {
           },
         });
         break;
-      case 'shift':
+      case 'swap':
         this.push({
-          dur: 0.06,
+          dur: 0.12,
           begin: () => {
-            this.board.drag = null;
             this.board.highlight = [];
+            this.board.blastCells = [];
             this.board.previewText = '';
-            this.board.set(e.board, this.t);
+            this.board.animateSwap(e.move);
+            this.app.audio.play('swap');
           },
+          end: () => this.board.set(e.board, this.t),
         });
         break;
       case 'wave':
@@ -605,7 +611,8 @@ export class GameView {
         for (const cr of e.created) {
           const [x, y] = b.cellXY(cr.at);
           const v = b.make(cr.tile, x, y, this.t);
-          v.scale = 1.7;
+          v.flash = 1;
+          v.fresh = 0.45;
           b.tiles.set(cr.tile.id, v);
           const [cx, cy] = b.center(cr.at);
           burst(this.ps, cx, cy, 14, { ramp: ['white', 'gold4', 'orange3'], add: true, layer: 'ui', speed: [30, 80], max: 0.4 });
@@ -631,51 +638,98 @@ export class GameView {
     });
   }
 
+  /** Two orbs racing out of (x, y) along a row or a column to the board edges. */
+  private rocketLine(x: number, y: number, horizontal: boolean) {
+    for (const dir of [-1, 1])
+      this.juice.shoot({
+        x0: x,
+        y0: y,
+        x1: horizontal ? (dir < 0 ? BX - 10 : BX + BW + 10) : x,
+        y1: horizontal ? y : dir < 0 ? BY - 10 : BY + BH + 10,
+        dur: 0.18,
+        arc: 0,
+        kind: 'orb',
+        color: 'cream',
+        trail: ['cream', 'gold4', 'orange3', 'red2'],
+        size: 3,
+      });
+  }
+
+  private boomFx(ax: number, ay: number, big: boolean) {
+    this.app.audio.play('boom', big ? 0.8 : 1);
+    this.ps.spawn({ x: ax, y: ay, len: 2, grow: big ? 190 : 110, max: big ? 0.4 : 0.3, kind: 'ring', ramp: ['cream', 'gold4', 'orange3', 'red2'], add: true, layer: 'ui' });
+    burst(this.ps, ax, ay, big ? 80 : 40, { ramp: ['cream', 'gold4', 'orange3', 'red2', 'grey1'], add: true, layer: 'ui', speed: big ? [60, 220] : [40, 160], max: 0.5 });
+    for (let k = 0; k < (big ? 12 : 6); k++)
+      this.ps.spawn({ x: ax + rand(-10, 10), y: ay + rand(-10, 10), vx: rand(-10, 10), vy: rand(-20, -5), max: 1.6, kind: 'smoke', len: rand(4, 8), grow: 6, ramp: ['grey2', 'grey1', 'ink3'], alpha: 0.6, layer: 'ui' });
+    this.juice.shake(big ? 0.9 : 0.5);
+    this.juice.stop(big ? 0.1 : 0.05);
+  }
+
   private blastFx(kind: string, at: number, cells: number[]) {
     const [ax, ay] = this.board.center(at);
-    if (kind === 'rocketH' || kind === 'rocketV') {
-      this.app.audio.play('rocket');
-      this.rocketsSeen++;
-      const pts = cells.map((i) => this.board.center(i));
-      for (const [x, y] of pts)
+    const sparks = (list: number[]) => {
+      for (const i of list) {
+        const [x, y] = this.board.center(i);
         burst(this.ps, x, y, 4, { ramp: ['cream', 'gold4', 'orange3', 'grey2'], add: true, layer: 'ui', speed: [10, 50], max: 0.35 });
-      for (const dir of [-1, 1]) {
-        const horizontal = kind === 'rocketH' || Math.abs(pts[pts.length - 1][1] - ay) < 2;
-        this.juice.shoot({
-          x0: ax,
-          y0: ay,
-          x1: horizontal ? (dir < 0 ? BX - 10 : BX + BW + 10) : ax,
-          y1: horizontal ? ay : dir < 0 ? BY - 10 : BY + BH + 10,
-          dur: 0.18,
-          arc: 0,
-          kind: 'orb',
-          color: 'cream',
-          trail: ['cream', 'gold4', 'orange3', 'red2'],
-          size: 3,
-        });
       }
-      this.juice.shake(0.25);
-    } else if (kind === 'active') {
-      this.app.audio.play('ink', 0.7);
-      for (const i of cells) {
-        const [x, y] = this.board.center(i);
-        burst(this.ps, x, y, 10, { ramp: ['vio5', 'vio4', 'grey3'], add: true, layer: 'ui', speed: [15, 60], max: 0.4 });
+    };
+    switch (kind) {
+      case 'rocketH':
+      case 'rocketV': {
+        this.app.audio.play('rocket');
+        this.rocketsSeen++;
+        sparks(cells);
+        const pts = cells.map((i) => this.board.center(i));
+        this.rocketLine(ax, ay, kind === 'rocketH' || Math.abs(pts[pts.length - 1][1] - ay) < 2);
+        if (cells.length > 6) this.rocketLine(ax, ay, kind !== 'rocketH');
+        this.juice.shake(0.25);
+        break;
       }
-    } else if (kind === 'prism') {
-      this.app.audio.play('prism');
-      for (const i of cells) {
-        const [x, y] = this.board.center(i);
-        this.juice.shoot({ x0: ax, y0: ay, x1: x, y1: y, dur: 0.14, arc: 0, color: 'white', trail: ['white', 'cold6', 'vio5', 'gold4'], size: 1 });
-      }
-      this.juice.flash('cold6', 0.2);
-    } else {
-      this.app.audio.play('boom');
-      this.ps.spawn({ x: ax, y: ay, len: 2, grow: 110, max: 0.3, kind: 'ring', ramp: ['cream', 'gold4', 'orange3', 'red2'], add: true, layer: 'ui' });
-      burst(this.ps, ax, ay, 40, { ramp: ['cream', 'gold4', 'orange3', 'red2', 'grey1'], add: true, layer: 'ui', speed: [40, 160], max: 0.5 });
-      for (let k = 0; k < 6; k++)
-        this.ps.spawn({ x: ax + rand(-10, 10), y: ay + rand(-10, 10), vx: rand(-10, 10), vy: rand(-20, -5), max: 1.6, kind: 'smoke', len: rand(4, 8), grow: 6, ramp: ['grey2', 'grey1', 'ink3'], alpha: 0.6, layer: 'ui' });
-      this.juice.shake(0.5);
-      this.juice.stop(0.05);
+      case 'cross':
+        this.app.audio.play('rocket', 0.8);
+        sparks(cells);
+        this.rocketLine(ax, ay, true);
+        this.rocketLine(ax, ay, false);
+        this.juice.flash('gold4', 0.2);
+        this.juice.shake(0.45);
+        break;
+      case 'bigCross':
+        this.app.audio.play('rocket', 0.7);
+        this.app.audio.play('boom', 1.2);
+        sparks(cells);
+        for (const d of [-1, 0, 1]) {
+          this.rocketLine(ax, ay + d * T, true);
+          this.rocketLine(ax + d * T, ay, false);
+        }
+        this.juice.flash('orange4', 0.3);
+        this.juice.shake(0.7);
+        this.juice.stop(0.08);
+        break;
+      case 'active':
+        this.app.audio.play('ink', 0.7);
+        for (const i of cells) {
+          const [x, y] = this.board.center(i);
+          burst(this.ps, x, y, 10, { ramp: ['vio5', 'vio4', 'grey3'], add: true, layer: 'ui', speed: [15, 60], max: 0.4 });
+        }
+        break;
+      case 'prism':
+      case 'nova':
+        this.app.audio.play('prism', kind === 'nova' ? 0.7 : 1);
+        for (const i of cells) {
+          const [x, y] = this.board.center(i);
+          this.juice.shoot({ x0: ax, y0: ay, x1: x, y1: y, dur: 0.14, arc: 0, color: 'white', trail: ['white', 'cold6', 'vio5', 'gold4'], size: 1 });
+        }
+        this.juice.flash(kind === 'nova' ? 'white' : 'cold6', kind === 'nova' ? 0.55 : 0.2);
+        if (kind === 'nova') {
+          this.juice.shake(1);
+          this.juice.stop(0.12);
+        }
+        break;
+      case 'bigBomb':
+        this.boomFx(ax, ay, true);
+        break;
+      default:
+        this.boomFx(ax, ay, false);
     }
   }
 
@@ -1039,25 +1093,35 @@ export class GameView {
     }
   }
 
-  private updatePreview() {
+  /** The swap the player is about to make: a drag past the threshold, or a picked tile plus a hovered neighbour. */
+  private candidate(): Move | null {
     const b = this.board;
     const m = b.dragMove();
+    if (m) return m;
+    if (!b.drag && b.selected >= 0 && b.hover >= 0 && adjacent(b.selected, b.hover, this.mods.wrap)) return { from: b.selected, to: b.hover };
+    return null;
+  }
+
+  private updatePreview() {
+    const b = this.board;
+    const m = this.canPlay() ? this.candidate() : null;
     if (!m || !this.run.combat) {
-      if (!b.drag) {
-        b.highlight = [];
-        b.previewText = '';
-      }
+      b.highlight = [];
+      b.blastCells = [];
+      b.previewText = '';
       return;
     }
+    const block = swapBlock(this.run.combat.board, m, this.mods.wrap);
     const p = previewMove(this.run, this.mods, m);
     b.highlight = p.valid ? p.groups : [];
+    b.blastCells = p.blast ? p.blast.cells : [];
     const parts: string[] = [];
     if (p.damage) parts.push(`урон ${p.damage}`);
     if (p.armor) parts.push(`броня +${p.armor}`);
     if (p.charge) parts.push(`чернила +${p.charge}`);
     if (p.coins) parts.push(`монеты +${p.coins}`);
     if (p.specials) parts.push('особая фишка!');
-    b.previewText = p.valid ? parts.join(' · ') || 'совпадение' : 'нет совпадения';
+    b.previewText = block ?? (p.valid ? parts.join(' · ') || (p.blast ? 'взрыв' : 'совпадение') : 'нет совпадения');
   }
 
   // ── Input ─────────────────────────────────────────────────────────
@@ -1076,12 +1140,14 @@ export class GameView {
       this.aimAt(x, y, cell);
       return;
     }
-    if (cell < 0) return;
-    this.board.drag = { line: null, index: -1, sx: x, sy: y, offset: 0, cell };
+    if (cell < 0) {
+      this.board.selected = -1;
+      return;
+    }
+    this.board.startDrag(cell, x, y);
   }
 
   pointerMove(x: number, y: number) {
-    const d = this.board.drag;
     this.board.hover = this.canPlay() && !this.targeting ? this.board.cellAt(x, y) : -1;
     if (this.targeting && this.run.combat) {
       const cell = this.board.cellAt(x, y);
@@ -1098,36 +1164,40 @@ export class GameView {
                 ? [cell]
                 : [];
     }
-    if (!d) return;
-    const dx = x - d.sx;
-    const dy = y - d.sy;
-    if (!d.line && Math.hypot(dx, dy) > 4) {
-      const line = Math.abs(dx) > Math.abs(dy) ? 'row' : 'col';
-      const index = line === 'row' ? Math.floor(d.cell / 6) : d.cell % 6;
-      if (!canShift(this.run.combat!.board, line, index)) {
-        this.fail(line === 'row' && index >= 6 - this.run.combat!.board.flood ? 'Строка под водой' : 'Линия закреплена');
-        this.board.drag = null;
-        return;
-      }
-      d.line = line;
-      d.index = index;
-    }
-    if (d.line) d.offset = Math.max(-BW * 2, Math.min(BW * 2, d.line === 'row' ? dx : dy));
+    if (this.board.drag) this.board.dragTo(x, y);
   }
 
   pointerUp() {
     this.app.fastForward = false;
-    const d = this.board.drag;
+    const b = this.board;
+    const d = b.drag;
     if (!d) return;
-    const m = this.board.dragMove();
-    if (m && this.run.combat && isValidMove(this.run.combat.board, m, this.mods.wrap)) {
-      this.act({ type: 'move', move: m });
-    } else {
-      if (d.line && m) this.fail('Нет совпадения');
-      this.board.drag = null;
-      this.board.highlight = [];
-      this.board.previewText = '';
+    if (!d.moved) {
+      // A click: pick a tile, then click a neighbour to swap with it.
+      b.drag = null;
+      if (b.selected < 0 || b.selected === d.cell) b.selected = b.selected === d.cell ? -1 : d.cell;
+      else if (adjacent(b.selected, d.cell, this.mods.wrap)) this.trySwap({ from: b.selected, to: d.cell });
+      else b.selected = d.cell;
+      return;
     }
+    const m = b.dragMove();
+    if (m) this.trySwap(m);
+    else b.dropBack();
+  }
+
+  /** Ask the engine for a swap; a refused one springs back with the reason. */
+  trySwap(m: Move) {
+    const c = this.run.combat;
+    if (!c) return;
+    const b = this.board;
+    if (isValidMove(c.board, m, this.mods.wrap)) {
+      b.selected = -1;
+      this.act({ type: 'move', move: m });
+      return;
+    }
+    b.refuse(m);
+    b.selected = -1;
+    this.fail(swapBlock(c.board, m, this.mods.wrap) ?? 'Нет совпадения', false);
   }
 
   aimAt(x: number, y: number, cell: number) {
@@ -1214,19 +1284,25 @@ export class GameView {
       if (b.cursor < 0) b.cursor = 14;
       const d = dirKey[k];
       if (d) {
-        if (shift) {
-          const line = d === 'w' || d === 'e' ? 'row' : 'col';
-          const index = line === 'row' ? Math.floor(b.cursor / 6) : b.cursor % 6;
-          const delta = d === 'e' || d === 's' ? 1 : 5;
-          const move: Move = { line, index, delta };
-          if (this.run.combat && isValidMove(this.run.combat.board, move, this.mods.wrap)) this.act({ type: 'move', move });
-          else this.fail('Нет совпадения');
+        const [dx, dy] = STEP[d];
+        if (shift || b.selected === b.cursor) {
+          // Swap the tile under the cursor with its neighbour; the cursor follows the tile.
+          const to = b.neighbour(b.cursor, dx, dy);
+          if (to >= 0) {
+            const from = b.cursor;
+            b.cursor = to;
+            this.trySwap({ from, to });
+            if (this.busy() === false) b.cursor = from;
+          }
         } else {
-          const [dx, dy] = STEP[d];
           const c = (b.cursor % 6) + dx;
           const r = Math.floor(b.cursor / 6) + dy;
           if (c >= 0 && c < 6 && r >= 0 && r < 6) b.cursor = r * 6 + c;
         }
+        return;
+      }
+      if (k === ' ' || k === 'Enter') {
+        b.selected = b.selected === b.cursor ? -1 : b.cursor;
         return;
       }
       if (k === 'q' || k === 'Q' || k === 'й' || k === 'Й') {
@@ -1325,7 +1401,7 @@ export class GameView {
     // Board and combat UI (unlit, for readability).
     if (this.board.visible > 0) {
       const c = this.run.combat;
-      this.board.draw(ctx, t, (line, i) => (c ? !canShift(c.board, line, i) : false));
+      this.board.draw(ctx, t, (a, b) => (c ? !swapBlock(c.board, { from: a, to: b }, this.mods.wrap) : false));
       for (const v of this.enemies.values()) {
         const e = c?.enemies.find((x) => x.uid === v.uid);
         const dmg = e && c ? intentDamage(c, e) : 0;
@@ -1414,7 +1490,7 @@ export class GameView {
     // The boss bar owns the bottom line, so the hint only shows in ordinary fights.
     if (this.inCombat && c && !c.boss && this.run.stats.moves === 0 && !this.busy()) {
       const a = 0.65 + Math.sin(t * 4) * 0.3;
-      text(ctx, 'Потяни фишку вдоль строки или столбца: сдвиг, который собирает 3+ одинаковых, — это ход', 320, 306, 'gold4', { align: 'center', outline: 'ink0', alpha: a });
+      text(ctx, 'Потяни фишку на соседнюю клетку: обмен, который собирает 3 в ряд, — это ход', 320, 306, 'gold4', { align: 'center', outline: 'ink0', alpha: a });
       text(ctx, 'Враги ходят после тебя — следи за их таймерами', 320, 318, 'cold5', { align: 'center', outline: 'ink0', alpha: a });
     }
     if (this.inCombat && c) {

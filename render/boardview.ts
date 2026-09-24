@@ -2,7 +2,7 @@ import { H, W, type Group, type Move, type Tile } from '../game/types.ts';
 import { text } from './font.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { draw, getFrame, type Ctx2D } from './sprite.ts';
-import { clamp, easeDrop, easeOut } from './tween.ts';
+import { clamp, easeDrop, easeOut, easeOutBack } from './tween.ts';
 
 export const T = 26;
 export const BX = 242;
@@ -21,21 +21,25 @@ export interface VTile {
   t: number;
   dur: number;
   ease: (k: number) => number;
-  scale: number;
   alpha: number;
   flash: number;
   pop: number;
   popping: boolean;
   born: number;
+  /** A try that failed: the tile nudges towards (wx, wy) and back. */
+  wobble: { dx: number; dy: number; t: number } | null;
+  /** A special that just appeared: its frame blinks for a moment. */
+  fresh: number;
 }
 
+/** One tile held by the pointer. dx/dy follow the pointer along one axis, at most one cell. */
 export interface Drag {
-  line: 'row' | 'col' | null;
-  index: number;
+  cell: number;
   sx: number;
   sy: number;
-  offset: number;
-  cell: number;
+  dx: number;
+  dy: number;
+  moved: boolean;
 }
 
 const CARD: Record<string, [string, string, string]> = {
@@ -46,14 +50,22 @@ const CARD: Record<string, [string, string, string]> = {
   prism: ['grey1', 'grey3', 'ink2'],
 };
 
+/** How far (px) a drag must travel before it counts as a swap. */
+const COMMIT = Math.round(T * 0.4);
+
 export class BoardView {
   tiles = new Map<number, VTile>();
   queue: Tile[][] = [];
   flood = 0;
   colLock: number[] = Array(W).fill(0);
   rowLock: number[] = Array(H).fill(0);
+  /** The ring binder: edge tiles swap with the opposite edge. */
+  wrap = false;
   drag: Drag | null = null;
+  /** Click-to-swap: the tile picked first, waiting for a neighbour. */
+  selected = -1;
   highlight: Group[] = [];
+  blastCells: number[] = [];
   previewText = '';
   shake = 0;
   cursor = -1;
@@ -63,6 +75,9 @@ export class BoardView {
   glintK = 1;
   aimCells: number[] = [];
   visible = 0;
+  /** True while a fight is on screen; the board fades in and out with it. */
+  active = false;
+  preview = 1;
 
   cellXY(i: number): [number, number] {
     return [(i % W) * T, Math.floor(i / W) * T];
@@ -76,6 +91,18 @@ export class BoardView {
   cellAt(px: number, py: number): number {
     const c = Math.floor((px - BX) / T);
     const r = Math.floor((py - BY) / T);
+    if (c < 0 || r < 0 || c >= W || r >= H) return -1;
+    return r * W + c;
+  }
+
+  /** Neighbour of cell i one step along (dc, dr), or -1 at an edge (unless the ring joins it). */
+  neighbour(i: number, dc: number, dr: number): number {
+    let c = (i % W) + dc;
+    let r = Math.floor(i / W) + dr;
+    if (this.wrap) {
+      c = (c + W) % W;
+      r = (r + H) % H;
+    }
     if (c < 0 || r < 0 || c >= W || r >= H) return -1;
     return r * W + c;
   }
@@ -94,14 +121,13 @@ export class BoardView {
         v.dur = 0;
         v.popping = false;
         v.alpha = 1;
-        v.scale = 1;
       } else this.tiles.set(tile.id, this.make(tile, x, y, now));
     });
     for (const id of this.tiles.keys()) if (!seen.has(id)) this.tiles.delete(id);
   }
 
   make(tile: Tile, x: number, y: number, now: number): VTile {
-    return { tile: { ...tile }, x, y, fx: x, fy: y, tx: x, ty: y, t: 0, dur: 0, ease: easeOut, scale: 1, alpha: 1, flash: 0, pop: 0, popping: false, born: now };
+    return { tile: { ...tile }, x, y, fx: x, fy: y, tx: x, ty: y, t: 0, dur: 0, ease: easeOut, alpha: 1, flash: 0, pop: 0, popping: false, born: now, wobble: null, fresh: 0 };
   }
 
   moveTo(id: number, i: number, dur: number, ease = easeDrop, from?: [number, number]) {
@@ -132,13 +158,11 @@ export class BoardView {
         if (k >= 1) v.dur = 0;
       }
       if (v.flash > 0) v.flash = Math.max(0, v.flash - dt * 5);
-      if (v.popping) {
-        v.pop += dt / 0.13;
-        v.scale = 1 + v.pop * 0.35;
-        v.alpha = Math.max(0, 1 - v.pop);
-      } else if (v.scale !== 1 && !v.popping) {
-        v.scale += (1 - v.scale) * Math.min(1, dt * 14);
-        if (Math.abs(v.scale - 1) < 0.02) v.scale = 1;
+      if (v.fresh > 0) v.fresh = Math.max(0, v.fresh - dt);
+      if (v.popping) v.pop += dt / 0.16;
+      if (v.wobble) {
+        v.wobble.t += dt / 0.22;
+        if (v.wobble.t >= 1) v.wobble = null;
       }
     }
     for (const [id, v] of this.tiles) if (v.popping && v.pop >= 1) this.tiles.delete(id);
@@ -155,10 +179,7 @@ export class BoardView {
     this.visible = this.active ? Math.min(1, this.visible + dt * 3) : Math.max(0, this.visible - dt * 3);
   }
 
-  /** True while a fight is on screen; the board fades in and out with it. */
-  active = false;
-
-  /** Tile cell index at rest (ignores in-flight tiles). */
+  /** Tile id per cell at rest (ignores in-flight tiles). */
   gridIds(): (number | null)[] {
     const grid: (number | null)[] = Array(W * H).fill(null);
     for (const v of this.tiles.values()) {
@@ -170,16 +191,114 @@ export class BoardView {
     return grid;
   }
 
-  dragMove(): Move | null {
-    const d = this.drag;
-    if (!d || !d.line) return null;
-    const size = d.line === 'row' ? W : H;
-    const delta = ((Math.round(d.offset / T) % size) + size) % size;
-    if (!delta) return null;
-    return { line: d.line, index: d.index, delta };
+  // ── Drag and swap ──────────────────────────────────────────────────
+
+  startDrag(cell: number, x: number, y: number) {
+    this.drag = { cell, sx: x, sy: y, dx: 0, dy: 0, moved: false };
   }
 
-  draw(ctx: Ctx2D, t: number, locked: (line: 'row' | 'col', i: number) => boolean) {
+  /** Pointer moved: the held tile follows along the dominant axis, at most one cell. */
+  dragTo(x: number, y: number) {
+    const d = this.drag;
+    if (!d) return;
+    const rx = x - d.sx;
+    const ry = y - d.sy;
+    if (!d.moved && Math.hypot(rx, ry) > 3) d.moved = true;
+    if (!d.moved) return;
+    const horizontal = Math.abs(rx) >= Math.abs(ry);
+    d.dx = horizontal ? Math.max(-T, Math.min(T, rx)) : 0;
+    d.dy = horizontal ? 0 : Math.max(-T, Math.min(T, ry));
+    const partner = this.dragPartner();
+    if (partner < 0) {
+      d.dx = Math.max(-4, Math.min(4, d.dx));
+      d.dy = Math.max(-4, Math.min(4, d.dy));
+    }
+  }
+
+  /** The neighbour the held tile is being pushed into (-1 while the drag has no direction). */
+  dragPartner(): number {
+    const d = this.drag;
+    if (!d || (!d.dx && !d.dy)) return -1;
+    return this.neighbour(d.cell, Math.sign(d.dx), Math.sign(d.dy));
+  }
+
+  /** The swap the current drag would make if released now. */
+  dragMove(): Move | null {
+    const d = this.drag;
+    if (!d || Math.max(Math.abs(d.dx), Math.abs(d.dy)) < COMMIT) return null;
+    const to = this.dragPartner();
+    return to >= 0 ? { from: d.cell, to } : null;
+  }
+
+  /** Visual start for a swap: where the held pair is drawn right now. */
+  private heldOffset(cell: number): [number, number] {
+    const d = this.drag;
+    if (!d) return [0, 0];
+    if (cell === d.cell) return [d.dx, d.dy];
+    if (cell === this.dragPartner()) return [-d.dx, -d.dy];
+    return [0, 0];
+  }
+
+  /** Accepted swap: both tiles slide into each other's cells from where they are drawn. */
+  animateSwap(m: Move) {
+    const grid = this.gridIds();
+    const a = grid[m.from];
+    const b = grid[m.to];
+    const [ax, ay] = this.cellXY(m.from);
+    const [bx, by] = this.cellXY(m.to);
+    const [oax, oay] = this.heldOffset(m.from);
+    const [obx, oby] = this.heldOffset(m.to);
+    this.drag = null;
+    this.selected = -1;
+    if (a !== null) this.moveTo(a, m.to, 0.12, easeOut, [ax + oax, ay + oay]);
+    if (b !== null) this.moveTo(b, m.from, 0.12, easeOut, [bx + obx, by + oby]);
+  }
+
+  /** Refused swap: the pair springs back (from the drag) or nudges and returns (click/keys). */
+  refuse(m: Move) {
+    const grid = this.gridIds();
+    const a = grid[m.from];
+    const b = grid[m.to];
+    const [ax, ay] = this.cellXY(m.from);
+    const [bx, by] = this.cellXY(m.to);
+    const held = this.drag && this.drag.moved;
+    const [oax, oay] = this.heldOffset(m.from);
+    const [obx, oby] = this.heldOffset(m.to);
+    this.drag = null;
+    const va = a !== null ? this.tiles.get(a) : undefined;
+    const vb = b !== null ? this.tiles.get(b) : undefined;
+    if (held && (oax || oay)) {
+      if (va) this.moveTo(va.tile.id, m.from, 0.2, easeOutBack, [ax + oax, ay + oay]);
+      if (vb) this.moveTo(vb.tile.id, m.to, 0.2, easeOutBack, [bx + obx, by + oby]);
+      return;
+    }
+    const sx = Math.sign(bx - ax) * 7;
+    const sy = Math.sign(by - ay) * 7;
+    if (va) va.wobble = { dx: sx, dy: sy, t: 0 };
+    if (vb) vb.wobble = { dx: -sx, dy: -sy, t: 0 };
+  }
+
+  /** Drag released without a swap: the tile settles back. */
+  dropBack() {
+    const d = this.drag;
+    if (!d) return;
+    const grid = this.gridIds();
+    const [x, y] = this.cellXY(d.cell);
+    const id = grid[d.cell];
+    const partner = this.dragPartner();
+    const pid = partner >= 0 ? grid[partner] : null;
+    if (id !== null && (d.dx || d.dy)) this.moveTo(id, d.cell, 0.14, easeOutBack, [x + d.dx, y + d.dy]);
+    if (pid !== null && partner >= 0) {
+      const [px, py] = this.cellXY(partner);
+      this.moveTo(pid, partner, 0.14, easeOutBack, [px - d.dx, py - d.dy]);
+    }
+    this.drag = null;
+  }
+
+  // ── Draw ───────────────────────────────────────────────────────────
+
+  /** `swappable(a, b)`: that pair may physically swap (no staple, anchor or water in the way). */
+  draw(ctx: Ctx2D, t: number, swappable: (a: number, b: number) => boolean) {
     const sx = this.shake > 0 ? Math.round(Math.sin(t * 90) * this.shake * 3) : 0;
     const ox = BX + sx;
     const oy = BY;
@@ -200,10 +319,10 @@ export class BoardView {
     // Grid dots.
     ctx.fillStyle = hex('ink2');
     for (let r = 1; r < H; r++) for (let c = 1; c < W; c++) ctx.fillRect(ox + c * T - 1, oy + r * T - 1, 2, 2);
-    // Locks.
+    // Anchored columns: shaded, with the anchor above.
     for (let c = 0; c < W; c++)
-      if (this.colLock[c] > 0 || locked('col', c)) {
-        ctx.fillStyle = 'rgba(90,110,150,0.18)';
+      if (this.colLock[c] > 0) {
+        ctx.fillStyle = 'rgba(40,120,120,0.22)';
         ctx.fillRect(ox + c * T, oy, T, BH);
       }
     ctx.globalAlpha = 1;
@@ -213,37 +332,57 @@ export class BoardView {
     ctx.rect(ox, oy, BW, BH);
     ctx.clip();
     const d = this.drag;
+    const partner = this.dragPartner();
+    const held: VTile[] = [];
     for (const v of this.tiles.values()) {
       let x = v.x;
       let y = v.y;
-      let extra: [number, number] | null = null;
-      if (d?.line && !v.popping && v.dur === 0) {
-        const col = Math.round(v.x / T);
-        const row = Math.round(v.y / T);
-        if (d.line === 'row' && row === d.index) {
-          x = (((v.x + d.offset) % BW) + BW) % BW;
-          if (x > BW - T) extra = [x - BW, y];
-        } else if (d.line === 'col' && col === d.index) {
-          y = (((v.y + d.offset) % BH) + BH) % BH;
-          if (y > BH - T) extra = [x, y - BH];
+      if (d && !v.popping && v.dur === 0) {
+        const cell = Math.round(v.y / T) * W + Math.round(v.x / T);
+        if (cell === d.cell) {
+          held.push(v);
+          continue;
+        }
+        if (cell === partner) {
+          x -= d.dx;
+          y -= d.dy;
         }
       }
+      if (v.wobble) {
+        const k = Math.sin(v.wobble.t * Math.PI);
+        x += Math.round(v.wobble.dx * k);
+        y += Math.round(v.wobble.dy * k);
+      }
       this.drawTile(ctx, v, ox + x, oy + y, t);
-      if (extra) this.drawTile(ctx, v, ox + extra[0], oy + extra[1], t);
     }
-    // Preview highlight (cells are post-shift positions).
+    // The held tile is drawn last, lifted by a pixel with a shadow, so it reads as "in hand".
+    for (const v of held) {
+      const x = ox + v.x + (d?.dx ?? 0);
+      const y = oy + v.y + (d?.dy ?? 0);
+      ctx.fillStyle = 'rgba(7,7,15,0.55)';
+      ctx.fillRect(Math.round(x) + 2, Math.round(y) + 2, T - 2, T - 2);
+      this.drawTile(ctx, v, x, y - 1, t);
+      ctx.fillStyle = hex('gold4');
+      this.frameRect(ctx, Math.round(x), Math.round(y) - 1, T, T);
+    }
+    // Preview: cells the swap would clear (post-swap positions) and cells a special would blast.
+    if (this.blastCells.length) {
+      ctx.globalAlpha = 0.28 + Math.sin(t * 12) * 0.12;
+      ctx.fillStyle = hex('orange4');
+      for (const i of this.blastCells) {
+        const [x, y] = this.cellXY(i);
+        ctx.fillRect(ox + x + 1, oy + y + 1, T - 2, T - 2);
+      }
+      ctx.globalAlpha = 1;
+    }
     if (this.highlight.length) {
       const pulse = 0.55 + Math.sin(t * 10) * 0.25;
       for (const g of this.highlight) {
-        const c = FAM_COLORS[g.fam].light;
         ctx.globalAlpha = pulse;
-        ctx.fillStyle = hex(c);
+        ctx.fillStyle = hex(FAM_COLORS[g.fam].light);
         for (const i of g.cells) {
           const [x, y] = this.cellXY(i);
-          ctx.fillRect(ox + x, oy + y, T, 1);
-          ctx.fillRect(ox + x, oy + y + T - 1, T, 1);
-          ctx.fillRect(ox + x, oy + y, 1, T);
-          ctx.fillRect(ox + x + T - 1, oy + y, 1, T);
+          this.frameRect(ctx, ox + x, oy + y, T, T);
         }
         ctx.globalAlpha = 1;
       }
@@ -260,6 +399,8 @@ export class BoardView {
     }
     ctx.restore();
 
+    for (let c = 0; c < W; c++) if (this.colLock[c] > 0 && a >= 1) draw(ctx, getFrame('tile_anchor'), ox + c * T + T / 2, oy - 3);
+
     // Aim overlay (active / bomb targeting).
     if (this.aimCells.length) {
       ctx.globalAlpha = 0.35 + Math.sin(t * 8) * 0.15;
@@ -270,29 +411,20 @@ export class BoardView {
       }
       ctx.globalAlpha = 1;
     }
-    // Hover hint: which row and column this tile can drag.
-    if (this.hover >= 0 && !this.drag && this.visible >= 1) {
-      const r = Math.floor(this.hover / W);
-      const c = this.hover % W;
-      ctx.globalAlpha = 0.08;
-      ctx.fillStyle = hex('cream');
-      if (!locked('row', r)) ctx.fillRect(ox, oy + r * T, BW, T);
-      if (!locked('col', c)) ctx.fillRect(ox + c * T, oy, T, BH);
-      ctx.globalAlpha = 0.75;
-      ctx.fillStyle = hex('gold4');
-      const my = oy + r * T + T / 2;
-      const mx = ox + c * T + T / 2;
-      if (!locked('row', r))
-        for (let k = 0; k < 3; k++) {
-          ctx.fillRect(ox - 9 + k, my - k, 1, k * 2 + 1);
-          ctx.fillRect(ox + BW + 8 - k, my - k, 1, k * 2 + 1);
-        }
-      if (!locked('col', c))
-        for (let k = 0; k < 3; k++) {
-          ctx.fillRect(mx - k, oy - 9 + k, k * 2 + 1, 1);
-          ctx.fillRect(mx - k, oy + BH + 8 - k, k * 2 + 1, 1);
-        }
-      ctx.globalAlpha = 1;
+    // Selected tile (click-to-swap) and hover arrows towards the neighbours it may swap with.
+    const focus = this.selected >= 0 ? this.selected : !d && this.visible >= 1 ? this.hover : -1;
+    if (focus >= 0) {
+      const [x, y] = this.cellXY(focus);
+      if (this.selected >= 0) {
+        ctx.fillStyle = hex(Math.floor(t * 6) % 2 ? 'gold4' : 'cream');
+        this.frameRect(ctx, ox + x - 1, oy + y - 1, T + 2, T + 2);
+      } else {
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = hex('cream');
+        ctx.fillRect(ox + x, oy + y, T, T);
+        ctx.globalAlpha = 1;
+      }
+      this.drawArrows(ctx, focus, ox, oy, swappable, t);
     }
     // Keyboard cursor.
     if (this.cursor >= 0) {
@@ -316,20 +448,46 @@ export class BoardView {
     if (this.previewText) text(ctx, this.previewText, BX + BW / 2, oy + BH + 8, 'cream', { align: 'center', outline: 'ink0' });
   }
 
-  preview = 1;
+  private frameRect(ctx: Ctx2D, x: number, y: number, w: number, h: number) {
+    ctx.fillRect(x, y, w, 1);
+    ctx.fillRect(x, y + h - 1, w, 1);
+    ctx.fillRect(x, y, 1, h);
+    ctx.fillRect(x + w - 1, y, 1, h);
+  }
+
+  /** Small gold chevrons on the sides of a tile where a swap is possible. */
+  private drawArrows(ctx: Ctx2D, cell: number, ox: number, oy: number, swappable: (a: number, b: number) => boolean, t: number) {
+    const [x, y] = this.cellXY(cell);
+    const cx = ox + x + T / 2;
+    const cy = oy + y + T / 2;
+    const bob = Math.floor(t * 3) % 2;
+    ctx.fillStyle = hex('gold4');
+    const dirs: [number, number][] = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ];
+    for (const [dc, dr] of dirs) {
+      const n = this.neighbour(cell, dc, dr);
+      if (n < 0 || !swappable(cell, n)) continue;
+      const ax = cx + dc * (T / 2 + 1 + bob);
+      const ay = cy + dr * (T / 2 + 1 + bob);
+      for (let k = 0; k < 3; k++) {
+        if (dc) ctx.fillRect(ax + dc * (2 - k), ay - k, 1, k * 2 + 1);
+        else ctx.fillRect(ax - k, ay + dr * (2 - k), k * 2 + 1, 1);
+      }
+    }
+  }
 
   private drawQueue(ctx: Ctx2D, ox: number, oy: number) {
     for (let c = 0; c < W; c++) {
+      if (this.colLock[c] > 0) continue;
       const q = this.queue[c] ?? [];
       for (let k = 0; k < Math.min(this.preview, q.length); k++) {
-        const tile = q[k];
         const x = ox + c * T + T / 2;
-        const y = oy - 12 - k * 11;
-        ctx.globalAlpha = k === 0 ? 0.9 : 0.55;
-        const f = getFrame(`tile_${tile.kind}`);
-        // Half-size ghost: draw every other pixel via scaled drawImage.
-        ctx.drawImage(f.canvas as CanvasImageSource, Math.round(x - 5), Math.round(y - 5), 10, 10);
-        ctx.globalAlpha = 1;
+        const y = oy - 9 - k * 9;
+        draw(ctx, getFrame(`tile_mini_${q[k].kind}`), x, y, k === 0 ? 1 : 0.6);
       }
     }
   }
@@ -338,53 +496,78 @@ export class BoardView {
     const tile = v.tile;
     const x = Math.round(px);
     const y = Math.round(py);
-    const s = v.scale;
-    ctx.globalAlpha = v.alpha;
-    if (tile.kind === 'junk') {
-      const f = getFrame('tile_junk');
-      if (s !== 1) ctx.drawImage(f.canvas as CanvasImageSource, Math.round(x + T / 2 - (f.w * s) / 2), Math.round(y + T / 2 - (f.h * s) / 2), Math.round(f.w * s), Math.round(f.h * s));
-      else draw(ctx, f, x + T / 2, y + T / 2);
-      ctx.globalAlpha = 1;
-      return;
-    }
-    const hidden = !!tile.hidden;
-    const card = hidden ? ['ink2', 'ink3', 'ink0'] : CARD[tile.kind] ?? CARD.prism;
-    const inset = s === 1 ? 1 : Math.round(1 - (s - 1) * 6);
+    // Popping tiles shrink by whole pixels (no fractional scaling) behind a white flash.
+    const inset = v.popping ? 1 + Math.min(12, Math.floor(v.pop * 13)) : 1;
     const w = T - inset * 2;
-    // Card.
-    ctx.fillStyle = hex('ink0');
-    ctx.fillRect(x + inset, y + inset, w, w);
-    ctx.fillStyle = hex(card[0]);
-    ctx.fillRect(x + inset + 1, y + inset + 1, w - 2, w - 2);
-    ctx.fillStyle = hex(card[1]);
-    ctx.fillRect(x + inset + 1, y + inset + 1, w - 2, 1);
-    ctx.fillRect(x + inset + 1, y + inset + 1, 1, w - 2);
-    ctx.fillStyle = hex(card[2]);
-    ctx.fillRect(x + inset + 1, y + inset + w - 2, w - 2, 1);
-    ctx.fillRect(x + inset + w - 2, y + inset + 1, 1, w - 2);
-    if (tile.kind === 'prism') {
-      const hue = ['red3', 'orange3', 'gold3', 'green3', 'teal4', 'cold3', 'vio4'];
-      for (let k = 0; k < w - 4; k++) {
-        ctx.fillStyle = hex(hue[(k + Math.floor(t * 12)) % hue.length]);
-        ctx.fillRect(x + inset + 2 + k, y + inset + w - 3, 1, 1);
+    if (w <= 0) return;
+    ctx.globalAlpha = v.alpha;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + inset, y + inset, w, w);
+    ctx.clip();
+    if (tile.kind === 'junk') {
+      draw(ctx, getFrame('tile_junk'), x + T / 2, y + T / 2);
+    } else {
+      const hidden = !!tile.hidden;
+      const card = hidden ? ['ink2', 'ink3', 'ink0'] : CARD[tile.kind] ?? CARD.prism;
+      ctx.fillStyle = hex('ink0');
+      ctx.fillRect(x + inset, y + inset, w, w);
+      ctx.fillStyle = hex(card[0]);
+      ctx.fillRect(x + inset + 1, y + inset + 1, w - 2, w - 2);
+      ctx.fillStyle = hex(card[1]);
+      ctx.fillRect(x + inset + 1, y + inset + 1, w - 2, 1);
+      ctx.fillRect(x + inset + 1, y + inset + 1, 1, w - 2);
+      ctx.fillStyle = hex(card[2]);
+      ctx.fillRect(x + inset + 1, y + inset + w - 2, w - 2, 1);
+      ctx.fillRect(x + inset + w - 2, y + inset + 1, 1, w - 2);
+      if (tile.kind === 'prism') {
+        const hue = ['red3', 'orange3', 'gold3', 'green3', 'teal4', 'cold3', 'vio4'];
+        for (let k = 0; k < T - 6; k++) {
+          ctx.fillStyle = hex(hue[(k + Math.floor(t * 12)) % hue.length]);
+          ctx.fillRect(x + 3 + k, y + T - 4, 1, 1);
+        }
+      }
+      if (hidden) {
+        ctx.fillStyle = hex('ink0');
+        ctx.fillRect(x + 5, y + 10, T - 10, 6);
+        ctx.fillStyle = hex('grey2');
+        ctx.fillRect(x + 6, y + 11, T - 12, 1);
+      } else draw(ctx, getFrame(`tile_${tile.kind}`), x + T / 2, y + T / 2);
+      this.drawSpecial(ctx, tile, x, y, t);
+    }
+    ctx.restore();
+    if (tile.fuse) {
+      draw(ctx, getFrame('tile_ember', Math.floor(t * 6) % 2 ? 'idle0' : 'idle1'), x + 6, y + 12);
+      text(ctx, String(tile.fuse), x + T - 5, y + T - 10, 'gold4', { outline: 'ink0' });
+    }
+    if (tile.pin) draw(ctx, getFrame('tile_staple'), x + T / 2, y + 5);
+    if (v.flash > 0) {
+      ctx.globalAlpha = v.flash * v.alpha;
+      ctx.fillStyle = hex('white');
+      ctx.fillRect(x + inset, y + inset, w, w);
+    }
+    if (v.fresh > 0) {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = hex(Math.floor(v.fresh * 16) % 2 ? 'white' : 'gold4');
+      this.frameRect(ctx, x, y, T, T);
+    }
+    if (tile.id === this.glintId && this.glintK < 1 && !tile.hidden && !v.popping) {
+      // Diagonal glint sweeping from the top-left corner.
+      const g = Math.round(this.glintK * (T * 2));
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = hex('white');
+      for (let k = 0; k < T - 2; k++) {
+        const gx = g - k;
+        if (gx >= 1 && gx < T - 1) ctx.fillRect(x + gx, y + 1 + k, 1, 1);
+        if (gx - 1 >= 1 && gx - 1 < T - 1) ctx.fillRect(x + gx - 1, y + 1 + k, 1, 1);
       }
     }
-    if (hidden) {
-      ctx.fillStyle = hex('ink0');
-      ctx.fillRect(x + 5, y + 10, T - 10, 6);
-      ctx.fillStyle = hex('grey2');
-      ctx.fillRect(x + 6, y + 11, T - 12, 1);
-    } else {
-      const icon = getFrame(`tile_${tile.kind}`);
-      if (s !== 1) {
-        const iw = Math.round(icon.w * s);
-        ctx.drawImage(icon.canvas as CanvasImageSource, Math.round(x + T / 2 - iw / 2), Math.round(y + T / 2 - iw / 2), iw, iw);
-      } else draw(ctx, icon, x + T / 2, y + T / 2);
-    }
-    // Specials.
+    ctx.globalAlpha = 1;
+  }
+
+  private drawSpecial(ctx: Ctx2D, tile: Tile, x: number, y: number, t: number) {
     if (tile.special === 'rocketH' || tile.special === 'rocketV') {
-      const glow = hex(Math.floor(t * 8) % 2 ? 'cream' : 'gold4');
-      ctx.fillStyle = glow;
+      ctx.fillStyle = hex(Math.floor(t * 8) % 2 ? 'cream' : 'gold4');
       if (tile.special === 'rocketH') {
         for (let k = 3; k < T - 3; k += 3) {
           ctx.fillRect(x + k, y + 3, 2, 1);
@@ -418,27 +601,5 @@ export class BoardView {
       ctx.fillStyle = hex(pulse ? 'gold4' : 'orange3');
       ctx.fillRect(x + T - 5, y + 2, 1, 1);
     }
-    if (tile.fuse) {
-      draw(ctx, getFrame('tile_ember', Math.floor(t * 6) % 2 ? 'idle0' : 'idle1'), x + 6, y + 12);
-      text(ctx, String(tile.fuse), x + T - 5, y + T - 10, 'gold4', { outline: 'ink0' });
-    }
-    if (tile.pin) draw(ctx, getFrame('tile_staple'), x + T / 2, y + 5);
-    if (v.flash > 0) {
-      ctx.globalAlpha = v.flash * v.alpha;
-      ctx.fillStyle = hex('white');
-      ctx.fillRect(x + 1, y + 1, T - 2, T - 2);
-    }
-    if (tile.id === this.glintId && this.glintK < 1 && !hidden) {
-      // Diagonal glint sweeping from the top-left corner.
-      const d = Math.round(this.glintK * (T * 2));
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = hex('white');
-      for (let k = 0; k < T - 2; k++) {
-        const gx = d - k;
-        if (gx >= 1 && gx < T - 1) ctx.fillRect(x + gx, y + 1 + k, 1, 1);
-        if (gx - 1 >= 1 && gx - 1 < T - 1) ctx.fillRect(x + gx - 1, y + 1 + k, 1, 1);
-      }
-    }
-    ctx.globalAlpha = 1;
   }
 }

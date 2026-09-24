@@ -7,6 +7,8 @@ import {
   type BoardState,
   type Fam,
   type Group,
+  type Line,
+  type LineShift,
   type Move,
   type Tile,
   type TileKind,
@@ -53,13 +55,13 @@ export function cloneBoard(b: BoardState): BoardState {
   };
 }
 
-const lineCells = (line: 'row' | 'col', index: number) =>
+export const lineCells = (line: Line, index: number) =>
   line === 'row'
     ? Array.from({ length: W }, (_, c) => idx(index, c))
     : Array.from({ length: H }, (_, r) => idx(r, index));
 
-/** Rows and columns that the player may shift right now. */
-export function canShift(b: BoardState, line: 'row' | 'col', index: number): boolean {
+/** Rows and columns an enemy may grab and drag (the crab): not flooded, not locked, no staples. */
+export function lineFree(b: BoardState, line: Line, index: number): boolean {
   if (line === 'row') {
     if (index >= H - b.flood) return false;
     if (b.rowLock[index] > 0) return false;
@@ -67,7 +69,7 @@ export function canShift(b: BoardState, line: 'row' | 'col', index: number): boo
   return !lineCells(line, index).some((i) => b.cells[i]?.pin);
 }
 
-export function shiftCells(cells: Tile[], m: Move): Tile[] {
+export function shiftCells(cells: Tile[], m: LineShift): Tile[] {
   const out = cells.slice();
   if (m.line === 'row') {
     const d = ((m.delta % W) + W) % W;
@@ -76,6 +78,46 @@ export function shiftCells(cells: Tile[], m: Move): Tile[] {
     const d = ((m.delta % H) + H) % H;
     for (let r = 0; r < H; r++) out[idx((r + d) % H, m.index)] = cells[idx(r, m.index)];
   }
+  return out;
+}
+
+/** Rockets, bombs and prisms: swapping one sets it off even without a match. */
+export const isSpecialTile = (t: Tile | undefined) => !!t && (!!t.special || t.kind === 'prism');
+
+/** Orthogonal neighbours; with `wrap` (the ring binder) opposite edges touch too. */
+export function adjacent(a: number, b: number, wrap: boolean): boolean {
+  if (a === b || a < 0 || b < 0 || a >= CELLS || b >= CELLS) return false;
+  const ra = rowOf(a);
+  const ca = colOf(a);
+  const rb = rowOf(b);
+  const cb = colOf(b);
+  if (ra === rb) {
+    const d = Math.abs(ca - cb);
+    return d === 1 || (wrap && d === W - 1);
+  }
+  if (ca === cb) {
+    const d = Math.abs(ra - rb);
+    return d === 1 || (wrap && d === H - 1);
+  }
+  return false;
+}
+
+/** Why this pair cannot be swapped, or null when the swap is physically possible. */
+export function swapBlock(b: BoardState, m: Move, wrap: boolean): string | null {
+  if (!Number.isInteger(m.from) || !Number.isInteger(m.to) || !adjacent(m.from, m.to, wrap)) return 'Только с соседней фишкой';
+  for (const i of [m.from, m.to]) {
+    if (b.cells[i]?.pin) return 'Фишка прибита скобой';
+    if (b.colLock[colOf(i)] > 0) return 'Столбец на якоре';
+    if (b.rowLock[rowOf(i)] > 0) return 'Строка закреплена';
+  }
+  if (rowOf(m.from) === rowOf(m.to) && rowOf(m.from) >= H - b.flood) return 'Под водой фишки не ходят вбок';
+  return null;
+}
+
+export function swapCells(cells: Tile[], m: Move): Tile[] {
+  const out = cells.slice();
+  out[m.from] = cells[m.to];
+  out[m.to] = cells[m.from];
   return out;
 }
 
@@ -165,9 +207,10 @@ export function findGroups(cells: Tile[], wrap: boolean, prefer: readonly number
           candidates = groupRuns.filter((r) => !r.h).flatMap((r) => r.cells).filter((c) => hCells.has(c));
         } else candidates = longestRun.cells;
         if (!candidates.length) candidates = [...set];
-        const preferred = candidates.filter((c) => prefer.includes(c));
+        // The special appears where the player dropped the tile (the first preferred cell).
+        const preferred = prefer.filter((c) => candidates.includes(c));
         const pool = preferred.length ? preferred : candidates;
-        at = pool[Math.floor((pool.length - 1) / 2)];
+        at = preferred.length ? preferred[0] : pool[Math.floor((pool.length - 1) / 2)];
         // Keep specials on real tiles where possible (a prism turning into a rocket reads badly).
         const realPool = pool.filter((c) => cells[c]?.kind === fam);
         if (realPool.length && cells[at]?.kind !== fam) at = realPool[Math.floor((realPool.length - 1) / 2)];
@@ -191,31 +234,36 @@ export function hasMatch(cells: Tile[], wrap: boolean): boolean {
   return findGroups(cells, wrap).length > 0;
 }
 
-export function allMoves(): Move[] {
-  const out: Move[] = [];
-  for (let r = 0; r < H; r++) for (let d = 1; d < W; d++) out.push({ line: 'row', index: r, delta: d });
-  for (let c = 0; c < W; c++) for (let d = 1; d < H; d++) out.push({ line: 'col', index: c, delta: d });
-  return out;
+const PAIRS: Move[] = [];
+for (let r = 0; r < H; r++)
+  for (let c = 0; c < W; c++) {
+    if (c + 1 < W) PAIRS.push({ from: idx(r, c), to: idx(r, c + 1) });
+    if (r + 1 < H) PAIRS.push({ from: idx(r, c), to: idx(r + 1, c) });
+  }
+const WRAP_PAIRS: Move[] = [
+  ...PAIRS,
+  ...Array.from({ length: H }, (_, r) => ({ from: idx(r, W - 1), to: idx(r, 0) })),
+  ...Array.from({ length: W }, (_, c) => ({ from: idx(H - 1, c), to: idx(0, c) })),
+];
+
+/** Every neighbouring pair once (from < to, except the wrap pairs). */
+export function allMoves(wrap: boolean): readonly Move[] {
+  return wrap ? WRAP_PAIRS : PAIRS;
 }
-const ALL_MOVES = allMoves();
+
+/** A swap is a move when it builds a match or sets off a special tile. */
+export function isValidMove(b: BoardState, m: Move, wrap: boolean): boolean {
+  if (swapBlock(b, m, wrap)) return false;
+  if (isSpecialTile(b.cells[m.from]) || isSpecialTile(b.cells[m.to])) return true;
+  return hasMatch(swapCells(b.cells, m), wrap);
+}
 
 export function validMoves(b: BoardState, wrap: boolean): Move[] {
-  return ALL_MOVES.filter(
-    (m) => canShift(b, m.line, m.index) && hasMatch(shiftCells(b.cells, m), wrap),
-  );
+  return allMoves(wrap).filter((m) => isValidMove(b, m, wrap));
 }
 
-export function isValidMove(b: BoardState, m: Move, wrap: boolean): boolean {
-  if (!Number.isInteger(m.index) || !Number.isInteger(m.delta)) return false;
-  const size = m.line === 'row' ? W : H;
-  if (m.index < 0 || m.index >= (m.line === 'row' ? H : W)) return false;
-  const d = ((m.delta % size) + size) % size;
-  if (d === 0) return false;
-  if (!canShift(b, m.line, m.index)) return false;
-  return hasMatch(shiftCells(b.cells, { ...m, delta: d }), wrap);
-}
-
-export const moveCells = (m: Move) => lineCells(m.line, m.index);
+/** Where a created special prefers to appear: the dropped tile first, then its partner. */
+export const moveCells = (m: Move) => [m.to, m.from];
 
 function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind): boolean {
   const r = rowOf(i);

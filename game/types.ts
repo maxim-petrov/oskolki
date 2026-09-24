@@ -15,7 +15,7 @@ export interface Tile {
   id: number;
   kind: TileKind;
   special?: SpecialKind;
-  /** Stapled: its row and column cannot be shifted. */
+  /** Stapled: the tile cannot be moved. */
   pin?: boolean;
   /** Ember fuse in ticks; at zero it burns the hero. */
   fuse?: number;
@@ -27,18 +27,25 @@ export interface BoardState {
   cells: Tile[];
   queue: Tile[][];
   nextId: number;
-  /** Number of flooded rows at the bottom; they cannot shift horizontally. */
+  /** Number of flooded rows at the bottom; their tiles cannot swap sideways. */
   flood: number;
+  /** Ticks left on anchored columns / rows: their tiles cannot be moved. */
   colLock: number[];
   rowLock: number[];
 }
 
 export type Line = 'row' | 'col';
-/** delta: 1..W-1, positive = right (row) or down (col). */
-export interface Move {
+/** An enemy grabbing a whole row (the crab): delta 1..W-1, positive = right. */
+export interface LineShift {
   line: Line;
   index: number;
   delta: number;
+}
+
+/** The player's move: the tile at `from` swaps places with its neighbour at `to`. */
+export interface Move {
+  from: number;
+  to: number;
 }
 
 export interface Group {
@@ -296,14 +303,17 @@ export interface Effect {
   text?: string;
 }
 
+/** Swap combos: two specials swapped together fire as one bigger blast. */
+export type ComboKind = 'cross' | 'bigCross' | 'bigBomb' | 'nova';
+
 export interface Blast {
-  kind: SpecialKind | 'prism' | 'bomb-item' | 'active';
+  kind: SpecialKind | 'prism' | 'bomb-item' | 'active' | ComboKind;
   at: number;
   cells: number[];
 }
 
 export type GameEvent =
-  | { t: 'shift'; move: Move; board: BoardSnap }
+  | { t: 'swap'; move: Move; board: BoardSnap }
   | {
       t: 'wave';
       n: number;

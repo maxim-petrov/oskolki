@@ -1,14 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  adjacent,
   createBoard,
   findGroups,
   gravity,
   idx,
-  shiftCells,
-  validMoves,
   isValidMove,
-  canShift,
+  lineFree,
+  shiftCells,
+  swapBlock,
+  swapCells,
+  validMoves,
 } from '../game/board.ts';
 import { rng } from '../game/rng.ts';
 import { QUEUE_LEN } from '../game/types.ts';
@@ -21,7 +24,26 @@ function cells(rows) {
 }
 const filler = ['sicbsi', 'cbsicb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'];
 
-test('rows and columns shift cyclically', () => {
+test('a swap exchanges two neighbours; only neighbours may swap', () => {
+  const c = cells(['bsicbs', ...filler.slice(1)]);
+  const out = swapCells(c, { from: idx(0, 0), to: idx(0, 1) });
+  assert.deepEqual(out.slice(0, 3).map((t) => t.kind), ['shield', 'blade', 'ink']);
+  assert.ok(adjacent(idx(2, 2), idx(3, 2), false));
+  assert.ok(!adjacent(idx(2, 2), idx(3, 3), false), 'no diagonals');
+  assert.ok(!adjacent(idx(0, 5), idx(0, 0), false));
+  assert.ok(adjacent(idx(0, 5), idx(0, 0), true), 'the ring joins the edges');
+});
+
+test('a swap is a move only when it matches or sets off a special', () => {
+  const b = { cells: cells(['sicbsi', 'bbiccs', ...filler.slice(2)]), queue: [], nextId: 100, flood: 0, colLock: Array(6).fill(0), rowLock: Array(6).fill(0) };
+  b.cells[idx(0, 2)].kind = 'blade';
+  assert.ok(isValidMove(b, { from: idx(0, 2), to: idx(1, 2) }, false), 'completes b b b in row 1');
+  assert.ok(!isValidMove(b, { from: idx(4, 4), to: idx(4, 5) }, false), 'no match anywhere');
+  b.cells[idx(4, 4)].special = 'bomb';
+  assert.ok(isValidMove(b, { from: idx(4, 4), to: idx(4, 5) }, false), 'a swapped bomb goes off');
+});
+
+test('the crab still drags whole rows cyclically', () => {
   const c = cells(['bsicbs', ...filler.slice(1)]);
   const right = shiftCells(c, { line: 'row', index: 0, delta: 1 });
   assert.deepEqual(right.slice(0, 6).map((t) => t.kind), ['shield', 'blade', 'shield', 'ink', 'coin', 'blade']);
@@ -93,14 +115,18 @@ test('fresh boards are deterministic, match-free and playable', () => {
   assert.ok(validMoves(a, false).length >= 6);
 });
 
-test('pins lock their row and column; floods lock rows horizontally', () => {
+test('staples, anchors and water block swaps', () => {
   const b = createBoard(rng(3));
   b.cells[idx(2, 3)].pin = true;
-  assert.equal(canShift(b, 'row', 2), false);
-  assert.equal(canShift(b, 'col', 3), false);
-  assert.equal(canShift(b, 'row', 1), true);
+  assert.equal(swapBlock(b, { from: idx(2, 3), to: idx(2, 4) }, false), 'Фишка прибита скобой');
+  assert.equal(swapBlock(b, { from: idx(1, 3), to: idx(2, 3) }, false), 'Фишка прибита скобой', 'nothing swaps into a staple');
+  assert.equal(swapBlock(b, { from: idx(2, 4), to: idx(2, 5) }, false), null);
+  assert.equal(lineFree(b, 'row', 2), false, 'the crab cannot drag a stapled row');
+  b.colLock[0] = 2;
+  assert.equal(swapBlock(b, { from: idx(3, 0), to: idx(3, 1) }, false), 'Столбец на якоре');
+  b.colLock[0] = 0;
   b.flood = 2;
-  assert.equal(canShift(b, 'row', 5), false);
-  assert.equal(canShift(b, 'col', 0), true);
-  assert.equal(isValidMove(b, { line: 'row', index: 2, delta: 1 }, false), false);
+  assert.equal(swapBlock(b, { from: idx(5, 1), to: idx(5, 2) }, false), 'Под водой фишки не ходят вбок');
+  assert.equal(swapBlock(b, { from: idx(3, 1), to: idx(4, 1) }, false), null, 'tiles still float up out of the water');
+  assert.equal(isValidMove(b, { from: idx(5, 1), to: idx(5, 2) }, false), false);
 });

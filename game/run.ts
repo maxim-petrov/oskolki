@@ -30,7 +30,7 @@ import type {
   ShopSlot,
 } from './types.ts';
 
-export const RULES = 'rebirth-1';
+export const RULES = 'rebirth-2';
 
 export function modsOf(run: RunState): Mods {
   return computeMods(run.hero.items, run.hero.transformations);

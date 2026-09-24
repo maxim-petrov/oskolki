@@ -261,6 +261,6 @@ export function drawRoomUI(v: GameView, ctx: Ctx2D, ui: UI, room: Room) {
     if (exploring) text(ctx, 'Пробел — спуститься', 320, FLOOR_Y + 40, 'gold4', { align: 'center', outline: 'ink0', alpha: 0.6 + Math.sin(t * 4) * 0.3 });
   }
   if (room.kind === 'start' && v.run.floor === 0 && exploring) {
-    paragraph(ctx, 'Выбери дверь: стрелки или клик. В бою тяни строку или столбец — сдвиг, который собирает 3+ одинаковых фишки, и есть ход.', 212, 118, 216, 'cold6', { outline: 'ink0' });
+    paragraph(ctx, 'Выбери дверь: стрелки или клик. В бою меняй местами соседние фишки — обмен, который собирает 3 в ряд, и есть ход.', 212, 118, 216, 'cold6', { outline: 'ink0' });
   }
 }

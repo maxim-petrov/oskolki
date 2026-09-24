@@ -199,7 +199,7 @@ export function playRun(start: RunState, opts: BotOptions, maxSteps = 6000): Sim
         takenAtStart = run.stats.damageTaken;
       }
       if (e.t === 'enemyAct' && fight) fight.enemyActs++;
-      if (e.t === 'shift' && fight) fight.moves++;
+      if (e.t === 'swap' && fight) fight.moves++;
       if ((e.t === 'roomClear' || e.t === 'dead') && fight) {
         fight.damageTaken = res.run.stats.damageTaken - takenAtStart;
         fights.push(fight);
