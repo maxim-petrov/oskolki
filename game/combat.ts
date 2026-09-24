@@ -3,6 +3,7 @@ import {
   cloneCells,
   colOf,
   createBoard,
+  drawTile,
   findGroups,
   gravity,
   idx,
@@ -14,23 +15,26 @@ import {
   moveCells,
   neighbors,
   randomCells,
-  randomFam,
   reshuffle,
   rowOf,
   shiftCells,
   swapBlock,
   swapCells,
+  tokenTile,
   validMoves,
 } from './board.ts';
-import { chance, next, pick } from './rng.ts';
+import { chance, next, pick, shuffle } from './rng.ts';
 import { ENEMIES } from './content/enemies.ts';
-import { FLOORS } from './content/floors.ts';
-import { ITEMS, type Mods } from './content/items.ts';
+import { ACTS } from './content/acts.ts';
+import { CARDS, cardValue } from './content/cards.ts';
+import { ITEMS, POCKETS, type Mods } from './content/items.ts';
 import {
+  BAG_COPIES,
   CELLS,
   FAMS,
   H,
   W,
+  type BagToken,
   type Blast,
   type Combat,
   type Effect,
@@ -41,11 +45,88 @@ import {
   type Intent,
   type LineShift,
   type Move,
-  type Room,
   type RunState,
+  type Tally,
   type Tile,
   type TileKind,
+  type TileScore,
 } from './types.ts';
+
+export const MAX_ENEMIES = 3;
+/** After this many moves in a fight, enemies hit harder every 5 moves. */
+export const OVERTIME_AFTER = 20;
+const isDead = (run: RunState) => run.phase === 'dead';
+
+// ── Move scoring state ───────────────────────────────────────────────
+
+/** Everything a move accumulates before the final strike. */
+export interface MoveState {
+  tally: Tally;
+  redGroups: number;
+  redTiles: number;
+  fams: Set<Fam>;
+  copyNext: number;
+  echoUsed: boolean;
+  flags: Set<string>;
+  pierce: boolean;
+  armorX: number;
+  bleed: number;
+  stun: boolean;
+  delay: number;
+  heal: number;
+  selfDmg: number;
+  ward: number;
+  reflect: number;
+  /** Cells whose neighbours get cleaned of junk (and pins with the corrector). */
+  cleanse: number[];
+  cleansePins: boolean;
+  copyStamp: number;
+  floodDown: number;
+  burn: boolean;
+  freeze: boolean;
+  plane: number;
+  junkCleared: number;
+  bonusCoins: number;
+  /** Multiplier already added by blasts this move (capped). */
+  blastMult: number;
+  notes: string[];
+}
+
+export function newTally(): Tally {
+  return { dmg: 0, armor: 0, aoe: 0, mult: 1, xmult: 1, coins: 0, charge: 0 };
+}
+
+function newMoveState(): MoveState {
+  return {
+    tally: newTally(),
+    redGroups: 0,
+    redTiles: 0,
+    fams: new Set(),
+    copyNext: 0,
+    echoUsed: false,
+    flags: new Set(),
+    pierce: false,
+    armorX: 1,
+    bleed: 0,
+    stun: false,
+    delay: 0,
+    heal: 0,
+    selfDmg: 0,
+    ward: 0,
+    reflect: 0,
+    cleanse: [],
+    cleansePins: false,
+    copyStamp: 0,
+    floodDown: 0,
+    burn: false,
+    freeze: false,
+    plane: 0,
+    junkCleared: 0,
+    bonusCoins: 0,
+    blastMult: 0,
+    notes: [],
+  };
+}
 
 export interface Ctx {
   run: RunState;
@@ -57,18 +138,14 @@ export interface Ctx {
   wave: number;
   pendingDeaths: GameEvent[];
   rocketsThisMove: number;
-  coinsThisMove: number;
-  echoUsed: boolean;
+  ms: MoveState;
 }
 
-export const MAX_ENEMIES = 3;
-/** Read through a function so TypeScript does not narrow away later mutations. */
-const isDead = (run: RunState) => run.phase === 'dead';
-export const OVERTIME_AFTER = 20;
-
-export function damageStat(run: RunState, mods: Mods): number {
-  return Math.max(0.25, (run.hero.baseDamage + mods.damage) * mods.damageMul * (mods.lamp ? 1.2 : 1));
+export function newCtx(run: RunState, mods: Mods, ev: GameEvent[]): Ctx {
+  return { run, c: run.combat!, mods, ev, fx: [], wave: 0, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
 }
+
+// ── Enemies ──────────────────────────────────────────────────────────
 
 export function intentsOf(e: EnemyState): Intent[] {
   const def = ENEMIES[e.def];
@@ -85,20 +162,21 @@ export function alive(c: Combat): EnemyState[] {
 }
 
 export function overtimeBonus(c: Combat): number {
-  return c.moves > OVERTIME_AFTER ? 1 + Math.floor((c.moves - OVERTIME_AFTER - 1) / 5) : 0;
+  return c.moves > OVERTIME_AFTER ? 2 * (1 + Math.floor((c.moves - OVERTIME_AFTER - 1) / 5)) : 0;
 }
 
-/** Damage an attack intent will deal, as shown to the player. */
+const DAMAGING = new Set(['attack', 'heavy', 'strike']);
+
+/** Damage an enemy's current intent will deal, as shown to the player. */
 export function intentDamage(c: Combat, e: EnemyState): number {
   const i = currentIntent(e);
-  if (i.kind === 'attack' || i.kind === 'heavy' || i.kind === 'strike') return i.value + e.dmgBonus + overtimeBonus(c);
-  return 0;
+  return DAMAGING.has(i.kind) ? Math.round(i.value * e.dmgMul) + overtimeBonus(c) : 0;
 }
 
 export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): EnemyState {
   const def = ENEMIES[defId];
-  const floor = FLOORS[run.floor];
-  const hp = Math.max(1, Math.round(def.hp * floor.hpMul));
+  const act = ACTS[Math.min(run.act, ACTS.length - 1)];
+  const hp = Math.max(1, Math.round(def.hp * act.hpMul));
   const e: EnemyState = {
     uid: c.nextUid++,
     def: defId,
@@ -109,15 +187,15 @@ export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): 
     cycle: 0,
     countdown: 0,
     phase: 0,
-    pendingPhase: 0,
     bleed: 0,
     burn: 0,
     burnTurns: 0,
     stunned: false,
+    stunImmune: false,
     submerged: false,
     shining: false,
     hitOnce: false,
-    dmgBonus: floor.dmgAdd,
+    dmgMul: act.dmgMul,
     stolen: 0,
   };
   e.countdown = currentIntent(e).timer + mods.timerBonus;
@@ -132,10 +210,18 @@ function snapQueue(c: Combat): Tile[][] {
   return c.board.queue.map((q) => q.map((t) => ({ ...t })));
 }
 
-export function startCombat(run: RunState, room: Room, mods: Mods, ev: GameEvent[]): Combat {
-  const board = createBoard(run.rng.board, mods.wrap, 6, run.nextId);
+/** The fight's bag: every deck card puts BAG_COPIES tiles in. */
+export function deckTokens(run: RunState): BagToken[] {
+  const out: BagToken[] = [];
+  for (const card of run.hero.deck)
+    for (let k = 0; k < BAG_COPIES; k++) out.push({ card: card.id, up: card.up, ...(card.finish ? { finish: card.finish } : {}) });
+  return out;
+}
+
+export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: string[], mods: Mods, ev: GameEvent[]): Combat {
+  const board = createBoard(run.rng.board, deckTokens(run), mods.wrap, 6, run.nextId);
   const c: Combat = {
-    roomId: room.id,
+    kind,
     board,
     enemies: [],
     target: -1,
@@ -143,15 +229,26 @@ export function startCombat(run: RunState, room: Room, mods: Mods, ev: GameEvent
     ticks: 0,
     freeTicks: 0,
     damageTaken: 0,
-    boss: room.kind === 'boss',
     nextUid: 1,
     garland: 0,
-    clock: 0,
+    nextMult: 0,
+    bonusCoins: 0,
   };
-  for (const id of room.enemies) c.enemies.push(makeEnemy(run, c, id, mods));
+  for (const id of enemyIds) c.enemies.push(makeEnemy(run, c, id, mods));
   c.target = c.enemies[0]?.uid ?? -1;
-  run.hero.armor = Math.min(mods.armorCap, mods.startArmor);
-  ev.push({ t: 'combatStart', room: room.id, boss: c.boss });
+  run.hero.armor = mods.startArmor;
+  run.hero.ward = 0;
+  run.hero.reflect = 0;
+  if (mods.sealStart > 0)
+    for (const i of randomCells(run.rng.fx, board.cells, mods.sealStart, (t) => t.kind !== 'junk' && t.kind !== 'prism')) board.cells[i].finish = 'seal';
+  if (mods.interest) {
+    const bonus = Math.floor(run.hero.coins / 10);
+    if (bonus > 0) {
+      run.hero.coins = Math.min(999, run.hero.coins + bonus);
+      ev.push({ t: 'message', text: `Проценты: +${bonus}` });
+    }
+  }
+  ev.push({ t: 'combatStart', kind });
   return c;
 }
 
@@ -172,24 +269,33 @@ export function activeCost(run: RunState): number {
   return id ? (ITEMS[id]?.charge ?? 6) : 6;
 }
 
-// ── Effects ──────────────────────────────────────────────────────────
+// ── Damage ───────────────────────────────────────────────────────────
 
-/** Armor takes one enemy blow and burns out: shields answer the next hit, not every hit. */
-export function hurtHero(ctx: Ctx, amount: number, source: string, burnsArmor = false) {
+/** Armor takes one enemy blow and burns out; the umbrella's ward softens the blow first. */
+export function hurtHero(ctx: Ctx, amount: number, source: string, burnsArmor = false, attacker?: EnemyState) {
   const hero = ctx.run.hero;
-  let left = Math.max(0, amount);
+  let left = Math.max(0, Math.round(amount));
+  if (hero.ward > 0 && left > 0) {
+    left = Math.max(0, left - hero.ward);
+    hero.ward = 0;
+  }
+  if (attacker && hero.reflect > 0 && amount > 0) {
+    const back = Math.round(amount * hero.reflect);
+    hero.reflect = 0;
+    if (back > 0) {
+      ctx.fx.push({ kind: 'proc', amount: back, uid: attacker.uid, source: 'reflect', text: `Отражено ${back}` });
+      hitEnemy(ctx, attacker.uid, back, { source: 'reflect', pierce: true });
+    }
+  }
   const armor = Math.min(hero.armor, left);
   hero.armor -= armor;
   if (burnsArmor) hero.armor = 0;
   left -= armor;
-  const soul = Math.min(hero.soul, left);
-  hero.soul -= soul;
-  left -= soul;
   const red = Math.min(hero.hp, left);
   hero.hp -= red;
-  ctx.c.damageTaken += soul + red;
-  ctx.run.stats.damageTaken += soul + red;
-  if (hero.hp + hero.soul <= 0) {
+  ctx.c.damageTaken += red;
+  ctx.run.stats.damageTaken += red;
+  if (hero.hp <= 0) {
     if (ctx.mods.flash && !hero.flashUsed) {
       hero.flashUsed = true;
       hero.hp = 1;
@@ -199,7 +305,7 @@ export function hurtHero(ctx: Ctx, amount: number, source: string, burnsArmor = 
       ctx.run.stats.deathCause = source;
     }
   }
-  return { amount, armor, soul, red };
+  return { amount: Math.round(amount), armor, red };
 }
 
 function killEnemy(ctx: Ctx, e: EnemyState) {
@@ -207,10 +313,9 @@ function killEnemy(ctx: Ctx, e: EnemyState) {
   ctx.fx.push({ kind: 'kill', amount: 0, uid: e.uid });
   run.stats.kills++;
   const def = ENEMIES[e.def];
-  let coins = def.coins ?? 0;
-  coins += e.stolen;
+  const coins = (def.coins ?? 0) + e.stolen;
   if (coins > 0) {
-    run.hero.coins = Math.min(99, run.hero.coins + coins);
+    run.hero.coins = Math.min(999, run.hero.coins + coins);
     run.stats.coinsEarned += coins;
     ctx.fx.push({ kind: 'coins', amount: coins, uid: e.uid, source: 'loot' });
   }
@@ -230,139 +335,239 @@ function killEnemy(ctx: Ctx, e: EnemyState) {
   ctx.pendingDeaths.push({ t: 'enemyDie', uid: e.uid, split: split.length ? split : undefined });
 }
 
-export function hitEnemy(
-  ctx: Ctx,
-  uid: number,
-  raw: number,
-  opts: { from?: number[]; source: string; blade?: boolean; fam?: Fam | 'prism' },
-): number {
+export function hitEnemy(ctx: Ctx, uid: number, raw: number, opts: { source: string; pierce?: boolean }): number {
   const e = ctx.c.enemies.find((x) => x.uid === uid && x.hp > 0);
   if (!e || raw <= 0) return 0;
-  if (e.submerged && opts.source === 'blade') {
-    ctx.fx.push({ kind: 'damage', amount: 0, uid, blocked: raw, from: opts.from, source: opts.source, text: 'Под водой' });
-    return 0;
-  }
-  let dmg = raw;
-  if (opts.blade) {
-    if (!e.hitOnce && ctx.mods.firstHitDouble) {
-      dmg *= 2;
-      ctx.fx.push({ kind: 'proc', amount: 0, source: 'timesheet', text: 'Точно!' });
-    }
-    e.hitOnce = true;
-    if (!ctx.mods.pierce) dmg = Math.max(0, dmg - e.armor);
-  }
-  if (ctx.mods.chaos) dmg = dmg * (0.5 + next(ctx.run.rng.fx) * 2);
-  dmg = Math.max(0, Math.round(dmg));
+  let dmg = Math.round(raw);
+  if (!opts.pierce) dmg = Math.max(0, dmg - e.armor);
   let blocked = 0;
-  if (e.block > 0 && !(opts.blade && ctx.mods.pierce)) {
+  if (e.block > 0 && !opts.pierce) {
     blocked = Math.min(e.block, dmg);
     e.block -= blocked;
     dmg -= blocked;
   }
   const dealt = Math.min(e.hp, dmg);
   e.hp -= dmg;
+  e.hitOnce = true;
   ctx.run.stats.damageDealt += dealt;
-  if (ctx.wave >= 2) ctx.run.stats.cascadeDamage += dealt;
-  else if (ctx.wave === 1) ctx.run.stats.matchDamage += dealt;
-  ctx.fx.push({ kind: 'damage', amount: dmg, uid, blocked, from: opts.from, source: opts.source, fam: opts.fam });
-  if (opts.blade && e.shining && e.hp > 0) {
-    const hurt = hurtHero(ctx, 1, 'Отражение Кривого зеркала');
-    ctx.fx.push({ kind: 'proc', amount: hurt.red + hurt.soul, uid, source: 'reflect', text: 'Отражение!' });
+  ctx.fx.push({ kind: 'damage', amount: dmg, uid, blocked, source: opts.source });
+  if (e.shining && e.hp > 0 && opts.source === 'strike' && dmg > 0) {
+    // A quarter of the blow comes back, but never more than a heavy hit of this act.
+    const back = Math.max(1, Math.min(Math.round(dmg * 0.25), Math.round(18 * e.dmgMul)));
+    const hurt = hurtHero(ctx, back, 'Отражение Кривого зеркала');
+    ctx.fx.push({ kind: 'proc', amount: hurt.red, uid, source: 'mirror', text: `Отражение −${hurt.red}` });
   }
   if (e.hp <= 0) killEnemy(ctx, e);
   return dmg;
 }
 
-function gainArmor(ctx: Ctx, n: number, from: number[] | undefined, source: string) {
-  const hero = ctx.run.hero;
-  const before = hero.armor;
-  hero.armor = Math.min(ctx.mods.armorCap, hero.armor + n);
-  ctx.fx.push({ kind: 'armor', amount: hero.armor - before, from, source, fam: 'shield' });
-}
+// ── Scoring ──────────────────────────────────────────────────────────
 
-function gainCharge(ctx: Ctx, n: number, from: number[] | undefined, source: string) {
-  const hero = ctx.run.hero;
-  const cap = activeCost(ctx.run);
-  const before = hero.charge;
-  hero.charge = Math.min(cap, hero.charge + n);
-  ctx.fx.push({ kind: 'charge', amount: hero.charge - before, from, source, fam: 'ink' });
-}
+/** Most multiplier blasts can add in one move. */
+export const BLAST_MULT_CAP = 6;
+const WAVE_MULT: Partial<Record<Blast['kind'], number>> = { rocketH: 1, rocketV: 1, bomb: 1, prism: 2, cross: 2, bigCross: 2, bigBomb: 2, nova: 3 };
 
-function gainCoins(ctx: Ctx, n: number, from: number[] | undefined, source: string) {
-  const hero = ctx.run.hero;
-  const before = hero.coins;
-  hero.coins = Math.min(99, hero.coins + n);
-  const got = hero.coins - before;
-  ctx.run.stats.coinsEarned += got;
-  ctx.coinsThisMove += got;
-  ctx.fx.push({ kind: 'coins', amount: got, from, source, fam: 'coin' });
-}
-
-function setStatus(ctx: Ctx, e: EnemyState, status: 'bleed' | 'burn' | 'stun' | 'freeze', value: number) {
-  ctx.fx.push({ kind: 'status', amount: value, uid: e.uid, status });
-}
-
-/** Family effect for n tiles. `group` = a real match group (items that react to matches). */
-function famEffect(ctx: Ctx, fam: Fam, n: number, from: number[], mult: number, group: boolean) {
-  const { run, mods, c } = ctx;
-  if (n <= 0) return;
-  const big = group && n >= 4;
-  let target = targetEnemy(c);
-  if (fam === 'blade' && group && target?.submerged) target = alive(c).find((e) => !e.submerged) ?? target;
-  switch (fam) {
-    case 'blade': {
-      const dmg = Math.round(n * damageStat(run, mods) * mult);
-      if (target) {
-        hitEnemy(ctx, target.uid, dmg, { from, source: group ? 'blade' : 'blast', blade: true, fam });
-        if (mods.bleedOnHit && target.hp > 0) {
-          target.bleed += 1;
-          setStatus(ctx, target, 'bleed', target.bleed);
-        }
-      }
-      if (mods.planeOn4 && big) {
-        ctx.fx.push({ kind: 'proc', amount: 0, source: 'plane', text: 'Самолётик!' });
-        for (const e of alive(c)) hitEnemy(ctx, e.uid, 2, { source: 'plane' });
-      }
-      break;
-    }
-    case 'shield': {
-      const gain = Math.round(Math.max(0, n - 2) * mult);
-      if (gain > 0) gainArmor(ctx, gain, from, group ? 'shield' : 'blast');
-      if (mods.shieldDamage && gain > 0 && target) hitEnemy(ctx, target.uid, gain * 2, { from, source: 'tape', fam });
-      if (mods.freezeOn4Shields && big) {
-        for (const e of alive(c)) {
-          e.countdown += 1;
-          setStatus(ctx, e, 'freeze', 1);
-        }
-      }
-      if (group && c.board.flood > 0 && from.some((i) => rowOf(i) >= H - c.board.flood)) {
-        c.board.flood -= 1;
-        ctx.fx.push({ kind: 'proc', amount: 0, source: 'tide', text: 'Вода отступает' });
-      }
-      break;
-    }
-    case 'ink': {
-      const gain = Math.round(n * mult);
-      gainCharge(ctx, gain, from, group ? 'ink' : 'blast');
-      if (mods.inkDamage && target) hitEnemy(ctx, target.uid, Math.round(n * mods.inkDamage * mult), { from, source: 'inkwell', fam });
-      break;
-    }
-    case 'coin': {
-      const gain = Math.round((Math.max(0, n - 2) + (group ? mods.coinBonus : 0)) * mult);
-      if (gain > 0) gainCoins(ctx, gain, from, group ? 'coin' : 'blast');
-      if (mods.coinDamage && target) hitEnemy(ctx, target.uid, Math.round(n * mods.coinDamage * mult), { from, source: 'register', fam });
-      break;
-    }
+/**
+ * One tile adds its value to the move's tally. Pure with respect to the board and enemies:
+ * effects that change them are recorded in the move state and applied at the strike.
+ */
+export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave: number, scores: TileScore[], again = false) {
+  if (tile.kind === 'junk') return;
+  const { ms, mods } = ctx;
+  const t = ms.tally;
+  const fam: Fam = tile.kind === 'prism' ? (g?.fam ?? 'blade') : tile.kind;
+  const card = tile.card;
+  const up = !!tile.up;
+  let v = card ? cardValue(card, up) : 2;
+  if (tile.finish === 'sharp') v += 1;
+  v += fam === 'blade' ? mods.redPlus : fam === 'shield' ? mods.bluePlus : fam === 'ink' ? mods.inkPlus : mods.coinPlus;
+  const size = g?.size ?? 1;
+  const s: TileScore = { i, id: tile.id, card, fam };
+  const add = (k: keyof Tally, n: number) => {
+    if (!n) return;
+    t[k] += n;
+    s[k] = (s[k] ?? 0) + n;
+  };
+  const target = targetEnemy(ctx.c);
+  ms.fams.add(fam);
+  // Multiplier effects fire once per group (per blasted tile when there is no group).
+  const once = (tag: string, perMove = false) => {
+    const key = perMove ? tag : `${tag}:${wave}:${g ? g.cells[0] : `b${i}`}`;
+    if (ms.flags.has(key)) return false;
+    ms.flags.add(key);
+    return true;
+  };
+  // Blasted tiles (no group) score their plain value: card rules need a match.
+  if (!g) {
+    if (fam === 'blade') add('dmg', v);
+    else if (fam === 'shield') add('armor', v);
+    else if (fam === 'ink') add('charge', v);
+    else add('coins', v);
+    if (fam === 'blade') ms.redTiles++;
+    if (tile.finish === 'gild') add('coins', 1);
+    scores.push(s);
+    return;
   }
-  const burnTarget = targetEnemy(c);
-  if (mods.igniteOn4 && big && burnTarget) {
-    burnTarget.burn = Math.max(burnTarget.burn, 2);
-    burnTarget.burnTurns = Math.max(burnTarget.burnTurns, 3);
-    setStatus(ctx, burnTarget, 'burn', 3);
+  switch (card) {
+    case 'punch':
+      add('dmg', v);
+      ms.pierce = true;
+      break;
+    case 'redpen':
+      add('dmg', v);
+      ms.bleed += 2;
+      break;
+    case 'sharpener':
+      add('dmg', wave >= 2 ? v * 5 : v);
+      break;
+    case 'pins':
+      add('dmg', v);
+      add('aoe', v);
+      break;
+    case 'scissors':
+      add('dmg', v);
+      if (size >= 4 && once('scissors')) add('mult', 1);
+      break;
+    case 'ruler':
+      add('dmg', v * size);
+      break;
+    case 'stapler':
+      add('dmg', v + ms.redTiles);
+      break;
+    case 'awl':
+      add('dmg', v);
+      ms.selfDmg += 2;
+      break;
+    case 'cutter':
+      add('dmg', target && ENEMIES[target.def].material === 'paper' ? v * 3 : v);
+      break;
+    case 'alarm':
+      add('dmg', v);
+      if (once('alarm')) add('mult', ms.redGroups);
+      break;
+    case 'sleeve':
+      add('armor', v);
+      ms.cleanse.push(i);
+      break;
+    case 'umbrella':
+      add('armor', v);
+      ms.ward += 4;
+      break;
+    case 'drawer':
+      add('armor', v);
+      ms.flags.add('drawer');
+      break;
+    case 'laminator':
+      add('armor', size >= 4 ? v * 2 : v);
+      break;
+    case 'archivebox':
+      add('armor', v);
+      if (size >= 4 && g && !ms.flags.has(`box:${g.cells[0]}`)) {
+        ms.flags.add(`box:${g.cells[0]}`);
+        ms.heal += 4;
+      }
+      break;
+    case 'vest':
+      add('armor', v);
+      ms.armorX = 2;
+      break;
+    case 'clipboard':
+      add('armor', v);
+      ms.reflect = 0.5;
+      break;
+    case 'corrector':
+      add('charge', v);
+      ms.cleanse.push(i);
+      ms.cleansePins = true;
+      break;
+    case 'urgent':
+      add('charge', v);
+      ms.delay += 1;
+      break;
+    case 'blotcurse':
+      add('aoe', v);
+      break;
+    case 'quill':
+      add('charge', v);
+      if (ctx.run.hero.active && ctx.run.hero.charge + t.charge >= activeCost(ctx.run) && once('quill')) add('mult', 1);
+      break;
+    case 'copystamp':
+      add('charge', v);
+      ms.copyStamp += up ? 3 : 2;
+      break;
+    case 'carbon':
+      add('charge', v);
+      ms.copyNext += 1;
+      break;
+    case 'weight':
+      add('charge', v);
+      if (size >= 4) ms.stun = true;
+      break;
+    case 'receipt':
+      add('coins', v * size);
+      break;
+    case 'bonus':
+      add('mult', v);
+      break;
+    case 'card':
+      if (ctx.run.hero.coins + t.coins >= 2) {
+        add('mult', v);
+        add('coins', -2);
+      }
+      break;
+    case 'piggy':
+      add('coins', v);
+      ms.bonusCoins += 3;
+      break;
+    case 'report':
+      add('coins', 1);
+      if (once('report', true)) add('mult', v * ms.fams.size);
+      break;
+    case 'goldclip':
+      add('coins', v);
+      // Once per move, however many gold clips it holds: the multiplier must not snowball.
+      if (once('gold', true)) {
+        t.xmult *= up ? 2 : 1.5;
+        s.xmult = up ? 2 : 1.5;
+      }
+      break;
+    default:
+      if (fam === 'blade') add('dmg', v);
+      else if (fam === 'shield') add('armor', v);
+      else if (fam === 'ink') add('charge', v);
+      else add('coins', v);
   }
+  if (fam === 'blade') ms.redTiles++;
+  if (fam === 'ink' && mods.inkDamage) add('dmg', mods.inkDamage);
+  if (fam === 'coin' && mods.coinDamage) add('dmg', mods.coinDamage);
+  if (tile.finish === 'gild') add('coins', 1);
+  if (tile.finish === 'seal') add('mult', 1);
+  if (again) s.note = 'дважды';
+  scores.push(s);
+  if (tile.finish === 'copy' && !again) scoreTile(ctx, tile, i, g, wave, scores, true);
 }
 
-// ── Resolution ───────────────────────────────────────────────────────
+function scoreGroup(ctx: Ctx, g: Group, cells: Tile[], wave: number, scores: TileScore[]) {
+  const { ms, mods, c } = ctx;
+  if (g.fam === 'blade') ms.redGroups++;
+  let reps = 1;
+  if (ms.copyNext > 0) {
+    reps++;
+    ms.copyNext--;
+  }
+  if (mods.echo && !ms.echoUsed) {
+    reps++;
+    ms.echoUsed = true;
+  }
+  for (let r = 0; r < reps; r++) for (const i of g.cells) scoreTile(ctx, cells[i], i, g, wave, scores, r > 0);
+  if (g.fam === 'blade' && mods.bleedOnRed) ms.bleed += mods.bleedOnRed;
+  if (g.size >= 4) {
+    if (mods.igniteOn4) ms.burn = true;
+    if (g.fam === 'blade' && mods.planeOn4) ms.plane += mods.planeOn4;
+    if (g.fam === 'shield' && mods.freezeOn4Shields) ms.freeze = true;
+  }
+  if (g.fam === 'shield' && c.board.flood > 0 && g.cells.some((i) => rowOf(i) >= H - c.board.flood)) ms.floodDown++;
+}
 
 function mostCommonFam(cells: Tile[]): Fam {
   let best: Fam = 'blade';
@@ -435,28 +640,21 @@ export function swapBlast(cells: Tile[], m: Move, mods: Mods): { blast: Blast; s
 }
 
 function blastArea(ctx: Ctx, i: number, t: Tile, fam: Fam | undefined, cells: Tile[]): { kind: Blast['kind']; cells: number[] } {
-  const r = rowOf(i);
-  const col = colOf(i);
-  const row = Array.from({ length: W }, (_, k) => idx(r, k));
-  const column = Array.from({ length: H }, (_, k) => idx(k, col));
   if (t.kind === 'prism') {
     const f = fam ?? mostCommonFam(cells);
     return { kind: 'prism', cells: cells.map((x, k) => (x.kind === f || k === i ? k : -1)).filter((k) => k >= 0) };
   }
-  if (t.special === 'rocketH') return { kind: 'rocketH', cells: ctx.mods.crossRockets ? [...new Set([...row, ...column])] : row };
-  if (t.special === 'rocketV') return { kind: 'rocketV', cells: ctx.mods.crossRockets ? [...new Set([...column, ...row])] : column };
+  if (t.special === 'rocketH' || t.special === 'rocketV') return { kind: t.special, cells: specialArea(t, i, ctx.mods) };
   return { kind: 'bomb', cells: area(i, ctx.mods.bombRadius) };
 }
 
-const ROCKETS_IN: Partial<Record<Blast['kind'], number>> = { rocketH: 1, rocketV: 1, cross: 2, bigCross: 1 };
-
 /**
- * Resolve matches and cascades until the board is stable.
- * `forced` is an initial blast (player bomb, shredder, a swapped special) that happens with the
- * first wave; `spent` are specials that blast already used up.
+ * Resolve matches and cascades until the board is stable, scoring every wave into the move's
+ * tally. `forced` is an initial blast (pocket bomb, shredder, a swapped special) that happens with
+ * the first wave; `spent` are specials that blast already used up.
  */
 export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: number[] = []) {
-  const { c, mods } = ctx;
+  const { c, mods, ms } = ctx;
   let first = true;
   for (let wave = 1; wave <= 30; wave++) {
     const cells = c.board.cells;
@@ -465,6 +663,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     ctx.wave = wave;
     const waveFx: Effect[] = [];
     ctx.fx = waveFx;
+    const scores: TileScore[] = [];
     const matched = new Set<number>();
     for (const g of groups) for (const i of g.cells) matched.add(i);
 
@@ -473,10 +672,8 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     const blasted = new Set<number>();
     const activated = new Set<number>(forced ? spent : []);
     const queue: { i: number; fam?: Fam }[] = [];
-    let rocketsNow = 0;
     if (forced) {
       blasts.push(forced);
-      rocketsNow += ROCKETS_IN[forced.kind] ?? 0;
       for (const i of forced.cells) {
         if (!matched.has(i)) blasted.add(i);
         if (cells[i].special || cells[i].kind === 'prism') queue.push({ i });
@@ -492,7 +689,6 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
       const fromKind = t.kind === 'prism' || t.kind === 'junk' ? undefined : t.kind;
       const b = blastArea(ctx, i, t, fam ?? (t.kind === 'prism' ? undefined : fromKind), cells);
       blasts.push({ kind: b.kind, at: i, cells: b.cells });
-      if (b.kind === 'rocketH' || b.kind === 'rocketV') rocketsNow++;
       for (const k of b.cells) {
         if (!matched.has(k)) blasted.add(k);
         const u = cells[k];
@@ -502,68 +698,50 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
         }
       }
     }
-    ctx.rocketsThisMove += rocketsNow;
-    if (blasts.length && mods.pyroBlast) {
-      const t = targetEnemy(c);
-      if (t) {
-        t.burn = Math.max(t.burn, 2);
-        t.burnTurns = Math.max(t.burnTurns, 3);
-        setStatus(ctx, t, 'burn', 3);
+    // Multiplier: specials add to it; cascade waves only with the poster (more waves already mean more tiles).
+    if (wave >= 2 && mods.cascadeMult) {
+      const n = mods.cascadeMult;
+      ms.tally.mult += n;
+      scores.push({ i: -1, id: -1, fam: 'prism', mult: n, note: `каскад ×${wave}` });
+    }
+    for (const b of blasts) {
+      // Blasts add to the multiplier up to BLAST_MULT_CAP per move: long chains still pay in tiles.
+      const n = Math.min(WAVE_MULT[b.kind] ?? 0, BLAST_MULT_CAP - ms.blastMult);
+      if (b.kind === 'rocketH' || b.kind === 'rocketV') ctx.rocketsThisMove++;
+      if (b.kind === 'cross') ctx.rocketsThisMove += 2;
+      if (n > 0) {
+        ms.blastMult += n;
+        ms.tally.mult += n;
+        scores.push({ i: b.at, id: -1, fam: 'prism', mult: n, note: 'взрыв' });
       }
     }
+    if (blasts.length && mods.igniteOn4) ms.burn = true;
 
-    // Junk next to a match is washed away; magnet pulls neighbouring coins.
+    // Score: groups first, then blasted tiles one by one.
+    for (const g of groups) scoreGroup(ctx, g, cells, wave, scores);
+    for (const i of blasted) scoreTile(ctx, cells[i], i, null, wave, scores);
+
+    // Junk next to a match is washed away.
     const splashed = new Set<number>();
     for (const i of matched)
-      for (const n of neighbors(i)) {
-        if (matched.has(n) || blasted.has(n)) continue;
-        if (cells[n].kind === 'junk') splashed.add(n);
-        else if (mods.magnet && cells[n].kind === 'coin' && !cells[n].special) splashed.add(n);
-      }
-
-    // Effects: groups first (in family order), then blasted tiles per family, then magnet coins.
-    for (const g of groups) {
-      let n = g.size + (mods.bureau ? 1 : 0);
-      let mult = 1;
-      if (mods.luck > 0 && chance(ctx.run.rng.fx, mods.luck)) {
-        mult = 2;
-        waveFx.push({ kind: 'proc', amount: 0, source: 'lucky', text: 'Удача ×2' });
-      }
-      famEffect(ctx, g.fam, n, g.cells, mult, true);
-      if (mods.echo && !ctx.echoUsed) {
-        ctx.echoUsed = true;
-        waveFx.push({ kind: 'proc', amount: 0, source: 'carbon', text: 'Копирка!' });
-        famEffect(ctx, g.fam, n, g.cells, 0.5, false);
-      }
-      n = 0;
-    }
-    const blastCount = new Map<Fam, number[]>();
-    for (const i of blasted) {
-      const k = cells[i].kind;
-      if (k === 'prism' || k === 'junk') continue;
-      blastCount.set(k, [...(blastCount.get(k) ?? []), i]);
-    }
-    for (const f of FAMS) {
-      const list = blastCount.get(f);
-      if (list?.length) famEffect(ctx, f, list.length, list, 1, false);
-    }
-    const magnetCoins = [...splashed].filter((i) => cells[i].kind === 'coin');
-    if (magnetCoins.length) gainCoins(ctx, magnetCoins.length, magnetCoins, 'magnet');
+      for (const n of neighbors(i)) if (!matched.has(n) && !blasted.has(n) && cells[n].kind === 'junk') splashed.add(n);
+    for (const i of blasted) if (cells[i].kind === 'junk') ms.junkCleared++;
+    ms.junkCleared += splashed.size;
 
     // Remove, create specials, drop.
     const cleared: { i: number; id: number; kind: TileKind; cause: 'match' | 'blast' | 'splash' }[] = [];
-    const next: (Tile | null)[] = cells.slice();
+    const nextCells: (Tile | null)[] = cells.slice();
     for (const i of matched) {
       cleared.push({ i, id: cells[i].id, kind: cells[i].kind, cause: 'match' });
-      next[i] = null;
+      nextCells[i] = null;
     }
     for (const i of blasted) {
       cleared.push({ i, id: cells[i].id, kind: cells[i].kind, cause: 'blast' });
-      next[i] = null;
+      nextCells[i] = null;
     }
     for (const i of splashed) {
       cleared.push({ i, id: cells[i].id, kind: cells[i].kind, cause: 'splash' });
-      next[i] = null;
+      nextCells[i] = null;
     }
     const created: { at: number; tile: Tile }[] = [];
     for (const g of groups) {
@@ -571,14 +749,16 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
       if (!make || g.at < 0) continue;
       if (mods.prismOn4 && (make === 'rocketH' || make === 'rocketV')) make = 'prism';
       if (created.some((x) => x.at === g.at)) continue;
+      // The special keeps the card of the tile it grew from.
+      const src = cells[g.at];
       const tile =
         make === 'prism'
           ? makeTile(c.board, 'prism')
-          : makeTile(c.board, g.fam, { special: make });
-      next[g.at] = tile;
+          : makeTile(c.board, g.fam, { special: make, ...(src?.card && src.kind === g.fam ? { card: src.card, up: src.up, finish: src.finish } : {}) });
+      nextCells[g.at] = tile;
       created.push({ at: g.at, tile: { ...tile } });
     }
-    const { falls, spawns } = gravity(c.board, ctx.run.rng.board, next);
+    const { falls, spawns } = gravity(c.board, ctx.run.rng.board, nextCells);
     syncIds(ctx.run, c);
     ctx.ev.push({
       t: 'wave',
@@ -587,6 +767,8 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
       blasts,
       cleared,
       created,
+      scores,
+      tally: { ...ms.tally },
       effects: waveFx,
       falls,
       spawns,
@@ -595,7 +777,6 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
       flood: c.board.flood,
     });
     ctx.run.stats.maxCombo = Math.max(ctx.run.stats.maxCombo, wave);
-    flushDeaths(ctx);
     forced = undefined;
     first = false;
   }
@@ -617,6 +798,162 @@ function batch(ctx: Ctx, body: () => void) {
   ctx.fx = prev;
   if (list.length) ctx.ev.push({ t: 'effects', effects: list });
   flushDeaths(ctx);
+}
+
+/** The best card of the deck (rarity, then value): the copy stamp prints it. */
+function bestCard(run: RunState) {
+  const rank = { starter: 0, common: 1, uncommon: 2, rare: 3, status: -1 };
+  return [...run.hero.deck].sort((a, b) => {
+    const da = CARDS[a.id];
+    const db = CARDS[b.id];
+    return rank[db.rarity] - rank[da.rarity] || cardValue(b.id, b.up) - cardValue(a.id, a.up);
+  })[0];
+}
+
+/**
+ * The move's single strike: damage × mult at the target, the same mult on armor, then all
+ * deferred effects (statuses, cleanup, copies). Also used by pocket bombs and actives.
+ */
+export function strike(ctx: Ctx, fromMove: boolean) {
+  const { run, c, mods, ms } = ctx;
+  const t = ms.tally;
+  const hero = run.hero;
+  const notes = ms.notes;
+  if (mods.calcGoldMult && ms.fams.has('coin')) {
+    t.mult += 1;
+    notes.push('Калькулятор +1');
+  }
+  if (mods.lampMult && ms.fams.has('ink')) {
+    t.mult += 1;
+    notes.push('Лампа +1');
+  }
+  if (ms.flags.has('drawer') && ms.fams.has('blade') && ms.fams.has('shield')) t.mult += 1;
+  if (mods.multFlat && fromMove) t.mult += mods.multFlat;
+  if (c.nextMult && fromMove) {
+    t.mult += c.nextMult;
+    notes.push(`Энергетик +${c.nextMult}`);
+    c.nextMult = 0;
+  }
+  let mult = t.mult * t.xmult;
+  if (mods.firstMoveX && fromMove && c.moves === 1) {
+    mult *= 2;
+    notes.push('Кофемашина ×2');
+  }
+  if (mods.luck && chance(run.rng.fx, mods.luck)) {
+    mult *= 2;
+    notes.push('Удача ×2');
+  }
+  if (mods.chaos) {
+    const k = Math.round((0.5 + next(run.rng.fx) * 2) * 10) / 10;
+    mult *= k;
+    notes.push(`Калькулятор ×${String(k).replace('.', ',')}`);
+  }
+  mult = Math.round(mult * 10) / 10;
+  let target = targetEnemy(c);
+  if (target?.submerged) {
+    const other = alive(c).find((e) => !e.submerged);
+    if (other) target = other;
+  }
+  let damage = Math.round(t.dmg * mult);
+  if (target && damage > 0 && ENEMIES[target.def].material === 'paper' && mods.paperX > 1) {
+    damage *= mods.paperX;
+    notes.push(`Бумага ×${mods.paperX}`);
+  }
+  if (target && damage > 0 && mods.firstHitDouble && !target.hitOnce) {
+    damage *= 2;
+    notes.push('Табель ×2');
+  }
+  const armor = Math.max(0, Math.round(t.armor * mult * ms.armorX));
+  if (mods.armorToDamage && armor > 0) damage += armor;
+  const aoe = Math.max(0, Math.round(t.aoe * mult)) + ms.plane;
+  const submerged = target?.submerged;
+  ctx.ev.push({ t: 'strike', tally: { ...t, mult }, damage, aoe, armor, target: target?.uid ?? -1, notes: [...notes] });
+  run.stats.maxHit = Math.max(run.stats.maxHit, damage);
+  run.stats.maxMult = Math.max(run.stats.maxMult, mult);
+  batch(ctx, () => {
+    hero.armor += armor;
+    if (ms.junkCleared && mods.mopJunk) hero.armor += ms.junkCleared * mods.mopJunk;
+    const coins = Math.round(t.coins);
+    hero.coins = Math.max(0, Math.min(999, hero.coins + coins));
+    if (coins > 0) run.stats.coinsEarned += coins;
+    c.bonusCoins += ms.bonusCoins;
+    hero.charge = Math.min(activeCost(run), hero.charge + Math.round(t.charge));
+    if (target && damage > 0) {
+      if (submerged) ctx.fx.push({ kind: 'damage', amount: 0, uid: target.uid, source: 'strike', text: 'Под водой' });
+      else hitEnemy(ctx, target.uid, damage, { source: 'strike', pierce: ms.pierce || mods.pierce });
+    }
+    if (aoe > 0) for (const e of alive(c)) hitEnemy(ctx, e.uid, aoe, { source: 'aoe', pierce: true });
+    const tgt = targetEnemy(c);
+    if (tgt) {
+      if (ms.bleed) {
+        tgt.bleed += ms.bleed;
+        ctx.fx.push({ kind: 'status', amount: tgt.bleed, uid: tgt.uid, status: 'bleed' });
+      }
+      if (ms.burn) {
+        tgt.burn = Math.max(tgt.burn, 4);
+        tgt.burnTurns = Math.max(tgt.burnTurns, 3);
+        ctx.fx.push({ kind: 'status', amount: 3, uid: tgt.uid, status: 'burn' });
+      }
+      if (ms.stun && !tgt.stunImmune && !tgt.stunned) {
+        tgt.stunned = true;
+        ctx.fx.push({ kind: 'status', amount: 1, uid: tgt.uid, status: 'stun' });
+      }
+      if (ms.delay) {
+        tgt.countdown += ms.delay;
+        ctx.fx.push({ kind: 'status', amount: ms.delay, uid: tgt.uid, status: 'freeze' });
+      }
+    }
+    if (ms.freeze)
+      for (const e of alive(c)) {
+        e.countdown += 1;
+        ctx.fx.push({ kind: 'status', amount: 1, uid: e.uid, status: 'freeze' });
+      }
+    if (ms.heal) {
+      const before = hero.hp;
+      hero.hp = Math.min(hero.maxHp, hero.hp + ms.heal);
+      if (hero.hp > before) ctx.fx.push({ kind: 'heal', amount: hero.hp - before });
+    }
+    if (ms.selfDmg) hurtHero(ctx, ms.selfDmg, 'Шило');
+    hero.ward += ms.ward;
+    if (ms.reflect) hero.reflect = Math.max(hero.reflect, ms.reflect);
+  });
+  // Board after-effects.
+  let boardChanged = false;
+  const cells = c.board.cells;
+  if (ms.cleanse.length) {
+    for (const i of ms.cleanse)
+      for (const n of [i, ...neighbors(i)]) {
+        const u = cells[n];
+        if (!u) continue;
+        if (u.kind === 'junk') {
+          cells[n] = drawTile(c.board, run.rng.board);
+          if (mods.mopJunk) hero.armor += mods.mopJunk;
+          boardChanged = true;
+        } else if (ms.cleansePins && (u.pin || u.fuse)) {
+          delete u.pin;
+          delete u.fuse;
+          boardChanged = true;
+        }
+      }
+  }
+  if (ms.copyStamp) {
+    const best = bestCard(run);
+    if (best) {
+      for (const i of randomCells(run.rng.fx, cells, ms.copyStamp, (u) => !u.special && u.kind !== 'prism' && !u.pin)) {
+        cells[i] = tokenTile(c.board, { card: best.id, up: best.up, ...(best.finish ? { finish: best.finish } : {}) });
+      }
+      boardChanged = true;
+    }
+  }
+  if (ms.floodDown) {
+    c.board.flood = Math.max(0, c.board.flood - ms.floodDown);
+    ctx.ev.push({ t: 'effects', effects: [{ kind: 'proc', amount: 0, source: 'tide', text: 'Вода отступает' }] });
+    boardChanged = true;
+  }
+  if (boardChanged) {
+    syncIds(run, c);
+    ctx.ev.push({ t: 'board', reason: 'active', board: snap(cells) });
+  }
 }
 
 // ── Time ─────────────────────────────────────────────────────────────
@@ -644,20 +981,23 @@ function moveEnd(ctx: Ctx) {
   batch(ctx, () => {
     for (const e of alive(c)) {
       if (e.bleed > 0) {
-        hitEnemy(ctx, e.uid, e.bleed, { source: 'bleed' });
+        hitEnemy(ctx, e.uid, e.bleed, { source: 'bleed', pierce: true });
         e.bleed = Math.max(0, e.bleed - 1);
       }
       if (e.hp > 0 && e.burnTurns > 0) {
-        hitEnemy(ctx, e.uid, e.burn, { source: 'burn' });
+        hitEnemy(ctx, e.uid, e.burn, { source: 'burn', pierce: true });
         e.burnTurns--;
       }
     }
     if (mods.spider > 0) {
       const weakest = alive(c).sort((a, b) => a.hp - b.hp)[0];
-      if (weakest) hitEnemy(ctx, weakest.uid, mods.spider, { source: 'spider' });
+      if (weakest) hitEnemy(ctx, weakest.uid, mods.spider, { source: 'spider', pierce: true });
     }
-    if (mods.battery > 0) gainCharge(ctx, mods.battery, undefined, 'battery');
-    if (mods.accountant && ctx.coinsThisMove >= 5) gainArmor(ctx, Math.floor(ctx.coinsThisMove / 5), undefined, 'accountant');
+    if (mods.battery > 0) {
+      const before = run.hero.charge;
+      run.hero.charge = Math.min(activeCost(run), run.hero.charge + mods.battery);
+      if (run.hero.charge > before) ctx.fx.push({ kind: 'charge', amount: run.hero.charge - before, source: 'battery' });
+    }
   });
   if (mods.garlandEvery > 0 && alive(c).length) {
     c.garland++;
@@ -678,7 +1018,8 @@ function advanceCycle(ctx: Ctx, e: EnemyState) {
   e.countdown = currentIntent(e).timer + ctx.mods.timerBonus;
 }
 
-const plain = (t: Tile) => !t.special && t.kind !== 'prism' && t.kind !== 'junk' && !t.pin && !t.fuse;
+/** Tiles an enemy may spoil: plain, not laminated. */
+const spoilable = (t: Tile) => !t.special && t.kind !== 'prism' && t.kind !== 'junk' && !t.pin && !t.fuse && t.finish !== 'laminate';
 
 function enemyAct(ctx: Ctx, e: EnemyState) {
   const { c, run, mods } = ctx;
@@ -688,37 +1029,41 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
   e.shining = false;
   if (e.stunned) {
     e.stunned = false;
+    e.stunImmune = true;
     ctx.ev.push({ t: 'enemyAct', uid: e.uid, intent, skipped: true });
     advanceCycle(ctx, e);
     return;
   }
+  e.stunImmune = false;
   const cells = c.board.cells;
   const act: Extract<GameEvent, { t: 'enemyAct' }> = { t: 'enemyAct', uid: e.uid, intent };
   const attack = (dmg: number) => {
     const prev = ctx.fx;
     const list: Effect[] = [];
     ctx.fx = list;
-    act.hurt = hurtHero(ctx, dmg, ENEMIES[e.def].name, true);
+    act.hurt = hurtHero(ctx, dmg, ENEMIES[e.def].name, true, e);
     ctx.fx = prev;
     ctx.ev.push(act);
     if (list.length) ctx.ev.push({ t: 'effects', effects: list });
-    if (mods.cactus > 0 && !isDead(run)) batch(ctx, () => hitEnemy(ctx, e.uid, mods.cactus, { source: 'cactus' }));
+    flushDeaths(ctx);
+    if (mods.cactus > 0 && !isDead(run) && e.hp > 0) batch(ctx, () => hitEnemy(ctx, e.uid, mods.cactus, { source: 'cactus', pierce: true }));
   };
+  const blow = (v: number) => Math.round(v * e.dmgMul) + overtimeBonus(c);
   switch (intent.kind) {
     case 'attack':
     case 'heavy':
-      attack(intent.value + e.dmgBonus + overtimeBonus(c));
+      attack(blow(intent.value));
       break;
     case 'strike': {
-      const pinned = randomCells(run.rng.ai, cells, 1, (t) => t.kind !== 'junk' && !t.pin);
+      const pinned = randomCells(run.rng.ai, cells, 1, (t) => t.kind !== 'junk' && !t.pin && t.finish !== 'laminate');
       for (const i of pinned) cells[i].pin = true;
       act.cells = pinned;
       act.board = snap(cells);
-      attack(intent.value + e.dmgBonus + overtimeBonus(c));
+      attack(blow(intent.value));
       break;
     }
     case 'block':
-      e.block = intent.value;
+      e.block = Math.round(intent.value * e.dmgMul);
       ctx.ev.push(act);
       break;
     case 'heal': {
@@ -726,7 +1071,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
         .filter((x) => x.hp < x.maxHp)
         .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
       if (hurt) {
-        const amount = Math.min(intent.value, hurt.maxHp - hurt.hp);
+        const amount = Math.min(Math.round(intent.value * e.dmgMul), hurt.maxHp - hurt.hp);
         hurt.hp += amount;
         act.healed = { uid: hurt.uid, amount };
       }
@@ -745,17 +1090,32 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'ink': {
-      const chosen = randomCells(run.rng.ai, cells, intent.value, plain);
-      for (const i of chosen) {
-        cells[i] = { id: cells[i].id, kind: 'junk' };
-      }
+      const chosen = randomCells(run.rng.ai, cells, intent.value, spoilable);
+      for (const i of chosen) cells[i] = { id: cells[i].id, kind: 'junk' };
       act.cells = chosen;
       act.board = snap(cells);
       ctx.ev.push(act);
       break;
     }
+    case 'tape': {
+      // Red tape: board tiles turn into useless paperwork, and one more slips into the bag.
+      const chosen = randomCells(run.rng.ai, cells, intent.value, spoilable);
+      for (const i of chosen) cells[i] = { id: cells[i].id, kind: 'junk', card: 'redtape' };
+      c.board.source.push({ card: 'redtape', up: false });
+      c.board.bag.splice(Math.floor(next(run.rng.ai) * (c.board.bag.length + 1)), 0, { card: 'redtape', up: false });
+      act.cells = chosen;
+      act.board = snap(cells);
+      act.added = 1;
+      ctx.ev.push(act);
+      break;
+    }
+    case 'hurry': {
+      for (const o of alive(c)) if (o.uid !== e.uid) o.countdown = Math.max(1, o.countdown - 1);
+      ctx.ev.push(act);
+      break;
+    }
     case 'pin': {
-      const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => t.kind !== 'junk' && !t.pin);
+      const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => t.kind !== 'junk' && !t.pin && t.finish !== 'laminate');
       for (const i of chosen) cells[i].pin = true;
       act.cells = chosen;
       act.board = snap(cells);
@@ -763,7 +1123,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'ember': {
-      const chosen = randomCells(run.rng.ai, cells, intent.value, plain);
+      const chosen = randomCells(run.rng.ai, cells, intent.value, spoilable);
       for (const i of chosen) cells[i].fuse = 3;
       act.cells = chosen;
       act.board = snap(cells);
@@ -772,7 +1132,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     }
     case 'censor': {
       if (!mods.censorImmune) {
-        const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => !t.hidden);
+        const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => !t.hidden && t.finish !== 'laminate');
         for (const i of chosen) cells[i].hidden = 4;
         act.cells = chosen;
         act.board = snap(cells);
@@ -788,7 +1148,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'stealCoins': {
-      const stolen = Math.min(run.hero.coins, intent.value);
+      const stolen = Math.min(run.hero.coins, Math.round(intent.value * e.dmgMul));
       run.hero.coins -= stolen;
       e.stolen += stolen;
       act.stolen = stolen;
@@ -809,7 +1169,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
         act.cells = lineCells(m.line, m.index);
         act.board = snap(c.board.cells);
         ctx.ev.push(act);
-      } else attack(1 + e.dmgBonus);
+      } else attack(blow(4));
       break;
     }
     case 'tide':
@@ -839,11 +1199,13 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       const specials = cells.map((t, i) => (t.special || t.kind === 'prism' ? i : -1)).filter((i) => i >= 0);
       if (specials.length) {
         const i = pick(run.rng.ai, specials);
-        cells[i] = { id: cells[i].id, kind: cells[i].kind === 'prism' ? randomFam(run.rng.ai) : cells[i].kind, pin: cells[i].pin };
+        const t = cells[i];
+        cells[i] = t.kind === 'prism' ? drawTile(c.board, run.rng.ai) : { ...t, special: undefined };
+        delete cells[i].special;
         act.cells = [i];
         act.board = snap(cells);
         ctx.ev.push(act);
-      } else attack(1 + e.dmgBonus + overtimeBonus(c));
+      } else attack(blow(4));
       break;
     }
   }
@@ -888,7 +1250,8 @@ function boardTimers(ctx: Ctx) {
   if (burnt.length) {
     const prev = ctx.fx;
     ctx.fx = [];
-    const hurt = mods.emberImmune ? { amount: 0, armor: 0, soul: 0, red: 0 } : hurtHero(ctx, burnt.length, 'Уголёк');
+    const dmg = Math.round(4 * burnt.length * (ACTS[Math.min(ctx.run.act, ACTS.length - 1)].dmgMul));
+    const hurt = mods.emberImmune ? { amount: 0, armor: 0, red: 0 } : hurtHero(ctx, dmg, 'Уголёк');
     const list = ctx.fx;
     ctx.fx = prev;
     ctx.ev.push({ t: 'ember', cells: burnt, hurt });
@@ -904,8 +1267,7 @@ function advanceTime(ctx: Ctx) {
   if (c.freeTicks > 0) {
     c.freeTicks--;
     skip = 'Кофе: враги ждут';
-  } else if (mods.coffeeFirstMove && c.moves === 1) skip = 'Кофеман: первый ход даром';
-  else if (mods.clockEvery > 0 && c.moves % mods.clockEvery === 0) skip = 'Часы остановились';
+  } else if (mods.clockEvery > 0 && c.moves % mods.clockEvery === 0) skip = 'Часы остановились';
   if (skip) {
     ctx.ev.push({ t: 'effects', effects: [{ kind: 'proc', amount: 0, source: 'time', text: skip }] });
     return;
@@ -915,11 +1277,19 @@ function advanceTime(ctx: Ctx) {
   ctx.ev.push({ t: 'tick', timers: alive(c).map((e) => ({ uid: e.uid, countdown: e.countdown })) });
   boardTimers(ctx);
   if (isDead(ctx.run)) return;
+  let acted = false;
   for (const e of c.enemies) {
     if (e.hp <= 0 || e.countdown > 0) continue;
+    acted = true;
     enemyAct(ctx, e);
     flushDeaths(ctx);
     if (isDead(ctx.run)) return;
+  }
+  // Armor is for the enemies' next action: whatever they did, it is spent.
+  if (acted && ctx.run.hero.armor > 0) {
+    const lost = ctx.run.hero.armor;
+    ctx.run.hero.armor = 0;
+    ctx.ev.push({ t: 'effects', effects: [{ kind: 'armor', amount: -lost, source: 'expire' }] });
   }
 }
 
@@ -928,23 +1298,9 @@ export function ensurePlayable(ctx: Ctx) {
   if (!alive(c).length) return;
   if (validMoves(c.board, mods.wrap).length === 0) {
     reshuffle(c.board, run.rng.board, mods.wrap);
+    syncIds(run, c);
     ctx.ev.push({ t: 'board', reason: 'reshuffle', board: snap(c.board.cells), queue: snapQueue(c) });
   }
-}
-
-export function newCtx(run: RunState, mods: Mods, ev: GameEvent[]): Ctx {
-  return {
-    run,
-    c: run.combat!,
-    mods,
-    ev,
-    fx: [],
-    wave: 0,
-    pendingDeaths: [],
-    rocketsThisMove: 0,
-    coinsThisMove: 0,
-    echoUsed: false,
-  };
 }
 
 // ── Player actions ──────────────────────────────────────────────────
@@ -965,6 +1321,7 @@ export function playerMove(run: RunState, mods: Mods, move: Move, ev: GameEvent[
   const set = swapBlast(c.board.cells, m, mods);
   resolve(ctx, moveCells(m), set?.blast, set?.spent);
   run.stats.maxRocketsInMove = Math.max(run.stats.maxRocketsInMove, ctx.rocketsThisMove);
+  strike(ctx, true);
   afterAction(ctx, true);
   return true;
 }
@@ -979,30 +1336,86 @@ export function afterAction(ctx: Ctx, spendsTime: boolean) {
   if (!isDead(ctx.run)) ensurePlayable(ctx);
 }
 
-export function playerBomb(run: RunState, mods: Mods, cell: number, ev: GameEvent[]): boolean {
-  if (run.hero.bombs <= 0 || cell < 0 || cell >= CELLS) {
-    ev.push({ t: 'invalid', reason: 'Нет бомб' });
+function removeCell(ctx: Ctx, i: number) {
+  const { c, run, ev } = ctx;
+  const cells = c.board.cells;
+  const next: (Tile | null)[] = cells.slice();
+  const removed = cells[i];
+  next[i] = null;
+  const { falls, spawns } = gravity(c.board, run.rng.board, next);
+  ev.push({
+    t: 'wave',
+    n: 0,
+    groups: [],
+    blasts: [{ kind: 'active', at: i, cells: [i] }],
+    cleared: [{ i, id: removed.id, kind: removed.kind, cause: 'blast' }],
+    created: [],
+    scores: [],
+    tally: newTally(),
+    effects: [],
+    falls,
+    spawns,
+    board: snap(c.board.cells),
+    queue: snapQueue(c),
+    flood: c.board.flood,
+  });
+  if (removed.kind === 'junk') ctx.ms.junkCleared++;
+}
+
+export function playerPocket(run: RunState, mods: Mods, slot: number, cell: number | undefined, ev: GameEvent[]): boolean {
+  const id = run.hero.pockets[slot];
+  const c = run.combat;
+  const def = id ? POCKETS[id] : undefined;
+  if (!def) {
+    ev.push({ t: 'invalid', reason: 'Карман пуст' });
     return false;
   }
-  run.hero.bombs--;
-  run.stats.bombsUsed++;
+  if (!c && id !== 'coffee') {
+    ev.push({ t: 'invalid', reason: 'Только в бою' });
+    return false;
+  }
+  if (def.aim === 'cell' && (cell === undefined || cell < 0 || cell >= CELLS)) {
+    ev.push({ t: 'invalid', reason: 'Выбери клетку' });
+    return false;
+  }
+  run.hero.pockets[slot] = null;
+  ev.push({ t: 'pocketUsed', pocket: def.id });
+  if (id === 'coffee') {
+    const before = run.hero.hp;
+    run.hero.hp = Math.min(run.hero.maxHp, run.hero.hp + 12);
+    ev.push({ t: 'heal', amount: run.hero.hp - before });
+    return true;
+  }
   const ctx = newCtx(run, mods, ev);
-  resolve(ctx, [], { kind: 'bomb-item', at: cell, cells: area(cell, mods.bombRadius) });
+  switch (id) {
+    case 'bomb':
+      resolve(ctx, [], { kind: 'bomb-item', at: cell!, cells: area(cell!, mods.bombRadius) });
+      strike(ctx, false);
+      break;
+    case 'eraser':
+      removeCell(ctx, cell!);
+      resolve(ctx, []);
+      strike(ctx, false);
+      break;
+    case 'sticker':
+      for (const e of alive(c!)) e.countdown += 2;
+      ev.push({ t: 'effects', effects: alive(c!).map((e) => ({ kind: 'status' as const, amount: 2, uid: e.uid, status: 'freeze' as const })) });
+      break;
+    case 'energy':
+      c!.nextMult += 2;
+      ev.push({ t: 'effects', effects: [{ kind: 'proc', amount: 2, source: 'energy', text: '+2 множ к следующему ходу' }] });
+      break;
+  }
   afterAction(ctx, false);
   return true;
 }
 
-export function playerActive(
-  run: RunState,
-  mods: Mods,
-  arg: { cell?: number; col?: number; uid?: number },
-  ev: GameEvent[],
-): boolean {
+export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; col?: number; uid?: number }, ev: GameEvent[]): boolean {
   const hero = run.hero;
   const id = hero.active;
   const def = id ? ITEMS[id] : undefined;
   const c = run.combat;
-  if (!def || !c || def.when === 'explore') {
+  if (!def || !c) {
     ev.push({ t: 'invalid', reason: 'Сейчас нельзя' });
     return false;
   }
@@ -1022,29 +1435,11 @@ export function playerActive(
   hero.charge -= def.charge ?? 0;
   ev.push({ t: 'activeUsed', item: def.id });
   switch (def.id) {
-    case 'eraser': {
-      const i = arg.cell!;
-      const next: (Tile | null)[] = cells.slice();
-      const removed = cells[i];
-      next[i] = null;
-      const { falls, spawns } = gravity(c.board, run.rng.board, next);
-      ev.push({
-        t: 'wave',
-        n: 0,
-        groups: [],
-        blasts: [{ kind: 'active', at: i, cells: [i] }],
-        cleared: [{ i, id: removed.id, kind: removed.kind, cause: 'blast' }],
-        created: [],
-        effects: [],
-        falls,
-        spawns,
-        board: snap(c.board.cells),
-        queue: snapQueue(c),
-        flood: c.board.flood,
-      });
+    case 'eraser':
+      removeCell(ctx, arg.cell!);
       resolve(ctx, []);
+      strike(ctx, false);
       break;
-    }
     case 'coffeeToGo':
       c.freeTicks += 2;
       break;
@@ -1054,34 +1449,34 @@ export function playerActive(
       ev.push({ t: 'effects', effects: [{ kind: 'status', amount: 1, uid: e.uid, status: 'stun' }] });
       break;
     }
-    case 'corrector':
-    case 'mop': {
+    case 'corrector': {
       for (let i = 0; i < CELLS; i++) {
         const t = cells[i];
-        if (t.kind === 'junk') cells[i] = { id: t.id, kind: randomFam(run.rng.board) };
-        else cells[i] = { ...t, pin: undefined, fuse: undefined, hidden: undefined };
-        if (!cells[i].pin) delete cells[i].pin;
-        if (!cells[i].fuse) delete cells[i].fuse;
-        if (!cells[i].hidden) delete cells[i].hidden;
+        if (t.kind === 'junk') {
+          cells[i] = drawTile(c.board, run.rng.board);
+          if (mods.mopJunk) hero.armor += mods.mopJunk;
+        } else {
+          delete t.pin;
+          delete t.fuse;
+          delete t.hidden;
+        }
       }
       c.board.colLock.fill(0);
       c.board.rowLock.fill(0);
       ev.push({ t: 'board', reason: 'active', board: snap(cells) });
-      if (def.id === 'mop') batch(ctx, () => gainArmor(ctx, 1, undefined, 'mop'));
       resolve(ctx, []);
+      strike(ctx, false);
       break;
     }
     case 'shredder': {
       const col = arg.col!;
       resolve(ctx, [], { kind: 'active', at: idx(0, col), cells: Array.from({ length: H }, (_, r) => idx(r, col)) });
+      strike(ctx, false);
       break;
     }
     case 'megaphone':
       for (const e of alive(c)) e.countdown += 2;
-      ev.push({
-        t: 'effects',
-        effects: alive(c).map((e) => ({ kind: 'status' as const, amount: 2, uid: e.uid, status: 'freeze' as const })),
-      });
+      ev.push({ t: 'effects', effects: alive(c).map((e) => ({ kind: 'status' as const, amount: 2, uid: e.uid, status: 'freeze' as const })) });
       break;
     case 'giftbox': {
       const chosen = randomCells(run.rng.fx, cells, 3, (t) => !t.special && t.kind !== 'prism' && t.kind !== 'junk' && !t.pin);
@@ -1090,12 +1485,10 @@ export function playerActive(
         else cells[i] = { id: cells[i].id, kind: 'prism' };
       });
       ev.push({ t: 'board', reason: 'active', board: snap(cells) });
-      resolve(ctx, []);
       break;
     }
-    default:
-      break;
   }
+  syncIds(run, c);
   afterAction(ctx, false);
   return true;
 }
@@ -1119,6 +1512,8 @@ export interface MovePreview {
   groups: Group[];
   /** What the swap sets off by itself (a swapped special or combo), if anything. */
   blast: Blast | null;
+  tally: Tally;
+  /** First-wave estimate of the final numbers (cascades stay a surprise). */
   damage: number;
   armor: number;
   charge: number;
@@ -1128,33 +1523,33 @@ export interface MovePreview {
 
 export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview {
   const c = run.combat;
-  const empty: MovePreview = { valid: false, groups: [], blast: null, damage: 0, armor: 0, charge: 0, coins: 0, specials: 0 };
+  const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0 };
   if (!c || !isValidMove(c.board, move, mods.wrap)) return empty;
   const cells = swapCells(c.board.cells, move);
   const groups = findGroups(cells, mods.wrap, moveCells(move));
   const set = swapBlast(cells, move, mods);
-  const dmgStat = damageStat(run, mods);
-  let damage = 0;
-  let armor = 0;
-  let charge = 0;
-  let coins = 0;
-  let specials = 0;
-  for (const g of groups) {
-    const n = g.size + (mods.bureau ? 1 : 0);
-    if (g.fam === 'blade') damage += Math.round(n * dmgStat);
-    if (g.fam === 'shield') armor += Math.max(0, n - 2);
-    if (g.fam === 'ink') charge += n;
-    if (g.fam === 'coin') coins += Math.max(0, n - 2) + mods.coinBonus;
-    if (g.make) specials++;
-  }
-  if (set) {
-    // First blast only: chained specials and cascades stay a surprise, as for matches.
-    const matched = new Set(groups.flatMap((g) => g.cells));
-    const count = (fam: Fam) => set.blast.cells.filter((i) => !matched.has(i) && cells[i].kind === fam).length;
-    damage += Math.round(count('blade') * dmgStat);
-    armor += Math.max(0, count('shield') - 2);
-    charge += count('ink');
-    coins += Math.max(0, count('coin') - 2);
-  }
-  return { valid: true, groups, blast: set?.blast ?? null, damage, armor, charge, coins, specials };
+  const ctx: Ctx = { run, c, mods, ev: [], fx: [], wave: 1, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
+  const scores: TileScore[] = [];
+  const matched = new Set(groups.flatMap((g) => g.cells));
+  if (set) ctx.ms.tally.mult += WAVE_MULT[set.blast.kind] ?? 0;
+  for (const g of groups) scoreGroup(ctx, g, cells, 1, scores);
+  if (set) for (const i of set.blast.cells) if (!matched.has(i)) scoreTile(ctx, cells[i], i, null, 1, scores);
+  const t = ctx.ms.tally;
+  const mult = t.mult * t.xmult;
+  let damage = Math.round(t.dmg * mult);
+  const target = targetEnemy(c);
+  if (target && ENEMIES[target.def].material === 'paper') damage *= mods.paperX;
+  return {
+    valid: true,
+    groups,
+    blast: set?.blast ?? null,
+    tally: t,
+    damage,
+    armor: Math.round(t.armor * mult * ctx.ms.armorX),
+    charge: Math.round(t.charge),
+    coins: Math.round(t.coins),
+    specials: groups.filter((g) => g.make).length,
+  };
 }
+
+export { shuffle };

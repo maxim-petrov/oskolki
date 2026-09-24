@@ -5,15 +5,23 @@ export const H = 6;
 export const CELLS = W * H;
 /** Upcoming tiles kept above every column. */
 export const QUEUE_LEN = 6;
+/** Tiles each deck card puts into the bag. */
+export const BAG_COPIES = 3;
 
 export type Fam = 'blade' | 'shield' | 'ink' | 'coin';
 export const FAMS: readonly Fam[] = ['blade', 'shield', 'ink', 'coin'];
 export type TileKind = Fam | 'prism' | 'junk';
 export type SpecialKind = 'rocketH' | 'rocketV' | 'bomb';
+/** Card finishes (like Balatro enhancements): a mark on one card of the deck. */
+export type Finish = 'sharp' | 'gild' | 'seal' | 'copy' | 'laminate';
 
 export interface Tile {
   id: number;
   kind: TileKind;
+  /** The deck card this tile was drawn from (absent on prisms made by matches). */
+  card?: string;
+  up?: boolean;
+  finish?: Finish;
   special?: SpecialKind;
   /** Stapled: the tile cannot be moved. */
   pin?: boolean;
@@ -21,6 +29,20 @@ export interface Tile {
   fuse?: number;
   /** Censored for this many ticks: the player cannot see the family. */
   hidden?: number;
+}
+
+/** One card of the deck. Each card puts BAG_COPIES tiles into the bag. */
+export interface DeckCard {
+  uid: number;
+  id: string;
+  up: boolean;
+  finish?: Finish;
+}
+
+export interface BagToken {
+  card: string;
+  up: boolean;
+  finish?: Finish;
 }
 
 export interface BoardState {
@@ -32,6 +54,10 @@ export interface BoardState {
   /** Ticks left on anchored columns / rows: their tiles cannot be moved. */
   colLock: number[];
   rowLock: number[];
+  /** Draw pile of the fight: shuffled deck tokens; refilled when empty. */
+  bag: BagToken[];
+  /** Deck tokens a refill is built from (the fight's copy of the deck). */
+  source: BagToken[];
 }
 
 export type Line = 'row' | 'col';
@@ -77,15 +103,19 @@ export type IntentKind =
   | 'shine'
   | 'anchor'
   | 'strike'
-  | 'erase';
+  | 'erase'
+  | 'tape'
+  | 'hurry';
 
 export interface Intent {
   kind: IntentKind;
-  /** Damage in half-hearts, block amount, heal amount or tiles affected. */
+  /** Damage (hp), block amount, heal amount or tiles affected. */
   value: number;
   timer: number;
   summon?: string;
 }
+
+export type Material = 'paper' | 'rubber' | 'ink' | 'metal' | 'glass' | 'wax' | 'flesh' | 'water';
 
 export interface EnemyDef {
   id: string;
@@ -93,10 +123,11 @@ export interface EnemyDef {
   hp: number;
   armor?: number;
   size: 'S' | 'M' | 'L' | 'boss';
+  material: Material;
   intents: Intent[];
   /** Boss phases: when hp <= at * maxHp the cycle switches (after the current action). */
   phases?: { at: number; intents: Intent[] }[];
-  traits?: ('flying' | 'splits' | 'light' | 'diver')[];
+  traits?: ('splits' | 'light' | 'diver')[];
   splitInto?: string;
   coins?: number;
   blurb: string;
@@ -112,111 +143,43 @@ export interface EnemyState {
   cycle: number;
   countdown: number;
   phase: number;
-  pendingPhase: number;
   bleed: number;
   burn: number;
   burnTurns: number;
   stunned: boolean;
+  /** Just shook off a stun: cannot be stunned again until it acts. */
+  stunImmune: boolean;
   submerged: boolean;
   shining: boolean;
   hitOnce: boolean;
-  dmgBonus: number;
+  /** Act damage multiplier baked in at spawn. */
+  dmgMul: number;
   /** Coins stolen by this enemy; returned on death. */
   stolen: number;
-}
-
-export type PickupKind =
-  | 'coin'
-  | 'nickel'
-  | 'half'
-  | 'heart'
-  | 'soul'
-  | 'bomb'
-  | 'key'
-  | 'chest'
-  | 'lockedChest';
-
-export interface Pickup {
-  id: number;
-  kind: PickupKind;
-}
-
-export interface Pedestal {
-  id: number;
-  item: string;
-  /** Shop / deal prices. */
-  coins?: number;
-  hearts?: number;
-  taken?: boolean;
-}
-
-export interface ShopSlot {
-  id: number;
-  kind: 'item' | PickupKind;
-  item?: string;
-  price: number;
-  sold?: boolean;
-}
-
-export type RoomKind =
-  | 'start'
-  | 'combat'
-  | 'treasure'
-  | 'shop'
-  | 'boss'
-  | 'secret'
-  | 'deal'
-  | 'challenge';
-
-export type Dir = 'n' | 'e' | 's' | 'w';
-
-export interface Room {
-  id: number;
-  x: number;
-  y: number;
-  kind: RoomKind;
-  doors: Partial<Record<Dir, number>>;
-  visited: boolean;
-  seen: boolean;
-  cleared: boolean;
-  locked: boolean;
-  hidden: boolean;
-  dist: number;
-  enemies: string[];
-  pickups: Pickup[];
-  pedestals: Pedestal[];
-  shop: ShopSlot[];
-  variant: number;
-  trapdoor: boolean;
-}
-
-export interface FloorMap {
-  rooms: Room[];
-  start: number;
-  boss: number;
 }
 
 export type CharId = 'intern' | 'accountant' | 'janitor';
 
 export interface Hero {
   char: CharId;
-  hearts: number;
   hp: number;
-  soul: number;
+  maxHp: number;
   armor: number;
+  /** Next enemy blow is weaker by this much (umbrella). */
+  ward: number;
+  /** Share of the next blow sent back (clipboard), 0..1. */
+  reflect: number;
   charge: number;
   coins: number;
-  bombs: number;
-  keys: number;
-  baseDamage: number;
   active: string | null;
-  items: string[];
-  transformations: string[];
+  relics: string[];
+  pockets: (string | null)[];
+  deck: DeckCard[];
   flashUsed: boolean;
 }
 
 export interface Combat {
-  roomId: number;
+  kind: 'fight' | 'elite' | 'boss' | 'intro';
   board: BoardState;
   enemies: EnemyState[];
   target: number;
@@ -224,10 +187,32 @@ export interface Combat {
   ticks: number;
   freeTicks: number;
   damageTaken: number;
-  boss: boolean;
   nextUid: number;
   garland: number;
-  clock: number;
+  /** Energy drink: bonus multiplier for the next move. */
+  nextMult: number;
+  /** Piggy banks and other end-of-fight payouts collected during the fight. */
+  bonusCoins: number;
+}
+
+export type NodeKind = 'fight' | 'elite' | 'event' | 'shop' | 'rest' | 'treasure' | 'boss';
+
+export interface MapNode {
+  id: number;
+  row: number;
+  col: number;
+  kind: NodeKind;
+  next: number[];
+  visited: boolean;
+  /** Room look for the stage (a location of the act's building). */
+  look: number;
+}
+
+export interface ActMap {
+  nodes: MapNode[];
+  rows: number;
+  cols: number;
+  boss: number;
 }
 
 export interface RunStats {
@@ -236,34 +221,100 @@ export interface RunStats {
   damageDealt: number;
   damageTaken: number;
   coinsEarned: number;
-  bombsUsed: number;
   maxCombo: number;
+  maxMult: number;
+  maxHit: number;
   maxRocketsInMove: number;
-  roomsCleared: number;
+  fights: number;
+  elites: number;
+  floors: number;
   bossesNoHit: number;
-  itemsTaken: number;
-  cascadeDamage: number;
-  matchDamage: number;
+  cardsTaken: number;
+  relicsTaken: number;
   deathCause: string;
   bossesKilled: string[];
+  shards: number;
+}
+
+export interface RewardOption {
+  kind: 'coins' | 'card' | 'relic' | 'pocket' | 'shards';
+  amount?: number;
+  cards?: string[];
+  /** Which of the offered cards come upgraded. */
+  ups?: boolean[];
+  relic?: string;
+  pocket?: string;
+  taken?: boolean;
+}
+
+export interface ShopState {
+  cards: { id: string; up: boolean; price: number; sold: boolean }[];
+  relics: { id: string; price: number; sold: boolean }[];
+  pockets: { id: string; price: number; sold: boolean }[];
+  /** Card finishing service: one card gets the finish. */
+  finish: { kind: Finish; price: number; sold: boolean } | null;
+  removePrice: number;
+  removed: boolean;
+}
+
+export interface TreasureState {
+  relic: string;
+  coins: number;
+  opened: boolean;
+}
+
+export interface EventState {
+  id: string;
+  /** Outcome text after a choice, shown before leaving. */
+  result?: string;
+  /** Extra state some events keep between steps. */
+  step?: number;
+}
+
+/** A pending choice of a card from the deck (remove / upgrade / finish / transform / copy). */
+export interface PickState {
+  purpose: 'remove' | 'upgrade' | 'finish' | 'transform' | 'copy';
+  finish?: Finish;
+  /** Cards still to choose. */
+  count: number;
+  /** Where the pick came from: completion and cancel return there (a rest is used up). */
+  from: 'shop' | 'rest' | 'event' | 'map';
+  /** Coins charged when the first card is chosen (shop services). */
+  cost?: number;
 }
 
 export interface RunState {
-  v: 1;
+  v: 3;
   seed: number;
   customSeed: boolean;
-  floor: number;
-  lastFloor: number;
+  act: number;
+  lastAct: number;
   rng: { board: Rng; loot: Rng; map: Rng; ai: Rng; fx: Rng };
   hero: Hero;
-  map: FloorMap;
-  room: number;
-  phase: 'explore' | 'combat' | 'dead' | 'won';
+  map: ActMap;
+  /** Current map node (-1 before the first step of an act). */
+  node: number;
+  phase: 'map' | 'combat' | 'reward' | 'shop' | 'rest' | 'event' | 'treasure' | 'bossReward' | 'pick' | 'dead' | 'won';
   combat: Combat | null;
-  pool: string[];
+  rewards: RewardOption[];
+  shop: ShopState | null;
+  event: EventState | null;
+  pick: PickState | null;
+  bossRelics: string[];
+  relicPool: string[];
+  cardPool: string[];
+  /** Events already seen this run (not repeated). */
+  seenEvents: string[];
+  treasure: TreasureState | null;
+  /** Fights fought in the current act (the first ones are easier). */
+  fightsInAct: number;
+  lastEncounter: string;
+  /** Cards removed at the till this run (each removal costs more). */
+  removals: number;
+  /** A fight started by an event pays this relic on top. */
+  eventRelic: string | null;
   stats: RunStats;
   nextId: number;
-  catCooldown: number;
   flags: Record<string, boolean>;
 }
 
@@ -271,28 +322,24 @@ export type Action =
   | { type: 'move'; move: Move }
   | { type: 'target'; uid: number }
   | { type: 'active'; cell?: number; col?: number; uid?: number }
-  | { type: 'bomb'; cell: number }
-  | { type: 'go'; dir: Dir }
-  | { type: 'take'; pickup: number }
-  | { type: 'pedestal'; id: number }
-  | { type: 'buy'; id: number }
-  | { type: 'bombWall'; dir: Dir }
-  | { type: 'descend' };
+  | { type: 'pocket'; slot: number; cell?: number }
+  | { type: 'discardPocket'; slot: number }
+  | { type: 'travel'; node: number }
+  | { type: 'reward'; index: number; card?: number }
+  | { type: 'buy'; kind: 'card' | 'relic' | 'pocket' | 'finish'; index: number }
+  | { type: 'remove' }
+  | { type: 'rest'; choice: 'heal' | 'upgrade' }
+  | { type: 'event'; option: number }
+  | { type: 'pick'; uid: number }
+  | { type: 'open' }
+  | { type: 'bossRelic'; index: number }
+  | { type: 'leave' };
 
 /** Snapshot copied into events so the view can replay without reading engine state. */
 export type BoardSnap = Tile[];
 
 export interface Effect {
-  kind:
-    | 'damage'
-    | 'armor'
-    | 'charge'
-    | 'coins'
-    | 'heal'
-    | 'soul'
-    | 'kill'
-    | 'status'
-    | 'proc';
+  kind: 'damage' | 'armor' | 'charge' | 'coins' | 'heal' | 'kill' | 'status' | 'proc';
   amount: number;
   uid?: number;
   from?: number[];
@@ -312,6 +359,33 @@ export interface Blast {
   cells: number[];
 }
 
+/** What one tile added to the move's tally (the scoring counter animates these). */
+export interface TileScore {
+  i: number;
+  id: number;
+  card?: string;
+  fam: Fam | 'prism';
+  dmg?: number;
+  armor?: number;
+  aoe?: number;
+  coins?: number;
+  charge?: number;
+  mult?: number;
+  xmult?: number;
+  note?: string;
+}
+
+/** The move's running score: resources and the multiplier. */
+export interface Tally {
+  dmg: number;
+  armor: number;
+  aoe: number;
+  mult: number;
+  xmult: number;
+  coins: number;
+  charge: number;
+}
+
 export type GameEvent =
   | { t: 'swap'; move: Move; board: BoardSnap }
   | {
@@ -321,12 +395,24 @@ export type GameEvent =
       blasts: Blast[];
       cleared: { i: number; id: number; kind: TileKind; cause: 'match' | 'blast' | 'splash' }[];
       created: { at: number; tile: Tile }[];
+      scores: TileScore[];
+      tally: Tally;
       effects: Effect[];
       falls: { id: number; from: number; to: number }[];
       spawns: { id: number; to: number; rank: number }[];
       board: BoardSnap;
       queue: Tile[][];
       flood: number;
+    }
+  | {
+      t: 'strike';
+      tally: Tally;
+      /** Final numbers after multipliers and material bonuses. */
+      damage: number;
+      aoe: number;
+      armor: number;
+      target: number;
+      notes: string[];
     }
   | { t: 'effects'; effects: Effect[] }
   | { t: 'tick'; timers: { uid: number; countdown: number }[] }
@@ -335,25 +421,35 @@ export type GameEvent =
       uid: number;
       intent: Intent;
       cells?: number[];
-      hurt?: { amount: number; armor: number; soul: number; red: number };
+      hurt?: { amount: number; armor: number; red: number };
       summoned?: EnemyState[];
       healed?: { uid: number; amount: number };
       board?: BoardSnap;
       stolen?: number;
       skipped?: boolean;
+      added?: number;
     }
   | { t: 'phase'; uid: number; phase: number }
-  | { t: 'ember'; cells: number[]; hurt: { amount: number; armor: number; soul: number; red: number } }
+  | { t: 'ember'; cells: number[]; hurt: { amount: number; armor: number; red: number } }
   | { t: 'board'; reason: 'reshuffle' | 'enemy' | 'active' | 'timers'; board: BoardSnap; queue?: Tile[][] }
   | { t: 'enemyDie'; uid: number; split?: EnemyState[] }
-  | { t: 'roomClear'; pickups: Pickup[] }
-  | { t: 'enterRoom'; room: number; dir: Dir | null }
-  | { t: 'combatStart'; room: number; boss: boolean }
-  | { t: 'pickup'; pickup: Pickup; amount: number }
-  | { t: 'item'; item: string; source: 'pedestal' | 'shop' | 'deal'; transformation?: string }
+  | { t: 'combatStart'; kind: Combat['kind'] }
+  | { t: 'combatWon'; kind: Combat['kind'] }
+  | { t: 'act'; act: number }
+  | { t: 'enterNode'; node: number; kind: NodeKind }
+  | { t: 'relic'; relic: string; source: string }
+  | { t: 'card'; card: string; source: string }
+  | { t: 'cardRemoved'; card: string }
+  | { t: 'cardUpgraded'; card: string }
+  | { t: 'cardFinished'; card: string; finish: Finish }
+  | { t: 'pocket'; pocket: string }
+  | { t: 'pocketUsed'; pocket: string }
+  | { t: 'coins'; amount: number }
+  | { t: 'heal'; amount: number }
+  | { t: 'hurt'; amount: number; cause: string }
+  | { t: 'maxHp'; amount: number }
+  | { t: 'shards'; amount: number }
   | { t: 'activeUsed'; item: string }
-  | { t: 'secret'; room: number }
-  | { t: 'floor'; floor: number }
   | { t: 'dead'; cause: string }
   | { t: 'won' }
   | { t: 'invalid'; reason: string }

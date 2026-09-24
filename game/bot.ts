@@ -1,42 +1,89 @@
 /**
- * Simple players for balance simulation and smoke tests.
- * They only read what a human sees: the board (censored tiles unknown), the visible queue,
- * enemy intents and timers. They never inspect hidden refills or RNG state.
+ * Simple players for balance simulation and smoke tests. They only read what a human sees:
+ * the board (censored tiles unknown), the visible queue, intents and timers, the map and the
+ * offers. They never inspect hidden refills or RNG state.
  */
-import { validMoves } from './board.ts';
-import { alive, currentIntent, intentDamage, previewMove } from './combat.ts';
+import { colOf, validMoves } from './board.ts';
+import { activeCost, alive, currentIntent, intentDamage, previewMove } from './combat.ts';
+import { CARDS } from './content/cards.ts';
+import { EVENT_BY_ID } from './content/events.ts';
 import { ITEMS } from './content/items.ts';
-import { chance, int, next, rng, type Rng } from './rng.ts';
-import { currentRoom, dispatch, doorDirs, modsOf } from './run.ts';
-import type { Action, Dir, Move, RunState } from './types.ts';
-import { DIRS, STEP } from './mapgen.ts';
+import { reachable } from './actmap.ts';
+import { int, next, type Rng } from './rng.ts';
+import { clone, dispatch, modsOf, pickable } from './run.ts';
+import type { Action, DeckCard, Move, RunState } from './types.ts';
 
-export type Policy = 'random' | 'greedy' | 'first';
+export type Policy = 'greedy' | 'randomCards' | 'noCards' | 'random';
 
 export interface BotOptions {
   policy: Policy;
-  /** Take items from pedestals/shops. */
-  items: boolean;
   seed: number;
 }
+
+/** How much a card is worth to the greedy bot (rough, by feel). */
+const CARD_SCORE: Record<string, number> = {
+  fist: 2,
+  folder: 1.5,
+  ink: 1,
+  clip: 0.5,
+  punch: 5,
+  redpen: 5,
+  sharpener: 5,
+  pins: 5,
+  scissors: 7,
+  ruler: 6,
+  stapler: 6,
+  awl: 6,
+  cutter: 8,
+  alarm: 8,
+  binder: 4,
+  sleeve: 4,
+  umbrella: 3,
+  drawer: 5,
+  laminator: 5,
+  archivebox: 6,
+  vest: 7,
+  clipboard: 6,
+  corrector: 3,
+  urgent: 4,
+  blotcurse: 6,
+  quill: 5,
+  copystamp: 7,
+  carbon: 7,
+  weight: 6,
+  coin: 3,
+  receipt: 4,
+  bonus: 8,
+  card: 6,
+  piggy: 4,
+  report: 9,
+  goldclip: 10,
+  redtape: -10,
+};
+
+const cardScore = (c: { id: string; up?: boolean }) => (CARD_SCORE[c.id] ?? 3) + (c.up ? 1.5 : 0);
 
 function threat(run: RunState): number {
   const c = run.combat!;
   let t = 0;
   for (const e of alive(c)) if (e.countdown <= 1) t += intentDamage(c, e);
-  return Math.max(0, t - run.hero.armor);
+  return t;
 }
 
 function scoreMove(run: RunState, m: Move): number {
   const mods = modsOf(run);
   const p = previewMove(run, mods, m);
   if (!p.valid) return -1;
-  const danger = threat(run);
-  const hpFactor = run.hero.hp + run.hero.soul <= 2 ? 1.6 : 1;
-  const armorValue = danger > 0 ? 7 * hpFactor : run.hero.armor < 2 ? 2.5 : 0.6;
-  const cost = run.hero.active ? (ITEMS[run.hero.active].charge ?? 6) : 0;
-  const chargeValue = run.hero.charge < cost ? 1.2 : 0.1;
-  return p.damage * 3 + Math.min(p.armor, 4) * armorValue + p.charge * chargeValue + p.coins * 1.5 + p.specials * 5;
+  const c = run.combat!;
+  const target = alive(c).find((e) => e.uid === c.target) ?? alive(c)[0];
+  const need = Math.max(0, threat(run) - run.hero.armor);
+  const low = run.hero.hp < run.hero.maxHp * 0.35 ? 1.5 : 1;
+  const dmg = target ? Math.min(p.damage, target.hp + target.block + 4) : p.damage;
+  const kill = target && p.damage >= target.hp + target.block ? 8 : 0;
+  const armor = Math.min(p.armor, need) * 1.4 * low + Math.max(0, p.armor - need) * 0.1;
+  const cost = run.hero.active ? activeCost(run) : 0;
+  const charge = run.hero.charge < cost ? p.charge * 1.1 : p.charge * 0.1;
+  return dmg + kill + armor + charge + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0);
 }
 
 function pickTarget(run: RunState): number | null {
@@ -46,8 +93,8 @@ function pickTarget(run: RunState): number | null {
   const rank = (e: (typeof list)[number]) => {
     const i = currentIntent(e);
     const dmg = intentDamage(c, e);
-    const support = i.kind === 'heal' || i.kind === 'summon' ? 3 : 0;
-    return (dmg + support) / Math.max(1, e.countdown) + 8 / Math.max(1, e.hp);
+    const support = i.kind === 'heal' || i.kind === 'summon' || i.kind === 'hurry' ? 4 : 0;
+    return (dmg + support) / Math.max(1, e.countdown) + 30 / Math.max(1, e.hp);
   };
   return list.sort((a, b) => rank(b) - rank(a))[0].uid;
 }
@@ -55,181 +102,276 @@ function pickTarget(run: RunState): number | null {
 function combatAction(run: RunState, policy: Policy, r: Rng): Action | null {
   const c = run.combat!;
   const mods = modsOf(run);
-  // Actives: spend when charged, with simple aims.
-  const active = run.hero.active ? ITEMS[run.hero.active] : null;
-  if (policy !== 'random' && active && active.when !== 'explore' && run.hero.charge >= (active.charge ?? 99)) {
-    if (active.aim === 'enemy') {
-      const t = pickTarget(run);
-      if (t !== null) return { type: 'active', uid: t };
-    } else if (active.aim === 'cell') {
-      const bad = c.board.cells.findIndex((t) => t.fuse || t.pin || t.kind === 'junk');
-      if (bad >= 0) return { type: 'active', cell: bad };
-    } else if (active.aim === 'col') {
-      return { type: 'active', col: int(r, 6) };
-    } else return { type: 'active' };
-  }
-  if (policy !== 'random') {
-    const t = pickTarget(run);
-    if (t !== null && t !== c.target) return { type: 'target', uid: t };
-  }
+  const hero = run.hero;
   const moves = validMoves(c.board, mods.wrap);
-  if (!moves.length) return null;
-  if (policy === 'random') return { type: 'move', move: moves[int(r, moves.length)] };
-  if (policy === 'first') return { type: 'move', move: moves[0] };
-  let best = moves[0];
-  let bestScore = -Infinity;
-  for (const m of moves) {
-    const s = scoreMove(run, m) + next(r) * 0.01;
-    if (s > bestScore) {
-      bestScore = s;
-      best = m;
-    }
+  if (policy === 'random') return moves.length ? { type: 'move', move: moves[int(r, moves.length)] } : null;
+  const t = pickTarget(run);
+  if (t !== null && t !== c.target) return { type: 'target', uid: t };
+  const danger = threat(run) - hero.armor;
+  // Pockets.
+  for (let slot = 0; slot < hero.pockets.length; slot++) {
+    const p = hero.pockets[slot];
+    if (!p) continue;
+    if (p === 'coffee' && hero.hp < hero.maxHp * 0.4) return { type: 'pocket', slot };
+    if (p === 'sticker' && danger >= hero.hp * 0.4) return { type: 'pocket', slot };
+    if (p === 'energy' && alive(c).some((e) => e.hp > 40)) return { type: 'pocket', slot };
+    if ((p === 'bomb' || p === 'eraser') && danger >= hero.hp * 0.5) return { type: 'pocket', slot, cell: 14 };
   }
-  return { type: 'move', move: best };
-}
-
-/** BFS path (first step) to the nearest room that satisfies `want`. */
-function stepToward(run: RunState, want: (id: number) => boolean): Dir | null {
-  const start = run.room;
-  const prev = new Map<number, { from: number; dir: Dir }>();
-  const queue = [start];
-  const seen = new Set([start]);
-  while (queue.length) {
-    const id = queue.shift()!;
-    if (id !== start && want(id)) {
-      let cur = id;
-      let dir: Dir | null = null;
-      while (cur !== start) {
-        const p = prev.get(cur)!;
-        dir = p.dir;
-        cur = p.from;
+  // Active skill.
+  const id = hero.active;
+  if (id && hero.charge >= activeCost(run)) {
+    const cells = c.board.cells;
+    const junk = cells.findIndex((x) => x.kind === 'junk' || x.pin);
+    switch (id) {
+      case 'eraser':
+        if (junk >= 0) return { type: 'active', cell: junk };
+        break;
+      case 'corrector':
+        if (cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
+        break;
+      case 'stapler': {
+        const e = alive(c).sort((a, b) => intentDamage(c, b) / Math.max(1, b.countdown) - intentDamage(c, a) / Math.max(1, a.countdown))[0];
+        if (e) return { type: 'active', uid: e.uid };
+        break;
       }
-      return dir;
-    }
-    const room = run.map.rooms[id];
-    for (const d of DIRS) {
-      const n = room.doors[d];
-      if (n === undefined || seen.has(n)) continue;
-      const nr = run.map.rooms[n];
-      if (nr.hidden) continue;
-      if (nr.locked && run.hero.keys <= 0) continue;
-      seen.add(n);
-      prev.set(n, { from: id, dir: d });
-      queue.push(n);
+      case 'shredder': {
+        const reds = Array.from({ length: 6 }, (_, col) => cells.filter((x, i) => colOf(i) === col && x.kind === 'blade').length);
+        return { type: 'active', col: reds.indexOf(Math.max(...reds)) };
+      }
+      case 'coffeeToGo':
+      case 'megaphone':
+        if (danger > 0) return { type: 'active' };
+        break;
+      default:
+        return { type: 'active' };
     }
   }
-  return null;
+  if (!moves.length) return null;
+  if (policy === 'greedy' || policy === 'randomCards' || policy === 'noCards') {
+    let best = moves[0];
+    let bestScore = -Infinity;
+    for (const m of moves) {
+      const s = scoreMove(run, m) + next(r) * 0.01;
+      if (s > bestScore) {
+        bestScore = s;
+        best = m;
+      }
+    }
+    return { type: 'move', move: best };
+  }
+  return { type: 'move', move: moves[int(r, moves.length)] };
 }
 
-function exploreAction(run: RunState, opts: BotOptions, r: Rng): Action | null {
-  const room = currentRoom(run);
-  if (opts.items) {
-    const ped = room.pedestals.find((p) => !p.taken && (!p.hearts || run.hero.hearts > p.hearts + 1));
-    if (ped && !(ITEMS[ped.item].kind === 'active' && run.hero.active && chance(r, 0.5))) return { type: 'pedestal', id: ped.id };
-    if (room.kind === 'shop') {
-      const slot = room.shop
-        .filter((s) => !s.sold && s.price <= run.hero.coins)
-        .filter((s) => s.kind === 'item' || ((s.kind === 'half' || s.kind === 'heart') && run.hero.hp < run.hero.hearts * 2))
-        .sort((a, b) => (a.kind === 'item' ? -1 : 1) - (b.kind === 'item' ? -1 : 1))[0];
-      if (slot) return { type: 'buy', id: slot.id };
+function mapAction(run: RunState, r: Rng): Action {
+  const options = reachable(run.map, run.node).map((id) => run.map.nodes[id]);
+  const ratio = run.hero.hp / run.hero.maxHp;
+  const value = (kind: string) => {
+    switch (kind) {
+      case 'elite':
+        return ratio > 0.75 ? 6 : ratio > 0.55 ? 1 : -6;
+      case 'rest':
+        return ratio < 0.5 ? 8 : 1;
+      case 'shop':
+        return run.hero.coins >= 100 ? 6 : 0;
+      case 'treasure':
+        return 7;
+      case 'event':
+        return 3;
+      default:
+        return 3;
     }
-  }
-  const chest = room.pickups.find((p) => p.kind === 'lockedChest' && run.hero.keys > 0);
-  if (chest) return { type: 'take', pickup: chest.id };
-  const heartPick = room.pickups.find((p) => (p.kind === 'half' || p.kind === 'heart') && run.hero.hp < run.hero.hearts * 2);
-  if (heartPick) return { type: 'take', pickup: heartPick.id };
-  // Secret room guess: bomb the wall with most neighbouring rooms when rich in bombs.
-  if (run.hero.bombs >= 3 && opts.policy !== 'random') {
-    for (const d of DIRS) {
-      if (room.doors[d] !== undefined) continue;
-      const x = room.x + STEP[d][0];
-      const y = room.y + STEP[d][1];
-      const touching = DIRS.filter((dd) =>
-        run.map.rooms.some((o) => !o.hidden && o.x === x + STEP[dd][0] && o.y === y + STEP[dd][1]),
-      ).length;
-      if (touching >= 3) return { type: 'bombWall', dir: d };
-    }
-  }
-  if (room.kind === 'boss' && room.trapdoor && !room.pedestals.some((p) => !p.taken && !p.hearts)) return { type: 'descend' };
-  // Visit unexplored rooms first (boss last), then the boss.
-  const unvisited = (id: number) => {
-    const rr = run.map.rooms[id];
-    return !rr.visited && rr.kind !== 'boss' && !rr.hidden;
   };
-  const dir = stepToward(run, unvisited) ?? stepToward(run, (id) => run.map.rooms[id].kind === 'boss' && !run.map.rooms[id].cleared);
-  if (dir) return { type: 'go', dir };
-  if (room.kind === 'boss' && room.trapdoor) return { type: 'descend' };
-  const doors = doorDirs(run);
-  return doors.length ? { type: 'go', dir: doors[int(r, doors.length)] } : null;
+  // One step of lookahead: the node plus its best child.
+  const score = (id: number) => {
+    const n = run.map.nodes[id];
+    const kids = n.next.map((k) => value(run.map.nodes[k].kind));
+    return value(n.kind) + (kids.length ? Math.max(...kids) * 0.5 : 0) + next(r) * 0.5;
+  };
+  options.sort((a, b) => score(b.id) - score(a.id));
+  return { type: 'travel', node: options[0].id };
 }
 
-/** One decision for the current state (used by the in-browser autoplay debug hook). */
+/** Value of a run state for choosing event options. */
+function worth(run: RunState): number {
+  const h = run.hero;
+  const deck = h.deck.reduce((s, c) => s + cardScore(c), 0);
+  let v = h.hp + h.maxHp * 1.5 + h.coins * 0.25 + h.relics.length * 25 + deck + run.stats.shards * 4;
+  if (run.phase === 'pick' && run.pick) v += { remove: 8, upgrade: 6, finish: 5, transform: 3, copy: 6 }[run.pick.purpose] * run.pick.count;
+  if (run.phase === 'combat') v += h.hp / h.maxHp > 0.7 ? 10 : -40;
+  return v;
+}
+
+function removeOrder(deck: DeckCard[]) {
+  return [...deck].sort((a, b) => cardScore(a) - cardScore(b));
+}
+
+function pickAction(run: RunState): Action {
+  const p = run.pick!;
+  const list = run.hero.deck.filter((c) => pickable(run, p, c));
+  if (!list.length) return { type: 'leave' };
+  let card: DeckCard;
+  if (p.purpose === 'remove' || p.purpose === 'transform') card = removeOrder(list)[0];
+  else card = [...list].sort((a, b) => cardScore(b) - cardScore(a))[0];
+  if (p.purpose === 'remove' && cardScore(card) >= 4) return { type: 'leave' };
+  return { type: 'pick', uid: card.uid };
+}
+
+function wantCard(run: RunState, c: { id: string; up?: boolean }) {
+  const n = run.hero.deck.length;
+  const bar = n <= 14 ? 4 : n <= 20 ? 6 : 8;
+  return cardScore(c) >= bar;
+}
+
 export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
-  if (run.phase === 'combat') return combatAction(run, opts.policy, r);
-  if (run.phase === 'explore') return exploreAction(run, opts, r);
-  return null;
+  const policy = opts.policy;
+  switch (run.phase) {
+    case 'combat':
+      return combatAction(run, policy, r);
+    case 'map':
+      if (policy === 'random') {
+        const opts2 = reachable(run.map, run.node);
+        return { type: 'travel', node: opts2[int(r, opts2.length)] };
+      }
+      return mapAction(run, r);
+    case 'reward': {
+      const i = run.rewards.findIndex((x) => !x.taken);
+      if (i < 0) return { type: 'leave' };
+      const x = run.rewards[i];
+      if (x.kind === 'card') {
+        const cards = (x.cards ?? []).map((id, k) => ({ id, up: !!x.ups?.[k], k }));
+        if (policy === 'noCards') return { type: 'leave' };
+        if (policy === 'random' || policy === 'randomCards') return { type: 'reward', index: i, card: int(r, cards.length) };
+        const best = cards.sort((a, b) => cardScore(b) - cardScore(a))[0];
+        if (!best || !wantCard(run, best)) {
+          const rest = run.rewards.findIndex((y, k) => k !== i && !y.taken && y.kind !== 'card');
+          return rest >= 0 ? { type: 'reward', index: rest } : { type: 'leave' };
+        }
+        return { type: 'reward', index: i, card: best.k };
+      }
+      if (x.kind === 'pocket' && !run.hero.pockets.includes(null)) {
+        const rest = run.rewards.findIndex((y, k) => k !== i && !y.taken && y.kind !== 'pocket');
+        return rest >= 0 ? { type: 'reward', index: rest } : { type: 'leave' };
+      }
+      return { type: 'reward', index: i };
+    }
+    case 'shop': {
+      const s = run.shop!;
+      const coins = run.hero.coins;
+      if (policy !== 'random') {
+        const worst = removeOrder(run.hero.deck)[0];
+        if (!s.removed && coins >= s.removePrice && worst && cardScore(worst) < 2 && run.hero.deck.length > 8) return { type: 'remove' };
+        const relic = s.relics.findIndex((x) => !x.sold && x.price <= coins && ITEMS[x.id].kind === 'passive');
+        if (relic >= 0) return { type: 'buy', kind: 'relic', index: relic };
+        if (policy === 'greedy') {
+          const card = s.cards.findIndex((x) => !x.sold && x.price <= coins && wantCard(run, x) && cardScore(x) >= 6);
+          if (card >= 0) return { type: 'buy', kind: 'card', index: card };
+        }
+        if (s.finish && !s.finish.sold && coins >= s.finish.price + 40) return { type: 'buy', kind: 'finish', index: 0 };
+        const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - 40);
+        if (pocket >= 0 && run.hero.pockets.includes(null)) return { type: 'buy', kind: 'pocket', index: pocket };
+      }
+      return { type: 'leave' };
+    }
+    case 'rest':
+      if (run.hero.hp < run.hero.maxHp * 0.55 || policy === 'random') return { type: 'rest', choice: 'heal' };
+      return run.hero.deck.some((c) => !c.up && CARDS[c.id].rarity !== 'status') ? { type: 'rest', choice: 'upgrade' } : { type: 'rest', choice: 'heal' };
+    case 'pick':
+      return pickAction(run);
+    case 'treasure':
+      return run.treasure && !run.treasure.opened ? { type: 'open' } : { type: 'leave' };
+    case 'event': {
+      const e = run.event!;
+      if (e.result !== undefined) return { type: 'leave' };
+      const def = EVENT_BY_ID[e.id];
+      const open = def.options.map((o, k) => ({ o, k })).filter(({ o }) => !o.locked?.(run));
+      if (policy === 'random') return { type: 'event', option: open[int(r, open.length)].k };
+      let best = open[open.length - 1].k;
+      let bestV = -Infinity;
+      for (const { k } of open) {
+        // Try the option on a copy: the bot only sees the outcome text, not future rolls.
+        const trial = dispatch(clone(run), { type: 'event', option: k }).run;
+        const v = worth(trial) + next(r) * 0.1;
+        if (v > bestV) {
+          bestV = v;
+          best = k;
+        }
+      }
+      return { type: 'event', option: best };
+    }
+    case 'bossReward':
+      return policy === 'random' ? { type: 'bossRelic', index: int(r, run.bossRelics.length) } : { type: 'bossRelic', index: 0 };
+    default:
+      return null;
+  }
+}
+
+export interface FightLog {
+  act: number;
+  kind: string;
+  moves: number;
+  enemyActs: number;
+  damageTaken: number;
+  won: boolean;
 }
 
 export interface SimResult {
   won: boolean;
-  floor: number;
-  room: number;
-  moves: number;
+  act: number;
   cause: string;
+  moves: number;
+  steps: number;
+  fights: FightLog[];
   stats: RunState['stats'];
-  items: string[];
-  hearts: number;
-  fights: { floor: number; moves: number; enemyActs: number; damageTaken: number; boss: boolean }[];
+  deck: number;
+  relics: number;
 }
 
-export function playRun(start: RunState, opts: BotOptions, maxSteps = 6000): SimResult {
+export function playRun(start: RunState, opts: BotOptions, maxSteps = 20000): SimResult {
   let run = start;
-  const r = rng(opts.seed ^ 0x5bd1e995);
-  const fights: SimResult['fights'] = [];
-  let fight: SimResult['fights'][number] | null = null;
-  let takenAtStart = 0;
-  for (let step = 0; step < maxSteps; step++) {
-    if (run.phase === 'dead' || run.phase === 'won') break;
-    const action = run.phase === 'combat' ? combatAction(run, opts.policy, r) : exploreAction(run, opts, r);
+  const r = { s: (opts.seed * 2654435761) >>> 0 || 1 };
+  const fights: FightLog[] = [];
+  let cur: FightLog | null = run.combat ? { act: run.act, kind: run.combat.kind, moves: 0, enemyActs: 0, damageTaken: 0, won: false } : null;
+  let steps = 0;
+  let stuck = 0;
+  while (steps < maxSteps && run.phase !== 'dead' && run.phase !== 'won') {
+    const action = decide(run, opts, r);
     if (!action) break;
     const res = dispatch(run, action);
-    for (const e of res.events) {
-      if (e.t === 'combatStart') {
-        fight = { floor: res.run.floor, moves: 0, enemyActs: 0, damageTaken: 0, boss: e.boss };
-        takenAtStart = run.stats.damageTaken;
-      }
-      if (e.t === 'enemyAct' && fight) fight.enemyActs++;
-      if (e.t === 'swap' && fight) fight.moves++;
-      if ((e.t === 'roomClear' || e.t === 'dead') && fight) {
-        fight.damageTaken = res.run.stats.damageTaken - takenAtStart;
-        fights.push(fight);
-        fight = null;
-      }
-    }
-    if (res.events.some((e) => e.t === 'invalid') && action.type !== 'bombWall') {
-      // Avoid loops on invalid choices: fall back to a random door or random move.
-      if (run.phase === 'combat') {
-        const moves = validMoves(run.combat!.board, modsOf(run).wrap);
-        if (!moves.length) break;
-        run = dispatch(run, { type: 'move', move: moves[int(r, moves.length)] }).run;
+    steps++;
+    if (res.events.some((e) => e.t === 'invalid')) {
+      stuck++;
+      if (stuck > 20) {
+        // Fall back to leaving whatever screen we are stuck on.
+        const leave = dispatch(res.run, { type: 'leave' });
+        run = leave.run;
+        stuck = 0;
         continue;
       }
-      const doors = doorDirs(run);
-      if (!doors.length) break;
-      run = dispatch(run, { type: 'go', dir: doors[int(r, doors.length)] }).run;
-      continue;
+    } else stuck = 0;
+    for (const e of res.events) {
+      if (e.t === 'combatStart') cur = { act: res.run.act, kind: e.kind, moves: 0, enemyActs: 0, damageTaken: 0, won: false };
+      if (e.t === 'swap' && cur) cur.moves++;
+      if (e.t === 'enemyAct' && cur) {
+        cur.enemyActs++;
+        cur.damageTaken += e.hurt?.red ?? 0;
+      }
+      if ((e.t === 'combatWon' || e.t === 'dead') && cur) {
+        cur.won = e.t === 'combatWon';
+        fights.push(cur);
+        cur = null;
+      }
     }
     run = res.run;
   }
   return {
     won: run.phase === 'won',
-    floor: run.floor,
-    room: run.room,
-    moves: run.stats.moves,
+    act: run.act,
     cause: run.stats.deathCause,
-    stats: run.stats,
-    items: run.hero.items,
-    hearts: run.hero.hearts,
+    moves: run.stats.moves,
+    steps,
     fights,
+    stats: run.stats,
+    deck: run.hero.deck.length,
+    relics: run.hero.relics.length,
   };
 }

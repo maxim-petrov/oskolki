@@ -1,775 +1,240 @@
-export type Pool = 'treasure' | 'shop' | 'boss' | 'deal' | 'secret';
-export type Tag = 'bureau' | 'pyro' | 'accountant' | 'coffee' | 'pets';
+/**
+ * Items: passive relics that bend the rules, one active skill slot charged by ink,
+ * and pocket consumables. Effects are Mods flags read by the combat and run code.
+ */
+export type Pool = 'common' | 'uncommon' | 'rare' | 'boss' | 'shop' | 'starter';
 
 export interface Mods {
-  damage: number;
-  damageMul: number;
-  armorCap: number;
-  startArmor: number;
+  redPlus: number;
+  bluePlus: number;
+  inkPlus: number;
+  coinPlus: number;
+  /** +mult on every move. */
+  multFlat: number;
+  /** Extra mult per cascade wave beyond the first. */
+  cascadeMult: number;
+  /** First move of every fight: mult ×2. */
+  firstMoveX: boolean;
+  /** Chance that the move's mult doubles. */
+  luck: number;
+  /** Mult × random 0.5–2.5. */
+  chaos: boolean;
   preview: number;
   wrap: boolean;
-  pierce: boolean;
   crossRockets: boolean;
   bombRadius: number;
-  magnet: boolean;
+  prismOn4: boolean;
+  garlandEvery: number;
+  clockEvery: number;
+  /** Final strike ×N against paper enemies. */
+  paperX: number;
+  pierce: boolean;
+  firstHitDouble: boolean;
+  bleedOnRed: number;
+  igniteOn4: boolean;
+  planeOn4: number;
   inkDamage: number;
   coinDamage: number;
-  coinBonus: number;
-  shieldDamage: boolean;
-  bleedOnHit: boolean;
-  igniteOn4: boolean;
-  chaos: boolean;
-  luck: number;
-  battery: number;
-  firstHitDouble: boolean;
-  lamp: boolean;
-  censorImmune: boolean;
-  emberImmune: boolean;
-  clockEvery: number;
-  garlandEvery: number;
+  armorToDamage: boolean;
   freezeOn4Shields: boolean;
-  planeOn4: boolean;
-  echo: boolean;
   spider: number;
   cactus: number;
-  catBowl: boolean;
+  battery: number;
+  startArmor: number;
+  /** The first group of every move scores twice. */
+  echo: boolean;
+  censorImmune: boolean;
+  emberImmune: boolean;
+  /** +1 mult if the move had violet tiles (desk lamp). */
+  lampMult: boolean;
+  /** +1 mult if the move had gold tiles (calculator). */
+  calcGoldMult: boolean;
+  /** Armor for every junk tile cleared (mop). */
+  mopJunk: number;
+  interest: boolean;
+  healAfterFight: number;
+  healNoHit: number;
   flash: boolean;
-  mint: boolean;
-  ledger: boolean;
-  bureau: boolean;
-  pyroBlast: boolean;
-  accountant: boolean;
-  coffeeFirstMove: boolean;
-  petMaster: boolean;
   timerBonus: number;
-  prismOn4: boolean;
+  pockets: number;
+  /** Seal finish on N random tiles at the start of a fight. */
+  sealStart: number;
 }
 
 export function baseMods(): Mods {
   return {
-    damage: 0,
-    damageMul: 1,
-    armorCap: 3,
-    startArmor: 0,
+    redPlus: 0,
+    bluePlus: 0,
+    inkPlus: 0,
+    coinPlus: 0,
+    multFlat: 0,
+    cascadeMult: 0,
+    firstMoveX: false,
+    luck: 0,
+    chaos: false,
     preview: 1,
     wrap: false,
-    pierce: false,
     crossRockets: false,
     bombRadius: 1,
-    magnet: false,
+    prismOn4: false,
+    garlandEvery: 0,
+    clockEvery: 0,
+    paperX: 1,
+    pierce: false,
+    firstHitDouble: false,
+    bleedOnRed: 0,
+    igniteOn4: false,
+    planeOn4: 0,
     inkDamage: 0,
     coinDamage: 0,
-    coinBonus: 0,
-    shieldDamage: false,
-    bleedOnHit: false,
-    igniteOn4: false,
-    chaos: false,
-    luck: 0,
-    battery: 0,
-    firstHitDouble: false,
-    lamp: false,
-    censorImmune: false,
-    emberImmune: false,
-    clockEvery: 0,
-    garlandEvery: 0,
+    armorToDamage: false,
     freezeOn4Shields: false,
-    planeOn4: false,
-    echo: false,
     spider: 0,
     cactus: 0,
-    catBowl: false,
+    battery: 0,
+    startArmor: 0,
+    echo: false,
+    censorImmune: false,
+    emberImmune: false,
+    lampMult: false,
+    calcGoldMult: false,
+    mopJunk: 0,
+    interest: false,
+    healAfterFight: 0,
+    healNoHit: 0,
     flash: false,
-    mint: false,
-    ledger: false,
-    bureau: false,
-    pyroBlast: false,
-    accountant: false,
-    coffeeFirstMove: false,
-    petMaster: false,
     timerBonus: 0,
-    prismOn4: false,
+    pockets: 3,
+    sealStart: 0,
   };
 }
 
 export interface ItemDef {
   id: string;
   name: string;
-  tagline: string;
   desc: string;
   kind: 'passive' | 'active';
+  /** Sprite id of the icon. */
+  icon: string;
+  pool: Pool;
   /** Ink needed to use an active item. */
   charge?: number;
-  /** Where the active item works. */
-  when?: 'combat' | 'explore' | 'any';
   /** Active target: a cell, a column, an enemy, or none. */
   aim?: 'cell' | 'col' | 'enemy';
-  pools: Pool[];
-  quality: 0 | 1 | 2 | 3 | 4;
-  tags?: Tag[];
-  /** Achievement id that unlocks the item; absent = available from the start. */
+  /** Meta unlock that adds the item to the pools; absent = always available. */
   unlock?: string;
-  /** Heart containers granted on pickup (negative for deals). */
-  hearts?: number;
-  /** Heal half-hearts on pickup. */
+  maxHp?: number;
   heal?: number;
   coins?: number;
-  bombs?: number;
-  keys?: number;
   apply?: (m: Mods) => void;
 }
 
+const i = (def: ItemDef) => def;
+
 export const ITEMS: Record<string, ItemDef> = {
-  coffee: {
-    id: 'coffee',
-    name: 'Крепкий кофе',
-    tagline: 'Урон вверх',
-    desc: '+0,5 к урону клинков.',
-    kind: 'passive',
-    pools: ['treasure', 'shop', 'boss'],
-    quality: 1,
-    tags: ['coffee'],
-    apply: (m) => {
-      m.damage += 0.5;
-    },
-  },
-  sandwich: {
-    id: 'sandwich',
-    name: 'Бутерброд',
-    tagline: 'Здоровье вверх',
-    desc: '+1 контейнер сердца и полное лечение.',
-    kind: 'passive',
-    pools: ['treasure', 'shop', 'boss'],
-    quality: 1,
-    hearts: 1,
-    heal: 99,
-  },
-  vest: {
-    id: 'vest',
-    name: 'Бронежилет из папок',
-    tagline: 'Броня вверх',
-    desc: 'Предел брони +2. Каждая комната начинается с 1 брони.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    apply: (m) => {
-      m.armorCap += 2;
-      m.startArmor += 1;
-    },
-  },
-  ring: {
-    id: 'ring',
-    name: 'Кольцевая скоба',
-    tagline: 'Края соединены',
-    desc: 'Края поля соединены: линии совпадений продолжаются через край, а крайние фишки меняются с фишками на другом краю.',
-    kind: 'passive',
-    pools: ['treasure', 'secret'],
-    quality: 3,
-    tags: ['bureau'],
-    apply: (m) => {
-      m.wrap = true;
-    },
-  },
-  carbon: {
-    id: 'carbon',
-    name: 'Копирка',
-    tagline: 'Эхо',
-    desc: 'Первая группа каждого хода срабатывает ещё раз с половинной силой.',
-    kind: 'passive',
-    pools: ['treasure', 'boss'],
-    quality: 3,
-    tags: ['bureau'],
-    apply: (m) => {
-      m.echo = true;
-    },
-  },
-  punch: {
-    id: 'punch',
-    name: 'Дырокол',
-    tagline: 'Пробивание',
-    desc: 'Клинки игнорируют броню и щиты врагов.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    apply: (m) => {
-      m.pierce = true;
-    },
-  },
-  loupe: {
-    id: 'loupe',
-    name: 'Лупа',
-    tagline: 'Видно дальше',
-    desc: 'Очередь над полем показывает 3 следующие фишки вместо одной.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 1,
-    unlock: 'killCabinet',
-    apply: (m) => {
-      m.preview = 3;
-    },
-  },
-  plane: {
-    id: 'plane',
-    name: 'Бумажный самолётик',
-    tagline: 'Четвёрки летают',
-    desc: 'Группа из 4+ клинков запускает самолётик: 2 урона каждому врагу.',
-    kind: 'passive',
-    pools: ['treasure'],
-    quality: 2,
-    apply: (m) => {
-      m.planeOn4 = true;
-    },
-  },
-  dynamite: {
-    id: 'dynamite',
-    name: 'Праздничный динамит',
-    tagline: 'Бомбы больше',
-    desc: 'Бомбы-фишки и бомбы из запаса очищают квадрат 5×5.',
-    kind: 'passive',
-    pools: ['treasure', 'secret'],
-    quality: 2,
-    tags: ['pyro'],
-    unlock: 'bombs10',
-    apply: (m) => {
-      m.bombRadius = 2;
-    },
-  },
-  tape: {
-    id: 'tape',
-    name: 'Двусторонний скотч',
-    tagline: 'Щиты бьют',
-    desc: 'Совпадение папок наносит цели урон, равный полученной броне ×2.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    apply: (m) => {
-      m.shieldDamage = true;
-    },
-  },
-  magnet: {
-    id: 'magnet',
-    name: 'Магнит',
-    tagline: 'Притяжение',
-    desc: 'Монеты, соседние с любой собранной группой, собираются вместе с ней.',
-    kind: 'passive',
-    pools: ['shop', 'treasure'],
-    quality: 1,
-    tags: ['accountant'],
-    apply: (m) => {
-      m.magnet = true;
-    },
-  },
-  spider: {
-    id: 'spider',
-    name: 'Скрепка-паук',
-    tagline: 'Питомец',
-    desc: 'После каждого хода кусает самого слабого врага на 1.',
-    kind: 'passive',
-    pools: ['treasure', 'boss'],
-    quality: 2,
-    tags: ['pets'],
-    apply: (m) => {
-      m.spider += 1;
-    },
-  },
-  cactus: {
-    id: 'cactus',
-    name: 'Кактус на столе',
-    tagline: 'Колючки',
-    desc: 'Враг, ударивший тебя, получает 3 урона.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 1,
-    tags: ['pets'],
-    apply: (m) => {
-      m.cactus += 3;
-    },
-  },
-  inkwell: {
-    id: 'inkwell',
-    name: 'Чернильница',
-    tagline: 'Чернила жгут',
-    desc: 'Совпадения чернил наносят цели 1 урон за фишку.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    apply: (m) => {
-      m.inkDamage += 1;
-    },
-  },
-  scissors: {
-    id: 'scissors',
-    name: 'Ржавые ножницы',
-    tagline: 'Кровотечение',
-    desc: 'Каждое попадание клинков добавляет цели 1 кровотечение: урон в конце хода, стек уменьшается на 1.',
-    kind: 'passive',
-    pools: ['treasure', 'boss'],
-    quality: 2,
-    apply: (m) => {
-      m.bleedOnHit = true;
-    },
-  },
-  match: {
-    id: 'match',
-    name: 'Тлеющая спичка',
-    tagline: 'Поджог',
-    desc: 'Группа из 4+ фишек любого семейства поджигает цель: 2 урона в конце хода, 3 хода.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    tags: ['pyro'],
-    apply: (m) => {
-      m.igniteOn4 = true;
-    },
-  },
-  calculator: {
-    id: 'calculator',
-    name: 'Сломанный калькулятор',
-    tagline: 'Хаос',
-    desc: 'Каждый урон умножается на случайный коэффициент от 0,5 до 2,5.',
-    kind: 'passive',
-    pools: ['treasure', 'secret'],
-    quality: 1,
-    apply: (m) => {
-      m.chaos = true;
-    },
-  },
-  lucky: {
-    id: 'lucky',
-    name: 'Счастливая монетка',
-    tagline: 'Удача',
-    desc: '15% шанс удвоить эффект группы.',
-    kind: 'passive',
-    pools: ['shop', 'treasure', 'secret'],
-    quality: 2,
-    tags: ['accountant'],
-    apply: (m) => {
-      m.luck += 0.15;
-    },
-  },
-  battery: {
-    id: 'battery',
-    name: 'Батарейка',
-    tagline: 'Перезарядка',
-    desc: '+1 заряд активного предмета после каждого хода.',
-    kind: 'passive',
-    pools: ['shop', 'treasure'],
-    quality: 2,
-    apply: (m) => {
-      m.battery += 1;
-    },
-  },
-  pen: {
-    id: 'pen',
-    name: 'Бесконечная ручка',
-    tagline: 'Крест',
-    desc: 'Ракеты очищают сразу строку и столбец.',
-    kind: 'passive',
-    pools: ['treasure', 'boss'],
-    quality: 3,
-    unlock: 'rockets3',
-    apply: (m) => {
-      m.crossRockets = true;
-    },
-  },
-  gum: {
-    id: 'gum',
-    name: 'Мятная жвачка',
-    tagline: 'Чистая работа',
-    desc: 'Комната, пройденная без урона, лечит ½ сердца.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 1,
-    unlock: 'bossNoHit',
-    apply: (m) => {
-      m.mint = true;
-    },
-  },
-  timesheet: {
-    id: 'timesheet',
-    name: 'Табель',
-    tagline: 'Точность',
-    desc: 'Первое попадание по каждому врагу наносит двойной урон.',
-    kind: 'passive',
-    pools: ['treasure', 'boss'],
-    quality: 2,
-    tags: ['bureau'],
-    apply: (m) => {
-      m.firstHitDouble = true;
-    },
-  },
-  register: {
-    id: 'register',
-    name: 'Кассовый аппарат',
-    tagline: 'Монеты бьют',
-    desc: 'Совпадения монет наносят цели 1 урон за фишку.',
-    kind: 'passive',
-    pools: ['shop', 'treasure'],
-    quality: 2,
-    tags: ['accountant'],
-    apply: (m) => {
-      m.coinDamage += 1;
-    },
-  },
-  ledger: {
-    id: 'ledger',
-    name: 'Бухгалтерская книга',
-    tagline: 'Проценты',
-    desc: 'При входе в новую комнату +1 монета за каждые 10 монет в кошельке.',
-    kind: 'passive',
-    pools: ['shop'],
-    quality: 1,
-    tags: ['accountant'],
-    apply: (m) => {
-      m.ledger = true;
-    },
-  },
-  wallet: {
-    id: 'wallet',
-    name: 'Толстый кошелёк',
-    tagline: 'Жадность',
-    desc: 'Каждое совпадение монет даёт на 1 монету больше.',
-    kind: 'passive',
-    pools: ['shop', 'treasure'],
-    quality: 1,
-    tags: ['accountant'],
-    apply: (m) => {
-      m.coinBonus += 1;
-    },
-  },
-  ice: {
-    id: 'ice',
-    name: 'Ведро льда',
-    tagline: 'Холод',
-    desc: 'Группа из 4+ папок замораживает врагов: +1 к их таймерам.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    apply: (m) => {
-      m.freezeOn4Shields = true;
-    },
-  },
-  lamp: {
+  // ── Starting items ────────────────────────────────────────────────
+  knife: i({ id: 'knife', name: 'Канцелярский нож', desc: 'Итоговый удар по бумажным врагам ×2.', kind: 'passive', icon: 'item_knife', pool: 'starter', apply: (m) => (m.paperX *= 2) }),
+  calculator: i({ id: 'calculator', name: 'Калькулятор', desc: '+1 множ, если в ходу собраны золотые фишки.', kind: 'passive', icon: 'item_calculator', pool: 'starter', apply: (m) => (m.calcGoldMult = true) }),
+  mop: i({ id: 'mop', name: 'Швабра', desc: 'Каждая убранная клякса или волокита даёт 2 брони.', kind: 'passive', icon: 'item_mop', pool: 'starter', apply: (m) => (m.mopJunk += 2) }),
+
+  // ── Common ────────────────────────────────────────────────────────
+  coffee: i({ id: 'coffee', name: 'Крепкий кофе', desc: 'Красные фишки +1 к урону.', kind: 'passive', icon: 'item_coffee', pool: 'common', apply: (m) => (m.redPlus += 1) }),
+  binderclip: i({ id: 'binderclip', name: 'Зажим для бумаг', desc: 'Синие фишки +1 к броне.', kind: 'passive', icon: 'item_binderclip', pool: 'common', apply: (m) => (m.bluePlus += 1) }),
+  inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к заряду.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
+  wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Золотые фишки +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
+  vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Каждый бой начинается с 6 брони.', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.startArmor += 6) }),
+  sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+8 к максимуму здоровья. Лечит 8.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 8, heal: 8 }),
+  bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит 5.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 5) }),
+  gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 8.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 8) }),
+  ledger: i({ id: 'ledger', name: 'Бухгалтерская книга', desc: 'В начале боя +1 монета за каждые 10 в кошельке.', kind: 'passive', icon: 'item_ledger', pool: 'common', apply: (m) => (m.interest = true) }),
+  loupe: i({ id: 'loupe', name: 'Лупа', desc: 'Очередь над полем показывает 3 следующие фишки.', kind: 'passive', icon: 'item_loupe', pool: 'common', apply: (m) => (m.preview = 3) }),
+  gloves: i({ id: 'gloves', name: 'Резиновые перчатки', desc: 'Угольки не ранят.', kind: 'passive', icon: 'item_gloves', pool: 'common', apply: (m) => (m.emberImmune = true) }),
+
+  // ── Uncommon ──────────────────────────────────────────────────────
+  battery: i({ id: 'battery', name: 'Батарейка', desc: '+1 заряд навыка после каждого хода.', kind: 'passive', icon: 'item_battery', pool: 'uncommon', apply: (m) => (m.battery += 1) }),
+  spider: i({ id: 'spider', name: 'Скрепка-паук', desc: 'После каждого хода кусает самого слабого врага на 3.', kind: 'passive', icon: 'item_spider', pool: 'uncommon', apply: (m) => (m.spider += 3) }),
+  cactus: i({ id: 'cactus', name: 'Кактус на столе', desc: 'Враг, ударивший тебя, получает 5 урона.', kind: 'passive', icon: 'item_cactus', pool: 'uncommon', apply: (m) => (m.cactus += 5) }),
+  inkwell: i({ id: 'inkwell', name: 'Чернильница', desc: 'Каждая фиолетовая фишка наносит цели 2 урона.', kind: 'passive', icon: 'item_inkwell', pool: 'uncommon', apply: (m) => (m.inkDamage += 2) }),
+  register: i({ id: 'register', name: 'Кассовый аппарат', desc: 'Каждая золотая фишка наносит цели 2 урона.', kind: 'passive', icon: 'item_register', pool: 'uncommon', apply: (m) => (m.coinDamage += 2) }),
+  tape: i({ id: 'tape', name: 'Двусторонний скотч', desc: 'Броня, полученная за ход, ещё и бьёт цель.', kind: 'passive', icon: 'item_tape', pool: 'uncommon', apply: (m) => (m.armorToDamage = true) }),
+  rustyblade: i({ id: 'rustyblade', name: 'Ржавое лезвие', desc: 'Каждая красная группа даёт цели 2 кровотечения.', kind: 'passive', icon: 'item_scissors', pool: 'uncommon', apply: (m) => (m.bleedOnRed += 2) }),
+  match: i({ id: 'match', name: 'Тлеющая спичка', desc: 'Группа из 4+ фишек поджигает цель: 4 урона три хода.', kind: 'passive', icon: 'item_match', pool: 'uncommon', apply: (m) => (m.igniteOn4 = true) }),
+  ice: i({ id: 'ice', name: 'Ведро льда', desc: 'Синяя группа из 4+ замораживает врагов: таймеры +1.', kind: 'passive', icon: 'item_ice', pool: 'uncommon', apply: (m) => (m.freezeOn4Shields = true) }),
+  plane: i({ id: 'plane', name: 'Бумажный самолётик', desc: 'Красная группа из 4+ — 6 урона каждому врагу.', kind: 'passive', icon: 'item_plane', pool: 'uncommon', apply: (m) => (m.planeOn4 += 6) }),
+  lucky: i({ id: 'lucky', name: 'Счастливая монетка', desc: 'С шансом 20% множ хода удваивается.', kind: 'passive', icon: 'item_lucky', pool: 'uncommon', apply: (m) => (m.luck += 0.2) }),
+  dynamite: i({ id: 'dynamite', name: 'Праздничный динамит', desc: 'Бомбы взрывают квадрат 5×5.', kind: 'passive', icon: 'item_dynamite', pool: 'uncommon', apply: (m) => (m.bombRadius = 2) }),
+  garland: i({ id: 'garland', name: 'Гирлянда', desc: 'Каждый 5-й ход случайная фишка становится бомбой.', kind: 'passive', icon: 'item_garland', pool: 'uncommon', apply: (m) => (m.garlandEvery = 5) }),
+  timesheet: i({ id: 'timesheet', name: 'Табель', desc: 'Первый удар по каждому врагу ×2.', kind: 'passive', icon: 'item_timesheet', pool: 'uncommon', apply: (m) => (m.firstHitDouble = true) }),
+  calc2: i({ id: 'calc2', name: 'Кривой калькулятор', desc: 'Множ хода умножается на случайное число от 0,5 до 2,5.', kind: 'passive', icon: 'item_calculator', pool: 'uncommon', apply: (m) => (m.chaos = true) }),
+  lamp: i({
     id: 'lamp',
     name: 'Настольная лампа',
-    tagline: 'Свет',
-    desc: 'Цензура не действует. Урон клинков +20%. Ты несёшь свой свет.',
+    desc: 'Цензура не действует. +1 множ, если в ходу были фиолетовые фишки.',
     kind: 'passive',
-    pools: ['treasure', 'secret'],
-    quality: 2,
-    apply: (m) => {
-      m.lamp = true;
-      m.censorImmune = true;
-    },
-  },
-  garland: {
-    id: 'garland',
-    name: 'Гирлянда',
-    tagline: 'Праздник',
-    desc: 'Каждый 6-й ход случайная фишка становится бомбой.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    tags: ['pyro'],
-    apply: (m) => {
-      m.garlandEvery = m.garlandEvery ? Math.max(3, m.garlandEvery - 2) : 6;
-    },
-  },
-  clock: {
-    id: 'clock',
-    name: 'Сломанные часы',
-    tagline: 'Стоп',
-    desc: 'Каждый 4-й ход не тратит время: враги не тикают.',
-    kind: 'passive',
-    pools: ['treasure', 'boss'],
-    quality: 3,
-    apply: (m) => {
-      m.clockEvery = 4;
-    },
-  },
-  gloves: {
-    id: 'gloves',
-    name: 'Резиновые перчатки',
-    tagline: 'Не горит',
-    desc: 'Угольки больше не ранят.',
-    kind: 'passive',
-    pools: ['shop'],
-    quality: 0,
-    tags: ['pyro'],
-    apply: (m) => {
-      m.emberImmune = true;
-    },
-  },
-  bowl: {
-    id: 'bowl',
-    name: 'Кошачья миска',
-    tagline: 'Мурлыка',
-    desc: 'Зачистка комнаты лечит ½ сердца, не чаще раза в 3 комнаты.',
-    kind: 'passive',
-    pools: ['treasure', 'shop'],
-    quality: 1,
-    tags: ['pets'],
-    apply: (m) => {
-      m.catBowl = true;
-    },
-  },
-  flash: {
-    id: 'flash',
-    name: 'Флешка',
-    tagline: 'Резервная копия',
-    desc: 'Раз за этаж смертельный удар оставляет тебе ½ сердца.',
-    kind: 'passive',
-    pools: ['shop', 'secret'],
-    quality: 3,
-    apply: (m) => {
-      m.flash = true;
-    },
-  },
-  award: {
-    id: 'award',
-    name: 'Грамота «Сотрудник месяца»',
-    tagline: 'Всё вверх',
-    desc: '+0,3 урона, +1 контейнер сердца, предел брони +1.',
-    kind: 'passive',
-    pools: ['boss', 'secret'],
-    quality: 4,
-    hearts: 1,
-    heal: 2,
-    apply: (m) => {
-      m.damage += 0.3;
-      m.armorCap += 1;
-    },
-  },
-  espresso: {
-    id: 'espresso',
-    name: 'Двойной эспрессо',
-    tagline: 'Урон вверх',
-    desc: '+1 к урону клинков.',
-    kind: 'passive',
-    pools: ['boss', 'shop'],
-    quality: 3,
-    tags: ['coffee'],
-    apply: (m) => {
-      m.damage += 1;
-    },
-  },
-
-  // ── Deals: paid in heart containers ─────────────────────────────────
-  blood: {
-    id: 'blood',
-    name: 'Кровавый контракт',
-    tagline: 'Урон вверх ценой крови',
-    desc: '+1 урона. Клинки вызывают кровотечение.',
-    kind: 'passive',
-    pools: ['deal'],
-    quality: 3,
-    apply: (m) => {
-      m.damage += 1;
-      m.bleedOnHit = true;
-    },
-  },
-  nightshift: {
-    id: 'nightshift',
-    name: 'Ночная смена',
-    tagline: 'Время тянется',
-    desc: 'Таймеры всех врагов +1.',
-    kind: 'passive',
-    pools: ['deal'],
-    quality: 4,
-    apply: (m) => {
-      m.timerBonus += 1;
-    },
-  },
-  bonus: {
-    id: 'bonus',
-    name: 'Премия',
-    tagline: 'Деньги и сила',
-    desc: '+1 урона и 25 монет.',
-    kind: 'passive',
-    pools: ['deal'],
-    quality: 3,
-    coins: 25,
-    apply: (m) => {
-      m.damage += 1;
-    },
-  },
-  pact: {
-    id: 'pact',
-    name: 'Пакт с Цензором',
-    tagline: 'Радуга',
-    desc: 'Цензура не действует. Каждая группа из 4 создаёт призму вместо ракеты.',
-    kind: 'passive',
-    pools: ['deal'],
-    quality: 4,
+    icon: 'item_lamp',
+    pool: 'uncommon',
     apply: (m) => {
       m.censorImmune = true;
-      m.prismOn4 = true;
+      m.lampMult = true;
     },
-  },
+  }),
 
-  // ── Active items ────────────────────────────────────────────────────
-  eraser: {
-    id: 'eraser',
-    name: 'Ластик',
-    tagline: 'Стереть фишку',
-    desc: 'Убирает выбранную фишку: сверху упадёт новая. Снимает скрепки и угольки. Время не тратит.',
-    kind: 'active',
-    charge: 3,
-    when: 'combat',
-    aim: 'cell',
-    pools: ['shop'],
-    quality: 1,
-  },
-  coffeeToGo: {
-    id: 'coffeeToGo',
-    name: 'Кофе с собой',
-    tagline: 'Два хода даром',
-    desc: 'Следующие 2 хода враги не тикают.',
-    kind: 'active',
-    charge: 6,
-    when: 'combat',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-    tags: ['coffee'],
-  },
-  stapler: {
-    id: 'stapler',
-    name: 'Степлер',
-    tagline: 'Оглушение',
-    desc: 'Выбранный враг пропускает следующее действие.',
-    kind: 'active',
-    charge: 6,
-    when: 'combat',
-    aim: 'enemy',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-  },
-  corrector: {
-    id: 'corrector',
-    name: 'Корректор',
-    tagline: 'Чистый лист',
-    desc: 'Снимает с поля кляксы, скрепки, угольки, якоря и цензуру.',
-    kind: 'active',
-    charge: 6,
-    when: 'combat',
-    pools: ['treasure', 'shop'],
-    quality: 1,
-  },
-  shredder: {
-    id: 'shredder',
-    name: 'Шредер',
-    tagline: 'Столбец в лапшу',
-    desc: 'Очищает выбранный столбец, фишки дают свой эффект.',
-    kind: 'active',
-    charge: 9,
-    when: 'combat',
-    aim: 'col',
-    pools: ['treasure', 'boss'],
-    quality: 3,
-  },
-  megaphone: {
-    id: 'megaphone',
-    name: 'Мегафон',
-    tagline: 'Всем ждать',
-    desc: 'Все враги +2 к таймерам.',
-    kind: 'active',
-    charge: 9,
-    when: 'combat',
-    pools: ['treasure', 'shop'],
-    quality: 2,
-  },
-  giftbox: {
-    id: 'giftbox',
-    name: 'Коробка с сюрпризом',
-    tagline: 'Бум и радуга',
-    desc: 'Две бомбы и призма появляются на поле.',
-    kind: 'active',
-    charge: 12,
-    when: 'combat',
-    pools: ['treasure', 'boss', 'secret'],
-    quality: 3,
-    tags: ['pyro'],
-  },
-  dice: {
-    id: 'dice',
-    name: 'Игральный кубик',
-    tagline: 'Переиграть',
-    desc: 'Перебрасывает предметы на пьедесталах в комнате. Вне боя.',
-    kind: 'active',
-    charge: 6,
-    when: 'explore',
-    pools: ['secret', 'shop'],
-    quality: 3,
-  },
-  mop: {
-    id: 'mop',
-    name: 'Швабра',
-    tagline: 'Прибраться',
-    desc: 'Снимает кляксы, скрепки, угольки и цензуру, даёт 1 броню.',
-    kind: 'active',
-    charge: 4,
-    when: 'combat',
-    pools: [],
-    quality: 1,
-  },
+  // ── Rare ──────────────────────────────────────────────────────────
+  ring: i({ id: 'ring', name: 'Кольцевая скоба', desc: 'Края поля соединены: линии и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'rare', apply: (m) => (m.wrap = true) }),
+  pen: i({ id: 'pen', name: 'Бесконечная ручка', desc: 'Ракеты очищают строку и столбец сразу.', kind: 'passive', icon: 'item_pen', pool: 'rare', apply: (m) => (m.crossRockets = true) }),
+  clock: i({ id: 'clock', name: 'Сломанные часы', desc: 'Каждый 4-й ход не тратит время: враги не тикают.', kind: 'passive', icon: 'item_clock', pool: 'rare', apply: (m) => (m.clockEvery = 4) }),
+  puncher: i({ id: 'puncher', name: 'Пробойник', desc: 'Итоговый удар пробивает броню и щит врагов.', kind: 'passive', icon: 'item_punch', pool: 'rare', apply: (m) => (m.pierce = true) }),
+  poster: i({ id: 'poster', name: 'Мотивационный плакат', desc: 'Каждая волна каскада даёт ещё +1 множ.', kind: 'passive', icon: 'item_poster', pool: 'rare', apply: (m) => (m.cascadeMult += 1) }),
+  coffeemachine: i({ id: 'coffeemachine', name: 'Кофемашина', desc: 'Первый ход каждого боя — множ ×2.', kind: 'passive', icon: 'item_coffeemachine', pool: 'rare', apply: (m) => (m.firstMoveX = true) }),
+  carbonpack: i({ id: 'carbonpack', name: 'Пачка копирки', desc: 'Первая группа каждого хода срабатывает дважды.', kind: 'passive', icon: 'item_carbon', pool: 'rare', apply: (m) => (m.echo = true) }),
+  flash: i({ id: 'flash', name: 'Флешка', desc: 'Раз за отдел смертельный удар оставляет тебе 1 здоровье.', kind: 'passive', icon: 'item_flash', pool: 'rare', apply: (m) => (m.flash = true) }),
+
+  // ── Boss ──────────────────────────────────────────────────────────
+  award: i({ id: 'award', name: 'Грамота «Сотрудник месяца»', desc: '+1 множ каждый ход.', kind: 'passive', icon: 'item_award', pool: 'boss', apply: (m) => (m.multFlat += 1) }),
+  nightshift: i({ id: 'nightshift', name: 'Ночная смена', desc: 'Таймеры всех врагов +1.', kind: 'passive', icon: 'item_nightshift', pool: 'boss', apply: (m) => (m.timerBonus += 1) }),
+  espresso: i({ id: 'espresso', name: 'Двойной эспрессо', desc: 'Красные фишки +2 к урону.', kind: 'passive', icon: 'item_espresso', pool: 'boss', apply: (m) => (m.redPlus += 2) }),
+  pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +15 к максимуму здоровья.', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 15, heal: 15, apply: (m) => (m.pockets += 2) }),
+  stamprelic: i({ id: 'stamprelic', name: 'Печать отдела', desc: 'В начале боя 3 фишки поля получают печать: +1 множ при сборе.', kind: 'passive', icon: 'item_stamprelic', pool: 'boss', apply: (m) => (m.sealStart += 3) }),
+  prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Группы из 4 создают призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
+
+  // ── Active skills (charged by ink) ────────────────────────────────
+  eraser: i({ id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку: сверху упадёт новая. Время не тратит.', kind: 'active', icon: 'item_eraser', pool: 'shop', charge: 3, aim: 'cell' }),
+  stapler: i({ id: 'stapler', name: 'Степлер', desc: 'Выбранный враг пропускает следующее действие.', kind: 'active', icon: 'item_stapler', pool: 'uncommon', charge: 6, aim: 'enemy' }),
+  coffeeToGo: i({ id: 'coffeeToGo', name: 'Кофе с собой', desc: 'Следующие 2 хода враги не тикают.', kind: 'active', icon: 'item_coffeeToGo', pool: 'uncommon', charge: 6 }),
+  corrector: i({ id: 'corrector', name: 'Корректор', desc: 'Снимает с поля кляксы, волокиту, скобы, угольки и цензуру.', kind: 'active', icon: 'item_corrector', pool: 'common', charge: 5 }),
+  shredder: i({ id: 'shredder', name: 'Шредер', desc: 'Очищает выбранный столбец, фишки срабатывают.', kind: 'active', icon: 'item_shredder', pool: 'rare', charge: 8, aim: 'col' }),
+  megaphone: i({ id: 'megaphone', name: 'Мегафон', desc: 'Таймеры всех врагов +2.', kind: 'active', icon: 'item_megaphone', pool: 'uncommon', charge: 8 }),
+  giftbox: i({ id: 'giftbox', name: 'Коробка с сюрпризом', desc: 'Две бомбы и призма появляются на поле.', kind: 'active', icon: 'item_giftbox', pool: 'rare', charge: 10 }),
 };
 
-export const TRANSFORMATIONS: Record<Tag, { name: string; desc: string; apply: (m: Mods) => void }> = {
-  bureau: {
-    name: 'Бюрократ',
-    desc: 'Каждая группа считается на 1 фишку больше.',
-    apply: (m) => {
-      m.bureau = true;
-    },
-  },
-  pyro: {
-    name: 'Пироман',
-    desc: 'Взрывы поджигают врагов. Угольки не ранят.',
-    apply: (m) => {
-      m.pyroBlast = true;
-      m.emberImmune = true;
-    },
-  },
-  accountant: {
-    name: 'Бухгалтер',
-    desc: 'Каждые 5 монет за ход дают 1 броню.',
-    apply: (m) => {
-      m.accountant = true;
-    },
-  },
-  coffee: {
-    name: 'Кофеман',
-    desc: 'Первый ход в каждой комнате не тратит время. +0,5 урона.',
-    apply: (m) => {
-      m.coffeeFirstMove = true;
-      m.damage += 0.5;
-    },
-  },
-  pets: {
-    name: 'Хозяин питомцев',
-    desc: 'Питомцы действуют дважды.',
-    apply: (m) => {
-      m.petMaster = true;
-    },
-  },
+export interface PocketDef {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  price: number;
+  aim?: 'cell';
+}
+
+export const POCKETS: Record<string, PocketDef> = {
+  bomb: { id: 'bomb', name: 'Бомба', desc: 'Взрыв 3×3 в выбранном месте. Время не тратит.', icon: 'pocket_bomb', price: 30, aim: 'cell' },
+  coffee: { id: 'coffee', name: 'Кофе', desc: 'Лечит 12 здоровья.', icon: 'pocket_coffee', price: 30 },
+  eraser: { id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку. Время не тратит.', icon: 'pocket_eraser', price: 25, aim: 'cell' },
+  sticker: { id: 'sticker', name: 'Стикер «Срочно»', desc: 'Таймеры всех врагов +2.', icon: 'pocket_sticker', price: 35 },
+  energy: { id: 'energy', name: 'Энергетик', desc: '+2 множ к следующему ходу.', icon: 'pocket_energy', price: 30 },
 };
 
-export function computeMods(items: readonly string[], transformations: readonly string[]): Mods {
+export function computeMods(relics: readonly string[]): Mods {
   const m = baseMods();
-  for (const id of items) ITEMS[id]?.apply?.(m);
-  for (const t of transformations) TRANSFORMATIONS[t as Tag]?.apply(m);
-  if (m.petMaster) {
-    m.spider *= 2;
-    m.cactus *= 2;
-  }
+  for (const id of relics) ITEMS[id]?.apply?.(m);
   return m;
 }
 
-export function tagCounts(items: readonly string[]): Map<Tag, number> {
-  const counts = new Map<Tag, number>();
-  for (const id of items) for (const tag of ITEMS[id]?.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-  return counts;
-}
+export const RELIC_PRICE: Record<Pool, number> = { starter: 0, common: 120, uncommon: 160, rare: 230, boss: 300, shop: 140 };
 
-export const PASSIVE_IDS = Object.values(ITEMS)
-  .filter((i) => i.kind === 'passive')
-  .map((i) => i.id);
+/** Passive relics that can drop (actives come from their own pools). */
+export function relicPool(unlocked: readonly string[], exclude: readonly string[]): string[] {
+  return Object.values(ITEMS)
+    .filter((d) => d.pool !== 'starter' && d.kind === 'passive' && (!d.unlock || unlocked.includes(d.unlock)) && !exclude.includes(d.id))
+    .map((d) => d.id);
+}

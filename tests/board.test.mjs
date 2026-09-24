@@ -15,6 +15,7 @@ import {
 } from '../game/board.ts';
 import { rng } from '../game/rng.ts';
 import { QUEUE_LEN } from '../game/types.ts';
+import { STARTER_BAG } from './helpers.mjs';
 
 const F = { b: 'blade', s: 'shield', i: 'ink', c: 'coin', p: 'prism', j: 'junk' };
 /** Board from 6 strings of letters b/s/i/c/p/j. */
@@ -35,7 +36,7 @@ test('a swap exchanges two neighbours; only neighbours may swap', () => {
 });
 
 test('a swap is a move only when it matches or sets off a special', () => {
-  const b = { cells: cells(['sicbsi', 'bbiccs', ...filler.slice(2)]), queue: [], nextId: 100, flood: 0, colLock: Array(6).fill(0), rowLock: Array(6).fill(0) };
+  const b = { cells: cells(['sicbsi', 'bbiccs', ...filler.slice(2)]), queue: [], nextId: 100, flood: 0, colLock: Array(6).fill(0), rowLock: Array(6).fill(0), bag: [], source: [] };
   b.cells[idx(0, 2)].kind = 'blade';
   assert.ok(isValidMove(b, { from: idx(0, 2), to: idx(1, 2) }, false), 'completes b b b in row 1');
   assert.ok(!isValidMove(b, { from: idx(4, 4), to: idx(4, 5) }, false), 'no match anywhere');
@@ -91,7 +92,7 @@ test('prisms are wild and wrap mode joins opposite edges', () => {
 
 test('gravity drops tiles and refills from the queue head first', () => {
   const r = rng(7);
-  const b = createBoard(r);
+  const b = createBoard(r, STARTER_BAG);
   const next = b.cells.slice();
   const head = b.queue[0][0];
   const second = b.queue[0][1];
@@ -108,15 +109,15 @@ test('gravity drops tiles and refills from the queue head first', () => {
 });
 
 test('fresh boards are deterministic, match-free and playable', () => {
-  const a = createBoard(rng(42));
-  const b = createBoard(rng(42));
+  const a = createBoard(rng(42), STARTER_BAG);
+  const b = createBoard(rng(42), STARTER_BAG);
   assert.deepEqual(a.cells, b.cells);
   assert.equal(findGroups(a.cells, false).length, 0);
   assert.ok(validMoves(a, false).length >= 6);
 });
 
 test('staples, anchors and water block swaps', () => {
-  const b = createBoard(rng(3));
+  const b = createBoard(rng(3), STARTER_BAG);
   b.cells[idx(2, 3)].pin = true;
   assert.equal(swapBlock(b, { from: idx(2, 3), to: idx(2, 4) }, false), 'Фишка прибита скобой');
   assert.equal(swapBlock(b, { from: idx(1, 3), to: idx(2, 3) }, false), 'Фишка прибита скобой', 'nothing swaps into a staple');
@@ -129,4 +130,14 @@ test('staples, anchors and water block swaps', () => {
   assert.equal(swapBlock(b, { from: idx(5, 1), to: idx(5, 2) }, false), 'Под водой фишки не ходят вбок');
   assert.equal(swapBlock(b, { from: idx(3, 1), to: idx(4, 1) }, false), null, 'tiles still float up out of the water');
   assert.equal(isValidMove(b, { from: idx(5, 1), to: idx(5, 2) }, false), false);
+});
+
+test('the board is dealt from the deck bag and refills from it', () => {
+  const bag = [...Array(18).fill({ card: 'fist', up: false }), ...Array(18).fill({ card: 'folder', up: false })];
+  const b = createBoard(rng(5), bag);
+  assert.ok(b.cells.every((t) => t.card === 'fist' || t.card === 'folder'), 'only deck cards on the board');
+  assert.ok(b.cells.every((t) => (t.card === 'fist' ? t.kind === 'blade' : t.kind === 'shield')));
+  assert.ok(b.queue.flat().every((t) => t.card === 'fist' || t.card === 'folder'), 'the queue comes from the bag too');
+  const redtape = createBoard(rng(5), [...bag, { card: 'redtape', up: false }]);
+  assert.ok(redtape.cells.concat(redtape.queue.flat()).filter((t) => t.card === 'redtape').every((t) => t.kind === 'junk'), 'status cards become junk');
 });

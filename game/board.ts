@@ -4,8 +4,8 @@ import {
   H,
   QUEUE_LEN,
   W,
+  type BagToken,
   type BoardState,
-  type Fam,
   type Group,
   type Line,
   type LineShift,
@@ -13,28 +13,34 @@ import {
   type Tile,
   type TileKind,
 } from './types.ts';
-import { int, next, shuffle, type Rng } from './rng.ts';
+import { int, shuffle, type Rng } from './rng.ts';
+import { CARDS } from './content/cards.ts';
 
 export const idx = (r: number, c: number) => r * W + c;
 export const rowOf = (i: number) => Math.floor(i / W);
 export const colOf = (i: number) => i % W;
 
-export const FAM_WEIGHTS: readonly (readonly [Fam, number])[] = [
-  ['blade', 28],
-  ['shield', 26],
-  ['ink', 24],
-  ['coin', 22],
-];
+/** Family a bag token turns into on the board; status cards are junk. */
+export function tokenKind(t: BagToken): TileKind {
+  const fam = CARDS[t.card]?.fam;
+  return !fam || fam === 'status' ? 'junk' : fam;
+}
 
-export function randomFam(r: Rng, weights = FAM_WEIGHTS): Fam {
-  let total = 0;
-  for (const [, w] of weights) total += w;
-  let roll = next(r) * total;
-  for (const [fam, w] of weights) {
-    roll -= w;
-    if (roll < 0) return fam;
-  }
-  return weights[weights.length - 1][0];
+export function tokenTile(b: { nextId: number }, t: BagToken): Tile {
+  const tile: Tile = { id: b.nextId++, kind: tokenKind(t), card: t.card };
+  if (t.up) tile.up = true;
+  if (t.finish) tile.finish = t.finish;
+  return tile;
+}
+
+/** Next token from the fight's bag; an empty bag is refilled from the deck and shuffled. */
+export function drawToken(b: BoardState, r: Rng): BagToken {
+  if (!b.bag.length) b.bag = shuffle(r, b.source.map((t) => ({ ...t })));
+  return b.bag.pop() ?? { card: 'fist', up: false };
+}
+
+export function drawTile(b: BoardState, r: Rng): Tile {
+  return tokenTile(b, drawToken(b, r));
 }
 
 export function makeTile(b: { nextId: number }, kind: TileKind, extra: Partial<Tile> = {}): Tile {
@@ -52,6 +58,8 @@ export function cloneBoard(b: BoardState): BoardState {
     flood: b.flood,
     colLock: b.colLock.slice(),
     rowLock: b.rowLock.slice(),
+    bag: b.bag.map((t) => ({ ...t })),
+    source: b.source.map((t) => ({ ...t })),
   };
 }
 
@@ -266,6 +274,7 @@ export function validMoves(b: BoardState, wrap: boolean): Move[] {
 export const moveCells = (m: Move) => [m.to, m.from];
 
 function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind): boolean {
+  if (kind === 'junk') return false;
   const r = rowOf(i);
   const c = colOf(i);
   const at = (rr: number, cc: number) => cells[idx(rr, cc)]?.kind;
@@ -276,34 +285,52 @@ function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind): b
 
 export function fillQueue(b: BoardState, r: Rng) {
   for (let c = 0; c < W; c++) {
-    while (b.queue[c].length < QUEUE_LEN) b.queue[c].push(makeTile(b, randomFam(r)));
+    while (b.queue[c].length < QUEUE_LEN) b.queue[c].push(drawTile(b, r));
   }
 }
 
-/** Fresh board without ready matches and with enough legal moves. */
-export function createBoard(r: Rng, wrap = false, minMoves = 6, firstId = 1): BoardState {
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const b: BoardState = {
-      cells: [],
-      queue: Array.from({ length: W }, () => []),
-      nextId: firstId,
-      flood: 0,
-      colLock: Array(W).fill(0),
-      rowLock: Array(H).fill(0),
-    };
+export function emptyBoard(source: BagToken[], firstId = 1): BoardState {
+  return {
+    cells: [],
+    queue: Array.from({ length: W }, () => []),
+    nextId: firstId,
+    flood: 0,
+    colLock: Array(W).fill(0),
+    rowLock: Array(H).fill(0),
+    bag: [],
+    source: source.map((t) => ({ ...t })),
+  };
+}
+
+/**
+ * Board for a fight, dealt from the deck's bag: no ready matches where the deck allows it,
+ * and enough legal swaps. A one-family deck may leave matches in place — its payoff.
+ */
+export function createBoard(r: Rng, source: BagToken[], wrap = false, minMoves = 6, firstId = 1): BoardState {
+  let best: BoardState | null = null;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const b = emptyBoard(source, firstId);
     const cells: Tile[] = [];
     for (let i = 0; i < CELLS; i++) {
-      let fam = randomFam(r);
-      for (let tries = 0; tries < 12 && wouldMatchAt(cells, i, fam); tries++) fam = randomFam(r);
-      cells.push(makeTile(b, fam));
+      let tok = drawToken(b, r);
+      for (let tries = 0; tries < 10 && wouldMatchAt(cells, i, tokenKind(tok)); tries++) {
+        b.bag.unshift(tok);
+        tok = drawToken(b, r);
+      }
+      cells.push(tokenTile(b, tok));
     }
     b.cells = cells;
+    if (!best) best = b;
     if (hasMatch(cells, wrap)) continue;
-    if (validMoves(b, wrap).length < minMoves) continue;
+    if (validMoves(b, wrap).length < minMoves) {
+      best = b;
+      continue;
+    }
     fillQueue(b, r);
     return b;
   }
-  throw new Error('createBoard: could not build a playable board');
+  fillQueue(best!, r);
+  return best!;
 }
 
 /**
@@ -327,7 +354,7 @@ export function gravity(b: BoardState, r: Rng, cells: (Tile | null)[]) {
     }
     let rank = 0;
     while (row >= 0) {
-      const tile = b.queue[c].shift() ?? makeTile(b, randomFam(r));
+      const tile = b.queue[c].shift() ?? drawTile(b, r);
       cells[idx(row, c)] = tile;
       spawns.push({ id: tile.id, to: idx(row, c), rank: rank++ });
       row--;
@@ -349,19 +376,16 @@ export function reshuffle(b: BoardState, r: Rng, wrap: boolean) {
       return;
     }
   }
-  // Last resort: reroll plain tiles.
-  for (let attempt = 0; attempt < 300; attempt++) {
-    const cells = b.cells.map((t) =>
-      t.special || t.kind === 'prism' || t.pin ? t : { ...t, kind: randomFam(r) as TileKind },
-    );
-    if (hasMatch(cells, wrap)) continue;
+  // Last resort: plain tiles go back and fresh ones are dealt from the bag.
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const cells = b.cells.map((t) => (t.special || t.kind === 'prism' || t.pin ? t : drawTile(b, r)));
     const test = { ...b, cells };
     if (validMoves(test, wrap).length >= 3) {
       b.cells = cells;
       return;
     }
   }
-  const fresh = createBoard(r, wrap, 3, b.nextId);
+  const fresh = createBoard(r, b.source, wrap, 3, b.nextId);
   b.cells = fresh.cells;
   b.nextId = fresh.nextId;
 }
@@ -394,3 +418,4 @@ export function randomCells(r: Rng, cells: Tile[], count: number, filter: (t: Ti
 }
 
 export const pickInt = int;
+export const FAMILIES = FAMS;
