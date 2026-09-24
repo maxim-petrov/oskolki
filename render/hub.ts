@@ -103,7 +103,7 @@ export class HubView {
   }
 
   stageY() {
-    return L.mode === 'wide' ? Math.max(L.top.h + 4, Math.round((L.h - STAGE_H) / 2) - 24) : L.top.h + 30;
+    return L.mode === 'wide' ? Math.max(L.top.h + 4, Math.round((L.h - STAGE_H) / 2) - 24) : Math.round(L.h * 0.22);
   }
 
   // ── Input ─────────────────────────────────────────────────────────
@@ -363,26 +363,29 @@ export class HubView {
     }
   }
 
-  /** Touch controls for phones: walk left/right and act. */
+  /** Touch controls for phones: walk left/right and act, at the bottom where the thumbs are. */
   private drawControls(ctx: Ctx2D, ui: UI, sy: number) {
-    const y = sy + STAGE_H + 10;
     if (L.mode === 'wide' && !L.touch) {
-      text(ctx, 'A/D или ←/→ — идти · E — действие · клик — идти туда', L.w / 2, Math.min(L.h - 12, y + 4), 'cold3', { align: 'center' });
+      text(ctx, 'A/D или ←/→ — идти · E — действие · клик — идти туда', L.w / 2, Math.min(L.h - 12, sy + STAGE_H + 14), 'cold3', { align: 'center' });
       return;
     }
     if (this.overlay || this.script) return;
-    const bh = Math.min(48, L.h - y - 8);
-    if (bh < 20) return;
+    const bh = Math.min(52, Math.max(28, Math.round(L.h * 0.08)));
+    const y = L.h - bh - 10;
     const bw = Math.round(L.w * 0.26);
-    const hold = (id: string, x: number, label: string, dir: 'left' | 'right') => {
+    const hold = (x: number, dir: 'left' | 'right') => {
       const over = ui.over(x, y, bw, bh) && ui.p.down;
       this.keys[dir] = over;
       panel(ctx, x, y, bw, bh, { border: over ? 'gold3' : 'cold2', fill: over ? 'ink2' : 'ink1' });
-      bigText(ctx, label, x + bw / 2, y + bh / 2 - 5, over ? 'gold4' : 'cream', { align: 'center' });
-      void id;
+      // A chunky pixel arrow.
+      const cx = Math.round(x + bw / 2);
+      const cy = Math.round(y + bh / 2);
+      const s = dir === 'left' ? -1 : 1;
+      ctx.fillStyle = hex(over ? 'gold4' : 'cream');
+      for (let k = 0; k < 7; k++) ctx.fillRect(cx - s * 3 + s * k - (s < 0 ? 1 : 0), cy - (6 - k), 2, (6 - k) * 2 + 1);
     };
-    hold('left', 8, '<', 'left');
-    hold('right', L.w - 8 - bw, '>', 'right');
+    hold(8, 'left');
+    hold(L.w - 8 - bw, 'right');
     const near = this.nearSpot();
     const mx = 12 + bw;
     const mw = L.w - 2 * (12 + bw);
@@ -416,12 +419,15 @@ export class HubView {
     let y = f.y + 24;
     if (officeState(p).note) {
       const note = 'Записка твоим почерком: «Не ходи в архив после 16:40. Не бери нож. Бери нож».';
-      const h = paragraph(ctx, note, f.x + 10, y + 3, f.w - 20, 'red1', {}) + 6;
-      ctx.globalCompositeOperation = 'destination-over';
+      const h = wrap(note, f.w - 20).length * 10 + 6;
+      ctx.fillStyle = hex('ink0');
+      ctx.fillRect(f.x + 5, y - 1, f.w - 10, h + 2);
       ctx.fillStyle = hex('paper');
       ctx.fillRect(f.x + 6, y, f.w - 12, h);
-      ctx.globalCompositeOperation = 'source-over';
-      y += h + 4;
+      ctx.fillStyle = hex('red3');
+      ctx.fillRect(f.x + f.w / 2 - 2, y - 3, 4, 4);
+      paragraph(ctx, note, f.x + 10, y + 3, f.w - 20, 'red1');
+      y += h + 6;
     }
     const visible = REQUESTS.filter((r) => !r.visible || r.visible(p));
     const cols = L.w >= 380 ? 2 : 1;

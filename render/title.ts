@@ -74,7 +74,7 @@ export class TitleView {
   draw(ctx: Ctx2D, ui: UI) {
     if (!this.r || this.r.w !== L.w) this.r = new StageRenderer(L.w);
     const t = this.t;
-    const stageY = L.mode === 'wide' ? L.h - STAGE_H - 30 : Math.round(L.h * 0.34);
+    const stageY = L.mode === 'wide' ? L.h - STAGE_H - 18 : Math.round(L.h * 0.3);
     this.r.render(this.stage, t, this.ps, (b) => {
       const x = this.hero.x;
       this.hero.x = x - this.stage.cam;
@@ -85,7 +85,7 @@ export class TitleView {
     ctx.fillRect(0, 0, L.w, L.h);
     this.r.blit(ctx, 0, stageY);
     // Logo.
-    const ly = L.mode === 'wide' ? 64 : Math.round(stageY * 0.5) + 10;
+    const ly = L.mode === 'wide' ? Math.max(58, stageY - 70) : Math.round(stageY * 0.5) + 10;
     if (hasSprite('logo')) {
       const cycle = t % 4.5;
       const sweep = cycle < 0.6 ? Math.floor((cycle / 0.6) * 5) : -1;
@@ -93,25 +93,43 @@ export class TitleView {
       draw(ctx, getFrame('logo', sweep >= 0 && names.includes(`glint${sweep}`) ? `glint${sweep}` : 'idle0'), Math.round(L.w / 2), ly);
     } else bigText(ctx, 'ОСКОЛКИ', L.w / 2, ly - 20, 'gold4', { align: 'center' });
     text(ctx, 'рогалик из бесконечного офиса', L.w / 2, ly + 6, 'cold5', { align: 'center', outline: 'ink0' });
-    // Buttons.
-    const bw = Math.min(160, L.w - 40);
-    const bx = Math.round((L.w - bw) / 2);
-    let by = L.mode === 'wide' ? stageY + STAGE_H + 6 : stageY + STAGE_H + 16;
-    if (L.mode === 'wide') by = ly + 20;
+    // Buttons: one row on wide screens (between the logo and the office), a column on tall ones.
     const p = this.app.profile;
     const label = !p.introDone ? 'Начать' : 'В офис';
-    if (ui.button(ctx, 'start', bx, by, bw, 20, label, { accent: 'gold3' })) this.start();
-    by += 24;
-    if (this.app.hasSave()) {
-      if (ui.button(ctx, 'continue', bx, by, bw, 18, 'Продолжить смену')) this.go(() => this.app.continueRun());
-      by += 22;
+    const save = this.app.hasSave();
+    const sound = this.app.audio.muted ? 'Звук: нет' : 'Звук: да';
+    if (L.mode === 'wide') {
+      const items: [string, string, number, () => void][] = [[`start`, label, 96, () => this.start()]];
+      if (save) items.push(['continue', 'Продолжить смену', 112, () => this.go(() => this.app.continueRun())]);
+      items.push(['sound', sound, 64, () => {
+        this.app.audio.toggleMute();
+        p.settings.muted = this.app.audio.muted;
+      }]);
+      items.push(['fs', 'Экран', 52, () => this.app.toggleFullscreen()]);
+      const total = items.reduce((a, it) => a + it[2], 0) + (items.length - 1) * 6;
+      let bx = Math.round((L.w - total) / 2);
+      const by = Math.min(ly + 22, stageY - 22);
+      for (const [id, text2, w, fn] of items) {
+        if (ui.button(ctx, id, bx, by, w, 18, text2, { accent: id === 'start' ? 'gold3' : undefined })) fn();
+        bx += w + 6;
+      }
+    } else {
+      const bw = Math.min(160, L.w - 40);
+      const bx = Math.round((L.w - bw) / 2);
+      let by = stageY + STAGE_H + 16;
+      if (ui.button(ctx, 'start', bx, by, bw, 22, label, { accent: 'gold3' })) this.start();
+      by += 28;
+      if (save) {
+        if (ui.button(ctx, 'continue', bx, by, bw, 20, 'Продолжить смену')) this.go(() => this.app.continueRun());
+        by += 26;
+      }
+      const half = Math.floor((bw - 4) / 2);
+      if (ui.button(ctx, 'sound', bx, by, half, 18, sound)) {
+        this.app.audio.toggleMute();
+        p.settings.muted = this.app.audio.muted;
+      }
+      if (ui.button(ctx, 'fs', bx + half + 4, by, half, 18, 'Экран')) this.app.toggleFullscreen();
     }
-    const half = Math.floor((bw - 4) / 2);
-    if (ui.button(ctx, 'sound', bx, by, half, 16, this.app.audio.muted ? 'Звук: нет' : 'Звук: да')) {
-      this.app.audio.toggleMute();
-      p.settings.muted = this.app.audio.muted;
-    }
-    if (ui.button(ctx, 'fs', bx + half + 4, by, half, 16, 'Экран')) this.app.toggleFullscreen();
     if (p.runs > 0) text(ctx, `Смен: ${p.runs} · осколков: ${p.shards}`, L.w / 2, L.h - 12, 'cold3', { align: 'center', outline: 'ink0' });
     else if (!L.touch) text(ctx, 'Enter — начать · F — полный экран · F2 — свет', L.w / 2, L.h - 12, 'cold2', { align: 'center' });
     if (this.fade > 0) ditherFade(ctx, this.fade, L.w, L.h);
