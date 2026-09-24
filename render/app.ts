@@ -7,6 +7,8 @@ import { registerArt } from './assets.ts';
 import { Audio } from './audio.ts';
 import { loadFont, text } from './font.ts';
 import { GameView } from './game.ts';
+import { LIGHT_STYLE } from './lighting.ts';
+import { isLabEvent, loadLightStyle, setLightStyle, toggleLightLab } from './lightlab.ts';
 import { hex } from './palette.ts';
 import {
   loadProfile,
@@ -68,6 +70,7 @@ export class App {
   async start() {
     await loadFont();
     registerArt();
+    loadLightStyle();
     this.title = new TitleScreen(this);
     this.ready = true;
     const params = new URLSearchParams(location.search);
@@ -110,6 +113,7 @@ export class App {
         ]);
       },
       perf: () => Math.round(this.frameMs * 100) / 100,
+      light: { style: LIGHT_STYLE, set: setLightStyle },
       errors: this.errors,
     };
     window.addEventListener('error', (e) => this.errors.push(String(e.message)));
@@ -246,6 +250,7 @@ export class App {
     };
     on('resize', () => this.resize());
     on('pointerdown', (e: PointerEvent) => {
+      if (isLabEvent(e)) return;
       this.audio.unlock();
       const p = this.toGame(e.clientX, e.clientY);
       Object.assign(this.pointer, p, { down: true, pressed: true, right: e.button === 2 });
@@ -264,9 +269,15 @@ export class App {
     });
     on('contextmenu', (e: Event) => e.preventDefault());
     on('keydown', (e: KeyboardEvent) => {
+      if (isLabEvent(e)) return;
       this.audio.unlock();
       if (!this.ready) return;
       const k = e.key;
+      if (k === 'F2') {
+        e.preventDefault();
+        toggleLightLab(this.host);
+        return;
+      }
       if (k === 'Tab' || k === ' ' || k.startsWith('Arrow')) e.preventDefault();
       if (k === 'f' || k === 'F' || k === 'а' || k === 'А') {
         this.toggleFullscreen();

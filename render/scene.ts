@@ -1,6 +1,6 @@
 import { hex } from './palette.ts';
 import type { Light } from './lighting.ts';
-import { Particles, ditherDisc, rand } from './particles.ts';
+import { Particles, rand } from './particles.ts';
 import { ctx2d, draw, getFrame, hasSprite, makeCanvas, type Canvas, type Ctx2D } from './sprite.ts';
 
 export const VW = 640;
@@ -594,35 +594,32 @@ export class RoomScene {
   }
 }
 
-/** Soft vignette in dithered steps. */
+/** Vignette in two flat dark steps with checker seams (no screen-wide dither). */
 let vignette: Canvas | null = null;
+export function resetVignette() {
+  vignette = null;
+}
 export function drawVignette(ctx: Ctx2D, strength = 1) {
   if (!vignette) {
     vignette = makeCanvas(VW, VH);
     const v = ctx2d(vignette);
-    for (let r = 0; r < 6; r++) {
-      const disc = ditherDisc(22 + r * 4, 'ink0', 1);
-      void disc;
-    }
     const img = v.createImageData(VW, VH);
-    const B = [
-      [0, 8, 2, 10],
-      [12, 4, 14, 6],
-      [3, 11, 1, 9],
-      [15, 7, 13, 5],
-    ];
     for (let y = 0; y < VH; y++)
       for (let x = 0; x < VW; x++) {
         const dx = (x - VW / 2) / (VW / 2);
         const dy = (y - VH / 2) / (VH / 2);
-        const d = Math.max(0, Math.hypot(dx * 0.9, dy) - 0.72) * 2.4;
-        if (d * 16 > B[y & 3][x & 3] + 0.5) {
-          const p = (y * VW + x) * 4;
-          img.data[p] = 7;
-          img.data[p + 1] = 7;
-          img.data[p + 2] = 15;
-          img.data[p + 3] = 150;
-        }
+        const d = Math.max(0, Math.hypot(dx * 0.9, dy) - 0.74) * 2.6;
+        // Steps at 1/3 and 2/3 of the fade; a one-pixel checker only right at each step.
+        const v3 = d * 3;
+        let level = Math.floor(v3);
+        const frac = v3 - level;
+        if (frac > 0.85 && ((x + y) & 1) === 0) level += 1;
+        if (level <= 0) continue;
+        const p = (y * VW + x) * 4;
+        img.data[p] = 7;
+        img.data[p + 1] = 7;
+        img.data[p + 2] = 15;
+        img.data[p + 3] = Math.min(3, level) * 55;
       }
     v.putImageData(img, 0, 0);
   }

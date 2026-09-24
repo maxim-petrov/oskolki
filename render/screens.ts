@@ -5,12 +5,12 @@ import type { RunState } from '../game/types.ts';
 import { HeroView } from './actors.ts';
 import type { App } from './app.ts';
 import { LINE, paragraph, text } from './font.ts';
-import { Lighting } from './lighting.ts';
+import { LIGHT_STYLE, Lighting } from './lighting.ts';
 import { hex } from './palette.ts';
 import { Particles } from './particles.ts';
 import { ACHIEVEMENTS, type Achievement } from './profile.ts';
 import { FLOOR_Y, RoomScene, VH, VW, drawVignette } from './scene.ts';
-import { draw, drawScaled, getFrame, silhouette, type Ctx2D } from './sprite.ts';
+import { draw, frameNames, getFrame, hasSprite, silhouette, type Ctx2D } from './sprite.ts';
 import { panel, type UI } from './ui.ts';
 
 const CHAR_IDS = ['intern', 'accountant', 'janitor'] as const;
@@ -72,21 +72,20 @@ export class TitleScreen {
     s.drawLayer(ctx);
     s.drawGlass(ctx);
     this.ps.draw(ctx, 'back', false);
-    const hf = this.hero.frame(t);
-    drawScaled(ctx, hf, 320, FLOOR_Y, 2);
+    this.hero.draw(ctx, t);
     this.ps.draw(ctx, 'mid', false);
     s.drawFront(ctx);
     this.lighting.compose(t, [{ x: 320, y: FLOOR_Y - 30, r: 110, color: '#ffc27a', intensity: 0.9, flicker: 'lantern', seed: 2 }]);
-    this.lighting.apply(ctx, 0.2);
+    this.lighting.apply(ctx, LIGHT_STYLE.bloom + 0.04);
     this.ps.draw(ctx, 'mid', true);
-    drawVignette(ctx, 1);
-    // Logo.
-    const glow = 0.5 + Math.sin(t * 2) * 0.2;
-    text(ctx, 'ОСКОЛКИ', 322, 42, 'red1', { align: 'center', scale: 5 });
-    text(ctx, 'ОСКОЛКИ', 320, 40, 'gold4', { align: 'center', scale: 5, outline: 'ink0' });
-    ctx.globalAlpha = glow * 0.35;
-    text(ctx, 'ОСКОЛКИ', 320, 40, 'cream', { align: 'center', scale: 5 });
-    ctx.globalAlpha = 1;
+    drawVignette(ctx, LIGHT_STYLE.vignette);
+    // Logo: a glint sweeps across the shards every few seconds.
+    if (hasSprite('logo')) {
+      const cycle = t % 4.5;
+      const sweep = cycle < 0.6 ? Math.floor((cycle / 0.6) * 5) : -1;
+      const names = frameNames('logo');
+      draw(ctx, getFrame('logo', sweep >= 0 && names.includes(`glint${sweep}`) ? `glint${sweep}` : 'idle0'), 320, 82);
+    } else text(ctx, 'ОСКОЛКИ', 320, 40, 'gold4', { align: 'center', scale: 5, outline: 'ink0' });
     text(ctx, 'рогалик из бесконечного офиса', 320, 92, 'cold5', { align: 'center', outline: 'ink0' });
 
     // Character: name and description beside the hero, arrows around him.
@@ -273,9 +272,9 @@ export function drawCollection(ctx: Ctx2D, ui: UI, app: App, t: number) {
     ctx.beginPath();
     ctx.rect(x, y, 38, 42);
     ctx.clip();
-    const scale = f.h > 40 ? 0.5 : 1;
-    if (scale === 1) draw(ctx, seen ? f : silhouette(f, 'ink3'), x + 19, y + 40);
-    else ctx.drawImage((seen ? f : silhouette(f, 'ink3')).canvas as CanvasImageSource, x + 19 - (f.w * scale) / 2, y + 40 - f.h * scale, f.w * scale, f.h * scale);
+    // Portraits stay at 1×: tall enemies show their upper body, cropped by the cell.
+    const feet = f.h > 40 ? y + 2 + f.oy : y + 40;
+    draw(ctx, seen ? f : silhouette(f, 'ink3'), x + 19, feet);
     ctx.restore();
     if (ui.area(`en-${e.id}`, x, y, 38, 42)) void 0;
     if (ui.hovered === `en-${e.id}`) ui.tooltip(seen ? e.name : '???', seen ? e.blurb : 'Ещё не встречен', ui.p.x, ui.p.y, 'red4');

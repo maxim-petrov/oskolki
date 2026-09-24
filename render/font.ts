@@ -1,4 +1,5 @@
-import { hex } from './palette.ts';
+import { BIG_FONT } from './art/font-big.ts';
+import { hex, rgb } from './palette.ts';
 import { ctx2d, makeCanvas, type Canvas, type Ctx2D } from './sprite.ts';
 
 /**
@@ -79,9 +80,96 @@ export interface TextOpts {
   alpha?: number;
 }
 
+// ── Display font: native bold caps for headings and big numbers (never a scaled Tiny5) ──
+
+/** Fill ramp (top rows, middle, bottom) and drop shadow per base colour. */
+function bigRamp(color: string): [string, string, string, string] {
+  if (color.startsWith('gold') || color.startsWith('orange')) return ['gold4', 'gold3', 'orange3', 'red1'];
+  if (color.startsWith('red')) return ['red5', 'red4', 'red2', 'red0'];
+  if (color.startsWith('vio')) return ['vio5', 'vio4', 'vio3', 'vio1'];
+  if (color.startsWith('cold')) return ['cold6', 'cold5', 'cold4', 'cold1'];
+  if (color.startsWith('teal')) return ['teal5', 'teal4', 'teal3', 'teal1'];
+  if (color.startsWith('green')) return ['green4', 'green3', 'green2', 'green0'];
+  if (color === 'cream' || color === 'white' || color.startsWith('paper')) return ['white', 'cream', 'paper2', 'ink2'];
+  return [color, color, color, 'ink0'];
+}
+
+const bigCache = new Map<string, Canvas>();
+
+/** One glyph with its outline and shadow baked in; 2 px margin around the glyph box. */
+function bigGlyph(ch: string, color: string, outline: string): Canvas | null {
+  const rows = BIG_FONT.glyphs[ch];
+  if (!rows) return null;
+  const key = `${ch}|${color}|${outline}`;
+  let c = bigCache.get(key);
+  if (c) return c;
+  const [light, mid, dark, shadow] = bigRamp(color);
+  const gw = rows[0].length;
+  const gh = BIG_FONT.height;
+  const w = gw + 4;
+  const h = gh + 4;
+  c = makeCanvas(w, h);
+  const ctx = ctx2d(c);
+  const img = ctx.createImageData(w, h);
+  const ink = (x: number, y: number) => x >= 0 && y >= 0 && x < gw && y < gh && rows[y][x] === '#';
+  const near = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (ink(x + dx, y + dy)) return true;
+    return false;
+  };
+  const put = (x: number, y: number, name: string) => {
+    const [r, g, b] = rgb(hex(name));
+    const p = ((y + 1) * w + (x + 1)) * 4;
+    img.data[p] = r;
+    img.data[p + 1] = g;
+    img.data[p + 2] = b;
+    img.data[p + 3] = 255;
+  };
+  // Shadow of the outlined shape, one pixel down-right; then the outline; then the fill.
+  for (let y = -1; y <= gh; y++) for (let x = -1; x <= gw; x++) if (near(x - 1, y - 1)) put(x, y, shadow);
+  for (let y = -1; y <= gh; y++) for (let x = -1; x <= gw; x++) if (!ink(x, y) && near(x, y)) put(x, y, outline);
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) if (ink(x, y)) put(x, y, y < 4 ? light : y < 7 ? mid : dark);
+  ctx.putImageData(img, 0, 0);
+  bigCache.set(key, c);
+  return c;
+}
+
+export function measureBig(str: string): number {
+  let w = 0;
+  let n = 0;
+  for (const ch of str.toUpperCase()) {
+    const rows = BIG_FONT.glyphs[ch];
+    w += (rows ? rows[0].length : BIG_FONT.space) + BIG_FONT.spacing;
+    n++;
+  }
+  return n ? w - BIG_FONT.spacing : 0;
+}
+
+/** Big caps; (x, y) is the top of the caps (or centre/right with align). Returns the width. */
+export function bigText(ctx: Ctx2D, str: string, x: number, y: number, color = 'gold4', opts: TextOpts = {}) {
+  const up = str.toUpperCase();
+  const w = measureBig(up);
+  let cx = Math.round(opts.align === 'center' ? x - w / 2 : opts.align === 'right' ? x - w : x);
+  const cy = Math.round(y);
+  const prev = ctx.globalAlpha;
+  if (opts.alpha !== undefined) ctx.globalAlpha = prev * opts.alpha;
+  let i = 0;
+  for (const ch of up) {
+    const rows = BIG_FONT.glyphs[ch];
+    const g = rows ? bigGlyph(ch, color, opts.outline ?? 'ink0') : null;
+    const dy = opts.wave !== undefined ? Math.round(Math.sin(opts.wave * 8 + i * 0.7)) : 0;
+    if (g) ctx.drawImage(g as CanvasImageSource, cx - 2, cy - 2 + dy);
+    cx += (rows ? rows[0].length : BIG_FONT.space) + BIG_FONT.spacing;
+    i++;
+  }
+  ctx.globalAlpha = prev;
+  return w;
+}
+
 /** Draw a single line; (x, y) is the top-left of the line box (or centre/right with align). */
 export function text(ctx: Ctx2D, str: string, x: number, y: number, color = 'white', opts: TextOpts = {}) {
   const s = opts.scale ?? 1;
+  // Bigger text uses the native display font instead of fat Tiny5 pixels.
+  if (s >= 2) return bigText(ctx, str, x, y + 2 * s, color, { ...opts, scale: 1 });
   const w = measure(str, s);
   let cx = Math.round(opts.align === 'center' ? x - w / 2 : opts.align === 'right' ? x - w : x);
   const cy = Math.round(y);

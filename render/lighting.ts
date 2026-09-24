@@ -18,20 +18,42 @@ export interface Light {
   current?: number;
 }
 
-const BAYER = [
-  [0, 8, 2, 10],
-  [12, 4, 14, 6],
-  [3, 11, 1, 9],
-  [15, 7, 13, 5],
-];
+/** Look of the light pools; tuned live in the light lab (F2) and kept in localStorage. */
+export const LIGHT_STYLE = {
+  /**
+   * 0 — smooth pools; 1 — every lamp in its own steps (rings);
+   * 2 — the summed light map in steps: organic zones instead of rings.
+   */
+  mode: 2,
+  /** Brightness steps from the edge of a pool to its core (twice as many in the zone mode). */
+  bands: 6,
+  /** Width of the checker seam between steps, as a share of one step (0 = hard edges). */
+  seam: 0.34,
+  /** Falloff curve: higher = tighter hot core. */
+  falloff: 1.15,
+  /** Multiplier on every room's ambient colour. */
+  ambient: 1.05,
+  /** Additive glow of the light map on top of the scene. */
+  bloom: 0.14,
+  /** Dark frame around the screen. */
+  vignette: 1,
+};
 
-const LEVELS = [0, 0.16, 0.32, 0.52, 0.76, 1];
 const sprites = new Map<string, Canvas>();
 
-/** Banded, dithered radial light: reads as pixel art instead of a smooth gradient. */
+export function resetLightCache() {
+  sprites.clear();
+}
+
+/**
+ * Radial light as flat pixel-art steps. Each step boundary gets a thin 50% checker seam, so the
+ * pool reads soft from afar but stays clean up close — no screen-wide dither noise.
+ */
 export function lightSprite(radius: number, color: string, squash = 1): Canvas {
   const r = Math.max(2, Math.round(radius));
-  const key = `${r}:${color}:${squash}`;
+  const st = LIGHT_STYLE;
+  const stepped = st.mode === 1;
+  const key = `${r}:${color}:${squash}:${stepped ? `${st.bands}:${st.seam}` : 'smooth'}:${st.falloff}`;
   let c = sprites.get(key);
   if (c) return c;
   const w = r * 2 + 1;
@@ -40,18 +62,24 @@ export function lightSprite(radius: number, color: string, squash = 1): Canvas {
   const ctx = ctx2d(c);
   const img = ctx.createImageData(w, h);
   const [cr, cg, cb] = rgb(color);
-  const steps = LEVELS.length - 1;
+  const steps = Math.max(1, st.bands);
+  const half = st.seam / 2;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const dx = (x - r) / r;
       const dy = (y - (h - 1) / 2) / ((h - 1) / 2 || 1);
       const d = Math.hypot(dx, dy);
       if (d >= 1) continue;
-      const v = Math.pow(1 - d, 1.35) * steps;
-      const lo = Math.floor(v);
-      const frac = v - lo;
-      const level = frac * 16 > BAYER[y & 3][x & 3] + 0.5 ? lo + 1 : lo;
-      const k = LEVELS[Math.min(steps, level)];
+      let k = Math.pow(1 - d, st.falloff);
+      if (stepped) {
+        const v = k * steps;
+        let level = Math.floor(v);
+        const frac = v - level;
+        // Near a step edge, alternate pixels between the two steps (a checker seam).
+        if (frac > 1 - half && ((x + y) & 1) === 0) level += 1;
+        else if (frac < half && level > 0 && ((x + y) & 1) === 1) level -= 1;
+        k = Math.min(steps, level) / steps;
+      }
       const p = (y * w + x) * 4;
       img.data[p] = cr * k;
       img.data[p + 1] = cg * k;
@@ -109,14 +137,49 @@ export class Lighting {
     this.w = w;
     this.h = h;
     this.canvas = makeCanvas(w, h);
-    this.ctx = ctx2d(this.canvas);
+    // The stepped map is read back every frame, so keep this canvas on the CPU.
+    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true }) as Ctx2D;
+    this.ctx.imageSmoothingEnabled = false;
+  }
+
+  /**
+   * Steps the summed light map: brightness snaps to bands, hue is kept, and each band edge
+   * gets a one-pixel checker seam. Zones follow the combined light, so no target rings.
+   */
+  private posterize() {
+    const st = LIGHT_STYLE;
+    const levels = Math.max(2, Math.round(st.bands * 2));
+    const half = st.seam / 2;
+    const img = this.ctx.getImageData(0, 0, this.w, this.h);
+    const d = img.data;
+    for (let y = 0, p = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++, p += 4) {
+        const r = d[p];
+        const g = d[p + 1];
+        const b = d[p + 2];
+        const l = r > g ? (r > b ? r : b) : g > b ? g : b;
+        if (l === 0) continue;
+        // Nearest step, so the average brightness stays where the lamps put it; right at a
+        // step edge the two steps alternate in a checker.
+        const v = (l / 255) * levels;
+        const lo = Math.floor(v);
+        const frac = v - lo;
+        const q = Math.abs(frac - 0.5) < half ? lo + (((x + y) & 1) === 0 ? 1 : 0) : frac >= 0.5 ? lo + 1 : lo;
+        const k = Math.max(1, Math.min(levels, q)) / levels / (l / 255);
+        d[p] = Math.min(255, r * k);
+        d[p + 1] = Math.min(255, g * k);
+        d[p + 2] = Math.min(255, b * k);
+      }
+    this.ctx.putImageData(img, 0, 0);
   }
 
   compose(t: number, extra: Light[] = []) {
     const ctx = this.ctx;
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
-    ctx.fillStyle = this.ambient;
+    const [ar, ag, ab] = rgb(this.ambient);
+    const m = LIGHT_STYLE.ambient;
+    ctx.fillStyle = `rgb(${Math.min(255, ar * m)},${Math.min(255, ag * m)},${Math.min(255, ab * m)})`;
     ctx.fillRect(0, 0, this.w, this.h);
     ctx.globalCompositeOperation = 'lighter';
     for (const l of [...this.lights, ...extra]) {
@@ -134,6 +197,7 @@ export class Lighting {
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+    if (LIGHT_STYLE.mode === 2) this.posterize();
   }
 
   /** Multiply the scene by the light map, then add a gentle warm spill for glow. */

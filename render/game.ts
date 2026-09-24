@@ -11,7 +11,7 @@ import { BH, BW, BX, BY, BoardView, T } from './boardview.ts';
 import { text } from './font.ts';
 import { drawActive, drawBossBar, drawHearts, drawItemsBar, drawMinimap, drawResources, type Disp, HUD } from './hud.ts';
 import { Juice } from './juice.ts';
-import { Lighting, type Light } from './lighting.ts';
+import { LIGHT_STYLE, Lighting, type Light } from './lighting.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
 import { FLOOR_Y, RoomScene, VH, VW, ditherFade, drawDanger, drawVignette } from './scene.ts';
@@ -616,7 +616,7 @@ export class GameView {
               if (v) v.flash = 1;
             }
           this.app.audio.play('match', 1 + (e.n - 1) * 0.12);
-          if (e.n >= 2) this.juice.float(`КАСКАД ×${e.n}`, BX + BW / 2, BY - 18, e.n >= 4 ? 'gold4' : 'cream', { scale: e.n >= 4 ? 2 : 1 });
+          if (e.n >= 2) this.juice.float(`КАСКАД ×${e.n}`, BX + BW / 2, BY - 20, e.n >= 4 ? 'gold4' : 'cream', { scale: e.n >= 3 ? 2 : 1 });
         },
       });
     // 2. Special activations.
@@ -931,7 +931,8 @@ export class GameView {
       this.hero.flashColor = 'cold6';
       for (let k = 0; k < 7; k++) this.ps.spawn({ x: hx + 14, y: hy - 12 + k * 4, vx: rand(20, 60), vy: rand(-30, 30), max: 0.4, ramp: ['white', 'cold6', 'cold4'], add: true, layer: 'ui', size: 2 });
       burst(this.ps, hx + 12, hy, 16, { ramp: ['white', 'cold6', 'cold5', 'cold3'], add: true, layer: 'ui', speed: [30, 100], max: 0.45 });
-      this.juice.float(lost > 0 ? `броня −${h.armor}` : 'БЛОК', hx, hy - 30, 'cold5', { outline: 'ink0' });
+      if (lost > 0) this.juice.float(`броня −${h.armor}`, hx, hy - 30, 'cold5', { outline: 'ink0' });
+      else this.juice.float('БЛОК', hx, hy - 34, 'cold5', { outline: 'ink0', scale: 2 });
       // The spent armor pips burst in the HUD.
       for (let a = armorBefore - 1; a >= Math.max(0, armorBefore - Math.max(h.armor, burnArmor ? armorBefore : 0)); a--)
         burst(this.ps, HUD.armor[0] + a * 10 + 4, HUD.armor[1] + 4, 6, { ramp: ['cold6', 'cold4', 'cold2'], add: true, layer: 'ui', speed: [20, 60], max: 0.4 });
@@ -946,7 +947,7 @@ export class GameView {
       this.juice.shake(0.35 + lost * 0.12);
       this.juice.flash('red2', 0.2 + lost * 0.05);
       this.juice.stop(0.07);
-      this.juice.float(`−${halves(lost)}`, hx, hy - 36, 'red4', { outline: 'ink0' });
+      this.juice.float(`−${halves(lost)}`, hx, hy - 40, 'red4', { outline: 'ink0', scale: 2 });
       burst(this.ps, hx, hy, 16, { ramp: ['red4', 'red3', 'red1'], layer: 'ui', speed: [30, 100], ay: 180, max: 0.5 });
       // The lost heart halves break in the HUD.
       for (let p = hpBefore - 1; p >= this.disp.hp; p--) {
@@ -1549,7 +1550,7 @@ export class GameView {
       if (ENEMIES[v.def]?.traits?.includes('light') && v.dying === 0)
         extra.push({ x: v.x, y: v.top(t) + 8, r: 60, color: '#ffae4a', intensity: 0.9, flicker: 'candle', seed: v.uid });
     this.lighting.compose(t, extra);
-    this.lighting.apply(ctx, 0.16);
+    this.lighting.apply(ctx, LIGHT_STYLE.bloom);
     this.ps.draw(ctx, 'back', true);
     this.ps.draw(ctx, 'mid', true);
     this.ps.draw(ctx, 'front', true);
@@ -1594,7 +1595,7 @@ export class GameView {
     this.ps.draw(ctx, 'ui', true);
     this.ps.draw(ctx, 'ui', false);
     ctx.restore();
-    drawVignette(ctx, 0.9);
+    drawVignette(ctx, 0.9 * LIGHT_STYLE.vignette);
     const hp = this.disp.hp + this.disp.soul;
     if (hp <= 2 && this.run.phase !== 'dead') drawDanger(ctx, (hp <= 1 ? 0.5 : 0.3) + Math.sin(this.t * 5) * 0.15);
     this.juice.drawTexts(ctx);
