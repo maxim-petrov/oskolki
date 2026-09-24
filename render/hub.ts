@@ -56,6 +56,7 @@ export class HubView {
   bubble: { s: string; t: number; x: number; y: number } | null = null;
   leaving = 0;
   noteRead = false;
+  summary: { s: string; t: number } | null = null;
 
   constructor(
     public app: App,
@@ -192,6 +193,10 @@ export class HubView {
     this.ps.update(dt);
     this.hero.update(dt);
     this.fade = Math.max(0, this.fade - dt * 1.2);
+    if (this.summary) {
+      this.summary.t -= dt;
+      if (this.summary.t <= 0) this.summary = null;
+    }
     if (this.bubble) {
       this.bubble.t -= dt;
       if (this.bubble.t <= 0) this.bubble = null;
@@ -208,6 +213,15 @@ export class HubView {
         this.hero.state = 'idle';
         this.hero.x = HUB_SPOTS.desk + 20;
         this.script = null;
+        // What is left of the shift: a line in the corner, like a stamp on a report.
+        const last = this.app.profile.history[0];
+        if (last) {
+          const acts = ['Изнанка отдела', 'Затопленный архив', 'Котельная', 'Дирекция'];
+          this.summary = {
+            t: 6,
+            s: last.won ? `Отчёт сдан. Осколков памяти: +${last.shards}` : `Смена оборвалась: ${acts[Math.min(last.act, 3)]}. Осколков памяти: +${last.shards}`,
+          };
+        }
         if (this.app.profile.deaths === 1 && !this.app.profile.notes.includes('first')) {
           this.app.profile.notes.push('first');
           this.say('На доске что-то новое.', this.hero.x, STAGE_FEET - 100, 2.6);
@@ -298,6 +312,16 @@ export class HubView {
       if (ui.area('hub-use', px - w / 2, py, w, 14)) this.use(near);
     }
     this.drawTop(ctx, ui);
+    if (this.summary) {
+      const a = Math.min(1, this.summary.t, (6 - this.summary.t) * 3);
+      const w = Math.min(L.w - 16, measure(this.summary.s) + 16);
+      const x = Math.round((L.w - w) / 2);
+      const y = sy - 20 > L.top.h + 2 ? sy - 20 : sy + 4;
+      ctx.globalAlpha = a;
+      panel(ctx, x, y, w, 15, { border: 'vio3', fill: 'ink0', glow: 'vio4' });
+      text(ctx, this.summary.s, L.w / 2, y + 3, 'vio5', { align: 'center', alpha: a });
+      ctx.globalAlpha = 1;
+    }
     this.drawControls(ctx, ui, sy);
     if (this.overlay === 'board') this.drawBoard(ctx, ui);
     if (this.overlay === 'desk') this.drawDesk(ctx, ui);
