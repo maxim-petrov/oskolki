@@ -25,9 +25,9 @@ export class StageRenderer {
     this.lighting = new Lighting(w, h);
   }
 
-  render(stage: Stage, t: number, ps: Particles, actors: (ctx: Ctx2D) => void, extra: Light[] = [], vignette = 0.8) {
+  render(stage: Stage, t: number, ps: Particles, actors: (ctx: Ctx2D) => void, extra: Light[] = [], vignette = 0.8, behind?: (ctx: Ctx2D) => void) {
     const b = this.ctx;
-    stage.drawBack(b, this.w);
+    stage.drawBack(b, this.w, behind);
     ps.draw(b, 'back', false);
     actors(b);
     ps.draw(b, 'mid', false);

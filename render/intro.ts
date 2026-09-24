@@ -14,10 +14,10 @@ import { L, STAGE_FEET, STAGE_H } from './view.ts';
 
 /** Coworkers at their cubicles in the opening (the same seats as in the office hub). */
 const SEATED = [
-  ['npc_cardigan', -12],
+  ['npc_girl', -12],
   ['npc_neighbor', 84],
-  ['npc_analyst', 180],
-  ['npc_accountant', 276],
+  ['npc_sil_sit_a', 180],
+  ['npc_analyst', 276],
 ] as const;
 
 /**
@@ -40,7 +40,7 @@ export class IntroView {
   beats: Beat[] = [];
   next = 0;
   caption: { s: string; t: number } | null = null;
-  bubble: { s: string; x: number; y: number; t: number; who?: string } | null = null;
+  bubble: { s: string; x: number; y: number; t: number } | null = null;
   walk: { to: number; speed: number; carry: boolean } | null = null;
   /** The stack on the archive floor, then the monster assembling from it. */
   stack: { x: number; frame: string } | null = null;
@@ -67,14 +67,14 @@ export class IntroView {
       this.hero.pose = 'look';
     });
     b(3.2, () => au.play('phone'));
-    b(4.0, () => this.talk('Стажёр. Отнесите стопку в архив. Сейчас.', HUB_SPOTS.desk + 10, STAGE_FEET - 70, 'Телефон'));
+    b(4.0, () => this.talk('Стажёр. Отнесите стопку в архив. Сейчас.', HUB_SPOTS.desk + 10, STAGE_FEET - 70));
     b(6.6, () => {
       this.hero.state = 'idle';
       this.hero.x = HUB_SPOTS.desk + 10;
     });
     b(7.2, () => (this.walk = { to: HUB_SPOTS.cubicles + 330, speed: 110, carry: true }));
-    b(8.4, () => this.talk('Только не урони.', HUB_SPOTS.cubicles - 12, STAGE_FEET - 90, 'Тамара Петровна'));
-    b(10.2, () => this.talk('В архив? Ну-ну.', HUB_SPOTS.cubicles + 180, STAGE_FEET - 90, 'Аналитик'));
+    b(8.4, () => this.talk('Осторожно, не урони.', HUB_SPOTS.cubicles - 12, STAGE_FEET - 90));
+    b(10.2, () => this.talk('В архив? Ну-ну.', HUB_SPOTS.cubicles + 276, STAGE_FEET - 90));
     b(11.4, () => (this.fadeTo = 1));
     b(12.0, () => {
       // ── The archive ──
@@ -154,8 +154,8 @@ export class IntroView {
     this.caption = { s, t: 2.6 };
   }
 
-  talk(s: string, x: number, y: number, who?: string) {
-    this.bubble = { s, x, y, t: 2.4, who };
+  talk(s: string, x: number, y: number) {
+    this.bubble = { s, x, y, t: 2.4 };
   }
 
   finish() {
@@ -252,7 +252,7 @@ export class IntroView {
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(0, 0, L.w, Math.max(0, sy - 2));
     ctx.fillRect(0, sy + STAGE_H + 2, L.w, L.h - sy - STAGE_H - 2);
-    if (this.bubble) this.drawBubble(ctx, this.bubble.s, this.bubble.x - cam, sy + this.bubble.y, this.bubble.who);
+    if (this.bubble) this.drawBubble(ctx, this.bubble.s, this.bubble.x - cam, sy + this.bubble.y);
     if (this.caption) {
       const a = Math.min(1, this.caption.t * 2, (2.6 - this.caption.t) * 3);
       const cy = sy + STAGE_H + 14;
@@ -263,22 +263,17 @@ export class IntroView {
     if (this.fade > 0.01) ditherFade(ctx, this.fade, L.w, L.h);
   }
 
-  private drawBubble(ctx: Ctx2D, s: string, x: number, y: number, who?: string) {
+  private drawBubble(ctx: Ctx2D, s: string, x: number, y: number) {
     const maxW = Math.min(160, L.w - 20);
     const lines = wrap(s, maxW - 10);
-    const w = Math.min(maxW, Math.max(...lines.map((l) => measure(l)), who ? measure(who) : 0) + 10);
-    const h = lines.length * 10 + (who ? 10 : 0) + 6;
+    const w = Math.min(maxW, Math.max(...lines.map((l) => measure(l))) + 10);
+    const h = lines.length * 10 + 6;
     const bx = Math.round(Math.max(4, Math.min(L.w - w - 4, x - w / 2)));
     const by = Math.round(Math.max(4, y - h));
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(bx - 1, by - 1, w + 2, h + 2);
     ctx.fillStyle = hex('cream');
     ctx.fillRect(bx, by, w, h);
-    let ty = by + 3;
-    if (who) {
-      text(ctx, who, bx + 5, ty, 'slate2');
-      ty += 10;
-    }
-    lines.forEach((l, k) => text(ctx, l, bx + 5, ty + k * 10, 'ink1'));
+    lines.forEach((l, k) => text(ctx, l, bx + 5, by + 3 + k * 10, 'ink1'));
   }
 }

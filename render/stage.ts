@@ -38,17 +38,19 @@ export type RoomId =
   | 'bo_mirrors';
 
 /** Where things stand in the office hub (world x). */
-export const HUB_W = 1640;
+export const HUB_W = 1920;
 export const HUB_SPOTS = {
   elevator: 80,
   board: 236,
   desk: 440,
+  /** Two rows of cubicles: four next to the intern, two past the kitchen corner. */
   cubicles: 600,
-  cooler: 1000,
-  copier: 1070,
-  glass: 1210,
-  vending: 1390,
-  archive: 1530,
+  cubiclesB: 1200,
+  cooler: 980,
+  copier: 1090,
+  glass: 1470,
+  vending: 1660,
+  archive: 1820,
 };
 
 /** Locations of the first act, in the order the map looks index them. */
@@ -367,24 +369,29 @@ function room(id: RoomId, dark: boolean, worldW: number, seed: number): RoomDef 
       props.push({ id: 'os_chair', x: HUB_SPOTS.desk - 64, y: F });
       props.push({ id: 'os_desk', x: HUB_SPOTS.desk, y: F, frames: ['idle0', 'idle0', 'idle0', 'ring0', 'ring1', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0'], fps: 4 });
       crt(lights, HUB_SPOTS.desk - 16, 110, false);
-      for (let k = 0; k < 4; k++) {
-        const x = HUB_SPOTS.cubicles + k * 96;
-        props.push({ id: 'os_cubicle', x, y: F, frames: ['idle0', 'idle1'], fps: 1 + k * 0.3 });
-        crt(lights, x, 106, false);
-      }
+      const row = (x0: number, n: number) => {
+        for (let k = 0; k < n; k++) {
+          const x = x0 + k * 96;
+          props.push({ id: 'os_cubicle', x, y: F, frames: ['idle0', 'idle1'], fps: 1 + k * 0.3 });
+          crt(lights, x, 106, false);
+        }
+      };
+      row(HUB_SPOTS.cubicles, 4);
       props.push({ id: 'os_poster_b', x: 640, y: 84 });
       props.push({ id: 'os_clock', x: 820, y: 60 });
       props.push({ id: 'os_cooler', x: HUB_SPOTS.cooler, y: F, frames: ['idle0', 'idle1'], fps: 0.7 });
       props.push({ id: 'os_copier', x: HUB_SPOTS.copier, y: F, frames: ['idle0', 'busy0', 'busy1'], fps: 2 });
+      props.push({ id: 'os_poster_c', x: 1150, y: 84 });
+      row(HUB_SPOTS.cubiclesB, 2);
       props.push({ id: 'os_glass', x: HUB_SPOTS.glass, y: F });
-      props.push({ id: 'os_poster_c', x: 1340, y: 84 });
+      props.push({ id: 'os_clock', x: 1600, y: 60 });
       props.push({ id: 'os_vending', x: HUB_SPOTS.vending, y: F });
       lights.push(light(HUB_SPOTS.vending, 110, 70, '#9ad6ff', 0.4));
-      props.push({ id: 'os_extinguisher', x: 1450, y: F - 18 });
+      props.push({ id: 'os_extinguisher', x: 1750, y: F - 18 });
       props.push({ id: 'os_archive_door', x: HUB_SPOTS.archive, y: F, frame: 'closed' });
       props.push({ id: 'os_exit', x: HUB_SPOTS.archive, y: 40 });
       lights.push(light(HUB_SPOTS.archive, 42, 60, '#58f07a', 0.5));
-      props.push({ id: 'os_plant', x: 1600, y: F, frame: 'dead' });
+      props.push({ id: 'os_plant', x: 1886, y: F, frame: 'dead' });
       emitters.push({ kind: 'dust', x: 0, y: 60, w: worldW, h: 100, rate: 3 });
       ambient = '#8e98a6';
       break;
@@ -703,9 +710,11 @@ export class Stage {
     view.forEach((l, i) => (this.lights[i].current = l.current));
   }
 
-  drawBack(ctx: Ctx2D, viewW: number) {
+  /** `behind`: drawn after the static room but before the animated props (cubicles, cooler, lamps), so walkers pass behind the partitions. */
+  drawBack(ctx: Ctx2D, viewW: number, behind?: (ctx: Ctx2D) => void) {
     const cam = Math.round(this.cam);
     ctx.drawImage(this.layer as CanvasImageSource, cam, 0, viewW, STAGE_H, 0, 0, viewW, STAGE_H);
+    behind?.(ctx);
     for (const p of this.animated) {
       if (p.x - cam < -120 || p.x - cam > viewW + 120) continue;
       const frames = p.frames!;
