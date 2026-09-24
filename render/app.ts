@@ -338,15 +338,20 @@ export class App {
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(0, 0, L.w, L.h);
     try {
+      // A view's update may hand over to another screen (the intro starts the shift, the archive
+      // door leaves the office): draw only if the view is still the current one after it.
       if (this.mode === 'title') {
-        this.title.update(dt);
-        this.title.draw(ctx, this.ui);
+        const v = this.title;
+        v.update(dt);
+        if (this.mode === 'title' && this.title === v) v.draw(ctx, this.ui);
       } else if (this.mode === 'hub' && this.hub) {
-        this.hub.update(dt);
-        this.hub.draw(ctx, this.ui);
+        const v = this.hub;
+        v.update(dt);
+        if (this.mode === 'hub' && this.hub === v) v.draw(ctx, this.ui);
       } else if (this.mode === 'intro' && this.intro) {
-        this.intro.update(dt);
-        this.intro.draw(ctx, this.ui);
+        const v = this.intro;
+        v.update(dt);
+        if (this.mode === 'intro' && this.intro === v) v.draw(ctx, this.ui);
       } else if (this.game) {
         const g = this.game;
         if (this.auto && !g.busy() && !g.ending && !g.paused) {
