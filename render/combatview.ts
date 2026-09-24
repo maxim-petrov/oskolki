@@ -8,7 +8,7 @@ import { EnemyView, HeroView, enemySlots, heroX } from './actors.ts';
 import { cardName, cardRules } from './cardview.ts';
 import { BoardView } from './boardview.ts';
 import { paragraph, text } from './font.ts';
-import { drawBossBar, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
+import { drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
 import type { Juice } from './juice.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
@@ -1383,12 +1383,6 @@ export class CombatView {
           ui.tooltip(tip.title, tip.body, ui.p.x, ui.p.y, 'red4');
         }
       }
-    }
-    // Boss bar.
-    if (c?.kind === 'boss') {
-      const boss = c.enemies[0];
-      const v = this.enemies.get(boss.uid);
-      if (v && v.dying === 0 && L.mode === 'wide') drawBossBar(ctx, ENEMIES[boss.def].name, v.hp, v.maxHp, L.top.h + 4, t);
     }
     // Skill, pockets, relics, bag.
     const r = this.skillRect();

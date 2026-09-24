@@ -27,7 +27,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     hp: 50,
     size: 'S',
     material: 'paper',
-    intents: [{ kind: 'attack', value: 19, timer: 3 }],
+    intents: [{ kind: 'attack', value: 14, timer: 3 }],
     blurb: 'Кусает часто, но слабо. Убей первой.',
   },
   drop: {
@@ -36,7 +36,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     hp: 24,
     size: 'S',
     material: 'ink',
-    intents: [{ kind: 'attack', value: 14, timer: 3 }],
+    intents: [{ kind: 'attack', value: 10, timer: 3 }],
     blurb: 'Осколок кляксы.',
   },
   blot: {
@@ -49,7 +49,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     splitInto: 'drop',
     intents: [
       { kind: 'ink', value: 2, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 14, timer: 3 },
     ],
     blurb: 'Заливает фишки чернилами. Умирая, распадается на капли.',
   },
@@ -60,7 +60,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'S',
     material: 'paper',
     intents: [
-      { kind: 'attack', value: 15, timer: 3 },
+      { kind: 'attack', value: 11, timer: 3 },
       { kind: 'stealCharge', value: 3, timer: 3 },
     ],
     blurb: 'Ест чернила из навыка.',
@@ -73,7 +73,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     intents: [
       { kind: 'pin', value: 1, timer: 3 },
-      { kind: 'attack', value: 24, timer: 3 },
+      { kind: 'attack', value: 18, timer: 3 },
     ],
     blurb: 'Прибивает фишки скобами: их нельзя сдвинуть с места.',
   },
@@ -86,7 +86,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'rubber',
     intents: [
       { kind: 'erase', value: 1, timer: 3 },
-      { kind: 'heavy', value: 39, timer: 4 },
+      { kind: 'heavy', value: 29, timer: 4 },
     ],
     blurb: 'Бронирован: каждый удар по нему слабее на 2. Стирает особые фишки.',
   },
@@ -98,7 +98,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     intents: [
       { kind: 'tape', value: 3, timer: 3 },
-      { kind: 'attack', value: 24, timer: 3 },
+      { kind: 'attack', value: 18, timer: 3 },
     ],
     blurb: 'Выплёвывает волокиту: фишки, которые не собираются.',
   },
@@ -110,7 +110,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     intents: [
       { kind: 'hurry', value: 1, timer: 3 },
-      { kind: 'attack', value: 15, timer: 3 },
+      { kind: 'attack', value: 11, timer: 3 },
     ],
     blurb: 'Звонит без конца. От звонка все остальные торопятся.',
   },
