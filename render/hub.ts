@@ -27,10 +27,8 @@ interface Npc {
   say: { s: string; t: number } | null;
   cool: number;
   seed: number;
-  /** One line per visit at most: they mostly just look. */
+  /** One line per visit at most; mostly they just work. */
   spoke: boolean;
-  /** Seconds they keep staring after the hero has passed. */
-  stare: number;
 }
 
 /** Faceless people walking the aisle behind the partitions. */
@@ -50,6 +48,8 @@ interface Spot {
 }
 
 const SPEED = 78;
+/** Playable heroines (lines to them take the feminine form); none at the moment. */
+const HEROINES = new Set<string>();
 
 export class HubView {
   stage = new Stage('hub', false, HUB_W, 2);
@@ -68,7 +68,7 @@ export class HubView {
   overlay: null | 'board' | 'desk' = null;
   /** Wake-up at the desk after a shift: a short script before control returns. */
   script: { t: number; how: 'wake' | 'won' } | null = null;
-  /** Now and then the whole office goes still and looks at the hero; the lamps dip. */
+  /** Now and then the whole office stops working at once and holds still; the lamps dip. */
   hush = { t: 0, next: 25 + Math.random() * 25 };
   /** The phone on the hero's desk rings; nobody picks it up. */
   phone = { next: 35 + Math.random() * 30, rings: 0, t: 0 };
@@ -94,7 +94,7 @@ export class HubView {
       { id: 'archive', x: HUB_SPOTS.archive, label: this.app.hasSave() ? 'Архив: продолжить смену' : 'Дверь архива' },
     ];
     const npc = (sprite: string, x: number, lines: string[], kind: Npc['kind'] = 'sit') => {
-      if (hasSprite(sprite)) this.npcs.push({ sprite, x, lines, kind, say: null, cool: 0, seed: x * 0.13, spoke: false, stare: 0 });
+      if (hasSprite(sprite)) this.npcs.push({ sprite, x, lines, kind, say: null, cool: 0, seed: x * 0.13, spoke: false });
     };
     const a = HUB_SPOTS.cubicles;
     const b = HUB_SPOTS.cubiclesB;
@@ -258,17 +258,15 @@ export class HubView {
         }
       }
     } else if (!this.overlay && !this.leaving) this.walk(dt);
-    // Coworkers look up as the hero passes and keep looking after he has gone. Now and then one of
-    // them says a few words — at most once a visit; mostly they are silent.
+    // Coworkers never look up from their work as the hero passes. Now and then one of them says a
+    // few words without turning — at most once a visit; mostly they are silent.
     for (const n of this.npcs) {
       n.cool = Math.max(0, n.cool - dt);
-      n.stare = Math.max(0, n.stare - dt);
       if (n.say) {
         n.say.t -= dt;
         if (n.say.t <= 0) n.say = null;
       }
       const d = Math.abs(n.x - this.hero.x);
-      if (d < 70 && this.present(n) && !this.script) n.stare = Math.max(n.stare, 2 + ((n.seed * 7) % 1.6));
       const someoneTalks = this.npcs.some((o) => o.say) || !!this.bubble;
       if (n.lines.length && !n.spoke && this.present(n) && !this.script && !someoneTalks && n.cool <= 0 && d < 40) {
         n.cool = 25;
@@ -435,8 +433,8 @@ export class HubView {
 
   /** A line addressed to the hero: «{он|она}» picks the form, «{role}» is the hero's job. */
   private line(s: string) {
-    const she = this.hero.char === 'janitor';
-    const role = this.hero.char === 'janitor' ? 'уборщица' : this.hero.char === 'accountant' ? 'бухгалтер' : 'стажёр';
+    const she = HEROINES.has(this.hero.char);
+    const role = this.hero.char === 'janitor' ? 'уборщик' : this.hero.char === 'accountant' ? 'бухгалтер' : 'стажёр';
     return s.replace(/\{([^|}]*)\|([^}]*)\}/g, (_, m: string, f: string) => (she ? f : m)).replace('{role}', role);
   }
 
@@ -446,20 +444,21 @@ export class HubView {
     let frame = names[0];
     // The girl's second frame is a slow hand to her hair: now and then, not on every beat.
     const beat = n.sprite === 'npc_girl' ? +(Math.floor(this.t * 2.2 + n.seed) % 5 === 0) : Math.floor(this.t * 2.2 + n.seed) % 2;
-    const near = n.stare > 0 || this.hush.t > 0;
+    // Everyone keeps to their work and never turns to the hero; in the office's held breath they
+    // simply stop (the first frame of their work).
+    const still = this.hush.t > 0;
+    const work = still ? 0 : beat;
     if (n.kind === 'shadow') {
-      if (names.includes('sit0')) frame = near && names.includes('look') ? 'look' : beat ? 'sit1' : 'sit0';
-      else if (n.sprite === 'npc_sil_copier') frame = Math.floor(this.t * 1.6 + n.seed) % 3 === 0 ? 'idle1' : 'idle0';
+      if (names.includes('sit0')) frame = work ? 'sit1' : 'sit0';
+      else if (n.sprite === 'npc_sil_copier') frame = !still && Math.floor(this.t * 1.6 + n.seed) % 3 === 0 ? 'idle1' : 'idle0';
       // The one with the mug takes a sip now and then.
-      else frame = Math.floor(this.t * 0.5 + n.seed) % 5 === 0 ? 'idle1' : 'idle0';
+      else frame = !still && Math.floor(this.t * 0.5 + n.seed) % 5 === 0 ? 'idle1' : 'idle0';
     }
-    else if (n.kind === 'sit') frame = n.say ? (names.includes('grumble') ? 'grumble' : names.includes('talk') ? 'talk' : 'look') : near ? 'look' : beat ? 'sit1' : 'sit0';
-    else if (n.kind === 'mop') frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : near && names.includes('look') ? 'look' : beat ? 'mop1' : 'mop0';
-    else frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : near && names.includes('look') ? 'look' : beat ? 'idle1' : 'idle0';
-    let f = getFrame(n.sprite, frame);
-    // Standing coworkers turn to face the intern (silhouettes keep to their business).
-    if ((n.kind === 'stand' || n.kind === 'mop') && this.hero.x < n.x) f = flipped(f);
-    draw(ctx, f, Math.round(x), STAGE_FEET);
+    // Speaking, they only part their lips (the talk frames keep the head over the work).
+    else if (n.kind === 'sit') frame = n.say ? (names.includes('talk') ? 'talk' : names.includes('grumble') ? 'grumble' : 'sit0') : work ? 'sit1' : 'sit0';
+    else if (n.kind === 'mop') frame = n.say && names.includes('talk') ? 'talk' : work ? 'mop1' : 'mop0';
+    else frame = n.say && names.includes('talk') ? 'talk' : work ? 'idle1' : 'idle0';
+    draw(ctx, getFrame(n.sprite, frame), Math.round(x), STAGE_FEET);
   }
 
   private drawBubble(ctx: Ctx2D, s: string, x: number, y: number) {

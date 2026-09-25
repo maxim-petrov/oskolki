@@ -114,8 +114,8 @@ export const CHARACTERS: Record<CharId, CharDef> = {
   },
   janitor: {
     id: 'janitor',
-    name: 'Уборщица',
-    desc: 'Видела всё. Швабра превращает грязь на поле в броню.',
+    name: 'Уборщик',
+    desc: 'Видел всё. Молчит. Швабра превращает грязь на поле в броню.',
     maxHp: 72,
     coins: 10,
     relic: 'mop',

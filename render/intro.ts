@@ -260,10 +260,9 @@ export class IntroView {
           for (const [id, dx] of SEATED) {
             if (!hasSprite(id)) continue;
             const nx = HUB_SPOTS.cubicles + dx;
-            // They look up as he comes and follow him with their eyes after he has passed.
-            const near = nx - this.hero.x < 70 && this.hero.x - nx < 200;
+            // Nobody looks up from their work as he passes.
             const beat = id === 'npc_girl' ? Math.floor(t * 2.2 + dx) % 5 === 0 : Math.floor(t * 2.2 + dx) % 2 === 1;
-            draw(b, getFrame(id, near ? 'look' : beat ? 'sit1' : 'sit0'), nx - cam, STAGE_FEET);
+            draw(b, getFrame(id, beat ? 'sit1' : 'sit0'), nx - cam, STAGE_FEET);
           }
         const x = this.hero.x;
         this.hero.x = x - cam;
