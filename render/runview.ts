@@ -429,7 +429,7 @@ export class RunView implements CombatHost {
     this.ensureBuffers();
     const t = this.t;
     const [sx, sy] = this.juice.offset();
-    ctx.fillStyle = hex('ink0');
+    ctx.fillStyle = hex('page');
     ctx.fillRect(0, 0, L.w, L.h);
     // Stage into its buffer, lit.
     const b = this.buf.ctx;
