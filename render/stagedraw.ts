@@ -1,9 +1,19 @@
 import { drawVignette } from './fx.ts';
+import { hex } from './palette.ts';
 import { LIGHT_STYLE, Lighting, type Light } from './lighting.ts';
 import type { Particles } from './particles.ts';
 import { ctx2d, makeCanvas, type Canvas, type Ctx2D } from './sprite.ts';
 import type { Stage } from './stage.ts';
 import { STAGE_H } from './view.ts';
+
+/** Flat rooms: no light map; a blackout is a plain dark veil (the light switch in the intro). */
+export function flatLight(b: Ctx2D, stage: Stage, w: number, h: number) {
+  if (stage.blackout <= 0) return;
+  b.globalAlpha = Math.min(0.92, stage.blackout * 0.92);
+  b.fillStyle = hex('ink0');
+  b.fillRect(0, 0, w, h);
+  b.globalAlpha = 1;
+}
 
 /**
  * Draws a stage through its own buffer: room, particles, actors, the stepped light map,
@@ -33,6 +43,12 @@ export class StageRenderer {
     ps.draw(b, 'mid', false);
     stage.drawFront(b, this.w);
     ps.draw(b, 'front', false);
+    if (LIGHT_STYLE.flat) {
+      flatLight(b, stage, this.w, this.h);
+      ps.draw(b, 'back', true);
+      ps.draw(b, 'mid', true);
+      return;
+    }
     this.lighting.ambient = stage.ambient;
     const lights = stage.viewLights();
     this.lighting.lights = lights;

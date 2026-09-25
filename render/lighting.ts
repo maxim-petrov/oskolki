@@ -37,6 +37,8 @@ export const LIGHT_STYLE = {
   bloom: 0.14,
   /** Dark frame around the screen. */
   vignette: 1,
+  /** 1 — «Дворец слов»: flat rooms without a light map, bloom, glows or vignette; 0 — lit rooms. */
+  flat: 1,
 };
 
 const sprites = new Map<string, Canvas>();

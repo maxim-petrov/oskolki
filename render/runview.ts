@@ -11,6 +11,7 @@ import { ditherFade, drawDanger, drawVignette } from './fx.ts';
 import { drawTopBar, type Disp } from './hud.ts';
 import { Juice } from './juice.ts';
 import { LIGHT_STYLE, Lighting } from './lighting.ts';
+import { flatLight } from './stagedraw.ts';
 import { MapView } from './mapview.ts';
 import { hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
@@ -395,21 +396,9 @@ export class RunView implements CombatHost {
 
   // ── Draw ──────────────────────────────────────────────────────────
 
-  draw(ctx: Ctx2D, ui: UI) {
-    this.ensureBuffers();
-    const t = this.t;
-    const [sx, sy] = this.juice.offset();
-    ctx.fillStyle = hex('ink0');
-    ctx.fillRect(0, 0, L.w, L.h);
-    // Stage into its buffer, lit.
-    const b = this.buf.ctx;
+  /** The lit version of the stage (light map, bloom, glows, vignette); off in flat mode. */
+  private litStage(b: Ctx2D, t: number) {
     const st = this.stage;
-    st.drawBack(b, L.w);
-    this.sps.draw(b, 'back', false);
-    this.combat.drawActors(b);
-    this.sps.draw(b, 'mid', false);
-    st.drawFront(b, L.w);
-    this.sps.draw(b, 'front', false);
     this.lighting.ambient = st.ambient;
     const lights = st.viewLights();
     this.lighting.lights = lights;
@@ -434,6 +423,28 @@ export class RunView implements CombatHost {
       b.globalCompositeOperation = 'source-over';
     }
     drawVignette(b, 0, 0, L.w, STAGE_H, 0.8 * LIGHT_STYLE.vignette);
+  }
+
+  draw(ctx: Ctx2D, ui: UI) {
+    this.ensureBuffers();
+    const t = this.t;
+    const [sx, sy] = this.juice.offset();
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(0, 0, L.w, L.h);
+    // Stage into its buffer, lit.
+    const b = this.buf.ctx;
+    const st = this.stage;
+    st.drawBack(b, L.w);
+    this.sps.draw(b, 'back', false);
+    this.combat.drawActors(b);
+    this.sps.draw(b, 'mid', false);
+    st.drawFront(b, L.w);
+    this.sps.draw(b, 'front', false);
+    if (LIGHT_STYLE.flat) {
+      flatLight(b, st, L.w, STAGE_H);
+      this.sps.draw(b, 'back', true);
+      this.sps.draw(b, 'mid', true);
+    } else this.litStage(b, t);
     ctx.save();
     ctx.translate(sx, sy);
     ctx.drawImage(this.buf.canvas as CanvasImageSource, 0, L.stageCrop, L.w, L.stage.h, L.stage.x, L.stage.y, L.w, L.stage.h);
