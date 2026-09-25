@@ -110,8 +110,9 @@ export class HubView {
     if (!st.supervisorGone) npc('npc_supervisor', HUB_SPOTS.glass - 60, ['Вас ждут.', 'Архив ждёт, {role}.', 'Улыбайтесь.'], 'stand');
     npc('npc_janitor', HUB_SPOTS.vending + 70, ['Пол помнит, кто здесь ходил.', 'Не ходи туда после шести.', '…'], 'mop');
     if (hasSprite('npc_sil_walk')) {
-      this.walkers.push({ x: 700, from: 520, to: 1330, dir: 1, speed: 22, pause: 0 });
-      this.walkers.push({ x: 1500, from: 1150, to: 1760, dir: -1, speed: 17, pause: 1.5 });
+      // Only behind the rows of cubicles, where the partitions hide them to the shoulders.
+      this.walkers.push({ x: 700, from: 580, to: 1000, dir: 1, speed: 20, pause: 0 });
+      this.walkers.push({ x: 1330, from: 1180, to: 1400, dir: -1, speed: 16, pause: 1.5 });
     }
     // Start: at the desk.
     this.hero.x = HUB_SPOTS.seat;
@@ -377,7 +378,8 @@ export class HubView {
         // A step covers about 20 px: the cycle runs at speed/10 frames per second so feet don't slide.
         let f = getFrame('npc_sil_walk', w.pause > 0 ? 'walk0' : `walk${Math.floor(t * (w.speed / 10) + w.from) % 4}`);
         if (w.dir < 0) f = flipped(f);
-        draw(b, f, x, STAGE_FEET - 2);
+        // Far behind the partitions: a faint shadow, never a second head on the people in front.
+        draw(b, f, x, STAGE_FEET - 2, 0.45);
       }
     };
     this.r.render(this.stage, t, this.ps, (b) => {
