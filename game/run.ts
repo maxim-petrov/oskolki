@@ -1,5 +1,5 @@
 import { derive, int, pick, range, rng, shuffle, weighted } from './rng.ts';
-import { alive, activeCost, playerActive, playerMove, playerPocket, setTarget, startCombat } from './combat.ts';
+import { MAX_ENEMIES, alive, activeCost, deckTokens, playerActive, playerMove, playerPocket, setTarget, startCombat } from './combat.ts';
 import { ACTS, CHARACTERS } from './content/acts.ts';
 import { CARDS, RARITY_PRICE, STARTER_DECKS, rewardPool, type Rarity } from './content/cards.ts';
 import { ENEMIES } from './content/enemies.ts';
@@ -11,6 +11,7 @@ import type {
   CharId,
   Combat,
   DeckCard,
+  DevOp,
   Fam,
   Finish,
   GameEvent,
@@ -618,7 +619,7 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       break;
     case 'travel': {
       if (run.phase !== 'map') return fail(run, ev, 'Сначала закончи здесь');
-      if (!reachable(run.map, run.node).includes(action.node)) return fail(run, ev, 'Туда не пройти');
+      if (!run.dev?.anywhere && !reachable(run.map, run.node).includes(action.node)) return fail(run, ev, 'Туда не пройти');
       enterNode(run, run.map.nodes[action.node], ev);
       break;
     }
@@ -738,6 +739,10 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       nextAct(run, ev);
       break;
     }
+    case 'dev':
+      if (!run.customSeed) return fail(run, ev, 'Только в тестовом забеге');
+      applyDev(run, action.op, ev);
+      break;
     case 'leave': {
       switch (run.phase) {
         case 'reward':
@@ -771,6 +776,121 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
   if (phase === 'combat' && run.combat && !alive(run.combat).length) winCombat(run, ev);
   if (phase === 'dead') ev.push({ t: 'dead', cause: run.stats.deathCause });
   return { run, events: ev };
+}
+
+// ── Dev panel (custom runs only) ─────────────────────────────────────
+
+/** Test commands: set up the hero, the build and the place, switch cheats, jump anywhere. */
+function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
+  const hero = run.hero;
+  switch (op.op) {
+    case 'hero':
+      if (op.maxHp !== undefined) hero.maxHp = Math.max(1, Math.round(op.maxHp));
+      if (op.hp !== undefined) hero.hp = Math.max(1, Math.min(hero.maxHp, Math.round(op.hp)));
+      hero.hp = Math.min(hero.hp, hero.maxHp);
+      if (op.coins !== undefined) hero.coins = Math.max(0, Math.min(999, Math.round(op.coins)));
+      if (op.charge !== undefined) hero.charge = Math.max(0, Math.min(activeCost(run), Math.round(op.charge)));
+      if (op.armor !== undefined) hero.armor = Math.max(0, Math.round(op.armor));
+      break;
+    case 'build': {
+      if (op.deck) {
+        let uid = 1;
+        hero.deck = op.deck.filter((c) => CARDS[c.id]).map((c) => ({ uid: uid++, id: c.id, up: !!c.up, finish: c.finish }));
+      }
+      if (op.relics) hero.relics = op.relics.filter((id, k, all) => ITEMS[id]?.kind === 'passive' && all.indexOf(id) === k);
+      if (op.active !== undefined) hero.active = op.active && ITEMS[op.active]?.kind === 'active' ? op.active : null;
+      const slots = modsOf(run).pockets;
+      const wanted = op.pockets ?? hero.pockets;
+      hero.pockets = Array.from({ length: slots }, (_, k) => {
+        const id = wanted[k];
+        return id && POCKETS[id] ? id : null;
+      });
+      hero.charge = run.dev?.ink ? activeCost(run) : Math.min(hero.charge, activeCost(run));
+      // A fight in progress draws from the new deck from now on.
+      if (run.combat) {
+        run.combat.board.source = deckTokens(run);
+        run.combat.board.bag = [];
+      }
+      break;
+    }
+    case 'set':
+      run.dev = { ...run.dev, ...op.dev };
+      if (run.dev.ink) hero.charge = activeCost(run);
+      break;
+    case 'act':
+      run.combat = null;
+      run.rewards = [];
+      run.shop = null;
+      run.event = null;
+      run.treasure = null;
+      run.pick = null;
+      enterAct(run, Math.max(0, Math.min(ACTS.length - 1, Math.round(op.act))), ev);
+      run.lastAct = Math.max(run.lastAct, run.act);
+      break;
+    case 'enter': {
+      // The place starts right here; the map keeps its current node.
+      run.combat = null;
+      run.rewards = [];
+      run.shop = null;
+      run.event = null;
+      run.treasure = null;
+      run.pick = null;
+      switch (op.kind) {
+        case 'fight':
+        case 'elite':
+        case 'boss': {
+          const wanted = (op.enemies ?? []).filter((e) => ENEMIES[e]).slice(0, MAX_ENEMIES);
+          beginCombat(run, op.kind, wanted.length ? wanted : encounter(run, op.kind), ev);
+          break;
+        }
+        case 'rest':
+          run.phase = 'rest';
+          break;
+        case 'shop':
+          openShop(run);
+          run.phase = 'shop';
+          break;
+        case 'treasure':
+          run.treasure = { relic: rollRelic(run) ?? 'sandwich', coins: 20, opened: false };
+          run.phase = 'treasure';
+          break;
+        case 'event': {
+          const def = (op.event && EVENT_BY_ID[op.event]) || pick(run.rng.map, EVENTS);
+          run.event = { id: def.id };
+          run.phase = 'event';
+          break;
+        }
+        case 'bossReward':
+          run.bossRelics = [];
+          for (let k = 0; k < 3; k++) {
+            const id = rollRelic(run, 'boss');
+            if (id) run.bossRelics.push(id);
+          }
+          run.phase = run.bossRelics.length ? 'bossReward' : 'map';
+          break;
+        default:
+          run.phase = 'map';
+      }
+      break;
+    }
+    case 'travel': {
+      const node = run.map.nodes[op.node];
+      if (!node) break;
+      run.combat = null;
+      run.phase = 'map';
+      enterNode(run, node, ev);
+      break;
+    }
+    case 'win':
+      // dispatch's tail sees no enemies alive and wins the fight.
+      if (run.combat) for (const e of run.combat.enemies) e.hp = 0;
+      break;
+    case 'lose':
+      hero.hp = 0;
+      run.phase = 'dead';
+      run.stats.deathCause = 'Тест: сдался';
+      break;
+  }
 }
 
 // ── Helpers for views and bots ───────────────────────────────────────

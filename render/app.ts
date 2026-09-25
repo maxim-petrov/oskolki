@@ -6,10 +6,11 @@ import { loadRun, newRun } from '../game/run.ts';
 import type { CharId, RunState } from '../game/types.ts';
 import { registerArt } from './assets.ts';
 import { Audio } from './audio.ts';
-import { loadFont } from './font.ts';
+import { loadFont, text } from './font.ts';
 import { HubView } from './hub.ts';
 import { IntroView } from './intro.ts';
 import { LIGHT_STYLE } from './lighting.ts';
+import { DevApi, isDevEvent, toggleDevPanel } from './dev.ts';
 import { isLabEvent, loadLightStyle, setLightStyle, toggleLightLab } from './lightlab.ts';
 import { hex } from './palette.ts';
 import { loadProfile, loadRunRaw, recordRun, saveProfile, saveRunRaw, type Profile } from './profile.ts';
@@ -39,6 +40,8 @@ export class App {
   auto = false;
   autoRng = rng(12345);
   errors: string[] = [];
+  /** Dev mode: test runs, cheats, the profile (components/dev-panel.tsx is its face; ` opens it). */
+  dev = new DevApi(this);
   private pointer: Pointer = { x: -1, y: -1, down: false, pressed: false, released: false, right: false, inside: false };
   private raf = 0;
   private last = 0;
@@ -69,7 +72,10 @@ export class App {
     this.ready = true;
     const params = new URLSearchParams(location.search);
     const seed = params.get('seed');
-    if (params.has('play') || seed) this.startShift((params.get('char') as CharId) ?? 'intern', seed ? Number(seed) : undefined, false);
+    const test = this.dev.fromLink();
+    if (params.has('dev')) toggleDevPanel(true);
+    if (test) this.dev.start(test);
+    else if (params.has('play') || seed) this.startShift((params.get('char') as CharId) ?? 'intern', seed ? Number(seed) : undefined, false);
     else if (params.has('hub')) this.toHub('wake');
     else if (params.has('intro')) this.startIntro();
     this.last = performance.now();
@@ -107,6 +113,7 @@ export class App {
         this.game = new RunView(this, run, [{ t: 'act', act: run.act }]);
       },
       perf: () => Math.round(this.frameMs * 100) / 100,
+      dev: this.dev,
       light: { style: LIGHT_STYLE, set: setLightStyle },
       layout: () => ({ ...L }),
       errors: this.errors,
@@ -242,6 +249,11 @@ export class App {
     this.canvas.style.height = `${Math.round((r.h * r.scale) / dpr * 1000) / 1000}px`;
   }
 
+  /** The light lab (F2), also opened from the dev panel. */
+  lightLab() {
+    toggleLightLab(this.host);
+  }
+
   toggleFullscreen() {
     const doc = document as Document & { webkitFullscreenElement?: Element };
     if (doc.fullscreenElement || doc.webkitFullscreenElement) void document.exitFullscreen?.();
@@ -264,7 +276,7 @@ export class App {
     };
     on('resize', () => this.resize());
     on('pointerdown', (e: PointerEvent) => {
-      if (isLabEvent(e)) return;
+      if (isLabEvent(e) || isDevEvent(e)) return;
       this.audio.unlock();
       const p = this.toGame(e.clientX, e.clientY);
       Object.assign(this.pointer, p, { down: true, pressed: true, right: e.button === 2 });
@@ -276,11 +288,16 @@ export class App {
       }
     });
     on('pointermove', (e: PointerEvent) => {
+      if (isDevEvent(e)) {
+        this.pointer.inside = false;
+        return;
+      }
       const p = this.toGame(e.clientX, e.clientY);
       Object.assign(this.pointer, p);
       if (this.mode === 'run' && this.game) this.game.pointerMove(p.x, p.y);
     });
     on('pointerup', (e: PointerEvent) => {
+      if (isDevEvent(e) && !this.pointer.down) return;
       const p = this.toGame(e.clientX, e.clientY);
       Object.assign(this.pointer, p, { down: false, released: true });
       if (this.mode === 'run' && this.game) this.game.pointerUp();
@@ -289,15 +306,27 @@ export class App {
       if (e.pointerType === 'touch') window.setTimeout(() => (this.pointer.inside = false), 0);
     });
     on('wheel', (e: WheelEvent) => {
+      if (isDevEvent(e)) return;
       if (this.game) this.game.wheel += e.deltaY * 0.5;
       if (this.hub) this.hub.wheel += e.deltaY * 0.5;
     });
     on('contextmenu', (e: Event) => e.preventDefault());
     on('keydown', (e: KeyboardEvent) => {
-      if (isLabEvent(e)) return;
+      if (isLabEvent(e) || isDevEvent(e)) return;
       this.audio.unlock();
       if (!this.ready) return;
       const k = e.key;
+      // Dev mode: ` (Ё) opens the panel, F9 repeats the last test setup.
+      if (k === '`' || k === '~' || k === 'ё' || k === 'Ё') {
+        e.preventDefault();
+        toggleDevPanel();
+        return;
+      }
+      if (k === 'F9') {
+        e.preventDefault();
+        this.dev.restart();
+        return;
+      }
       if (k === 'F2') {
         e.preventDefault();
         toggleLightLab(this.host);
@@ -366,6 +395,11 @@ export class App {
       throw err;
     }
     this.ui.end(ctx, L.w, L.h);
+    if (this.dev.showPerf) {
+      ctx.fillStyle = 'rgba(7,7,15,0.7)';
+      ctx.fillRect(0, L.h - 11, 92, 11);
+      text(ctx, `${this.frameMs.toFixed(2)} мс · ${this.mode}${this.game?.run.customSeed ? ' · тест' : ''}`, 3, L.h - 10, 'green4');
+    }
     if (!L.touch) this.drawCursor(ctx);
   }
 

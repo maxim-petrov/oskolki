@@ -176,7 +176,7 @@ export function intentDamage(c: Combat, e: EnemyState): number {
 export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): EnemyState {
   const def = ENEMIES[defId];
   const act = ACTS[Math.min(run.act, ACTS.length - 1)];
-  const hp = Math.max(1, Math.round(def.hp * act.hpMul));
+  const hp = Math.max(1, Math.round(def.hp * act.hpMul * (run.dev?.enemyHp ?? 1)));
   const e: EnemyState = {
     uid: c.nextUid++,
     def: defId,
@@ -195,7 +195,7 @@ export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): 
     submerged: false,
     shining: false,
     hitOnce: false,
-    dmgMul: act.dmgMul,
+    dmgMul: act.dmgMul * (run.dev?.enemyDmg ?? 1),
     stolen: 0,
   };
   e.countdown = currentIntent(e).timer + mods.timerBonus;
@@ -274,7 +274,8 @@ export function activeCost(run: RunState): number {
 /** Armor takes one enemy blow and burns out; the umbrella's ward softens the blow first. */
 export function hurtHero(ctx: Ctx, amount: number, source: string, burnsArmor = false, attacker?: EnemyState) {
   const hero = ctx.run.hero;
-  let left = Math.max(0, Math.round(amount));
+  // Dev god mode: nothing gets through.
+  let left = ctx.run.dev?.god ? 0 : Math.max(0, Math.round(amount));
   if (hero.ward > 0 && left > 0) {
     left = Math.max(0, left - hero.ward);
     hero.ward = 0;
@@ -865,7 +866,12 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   }
   const armor = Math.max(0, Math.round(t.armor * mult * ms.armorX));
   if (mods.armorToDamage && armor > 0) damage += armor;
-  const aoe = Math.max(0, Math.round(t.aoe * mult)) + ms.plane;
+  let aoe = Math.max(0, Math.round(t.aoe * mult)) + ms.plane;
+  const tune = run.dev?.heroDmg;
+  if (tune && tune !== 1) {
+    damage = Math.round(damage * tune);
+    aoe = Math.round(aoe * tune);
+  }
   const submerged = target?.submerged;
   ctx.ev.push({ t: 'strike', tally: { ...t, mult }, damage, aoe, armor, target: target?.uid ?? -1, notes: [...notes] });
   run.stats.maxHit = Math.max(run.stats.maxHit, damage);
@@ -877,7 +883,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     hero.coins = Math.max(0, Math.min(999, hero.coins + coins));
     if (coins > 0) run.stats.coinsEarned += coins;
     c.bonusCoins += ms.bonusCoins;
-    hero.charge = Math.min(activeCost(run), hero.charge + Math.round(t.charge));
+    hero.charge = run.dev?.ink ? activeCost(run) : Math.min(activeCost(run), hero.charge + Math.round(t.charge));
     if (target && damage > 0) {
       if (submerged) ctx.fx.push({ kind: 'damage', amount: 0, uid: target.uid, source: 'strike', text: 'Под водой' });
       else hitEnemy(ctx, target.uid, damage, { source: 'strike', pierce: ms.pierce || mods.pierce });
@@ -1273,7 +1279,8 @@ function advanceTime(ctx: Ctx) {
     return;
   }
   c.ticks++;
-  for (const e of alive(c)) e.countdown -= 1;
+  // Dev freeze: the enemies' timers stand still.
+  if (!ctx.run.dev?.freeze) for (const e of alive(c)) e.countdown -= 1;
   ctx.ev.push({ t: 'tick', timers: alive(c).map((e) => ({ uid: e.uid, countdown: e.countdown })) });
   boardTimers(ctx);
   if (isDead(ctx.run)) return;
@@ -1432,7 +1439,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     ev.push({ t: 'invalid', reason: 'Выбери цель' });
     return false;
   }
-  hero.charge -= def.charge ?? 0;
+  hero.charge = run.dev?.ink ? hero.charge : hero.charge - (def.charge ?? 0);
   ev.push({ t: 'activeUsed', item: def.id });
   switch (def.id) {
     case 'eraser':

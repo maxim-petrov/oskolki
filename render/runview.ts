@@ -16,7 +16,7 @@ import { hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
 import { DeckGrid, RewardScreen, ShopScreen, drawBossReward, drawDeckViewer, drawEvent, drawPick, drawRest, drawTreasure } from './runscreens.ts';
 import { draw, getFrame, type Canvas, type Ctx2D } from './sprite.ts';
-import { Stage, roomFor, stageBuffer } from './stage.ts';
+import { Stage, roomFor, stageBuffer, type RoomId } from './stage.ts';
 import { Steps } from './steps.ts';
 import { panel, type UI } from './ui.ts';
 import { L, STAGE_FEET, STAGE_H } from './view.ts';
@@ -99,8 +99,20 @@ export class RunView implements CombatHost {
 
   buildStage(force = false) {
     const node = this.run.node >= 0 ? this.run.map.nodes[this.run.node] : null;
-    const intro = this.run.combat?.kind === 'intro';
-    const { id, dark } = intro ? { id: 'archive' as const, dark: true } : roomFor(this.run.act, node?.look ?? 0, node?.kind ?? 'fight');
+    const run = this.run;
+    const intro = run.combat?.kind === 'intro';
+    // The place decides the room: a boss or an elite fight, the till, the cooler, the safe, else the node.
+    const kind =
+      run.combat?.kind === 'boss' || run.combat?.kind === 'elite'
+        ? run.combat.kind
+        : run.phase === 'shop' || run.phase === 'rest' || run.phase === 'treasure'
+          ? run.phase
+          : (node?.kind ?? 'fight');
+    const { id, dark } = run.dev?.room
+      ? { id: run.dev.room as RoomId, dark: run.dev.dark ?? true }
+      : intro
+        ? { id: 'archive' as const, dark: true }
+        : roomFor(run.act, node?.look ?? 0, kind);
     const key = `${id}:${dark}:${node?.id ?? -1}:${L.w}`;
     if (!force && key === this.stageKey) return;
     this.stageKey = key;

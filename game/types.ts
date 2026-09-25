@@ -283,6 +283,39 @@ export interface PickState {
   cost?: number;
 }
 
+/**
+ * Test settings of a custom run, set from the dev panel: cheats and number knobs. Absent in normal
+ * runs; a custom run never counts for the profile.
+ */
+export interface DevState {
+  /** The hero takes no damage. */
+  god?: boolean;
+  /** The skill is always charged. */
+  ink?: boolean;
+  /** Enemy timers stand still: they never act. */
+  freeze?: boolean;
+  /** Multipliers: enemy health (new enemies), enemy damage (new enemies), the hero's strikes. */
+  enemyHp?: number;
+  enemyDmg?: number;
+  heroDmg?: number;
+  /** Stage override for the view (a RoomId) and its lighting. */
+  room?: string;
+  dark?: boolean;
+  /** Any map node can be entered, not only the next row. */
+  anywhere?: boolean;
+}
+
+/** Dev panel commands (the `dev` action; custom runs only). */
+export type DevOp =
+  | { op: 'hero'; hp?: number; maxHp?: number; coins?: number; charge?: number; armor?: number }
+  | { op: 'build'; deck?: { id: string; up?: boolean; finish?: Finish }[]; relics?: string[]; active?: string | null; pockets?: (string | null)[] }
+  | { op: 'set'; dev: DevState }
+  | { op: 'act'; act: number }
+  | { op: 'enter'; kind: NodeKind | 'bossReward' | 'map'; enemies?: string[]; event?: string }
+  | { op: 'travel'; node: number }
+  | { op: 'win' }
+  | { op: 'lose' };
+
 export interface RunState {
   v: 3;
   seed: number;
@@ -316,6 +349,8 @@ export interface RunState {
   stats: RunStats;
   nextId: number;
   flags: Record<string, boolean>;
+  /** Dev panel settings (custom runs only). */
+  dev?: DevState;
 }
 
 export type Action =
@@ -333,7 +368,8 @@ export type Action =
   | { type: 'pick'; uid: number }
   | { type: 'open' }
   | { type: 'bossRelic'; index: number }
-  | { type: 'leave' };
+  | { type: 'leave' }
+  | { type: 'dev'; op: DevOp };
 
 /** Snapshot copied into events so the view can replay without reading engine state. */
 export type BoardSnap = Tile[];
