@@ -98,6 +98,11 @@ export const PAL = {
   ash3: '#b5b7b0',
   ash4: '#cececa',
   rose: '#e3c9ce',
+  // Pale, washed-out skin of the office people (tired, never in the sun).
+  pale0: '#6f5a52',
+  pale1: '#9c8478',
+  pale2: '#c4ada0',
+  pale3: '#dccbbf',
   // Skin
   skin0: '#7d4a37',
   skin1: '#bf8261',
