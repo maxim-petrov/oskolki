@@ -370,7 +370,7 @@ function room(id: RoomId, dark: boolean, worldW: number, seed: number): RoomDef 
       props.push({ id: 'os_poster_a', x: 330, y: 84 });
       props.push({ id: 'os_chair', x: HUB_SPOTS.desk - 64, y: F });
       props.push({ id: 'os_desk', x: HUB_SPOTS.desk, y: F, frames: ['idle0', 'idle0', 'idle0', 'ring0', 'ring1', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0', 'idle0'], fps: 4 });
-      crt(lights, HUB_SPOTS.desk - 16, 110, false);
+      crt(lights, HUB_SPOTS.desk - 16, 124, false);
       const row = (x0: number, n: number) => {
         for (let k = 0; k < n; k++) {
           const x = x0 + k * 96;
@@ -401,7 +401,7 @@ function room(id: RoomId, dark: boolean, worldW: number, seed: number): RoomDef 
     case 'openspace': {
       P({ id: 'os_desk', x: 86, y: F, frames: dark ? ['idle0'] : ['idle0', 'ring0', 'ring1'], fps: 3 });
       P({ id: 'os_chair', x: 22, y: F });
-      crt(lights, 70 + o, 110, dark);
+      crt(lights, 70 + o, 124, dark);
       for (let k = 0; k < 4; k++) {
         P({ id: 'os_cubicle', x: 240 + k * 96, y: F, frames: ['idle0', 'idle1'], fps: 1 + k * 0.3 });
         crt(lights, 240 + k * 96 + o, 106, dark);

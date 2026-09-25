@@ -65,12 +65,12 @@ export class IntroView {
     b(0.4, () => this.say('Отдел сверки. 16:39.'));
     b(2.4, () => {
       au.play('phone');
-      this.talk('Дзынь!', HUB_SPOTS.desk + 20, STAGE_FEET - 60);
+      this.talk('Дзынь!', HUB_SPOTS.desk + 20, STAGE_FEET - 46);
       this.typing = false;
       this.hero.pose = 'sit0';
     });
     b(3.2, () => au.play('phone'));
-    b(4.0, () => this.talk('Стажёр. Отнесите стопку в архив. Сейчас.', HUB_SPOTS.desk + 10, STAGE_FEET - 70));
+    b(4.0, () => this.talk('Стажёр. Отнесите стопку в архив. Сейчас.', HUB_SPOTS.desk + 10, STAGE_FEET - 56));
     b(6.6, () => {
       // Up from the chair, the stack from the desk in his arms.
       this.hero.x = HUB_SPOTS.desk + 10;

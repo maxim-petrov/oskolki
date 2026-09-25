@@ -237,7 +237,7 @@ export class HubView {
       sc.t += dt;
       if (sc.t > 1.6 && this.hero.pose === 'sleep') {
         this.hero.pose = 'wake';
-        this.say(this.line(sc.how === 'won' ? 'Отчёт… сдан? Я что, {уснул|уснула}?' : '…Опять {задремал|задремала}?'), this.hero.x + 10, STAGE_FEET - 96, 2.6);
+        this.say(this.line(sc.how === 'won' ? 'Отчёт… сдан? Я что, {уснул|уснула}?' : '…Опять {задремал|задремала}?'), this.hero.x + 10, STAGE_FEET - 84, 2.6);
       }
       if (sc.t > 3.6) {
         this.hero.state = 'idle';
@@ -329,7 +329,7 @@ export class HubView {
       ph.t -= dt;
       if (ph.t <= 0) {
         this.app.audio.play('phone');
-        if (!this.bubble) this.say('Дзынь.', HUB_SPOTS.desk + 20, STAGE_FEET - 60, 0.9);
+        if (!this.bubble) this.say('Дзынь.', HUB_SPOTS.desk + 20, STAGE_FEET - 46, 0.9);
         ph.rings--;
         ph.t = 1.3;
       }
