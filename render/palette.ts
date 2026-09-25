@@ -87,6 +87,17 @@ export const PAL = {
   crt0: '#12301e',
   crt1: '#2c7a45',
   crt2: '#8dfc9e',
+  // Olive-khaki (trousers, old desks) and the neutral greys of the «Дворец слов» cast (shirts, suits).
+  olive0: '#2a2a15',
+  olive1: '#43411f',
+  olive2: '#5a582a',
+  olive3: '#75723b',
+  olive4: '#979459',
+  ash1: '#666b63',
+  ash2: '#858980',
+  ash3: '#b5b7b0',
+  ash4: '#cececa',
+  rose: '#e3c9ce',
   // Skin
   skin0: '#7d4a37',
   skin1: '#bf8261',
