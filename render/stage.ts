@@ -389,7 +389,8 @@ function room(id: RoomId, dark: boolean, worldW: number, seed: number): RoomDef 
       props.push({ id: 'os_clock', x: 1600, y: 60 });
       props.push({ id: 'os_vending', x: HUB_SPOTS.vending, y: F });
       lights.push(light(HUB_SPOTS.vending, 110, 70, '#9ad6ff', 0.4));
-      props.push({ id: 'os_extinguisher', x: 1750, y: F - 18 });
+      // By the vending machine's other side: the janitor mops at vending + 70.
+      props.push({ id: 'os_extinguisher', x: 1614, y: F - 18 });
       props.push({ id: 'os_archive_door', x: HUB_SPOTS.archive, y: F, frame: 'closed' });
       props.push({ id: 'os_exit', x: HUB_SPOTS.archive, y: 40 });
       lights.push(light(HUB_SPOTS.archive, 42, 60, '#58f07a', 0.5));
