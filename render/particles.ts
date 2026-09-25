@@ -1,5 +1,6 @@
 import { hex } from './palette.ts';
 import { ctx2d, makeCanvas, type Canvas, type Ctx2D } from './sprite.ts';
+import { LIGHT_STYLE } from './lighting.ts';
 
 export type Layer = 'sky' | 'back' | 'mid' | 'front' | 'ui';
 
@@ -115,7 +116,8 @@ export class Particles {
   draw(ctx: Ctx2D, layer: Layer, additive: boolean) {
     const prevOp = ctx.globalCompositeOperation;
     const prevA = ctx.globalAlpha;
-    ctx.globalCompositeOperation = additive ? 'lighter' : 'source-over';
+    // Flat rooms: sparks are flat paper bits, not glows.
+    ctx.globalCompositeOperation = additive && !LIGHT_STYLE.flat ? 'lighter' : 'source-over';
     for (const p of this.list) {
       if (p.layer !== layer || p.add !== additive) continue;
       const t = p.life / p.max;

@@ -1,4 +1,4 @@
-import type { Light } from './lighting.ts';
+import { LIGHT_STYLE, type Light } from './lighting.ts';
 import { hex } from './palette.ts';
 import { Particles, rand } from './particles.ts';
 import { ctx2d, draw, flipped, getFrame, hasSprite, makeCanvas, type Canvas, type Ctx2D } from './sprite.ts';
@@ -658,6 +658,8 @@ export class Stage {
     const y = e.y + Math.random() * e.h;
     switch (e.kind) {
       case 'dust':
+        // «Дворец слов»: no floating specks in flat rooms.
+        if (LIGHT_STYLE.flat) break;
         ps.spawn({ x, y, vx: rand(-3, 3), vy: rand(-2, 2), wobble: 2, max: rand(3, 6), ramp: ['cream', 'paper'], add: true, alpha: 0.5, layer: 'mid' });
         break;
       case 'paper':

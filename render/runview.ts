@@ -542,21 +542,24 @@ export class RunView implements CombatHost {
       const a = Math.min(1, b.t * 5, (b.max - b.t) * 3);
       if (b.big) {
         const by = L.stage.y + Math.round(L.stage.h * 0.3);
-        ctx.globalAlpha = a * 0.75;
+        // A paper band across the stage with ink rules.
+        ctx.globalAlpha = a;
         ctx.fillStyle = hex('ink0');
+        ctx.fillRect(0, by - 1, L.w, 42);
+        ctx.fillStyle = hex('paper');
         ctx.fillRect(0, by, L.w, 40);
         ctx.globalAlpha = 1;
-        bigText(ctx, b.title, L.w / 2, by + 7, b.color, { align: 'center', alpha: a });
-        text(ctx, b.sub.length > 60 && L.mode === 'tall' ? b.sub.slice(0, 58) + '…' : b.sub, L.w / 2, by + 24, 'cold5', { align: 'center', outline: 'ink0', alpha: a });
+        bigText(ctx, b.title, L.w / 2, by + 6, b.color, { align: 'center', alpha: a });
+        text(ctx, b.sub.length > 60 && L.mode === 'tall' ? b.sub.slice(0, 58) + '…' : b.sub, L.w / 2, by + 24, 'ink1', { align: 'center', alpha: a });
         continue;
       }
       const w = Math.min(L.w - 16, 240);
       ctx.globalAlpha = a;
       panel(ctx, L.w / 2 - w / 2, y, w, 34, { border: b.color, fill: 'ink0', glow: b.color });
       if (b.icon) draw(ctx, getFrame(b.icon), Math.round(L.w / 2 - w / 2 + 16), y + 26);
-      text(ctx, b.title, L.w / 2 + (b.icon ? 10 : 0), y + 6, b.color, { align: 'center', outline: 'ink0', alpha: a });
+      text(ctx, b.title, L.w / 2 + (b.icon ? 10 : 0), y + 6, b.color, { align: 'center', bold: true, alpha: a });
       const sub = b.sub.length > 46 ? b.sub.slice(0, 44) + '…' : b.sub;
-      text(ctx, sub, L.w / 2 + (b.icon ? 10 : 0), y + 19, 'cold5', { align: 'center', outline: 'ink0', alpha: a });
+      text(ctx, sub, L.w / 2 + (b.icon ? 10 : 0), y + 19, 'ink1', { align: 'center', alpha: a });
       ctx.globalAlpha = 1;
       y += 38;
     }

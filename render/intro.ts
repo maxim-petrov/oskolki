@@ -284,7 +284,7 @@ export class IntroView {
       text(ctx, this.caption.s, L.w / 2, Math.min(L.h - 14, cy), 'cream', { align: 'center', outline: 'ink0', alpha: a });
     }
     if (ui.button(ctx, 'intro-skip', L.w - 88, 4, 84, 16, 'Пропустить ▸', { accent: 'grey3' })) this.finish();
-    if (this.t < 2) bigText(ctx, 'ЦЕЛЬНОСТЬ', L.w / 2, Math.max(8, sy - 26), 'cream', { align: 'center', alpha: Math.min(1, this.t) * Math.min(1, 2 - this.t) });
+    if (this.t < 2) bigText(ctx, 'ЦЕЛЬНОСТЬ', L.w / 2, Math.max(8, sy - 26), 'paper', { align: 'center', raw: true, alpha: Math.min(1, this.t) * Math.min(1, 2 - this.t) });
     if (this.fade > 0.01) ditherFade(ctx, this.fade, L.w, L.h);
   }
 
@@ -295,6 +295,8 @@ export class IntroView {
     const h = lines.length * 10 + 6;
     const bx = Math.round(Math.max(4, Math.min(L.w - w - 4, x - w / 2)));
     const by = Math.round(Math.max(4, y - h));
+    ctx.fillStyle = hex('grey1');
+    ctx.fillRect(bx + 1, by + 1, w + 2, h + 2);
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(bx - 1, by - 1, w + 2, h + 2);
     ctx.fillStyle = hex('cream');

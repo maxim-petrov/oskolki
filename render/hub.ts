@@ -411,6 +411,8 @@ export class HubView {
     const h = lines.length * 10 + 6;
     const bx = Math.round(Math.max(4, Math.min(L.w - w - 4, x - w / 2)));
     const by = Math.round(Math.max(L.top.h + 2, y - h));
+    ctx.fillStyle = hex('grey1');
+    ctx.fillRect(bx + 1, by + 1, w + 2, h + 2);
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(bx - 1, by - 1, w + 2, h + 2);
     ctx.fillStyle = hex('cream');

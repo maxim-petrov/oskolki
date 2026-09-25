@@ -19,6 +19,9 @@ export interface CardLike {
 
 const MULT_CARDS = new Set(['bonus', 'card', 'report']);
 
+/** Badge paper per family: pink for blades, grey-teal for shields, lilac for ink, wood for money. */
+const FAM_PAPER: Record<string, string> = { blade: 'rose', shield: 'cold5', ink: 'vio5', coin: 'tile', status: 'grey4' };
+
 /** Short value line for the card body: number and a resource icon. */
 export function cardBadge(c: CardLike): { value: string; icon: string; color: string } {
   const def = CARDS[c.id];
@@ -61,32 +64,40 @@ export function drawCard(
   const lift = opts.lift ?? (opts.hot ? 3 : 0);
   const cx = Math.round(x);
   const cy = Math.round(y - lift);
-  // Drop shadow.
-  ctx.fillStyle = 'rgba(7,7,15,0.5)';
-  ctx.fillRect(cx + 2, Math.round(y) + 3, CARD_W - 2, CARD_H - 2);
-  const frame = `ui_card_${fam === 'status' ? 'status' : fam}`;
-  if (hasSprite(frame)) draw(ctx, getFrame(frame), cx, cy);
-  else {
-    ctx.fillStyle = hex('ink0');
-    ctx.fillRect(cx, cy, CARD_W, CARD_H);
-    ctx.fillStyle = hex('paper');
-    ctx.fillRect(cx + 1, cy + 1, CARD_W - 2, CARD_H - 2);
+  // A paper badge in the family's tint: hard shadow, ink frame, a white window for the tile face.
+  const tint = FAM_PAPER[fam] ?? 'paper2';
+  ctx.fillStyle = hex('grey1');
+  ctx.fillRect(cx + 2, Math.round(y) + 2, CARD_W, CARD_H);
+  ctx.fillStyle = hex('ink0');
+  ctx.fillRect(cx, cy, CARD_W, CARD_H);
+  ctx.fillStyle = hex(tint);
+  ctx.fillRect(cx + 1, cy + 1, CARD_W - 2, CARD_H - 2);
+  if (def?.rarity === 'rare') {
+    // Rare: a second, gold rule inside the frame.
+    ctx.fillStyle = hex('gold1');
+    ctx.fillRect(cx + 2, cy + 2, CARD_W - 4, 1);
+    ctx.fillRect(cx + 2, cy + CARD_H - 3, CARD_W - 4, 1);
+    ctx.fillRect(cx + 2, cy + 2, 1, CARD_H - 4);
+    ctx.fillRect(cx + CARD_W - 3, cy + 2, 1, CARD_H - 4);
   }
-  if (def?.rarity === 'rare' && hasSprite('ui_card_rare')) draw(ctx, getFrame('ui_card_rare', Math.floor((opts.t ?? 0) * 2) % 3 === 0 ? 'idle1' : 'idle0'), cx, cy);
+  ctx.fillStyle = hex('ink0');
+  ctx.fillRect(cx + 11, cy + 4, 26, 22);
+  ctx.fillStyle = hex('paper');
+  ctx.fillRect(cx + 12, cy + 5, 24, 20);
   // Tile face in the window.
   const icon = hasSprite(`card_${c.id}`) ? `card_${c.id}` : fam === 'status' ? 'tile_junk' : `tile_${fam}`;
   const f = getFrame(icon);
-  draw(ctx, f, cx + 24 - Math.floor(f.w / 2) + f.ox, cy + 14 - Math.floor(f.h / 2) + f.oy);
+  draw(ctx, f, cx + 24 - Math.floor(f.w / 2) + f.ox, cy + 15 - Math.floor(f.h / 2) + f.oy);
   // Title band: a short name that fits (the full name goes under the card).
   const name = def?.name ?? c.id;
   let short = name;
   while (measure(short) > 40 && short.length > 3) short = short.slice(0, -1);
   if (short !== name) short = short.slice(0, -1) + '.';
-  text(ctx, short, cx + 24, cy + 26, 'cream', { align: 'center' });
+  text(ctx, short, cx + 24, cy + 28, 'ink0', { align: 'center', bold: true });
   // Body: value and resource.
   const b = cardBadge(c);
-  if (b.icon) draw(ctx, getFrame(b.icon), cx + 10, cy + 48);
-  bigText(ctx, b.value, cx + 40, cy + 42, b.color, { align: 'right' });
+  if (b.icon) draw(ctx, getFrame(b.icon), cx + 10, cy + 50);
+  bigText(ctx, b.value, cx + 41, cy + 43, b.color, { align: 'right' });
   if (c.up) {
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(cx + CARD_W - 9, cy + 2, 7, 7);
@@ -98,10 +109,10 @@ export function drawCard(
     const label = FINISH_TEXT[c.finish].name;
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(cx + 2, cy + CARD_H - 11, CARD_W - 4, 9);
-    text(ctx, label, cx + 24, cy + CARD_H - 11, c.finish === 'gild' ? 'gold4' : c.finish === 'seal' ? 'red4' : 'cold5', { align: 'center' });
+    text(ctx, label, cx + 24, cy + CARD_H - 11, c.finish === 'gild' ? 'gold4' : c.finish === 'seal' ? 'red5' : 'cold5', { align: 'center', raw: true });
   }
   if (opts.selected || opts.hot) {
-    ctx.fillStyle = hex(opts.selected ? 'gold4' : 'cream');
+    ctx.fillStyle = hex(opts.selected ? 'red2' : 'ink0');
     ctx.fillRect(cx - 1, cy - 1, CARD_W + 2, 1);
     ctx.fillRect(cx - 1, cy + CARD_H, CARD_W + 2, 1);
     ctx.fillRect(cx - 1, cy - 1, 1, CARD_H + 2);
@@ -113,7 +124,7 @@ export function drawCard(
     ctx.fillRect(cx, cy, CARD_W, CARD_H);
     ctx.globalAlpha = 1;
   }
-  if (opts.name) text(ctx, cardName(c), cx + 24, cy + CARD_H + 3, c.up ? 'gold4' : 'cream', { align: 'center', outline: 'ink0' });
+  if (opts.name) text(ctx, cardName(c), cx + 24, cy + CARD_H + 4, c.up ? 'gold1' : 'ink0', { align: 'center', bold: true });
 }
 
 /** Card with its rules as a paragraph under it; returns the height used. */
