@@ -71,8 +71,7 @@ export class RewardScreen {
       const disabled = row.taken || (row.kind === 'pocket' && !run.hero.pockets.includes(null));
       const clicked = !disabled && ui.area(id, x + 6, ry, w - 12, 22);
       const hot = ui.hovered === id && !disabled;
-      ctx.fillStyle = hex(row.taken ? 'ink1' : hot ? 'ink3' : 'ink2');
-      ctx.fillRect(x + 6, ry, w - 12, 22);
+      panel(ctx, x + 6, ry, w - 13, 21, { fill: row.taken ? 'grey4' : hot ? 'rose' : 'paper2', raw: true, shadow: row.taken ? 0 : 1 });
       let icon = '';
       let label = '';
       let sub = '';
@@ -96,7 +95,7 @@ export class RewardScreen {
       draw(ctx, f, x + 16 - Math.floor(f.w / 2) + f.ox, ry + 11 - Math.floor(f.h / 2) + f.oy);
       text(ctx, label, x + 30, ry + (sub ? 2 : 7), row.taken ? 'grey2' : 'cream');
       if (sub) text(ctx, sub.length > 40 ? sub.slice(0, 38) + '…' : sub, x + 30, ry + 12, row.taken ? 'grey1' : 'cold4');
-      if (row.taken) text(ctx, 'взято', x + w - 12, ry + 7, 'green3', { align: 'right' });
+      if (row.taken) text(ctx, 'взято', x + w - 12, ry + 7, 'green2', { align: 'right', bold: true });
       if (hot && row.kind === 'relic' && row.relic) ui.tooltip(label, ITEMS[row.relic].desc, ui.p.x, ui.p.y, 'gold4');
       if (clicked) {
         if (row.kind === 'card') this.choosing = k;
@@ -131,7 +130,7 @@ export class RewardScreen {
       const clicked = ui.area(aid, cx, y + 24, colW, hgt - 50);
       const hot = ui.hovered === aid;
       if (hot) {
-        ctx.fillStyle = hex('ink2');
+        ctx.fillStyle = hex('rose');
         ctx.fillRect(cx + 1, y + 24, colW - 2, hgt - 52);
       }
       drawCardBlock(ctx, card, cx, y + 28, colW, { hot, t: h.t });
@@ -200,8 +199,7 @@ export class ShopScreen {
       const id = `shop-${it.kind}-${it.k}`;
       const clicked = !it.sold && ui.area(id, ix, iy, iw - 4, 30);
       const hot = ui.hovered === id;
-      ctx.fillStyle = hex(hot && !it.sold ? 'ink3' : 'ink2');
-      ctx.fillRect(ix, iy, iw - 4, 20);
+      panel(ctx, ix, iy, iw - 5, 20, { fill: it.sold ? 'grey4' : hot ? 'rose' : 'paper2', raw: true, shadow: it.sold ? 0 : 1 });
       const f = getFrame(it.icon);
       draw(ctx, f, ix + (iw - 4) / 2 - Math.floor(f.w / 2) + f.ox, iy + 10 - Math.floor(f.h / 2) + f.oy, it.sold ? 0.3 : 1);
       price(it.price, ix + (iw - 4) / 2, iy + 21, it.sold);
@@ -382,9 +380,9 @@ export class DeckGrid {
       // Scroll bar.
       const bh = Math.max(12, Math.round((h * h) / full));
       const by = y + Math.round(((h - bh) * this.scroll) / Math.max(1, full - h));
-      ctx.fillStyle = hex('ink2');
+      ctx.fillStyle = hex('grey4');
       ctx.fillRect(x + w - 3, y, 2, h);
-      ctx.fillStyle = hex('cold4');
+      ctx.fillStyle = hex('ink2');
       ctx.fillRect(x + w - 3, by, 2, bh);
     }
     return clicked;
@@ -468,7 +466,7 @@ export function drawBossReward(ctx: Ctx2D, ui: UI, h: ScreenHost) {
     const clicked = ui.area(aid, cx, y + 24, colW, hh - 50);
     const hot = ui.hovered === aid;
     if (hot) {
-      ctx.fillStyle = hex('ink2');
+      ctx.fillStyle = hex('rose');
       ctx.fillRect(cx + 1, y + 24, colW - 2, hh - 50);
     }
     drawScaled(ctx, getFrame(def.icon), cx + colW / 2 - 16 + getFrame(def.icon).ox * 2, y + 30 + getFrame(def.icon).oy * 2, 2);

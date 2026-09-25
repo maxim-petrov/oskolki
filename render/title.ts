@@ -1,14 +1,14 @@
 import { HeroView } from './actors.ts';
 import type { App } from './app.ts';
-import { bigText, text } from './font.ts';
+import { display, text } from './font.ts';
 import { ditherFade } from './fx.ts';
 import { hex } from './palette.ts';
 import { Particles } from './particles.ts';
-import { draw, frameNames, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
+import type { Ctx2D } from './sprite.ts';
 import { HUB_SPOTS, HUB_W, Stage } from './stage.ts';
 import { StageRenderer } from './stagedraw.ts';
-import type { UI } from './ui.ts';
-import { L, STAGE_FEET, STAGE_H } from './view.ts';
+import { panel, type UI } from './ui.ts';
+import { L, STAGE_H } from './view.ts';
 
 /**
  * Title: the bright open space, the intern typing at his desk under the logo. One tap starts:
@@ -39,7 +39,7 @@ export class TitleView {
     this.hero.pose = Math.floor(this.t * 3) % 4 === 0 ? 'sit1' : 'sit0';
     if (Math.random() < dt * 1.5) this.app.audio.play('keys');
     // The camera drifts along the office and settles on the desk.
-    const target = HUB_SPOTS.desk - L.w * 0.45;
+    const target = HUB_SPOTS.desk - L.w * (L.mode === 'wide' ? 0.62 : 0.45);
     this.stage.cam = Math.round(Math.max(0, Math.min(HUB_W - L.w, target + Math.sin(this.t * 0.15) * 40)));
     this.fade = Math.max(0, this.fade - dt * 1.5);
     if (this.leaving > 0) {
@@ -74,64 +74,55 @@ export class TitleView {
   draw(ctx: Ctx2D, ui: UI) {
     if (!this.r || this.r.w !== L.w) this.r = new StageRenderer(L.w);
     const t = this.t;
-    const stageY = L.mode === 'wide' ? L.h - STAGE_H - 18 : Math.round(L.h * 0.3);
+    const wide = L.mode === 'wide';
+    const stageY = wide ? L.h - STAGE_H - 26 : Math.round(L.h * 0.07);
     this.r.render(this.stage, t, this.ps, (b) => {
       const x = this.hero.x;
       this.hero.x = x - this.stage.cam;
       this.hero.draw(b, t, false);
       this.hero.x = x;
-    }, [{ x: HUB_SPOTS.desk - 40, y: STAGE_FEET - 50, r: 80, color: '#ffe0b0', intensity: 0.5, flicker: 'none', seed: 1 }]);
-    ctx.fillStyle = hex('ink0');
+    });
+    ctx.fillStyle = hex('page');
     ctx.fillRect(0, 0, L.w, L.h);
     this.r.blit(ctx, 0, stageY);
-    // Logo.
-    const ly = L.mode === 'wide' ? Math.max(58, stageY - 70) : Math.round(stageY * 0.5) + 10;
-    if (hasSprite('logo')) {
-      const cycle = t % 4.5;
-      const sweep = cycle < 0.6 ? Math.floor((cycle / 0.6) * 5) : -1;
-      const names = frameNames('logo');
-      draw(ctx, getFrame('logo', sweep >= 0 && names.includes(`glint${sweep}`) ? `glint${sweep}` : 'idle0'), Math.round(L.w / 2), ly);
-    } else bigText(ctx, 'ОСКОЛКИ', L.w / 2, ly - 20, 'gold4', { align: 'center' });
-    text(ctx, 'рогалик из бесконечного офиса', L.w / 2, ly + 6, 'cold5', { align: 'center', outline: 'ink0' });
-    // Buttons: one row on wide screens (between the logo and the office), a column on tall ones.
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(0, stageY - 1, L.w, 1);
+    ctx.fillRect(0, stageY + STAGE_H, L.w, 1);
+    // The personnel file: a paper card with the title and the buttons (the old branch's start page).
     const p = this.app.profile;
-    const label = !p.introDone ? 'Начать' : 'В офис';
     const save = this.app.hasSave();
+    const cw = wide ? 204 : Math.min(L.w - 24, 250);
+    const cx = wide ? 26 : Math.round((L.w - cw) / 2);
+    const cy = wide ? 22 : stageY + STAGE_H + 14;
+    const rows = 3 + (save ? 1 : 0);
+    const ch = 118 + rows * 24 + 18;
+    panel(ctx, cx, cy, cw, ch, { fill: 'paper', raw: true, shadow: 3 });
+    const px = cx + 14;
+    text(ctx, `ЛИЧНОЕ ДЕЛО № ${String(Math.max(1, p.runs + 1)).padStart(4, '0')}`, px, cy + 12, 'grey1', { bold: true });
+    display(ctx, 'Осколки', px - 1, cy + 26, 30, 'ink0');
+    text(ctx, 'рогалик из бесконечного офиса', px, cy + 62, 'ink1');
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(px, cy + 78, 22, 2);
+    text(ctx, p.runs > 0 ? 'Рабочий день опять не закончился.' : 'Рабочий день ещё не закончился.', px, cy + 88, 'ink1');
+    const label = !p.introDone ? 'Приступить к работе' : 'Вернуться в офис';
     const sound = this.app.audio.muted ? 'Звук: нет' : 'Звук: да';
-    if (L.mode === 'wide') {
-      const items: [string, string, number, () => void][] = [[`start`, label, 96, () => this.start()]];
-      if (save) items.push(['continue', 'Продолжить смену', 112, () => this.go(() => this.app.continueRun())]);
-      items.push(['sound', sound, 64, () => {
-        this.app.audio.toggleMute();
-        p.settings.muted = this.app.audio.muted;
-      }]);
-      items.push(['fs', 'Экран', 52, () => this.app.toggleFullscreen()]);
-      const total = items.reduce((a, it) => a + it[2], 0) + (items.length - 1) * 6;
-      let bx = Math.round((L.w - total) / 2);
-      const by = Math.min(ly + 22, stageY - 22);
-      for (const [id, text2, w, fn] of items) {
-        if (ui.button(ctx, id, bx, by, w, 18, text2, { accent: id === 'start' ? 'gold3' : undefined })) fn();
-        bx += w + 6;
-      }
-    } else {
-      const bw = Math.min(160, L.w - 40);
-      const bx = Math.round((L.w - bw) / 2);
-      let by = stageY + STAGE_H + 16;
-      if (ui.button(ctx, 'start', bx, by, bw, 22, label, { accent: 'gold3' })) this.start();
-      by += 28;
-      if (save) {
-        if (ui.button(ctx, 'continue', bx, by, bw, 20, 'Продолжить смену')) this.go(() => this.app.continueRun());
-        by += 26;
-      }
-      const half = Math.floor((bw - 4) / 2);
-      if (ui.button(ctx, 'sound', bx, by, half, 18, sound)) {
-        this.app.audio.toggleMute();
-        p.settings.muted = this.app.audio.muted;
-      }
-      if (ui.button(ctx, 'fs', bx + half + 4, by, half, 18, 'Экран')) this.app.toggleFullscreen();
+    const bw = cw - 28;
+    let by = cy + 108;
+    if (ui.button(ctx, 'start', px, by, bw, 19, `${label}  →`, { accent: 'gold3' })) this.start();
+    by += 24;
+    if (save) {
+      if (ui.button(ctx, 'continue', px, by, bw, 19, 'Продолжить смену')) this.go(() => this.app.continueRun());
+      by += 24;
     }
-    if (p.runs > 0) text(ctx, `Смен: ${p.runs} · осколков: ${p.shards}`, L.w / 2, L.h - 12, 'cold3', { align: 'center', outline: 'ink0' });
-    else if (!L.touch) text(ctx, 'Enter — начать · F — полный экран · F2 — свет', L.w / 2, L.h - 12, 'cold2', { align: 'center' });
+    const half = Math.floor((bw - 5) / 2);
+    if (ui.button(ctx, 'sound', px, by, half, 19, sound)) {
+      this.app.audio.toggleMute();
+      p.settings.muted = this.app.audio.muted;
+    }
+    if (ui.button(ctx, 'fs', px + half + 5, by, bw - half - 5, 19, 'Экран')) this.app.toggleFullscreen();
+    by += 28;
+    text(ctx, p.runs > 0 ? `Смен: ${p.runs} · осколков: ${p.shards}` : 'Понедельник · 16:39', px, by, 'grey1');
+    if (!L.touch && wide) text(ctx, 'Enter — начать · F — полный экран', L.w - 10, L.h - 12, 'ink1', { align: 'right' });
     if (this.fade > 0) ditherFade(ctx, this.fade, L.w, L.h);
     if (this.leaving > 0) ditherFade(ctx, Math.min(1, this.leaving / 0.5), L.w, L.h);
   }

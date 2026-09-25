@@ -12,34 +12,69 @@ export interface Pointer {
   inside: boolean;
 }
 
+/** Paper tint for a panel: the dark fills of the night interface become «Дворец слов» paper. */
+const PAPER_FILL: Record<string, string> = {
+  ink0: 'paper',
+  ink1: 'paper',
+  ink2: 'rose',
+  ink3: 'rose',
+  red0: 'rose',
+  red1: 'rose',
+  red2: 'rose',
+  vio0: 'vio5',
+  vio1: 'vio5',
+  vio2: 'vio5',
+  cold0: 'cold5',
+  cold1: 'cold5',
+  cold2: 'cold5',
+  teal0: 'cold5',
+  teal1: 'cold5',
+  teal2: 'cold5',
+  green0: 'green4',
+  green1: 'green4',
+  green2: 'green4',
+  gold1: 'tile',
+  gold2: 'tile',
+  wood1: 'tile',
+  wood2: 'tile',
+  grey0: 'paper2',
+  grey1: 'paper2',
+};
+export function paperFill(name: string): string {
+  return PAPER_FILL[name] ?? name;
+}
+
+/**
+ * A sheet of paper: a hard offset shadow, a straight ink frame, a flat paper fill and a darker
+ * band along the bottom edge (the old branch's `note-shadow`). `raw` keeps the fill as given.
+ */
 export function panel(
   ctx: Ctx2D,
   x: number,
   y: number,
   w: number,
   h: number,
-  opts: { border?: string; fill?: string; alpha?: number; glow?: string } = {},
+  opts: { border?: string; fill?: string; alpha?: number; glow?: string; raw?: boolean; shadow?: number } = {},
 ) {
   x = Math.round(x);
   y = Math.round(y);
-  ctx.globalAlpha = opts.alpha ?? 0.94;
-  ctx.fillStyle = hex(opts.fill ?? 'ink1');
+  w = Math.round(w);
+  h = Math.round(h);
+  const sh = opts.shadow ?? 2;
+  if (sh > 0) {
+    ctx.fillStyle = hex('grey1');
+    ctx.fillRect(x + sh, y + sh, w, h);
+  }
+  ctx.fillStyle = hex('ink0');
+  ctx.fillRect(x, y, w, h);
+  const fill = opts.raw ? (opts.fill ?? 'paper') : paperFill(opts.fill ?? 'ink1');
+  ctx.fillStyle = hex(fill);
   ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = hex('ink0');
-  ctx.fillRect(x + 1, y, w - 2, 1);
-  ctx.fillRect(x + 1, y + h - 1, w - 2, 1);
-  ctx.fillRect(x, y + 1, 1, h - 2);
-  ctx.fillRect(x + w - 1, y + 1, 1, h - 2);
-  ctx.fillStyle = hex(opts.border ?? 'cold2');
-  ctx.fillRect(x + 2, y + 1, w - 4, 1);
-  ctx.fillRect(x + 1, y + 2, 1, h - 4);
-  ctx.fillStyle = hex('ink0');
-  ctx.fillRect(x + 2, y + h - 2, w - 4, 1);
-  ctx.fillRect(x + w - 2, y + 2, 1, h - 4);
-  if (opts.glow) {
-    ctx.fillStyle = hex(opts.glow);
-    ctx.fillRect(x + 3, y + 2, w - 6, 1);
+  if (h > 8) {
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(x + 1, y + h - 2, w - 2, 1);
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -89,14 +124,25 @@ export class UI {
     const clicked = !opts.disabled && this.area(id, x, y, w, h);
     const hot = !opts.disabled && this.hovered === id;
     const down = hot && this.p.down;
-    const oy = down ? 1 : 0;
-    panel(ctx, x, y + oy, w, h, {
-      border: opts.disabled ? 'grey1' : hot ? (opts.accent ?? 'gold3') : 'cold2',
-      fill: hot ? 'ink2' : 'ink1',
-      glow: hot ? (opts.accent ?? 'gold4') : undefined,
-    });
-    const color = opts.disabled ? 'grey2' : hot ? 'cream' : 'cold5';
-    text(ctx, label, x + w / 2, y + oy + Math.floor((h - LINE) / 2) + 1, color, { align: 'center', shadow: 'ink0' });
+    const o = down ? 1 : 0;
+    // The old branch's buttons: a dark primary, grey paper for the rest, dusty pink under the pointer.
+    const primary = opts.accent === 'gold3';
+    const fill = opts.disabled
+      ? 'grey4'
+      : primary
+        ? hot
+          ? 'ink3'
+          : 'ink2'
+        : hot
+          ? 'rose'
+          : opts.accent === 'red3'
+            ? 'rose2'
+            : opts.accent === 'green3'
+              ? 'green4'
+              : 'paper2';
+    panel(ctx, x + o, y + o, w, h, { fill, raw: true, shadow: opts.disabled || down ? 0 : 1 });
+    const color = opts.disabled ? 'grey2' : primary ? 'cream' : opts.accent === 'red3' ? 'red2' : 'ink0';
+    text(ctx, label, x + o + w / 2, y + o + Math.floor((h - LINE) / 2) + 1, color, { align: 'center', raw: true });
     return clicked;
   }
 
@@ -117,12 +163,12 @@ export class UI {
     if (x + w > vw - 2) x = Math.round(t.x - w - 6);
     if (y + h > vh - 2) y = vh - h - 2;
     if (x < 2) x = 2;
-    panel(ctx, x, y, w, h, { border: t.accent ?? 'gold2', fill: 'ink0', alpha: 0.96 });
+    panel(ctx, x, y, w, h, { fill: 'rose', raw: true });
     let cy = y + 5;
     if (t.title) {
-      text(ctx, t.title, x + 6, cy, t.accent ?? 'gold4', { shadow: 'ink0' });
+      text(ctx, t.title, x + 6, cy, 'ink0', { bold: true });
       cy += LINE + 4;
     }
-    paragraph(ctx, t.text, x + 6, cy, maxW - 10, 'cold5');
+    paragraph(ctx, t.text, x + 6, cy, maxW - 10, 'ink1');
   }
 }

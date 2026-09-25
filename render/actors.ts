@@ -289,9 +289,16 @@ export class EnemyView {
     const bw = size === 'boss' ? 92 : size === 'L' ? 64 : size === 'M' ? 50 : 40;
     const bx = x - Math.round(bw / 2);
     const by = feet + 6;
+    // A paper tag under the feet: the meter and the numbers, like the old branch's name plates.
+    ctx.fillStyle = hex('grey1');
+    ctx.fillRect(bx - 1, by - 1, bw + 4, 20);
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(bx - 3, by - 3, bw + 6, 20);
+    ctx.fillStyle = hex('paper');
+    ctx.fillRect(bx - 2, by - 2, bw + 4, 18);
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(bx - 1, by - 1, bw + 2, 7);
-    ctx.fillStyle = hex('red0');
+    ctx.fillStyle = hex('rose2');
     ctx.fillRect(bx, by, bw, 5);
     const k = Math.max(0, this.hp / this.maxHp);
     // The chunk just lost stays as a pale bar and drains after the hit.
@@ -300,19 +307,17 @@ export class EnemyView {
       ctx.fillStyle = hex(Math.floor(t * 20) % 2 ? 'cream' : 'gold4');
       ctx.fillRect(bx + Math.round(bw * k), by, Math.round(bw * (kc - k)), 5);
     }
-    ctx.fillStyle = hex('red3');
+    ctx.fillStyle = hex('red2');
     ctx.fillRect(bx, by, Math.round(bw * k), 5);
-    ctx.fillStyle = hex('red5');
-    ctx.fillRect(bx, by, Math.round(bw * k), 1);
-    text(ctx, `${this.hp}/${this.maxHp}`, x, by + 7, 'cream', { align: 'center', outline: 'ink0' });
+    text(ctx, `${this.hp}/${this.maxHp}`, x, by + 6, 'ink0', { align: 'center', bold: true });
     if (this.block > 0) {
       draw(ctx, getFrame('ui_armor'), bx - 8, by + 3);
-      text(ctx, `${this.block}`, bx - 14, by, 'cold5', { outline: 'ink0', align: 'right' });
+      text(ctx, `${this.block}`, bx - 14, by, 'cold2', { bold: true, align: 'right' });
     }
     // Status pips right of the bar.
     let sx = bx + bw + 3;
     if (this.bleed > 0) {
-      text(ctx, `${this.bleed}`, sx, by - 1, 'red4', { outline: 'ink0' });
+      text(ctx, `${this.bleed}`, sx + 2, by - 1, 'red2', { bold: true });
       sx += 9;
     }
     if (this.burn > 0) draw(ctx, getFrame('tile_ember'), sx + 3, by + 8);
@@ -327,26 +332,28 @@ export class EnemyView {
     const danger = this.countdown <= 1;
     const bxI = x - Math.round(w / 2);
     const blink = this.alertT > 0 && Math.floor(this.alertT * 12) % 2 === 0;
-    ctx.fillStyle = hex(this.acting ? 'cream' : blink ? 'white' : 'ink0');
+    ctx.fillStyle = hex('grey1');
+    ctx.fillRect(bxI + 1, iy + 1, w + 2, 15);
+    ctx.fillStyle = hex(blink ? 'red2' : 'ink0');
     ctx.fillRect(bxI - 1, iy - 1, w + 2, 15);
-    ctx.fillStyle = hex(this.acting ? (this.intentDamages() ? 'red2' : 'vio2') : danger && this.intentDamages() ? 'red1' : 'ink2');
+    ctx.fillStyle = hex(this.acting ? (this.intentDamages() ? 'rose2' : 'vio4') : danger && this.intentDamages() ? 'rose' : 'paper');
     ctx.fillRect(bxI, iy, w, 13);
     draw(ctx, icon, bxI + 1 + icon.ox, iy + 1 + icon.oy);
-    if (label) text(ctx, label, bxI + 14, iy + 3, danger || this.acting ? 'cream' : 'cold6', { outline: 'ink0' });
+    if (label) text(ctx, label, bxI + 14, iy + 2, danger || this.acting ? 'red2' : 'ink0', { bold: true });
     // Countdown pips: one per move left; the last one blinks.
     const n = Math.max(0, Math.min(6, this.countdown));
     for (let p = 0; p < n; p++) {
-      ctx.fillStyle = hex(p === 0 && danger ? (Math.floor(t * 8) % 2 ? 'red4' : 'gold4') : 'cold4');
+      ctx.fillStyle = hex(p === 0 && danger ? (Math.floor(t * 8) % 2 ? 'red2' : 'ink0') : 'grey1');
       ctx.fillRect(x - n * 2 + p * 4, iy + 15, 3, 2);
     }
-    if (danger && this.intentDamages() && !this.acting) text(ctx, '!', bxI + w + 3, iy + 2, Math.floor(t * 6) % 2 ? 'red4' : 'gold4', { outline: 'ink0' });
-    if (this.stunned) text(ctx, 'z z', x, iy - 10, 'gold4', { align: 'center', outline: 'ink0' });
+    if (danger && this.intentDamages() && !this.acting) text(ctx, '!', bxI + w + 4, iy + 2, Math.floor(t * 6) % 2 ? 'red2' : 'ink0', { bold: true });
+    if (this.stunned) text(ctx, 'z z', x, iy - 10, 'ink0', { align: 'center', bold: true });
     if (this.captionT > 0 && this.caption) {
       const a = Math.min(1, this.captionT * 4);
       text(ctx, this.caption, x, Math.max(2, iy - 11), this.intentDamages() ? 'red5' : 'vio5', { align: 'center', outline: 'ink0', alpha: a });
     } else if (targeted) {
       const b = Math.floor(t * 4) % 2;
-      ctx.fillStyle = hex('gold4');
+      ctx.fillStyle = hex('red2');
       const ty = Math.max(2, iy - 8);
       ctx.fillRect(x - 3, ty - b, 7, 1);
       ctx.fillRect(x - 2, ty + 1 - b, 5, 1);

@@ -64,6 +64,11 @@ export const PAL = {
   grey3: '#858980',
   grey4: '#b5b7b0',
   paper: '#e4e0d9',
+  /** Paper tints of the «Дворец слов» interface: pink accent paper, the page under the panels, wood tiles. */
+  rose: '#e3c9ce',
+  rose2: '#d2b0b7',
+  page: '#92938f',
+  tile: '#dbc295',
   paper2: '#cececa',
   white: '#fff6ee',
   // Office drab: the sickly green-grey of cubicle partitions and endless corridors.

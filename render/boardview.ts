@@ -37,12 +37,13 @@ export interface Drag {
   moved: boolean;
 }
 
+/** Tile paper per family (fill, light edge, dark edge): pink, grey-teal, lilac, wood, white. */
 const CARD: Record<string, [string, string, string]> = {
-  blade: ['red1', 'red2', 'red0'],
-  shield: ['cold1', 'cold2', 'ink3'],
-  ink: ['vio1', 'vio2', 'vio0'],
-  coin: ['gold1', 'gold2', 'wood1'],
-  prism: ['grey1', 'grey3', 'ink2'],
+  blade: ['rose', 'paper', 'rose2'],
+  shield: ['cold5', 'cold6', 'cold4'],
+  ink: ['vio5', 'paper', 'vio4'],
+  coin: ['tile', 'gold4', 'gold3'],
+  prism: ['paper', 'white', 'grey4'],
 };
 
 export class BoardView {
@@ -332,7 +333,7 @@ export class BoardView {
     ctx.globalAlpha = a;
     this.drawFrame(ctx, ox, oy);
     // Grid dots.
-    ctx.fillStyle = hex('ink2');
+    ctx.fillStyle = hex('grey3');
     for (let r = 1; r < H; r++) for (let c = 1; c < W; c++) ctx.fillRect(ox + c * T - 1, oy + r * T - 1, 2, 2);
     // Anchored columns: shaded, with the anchor above.
     for (let c = 0; c < W; c++)
@@ -463,8 +464,9 @@ export class BoardView {
     if (this.previewText) text(ctx, this.previewText, BX + BW / 2, oy + BH + 8, 'cream', { align: 'center', outline: 'ink0' });
   }
 
+  /** The tray: a sheet of grey paper in a heavy ink frame with a hard shadow, the tiles in a sunk well. */
   private drawFrame(ctx: Ctx2D, ox: number, oy: number) {
-    const { T, bw: BW, bh: BH } = this;
+    const { bw: BW, bh: BH } = this;
     const fill = (c: string, x: number, y: number, w: number, h: number) => {
       ctx.fillStyle = hex(c);
       ctx.fillRect(x, y, w, h);
@@ -473,51 +475,12 @@ export class BoardView {
     const Tp = oy - 7;
     const W2 = BW + 14;
     const H2 = BH + 14;
+    fill('grey1', L + 2, Tp + 2, W2, H2);
     fill('ink0', L, Tp, W2, H2);
-    // Wood: lit top-left, cold shadow bottom-right, a grain line through the middle.
-    fill('wood2', L + 1, Tp + 1, W2 - 2, H2 - 2);
-    fill('wood3', L + 1, Tp + 1, W2 - 2, 1);
-    fill('wood3', L + 1, Tp + 1, 1, H2 - 2);
-    fill('wood4', L + 2, Tp + 1, W2 - 12, 1);
-    fill('wood1', L + 1, Tp + H2 - 2, W2 - 2, 1);
-    fill('wood1', L + W2 - 2, Tp + 1, 1, H2 - 2);
-    fill('ink3', L + W2 - 2, Tp + 6, 1, H2 - 12);
-    for (let x = L + 5; x < L + W2 - 5; x += 9) fill('wood1', x, Tp + 3, 4, 1);
-    for (let x = L + 9; x < L + W2 - 5; x += 11) fill('wood1', x, Tp + H2 - 4, 5, 1);
-    for (let y = Tp + 6; y < Tp + H2 - 5; y += 10) {
-      fill('wood1', L + 3, y, 1, 4);
-      fill('wood1', L + W2 - 4, y + 5, 1, 4);
-    }
-    // Recessed well around the tiles.
+    fill('paper2', L + 1, Tp + 1, W2 - 2, H2 - 2);
+    // Sunk well around the tiles.
     fill('ink0', ox - 2, oy - 2, BW + 4, BH + 4);
-    fill('ink1', ox - 1, oy - 1, BW + 2, BH + 2);
-    fill('wood0', ox - 2, oy - 3, BW + 4, 1);
-    fill('wood0', ox - 3, oy - 2, 1, BH + 4);
-    // Brass brackets on the corners.
-    const bracket = (x: number, y: number, fx: number, fy: number) => {
-      for (let k = 0; k < 8; k++) {
-        fill(k < 2 ? 'gold4' : 'gold3', x + fx * k, y, 1, 1);
-        fill(k < 2 ? 'gold4' : 'gold2', x, y + fy * k, 1, 1);
-        fill('gold1', x + fx * k, y + fy, 1, 1);
-        fill('gold1', x + fx, y + fy * k, 1, 1);
-      }
-      fill('cream', x + fx * 2, y + fy * 2, 1, 1);
-      fill('gold1', x + fx * 3, y + fy * 3, 1, 1);
-    };
-    bracket(L + 1, Tp + 1, 1, 1);
-    bracket(L + W2 - 2, Tp + 1, -1, 1);
-    bracket(L + 1, Tp + H2 - 2, 1, -1);
-    bracket(L + W2 - 2, Tp + H2 - 2, -1, -1);
-    // Rivets between the cells along the long edges.
-    for (let c = 2; c < W; c += 2) {
-      const x = ox + c * T;
-      fill('gold3', x - 1, Tp + 2, 2, 2);
-      fill('gold4', x - 1, Tp + 2, 1, 1);
-      fill('gold1', x, Tp + 3, 1, 1);
-      fill('gold3', x - 1, Tp + H2 - 4, 2, 2);
-      fill('gold4', x - 1, Tp + H2 - 4, 1, 1);
-      fill('gold1', x, Tp + H2 - 3, 1, 1);
-    }
+    fill('grey4', ox - 1, oy - 1, BW + 2, BH + 2);
   }
 
   private frameRect(ctx: Ctx2D, x: number, y: number, w: number, h: number) {
@@ -583,12 +546,14 @@ export class BoardView {
     if (tile.kind === 'junk') {
       // Paperwork (red tape) and ink blots: dead tiles that only a match next to them clears.
       const id = tile.card === 'redtape' && hasSprite('card_redtape') ? 'card_redtape' : 'tile_junk';
-      ctx.fillStyle = hex('ink1');
+      ctx.fillStyle = hex('ink0');
       ctx.fillRect(x + inset, y + inset, w, w);
+      ctx.fillStyle = hex('grey3');
+      ctx.fillRect(x + inset + 1, y + inset + 1, w - 2, w - 2);
       this.icon(ctx, id, x + T / 2, y + T / 2);
     } else {
       const hidden = !!tile.hidden;
-      const card = hidden ? ['ink2', 'ink3', 'ink0'] : CARD[tile.kind] ?? CARD.prism;
+      const card = hidden ? ['grey4', 'paper2', 'grey3'] : CARD[tile.kind] ?? CARD.prism;
       ctx.fillStyle = hex('ink0');
       ctx.fillRect(x + inset, y + inset, w, w);
       ctx.fillStyle = hex(card[0]);

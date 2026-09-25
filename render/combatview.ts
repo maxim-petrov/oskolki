@@ -15,7 +15,7 @@ import { Particles, burst, rand } from './particles.ts';
 import type { Steps } from './steps.ts';
 import { TallyView } from './tally.ts';
 import { easeOut } from './tween.ts';
-import type { UI } from './ui.ts';
+import { panel, type UI } from './ui.ts';
 import { L, STAGE_FEET } from './view.ts';
 import type { Audio } from './audio.ts';
 
@@ -1423,8 +1423,7 @@ export class CombatView {
     if (c && this.run.stats.moves === 0 && this.canPlay()) {
       const a = 0.7 + Math.sin(t * 4) * 0.25;
       const r = L.tally;
-      ctx.fillStyle = hex('ink0');
-      ctx.fillRect(r.x, r.y, r.w, L.mode === 'wide' ? 60 : r.h);
+      panel(ctx, r.x, r.y, r.w, L.mode === 'wide' ? 60 : r.h, { fill: 'rose', raw: true });
       if (L.mode === 'wide') {
         paragraph(ctx, 'Потяни фишку на соседнюю клетку: три одинаковых в ряд — это ход.', r.x + 6, r.y + 6, r.w - 12, 'gold4', { alpha: a });
         paragraph(ctx, 'Все фишки хода складываются в УРОН × МНОЖ. Враги ходят по таймерам.', r.x + 6, r.y + 32, r.w - 12, 'cold5', { alpha: a });

@@ -2,7 +2,11 @@ import type { Tally } from '../game/types.ts';
 import { bigText, measureBig, text } from './font.ts';
 import { hex } from './palette.ts';
 import { draw, getFrame, type Ctx2D } from './sprite.ts';
+import { paperFill } from './ui.ts';
 import { L } from './view.ts';
+
+/** Paper tints of the counter's boxes: calm, and a stronger tint while a number bumps. */
+const PAPER: Record<string, string> = { red1: 'rose', red2: 'rose2', vio1: 'vio5', vio3: 'vio4', ink1: 'paper' };
 
 /**
  * The move's counter, Balatro-style: УРОН × МНОЖ. Every scored tile bumps a number; the
@@ -116,13 +120,12 @@ export class TallyView {
     return Number.isInteger(v) ? String(v) : v.toFixed(1).replace('.', ',');
   }
 
-  private box(ctx: Ctx2D, x: number, y: number, w: number, h: number, fill: string, edge: string) {
+  /** A paper box: ink frame, a paper tint for the family (pink for damage, lilac for mult). */
+  private box(ctx: Ctx2D, x: number, y: number, w: number, h: number, fill: string, _edge: string) {
     ctx.fillStyle = hex('ink0');
     ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = hex(fill);
+    ctx.fillStyle = hex(PAPER[fill] ?? paperFill(fill));
     ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-    ctx.fillStyle = hex(edge);
-    ctx.fillRect(x + 1, y + 1, w - 2, 1);
   }
 
   /** Wide screens: a panel left of the board with two big boxes and the result line. */
@@ -143,7 +146,7 @@ export class TallyView {
     bigText(ctx, dStr, x + 4 + bw - 4 + sx, by + 12 - Math.round(this.bumpD * 2), 'cream', { align: 'right' });
     ctx.globalAlpha = 1;
     // ×
-    text(ctx, '×', x + 4 + bw + 7, by + 9, 'gold4', { outline: 'ink0' });
+    text(ctx, '×', x + 4 + bw + 7, by + 9, 'ink0', { bold: true });
     // МНОЖ box (violet).
     const mx = x + w - 4 - bw;
     this.box(ctx, mx - sx, by, bw, 26, this.bumpM > 0.5 ? 'vio3' : 'vio1', 'vio4');
@@ -173,7 +176,7 @@ export class TallyView {
       ctx.globalAlpha = a;
       this.box(ctx, x + w - ww - 2, ry, ww, 16, 'red2', 'red4');
       bigText(ctx, str, x + w - 7, ry + 3, 'gold4', { align: 'right' });
-      if (res.notes.length) text(ctx, res.notes.slice(0, 2).join(' · '), x + 4, ry + 4, 'gold4', { outline: 'ink0' });
+      if (res.notes.length) text(ctx, res.notes.slice(0, 2).join(' · '), x + 4, ry + 4, 'gold1', { bold: true });
       ctx.globalAlpha = 1;
     }
   }
@@ -191,7 +194,7 @@ export class TallyView {
     ctx.globalAlpha = a;
     bigText(ctx, this.num(this.dmg), cx - 14 + sx, y + 8 - Math.round(this.bumpD * 2), 'cream', { align: 'right' });
     ctx.globalAlpha = 1;
-    text(ctx, '×', cx - 3, y + 8, 'gold4', { outline: 'ink0' });
+    text(ctx, '×', cx - 3, y + 8, 'ink0', { bold: true });
     // МНОЖ
     this.box(ctx, cx + 10 - sx, y + 3, bw, h - 6, this.bumpM > 0.5 ? 'vio3' : 'vio1', 'vio4');
     text(ctx, 'МНОЖ', cx + 13 - sx, y + 5, 'vio5', { alpha: 0.75 });
@@ -204,6 +207,6 @@ export class TallyView {
       text(ctx, `+${this.num(this.armor)}`, x + 14, y + h / 2 - 4, 'cold5', { alpha: a });
     }
     const res = this.result;
-    if (res) text(ctx, `=${res.damage}`, x + w - 4, y + h / 2 - 4, 'gold4', { align: 'right', outline: 'ink0', alpha: a });
+    if (res) text(ctx, `=${res.damage}`, x + w - 4, y + h / 2 - 4, 'red2', { align: 'right', bold: true, alpha: a });
   }
 }

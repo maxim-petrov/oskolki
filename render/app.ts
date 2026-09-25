@@ -234,8 +234,11 @@ export class App {
     if (key !== this.sizeKey) {
       this.sizeKey = key;
       applyLayout(r.w, r.h, r.scale, r.mode, touch);
-      this.canvas.width = r.w;
-      this.canvas.height = r.h;
+      // The canvas has screen resolution and carries the pixel scale as its transform: sprites
+      // and rectangles land on whole screen pixels (nearest neighbour), letters stay smooth.
+      this.canvas.width = r.w * r.scale;
+      this.canvas.height = r.h * r.scale;
+      this.ctx.setTransform(r.scale, 0, 0, r.scale, 0, 0);
       this.ctx.imageSmoothingEnabled = false;
     }
     this.canvas.style.width = `${Math.round((r.w * r.scale) / dpr * 1000) / 1000}px`;
@@ -335,7 +338,7 @@ export class App {
     this.ui.begin({ ...this.pointer });
     this.pointer.pressed = false;
     this.pointer.released = false;
-    ctx.fillStyle = hex('ink0');
+    ctx.fillStyle = hex('page');
     ctx.fillRect(0, 0, L.w, L.h);
     try {
       // A view's update may hand over to another screen (the intro starts the shift, the archive

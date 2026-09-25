@@ -333,12 +333,12 @@ export class HubView {
       this.hero.draw(b, t, this.hero.state !== 'pose');
       this.hero.x = x;
     }, [{ x: this.hero.x, y: STAGE_FEET - 50, r: 70, color: '#ffe0b8', intensity: 0.35, flicker: 'none', seed: 1 }], 0.8, behind);
-    ctx.fillStyle = hex('ink0');
+    ctx.fillStyle = hex('page');
     ctx.fillRect(0, 0, L.w, L.h);
     this.r.blit(ctx, 0, sy);
     // Floor shadow under the stage.
-    ctx.fillStyle = hex('ink1');
-    ctx.fillRect(0, sy + STAGE_H, L.w, 2);
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(0, sy + STAGE_H, L.w, 1);
     // Speech bubbles.
     for (const n of this.npcs) if (n.say && n.x - cam > -10 && n.x - cam < L.w + 10) this.drawBubble(ctx, n.say.s, n.x - cam, sy + STAGE_FEET - 92);
     if (this.bubble && this.bubble.x - cam > -10 && this.bubble.x - cam < L.w + 10) this.drawBubble(ctx, this.bubble.s, this.bubble.x - cam, sy + this.bubble.y);
@@ -425,28 +425,31 @@ export class HubView {
 
   private drawTop(ctx: Ctx2D, ui: UI) {
     const p = this.app.profile;
-    ctx.globalAlpha = 0.75;
-    ctx.fillStyle = hex('ink0');
+    // Paper strip with an ink rule, like the fight's top bar.
+    ctx.fillStyle = hex('paper');
     ctx.fillRect(0, 0, L.w, L.top.h);
-    ctx.globalAlpha = 1;
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(0, L.top.h - 1, L.w, 1);
+    ctx.fillStyle = hex('grey4');
+    ctx.fillRect(0, L.top.h, L.w, 1);
     draw(ctx, getFrame('ui_shard'), 8, 8);
-    text(ctx, `${p.shards}`, 16, 4, 'vio5', { outline: 'ink0' });
-    text(ctx, `Смена ${p.runs + 1}`, 40, 4, 'cold4', { outline: 'ink0' });
+    text(ctx, `${p.shards}`, 16, 3, 'vio3', { bold: true });
+    text(ctx, `Смена ${p.runs + 1}`, 40, 3, 'ink0', { bold: true });
     const label = 'Отдел сверки · 16:39';
-    if (L.w > 280) text(ctx, label, L.w - 24, 4, 'cold3', { align: 'right', outline: 'ink0' });
+    if (L.w > 280) text(ctx, label, L.w - 24, 3, 'grey1', { align: 'right' });
     if (ui.area('hub-menu', L.w - 18, 0, 18, L.top.h)) this.app.toTitle();
     draw(ctx, getFrame('ui_pause'), L.w - 10, 8);
     if (officeState(p).note && !this.noteRead && Math.floor(this.t * 3) % 2 === 0) {
       // The board has something new: an exclamation over it (when in view).
       const bx = HUB_SPOTS.board - Math.round(this.stage.cam);
-      if (bx > 0 && bx < L.w) text(ctx, '!', bx, this.stageY() + 50, 'red4', { outline: 'ink0', scale: 2 });
+      if (bx > 0 && bx < L.w) text(ctx, '!', bx, this.stageY() + 50, 'red2', { outline: 'paper', scale: 2 });
     }
   }
 
   /** Touch controls for phones: walk left/right and act, at the bottom where the thumbs are. */
   private drawControls(ctx: Ctx2D, ui: UI, sy: number) {
     if (L.mode === 'wide' && !L.touch) {
-      text(ctx, 'A/D или ←/→ — идти · E — действие · клик — идти туда', L.w / 2, Math.min(L.h - 12, sy + STAGE_H + 14), 'cold3', { align: 'center' });
+      text(ctx, 'A/D или ←/→ — идти · E — действие · клик — идти туда', L.w / 2, Math.min(L.h - 12, sy + STAGE_H + 14), 'ink1', { align: 'center' });
       return;
     }
     if (this.overlay || this.script) return;
@@ -456,12 +459,12 @@ export class HubView {
     const hold = (x: number, dir: 'left' | 'right') => {
       const over = ui.over(x, y, bw, bh) && ui.p.down;
       this.keys[dir] = over;
-      panel(ctx, x, y, bw, bh, { border: over ? 'gold3' : 'cold2', fill: over ? 'ink2' : 'ink1' });
+      panel(ctx, x, y, bw, bh, { fill: over ? 'rose' : 'paper2', raw: true });
       // A chunky pixel arrow.
       const cx = Math.round(x + bw / 2);
       const cy = Math.round(y + bh / 2);
       const s = dir === 'left' ? -1 : 1;
-      ctx.fillStyle = hex(over ? 'gold4' : 'cream');
+      ctx.fillStyle = hex('ink0');
       for (let k = 0; k < 7; k++) ctx.fillRect(cx - s * 3 + s * k - (s < 0 ? 1 : 0), cy - (6 - k), 2, (6 - k) * 2 + 1);
     };
     hold(8, 'left');
@@ -492,9 +495,9 @@ export class HubView {
     ctx.fillRect(f.x, f.y, f.w, f.h);
     ctx.fillStyle = hex('wood3');
     for (let k = 0; k < 60; k++) ctx.fillRect(f.x + ((k * 37) % f.w), f.y + ((k * 53) % f.h), 1, 1);
-    bigText(ctx, f.title, f.x + f.w / 2, f.y + 6, 'cream', { align: 'center' });
+    bigText(ctx, f.title, f.x + f.w / 2, f.y + 6, 'cream', { align: 'center', outline: 'ink0' });
     draw(ctx, getFrame('ui_shard'), f.x + f.w - 40, f.y + 10);
-    text(ctx, `${p.shards}`, f.x + f.w - 32, f.y + 6, 'vio5', { outline: 'ink0' });
+    text(ctx, `${p.shards}`, f.x + f.w - 32, f.y + 6, 'vio5', { outline: 'ink0', bold: true });
     // Notes: story first, then requests as sticky notes.
     let y = f.y + 24;
     if (officeState(p).note) {
@@ -522,14 +525,11 @@ export class HubView {
       const id = `req-${r.id}`;
       const clicked = can && ui.area(id, cx, cy, cw, ch);
       const hot = ui.hovered === id;
-      ctx.fillStyle = hex(owned ? 'green1' : hot ? 'gold3' : 'gold4');
-      ctx.fillRect(cx, cy, cw, ch);
-      ctx.fillStyle = hex('ink0');
-      ctx.fillRect(cx, cy + ch - 1, cw, 1);
-      text(ctx, r.title, cx + 4, cy + 3, owned ? 'green4' : 'ink0');
-      paragraph(ctx, r.text, cx + 4, cy + 13, cw - 8, owned ? 'green3' : 'ink1');
+      panel(ctx, cx, cy, cw - 1, ch - 1, { fill: owned ? 'green4' : hot ? 'rose' : 'gold4', raw: true, shadow: 1 });
+      text(ctx, r.title, cx + 4, cy + 3, 'ink0', { bold: true });
+      paragraph(ctx, r.text, cx + 4, cy + 13, cw - 8, owned ? 'green1' : 'ink1');
       const tag = owned ? 'выдано' : `${r.cost}`;
-      text(ctx, tag, cx + cw - 4, cy + 3, owned ? 'green4' : can ? 'vio2' : 'red2', { align: 'right' });
+      text(ctx, tag, cx + cw - 5, cy + 3, owned ? 'green1' : can ? 'vio3' : 'red2', { align: 'right', bold: true });
       if (clicked && buyRequest(p, r.id)) {
         this.app.audio.play('buy');
         this.say(`Заявка «${r.title}» одобрена.`, this.hero.x);
@@ -556,8 +556,7 @@ export class HubView {
       const aid = `char-${id}`;
       const clicked = open && ui.area(aid, cx, cy, cw - 4, 96);
       const sel = this.hero.char === id;
-      ctx.fillStyle = hex(sel ? 'ink3' : ui.hovered === aid && open ? 'ink2' : 'ink0');
-      ctx.fillRect(cx, cy, cw - 4, 96);
+      panel(ctx, cx, cy, cw - 5, 96, { fill: sel ? 'tile' : ui.hovered === aid && open ? 'rose' : 'paper2', raw: true, shadow: 1 });
       const fr = getFrame(`hero_${id}`, 'idle0');
       if (open) draw(ctx, fr, cx + (cw - 4) / 2, cy + 90);
       else {
