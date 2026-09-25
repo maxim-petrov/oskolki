@@ -387,7 +387,8 @@ export class HubView {
     if (x < -80 || x > L.w + 80 || !this.present(n)) return;
     const names = frameNames(n.sprite);
     let frame = names[0];
-    const beat = Math.floor(this.t * 2.2 + n.seed) % 2;
+    // The girl's second frame is a hand to her hair: now and then, not on every beat.
+    const beat = n.sprite === 'npc_girl' ? +(Math.floor(this.t * 2.2 + n.seed) % 5 === 0) : Math.floor(this.t * 2.2 + n.seed) % 2;
     const near = Math.abs(n.x - this.hero.x) < 70;
     if (n.kind === 'shadow') {
       if (names.includes('sit0')) frame = near && names.includes('look') ? 'look' : beat ? 'sit1' : 'sit0';

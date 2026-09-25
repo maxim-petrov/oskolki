@@ -260,7 +260,8 @@ export class IntroView {
             if (!hasSprite(id)) continue;
             const nx = HUB_SPOTS.cubicles + dx;
             const near = Math.abs(nx - this.hero.x) < 70;
-            draw(b, getFrame(id, near ? 'look' : Math.floor(t * 2.2 + dx) % 2 ? 'sit1' : 'sit0'), nx - cam, STAGE_FEET);
+            const beat = id === 'npc_girl' ? Math.floor(t * 2.2 + dx) % 5 === 0 : Math.floor(t * 2.2 + dx) % 2 === 1;
+            draw(b, getFrame(id, near ? 'look' : beat ? 'sit1' : 'sit0'), nx - cam, STAGE_FEET);
           }
         const x = this.hero.x;
         this.hero.x = x - cam;
