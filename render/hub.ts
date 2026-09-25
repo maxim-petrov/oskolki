@@ -27,6 +27,10 @@ interface Npc {
   say: { s: string; t: number } | null;
   cool: number;
   seed: number;
+  /** One line per visit at most: they mostly just look. */
+  spoke: boolean;
+  /** Seconds they keep staring after the hero has passed. */
+  stare: number;
 }
 
 /** Faceless people walking the aisle behind the partitions. */
@@ -64,6 +68,10 @@ export class HubView {
   overlay: null | 'board' | 'desk' = null;
   /** Wake-up at the desk after a shift: a short script before control returns. */
   script: { t: number; how: 'wake' | 'won' } | null = null;
+  /** Now and then the whole office goes still and looks at the hero; the lamps dip. */
+  hush = { t: 0, next: 25 + Math.random() * 25 };
+  /** The phone on the hero's desk rings; nobody picks it up. */
+  phone = { next: 35 + Math.random() * 30, rings: 0, t: 0 };
   bubble: { s: string; t: number; x: number; y: number } | null = null;
   leaving = 0;
   noteRead = false;
@@ -86,20 +94,21 @@ export class HubView {
       { id: 'archive', x: HUB_SPOTS.archive, label: this.app.hasSave() ? 'Архив: продолжить смену' : 'Дверь архива' },
     ];
     const npc = (sprite: string, x: number, lines: string[], kind: Npc['kind'] = 'sit') => {
-      if (hasSprite(sprite)) this.npcs.push({ sprite, x, lines, kind, say: null, cool: 0, seed: x * 0.13 });
+      if (hasSprite(sprite)) this.npcs.push({ sprite, x, lines, kind, say: null, cool: 0, seed: x * 0.13, spoke: false, stare: 0 });
     };
     const a = HUB_SPOTS.cubicles;
     const b = HUB_SPOTS.cubiclesB;
-    npc('npc_girl', a - 12, ['Привет. Ты сегодня {какой-то бледный|какая-то бледная}.', 'Опять {задержался|задержалась}? Я тоже.', 'Ты уже {был|была} в архиве? Мне кажется, {был|была}.', 'Кофе в кулере закончился. Как всегда.']);
-    if (!st.neighbourGone) npc('npc_neighbor', a + 84, ['Мы знакомы?', 'Я тебя видел. Во сне, кажется.', 'Не заглядывай ко мне в монитор.', 'Скоро квартальный. Или уже был?']);
+    // They hardly talk. When they do, it is a few words that sound like the end of a longer conversation.
+    npc('npc_girl', a - 12, ['Ты опять здесь.', 'Не смотри на лампы долго.', 'Мы уже говорили. Ты не помнишь.', '…']);
+    if (!st.neighbourGone) npc('npc_neighbor', a + 84, ['Мы знакомы?', 'Сегодня понедельник. Опять.', '…']);
     npc('npc_sil_sit_a', a + 180, [], 'shadow');
-    npc('npc_analyst', a + 276, ['Не мешай, у меня созвон.', 'Ты в архив? Ну-ну.', 'Графики опять смотрят на меня.', 'Шшш.']);
+    npc('npc_analyst', a + 276, ['Шшш. Слушай, как гудит.', 'Графики смотрят.', '…']);
     npc('npc_sil_stand', HUB_SPOTS.cooler - 30, [], 'shadow');
     npc('npc_sil_copier', HUB_SPOTS.copier + 5, [], 'shadow');
-    npc('npc_accountant', b - 12, ['Цифры не сходятся. Опять.', 'Цельность — это ты. Понимаешь? Ты.', 'Сдача после шестнадцати сорока.', 'Скрепки не трогай.']);
+    npc('npc_accountant', b - 12, ['Цифры сошлись. Это плохо.', 'Не считай шаги.', '…']);
     npc('npc_sil_sit_b', b + 84, [], 'shadow');
-    if (!st.supervisorGone) npc('npc_supervisor', HUB_SPOTS.glass - 60, ['Отчёт к 16:40.', 'Архив ждёт, {role}.', 'Улыбайтесь. Мы — одна команда.', 'Я запомню.'], 'stand');
-    npc('npc_janitor', HUB_SPOTS.vending + 70, ['Осторожно, мокро.', 'Внизу опять бумага шуршит.', 'Я всё вижу. Всё.', 'Не ходи туда после шести.'], 'mop');
+    if (!st.supervisorGone) npc('npc_supervisor', HUB_SPOTS.glass - 60, ['Вас ждут.', 'Архив ждёт, {role}.', 'Улыбайтесь.'], 'stand');
+    npc('npc_janitor', HUB_SPOTS.vending + 70, ['Пол помнит, кто здесь ходил.', 'Не ходи туда после шести.', '…'], 'mop');
     if (hasSprite('npc_sil_walk')) {
       this.walkers.push({ x: 700, from: 520, to: 1330, dir: 1, speed: 22, pause: 0 });
       this.walkers.push({ x: 1500, from: 1150, to: 1760, dir: -1, speed: 17, pause: 1.5 });
@@ -248,22 +257,32 @@ export class HubView {
         }
       }
     } else if (!this.overlay && !this.leaving) this.walk(dt);
-    // Coworkers grumble when the intern walks by.
+    // Coworkers look up as the hero passes and keep looking after he has gone. Now and then one of
+    // them says a few words — at most once a visit; mostly they are silent.
     for (const n of this.npcs) {
       n.cool = Math.max(0, n.cool - dt);
+      n.stare = Math.max(0, n.stare - dt);
       if (n.say) {
         n.say.t -= dt;
         if (n.say.t <= 0) n.say = null;
       }
+      const d = Math.abs(n.x - this.hero.x);
+      if (d < 70 && this.present(n) && !this.script) n.stare = Math.max(n.stare, 2 + ((n.seed * 7) % 1.6));
       const someoneTalks = this.npcs.some((o) => o.say) || !!this.bubble;
-      if (n.lines.length && this.present(n) && !this.script && !someoneTalks && n.cool <= 0 && Math.abs(n.x - this.hero.x) < 40) {
-        n.say = { s: this.line(n.lines[Math.floor(Math.random() * n.lines.length)]), t: 2.2 };
-        n.cool = 9 + Math.random() * 6;
-        this.app.audio.play('enemy', 1.6);
+      if (n.lines.length && !n.spoke && this.present(n) && !this.script && !someoneTalks && n.cool <= 0 && d < 40) {
+        n.cool = 25;
+        if (Math.random() < (n.sprite === 'npc_girl' ? 0.45 : 0.3)) {
+          n.spoke = true;
+          n.say = { s: this.line(n.lines[Math.floor(Math.random() * n.lines.length)]), t: 2.6 };
+          this.app.audio.play('enemy', 1.6);
+        }
       }
     }
-    // Faceless colleagues walk the aisle, stop for a moment at the ends and turn back.
+    this.uncanny(dt);
+    // Faceless colleagues walk the aisle, stop for a moment at the ends and turn back (and stand
+    // still while the office holds its breath).
     for (const w of this.walkers) {
+      if (this.hush.t > 0) continue;
       if (w.pause > 0) {
         w.pause -= dt;
         continue;
@@ -283,6 +302,42 @@ export class HubView {
         this.leaving = -1;
         this.app.profile.settings.char = this.hero.char;
         if (!this.app.continueRun()) this.app.startShift(this.hero.char as CharId);
+      }
+    }
+  }
+
+  /** The office's quiet oddities: the held breath and the phone nobody answers. */
+  private uncanny(dt: number) {
+    const idle = !this.script && !this.overlay && !this.leaving;
+    const h = this.hush;
+    if (h.t > 0) {
+      h.t -= dt;
+      // The lamps dip as it starts and once more before the hum comes back.
+      this.stage.blackout = h.t > 2.3 || (h.t < 0.25 && h.t > 0) ? 0.45 : 0;
+      if (h.t <= 0) this.stage.blackout = 0;
+    } else if (idle) {
+      h.next -= dt;
+      if (h.next <= 0) {
+        h.t = 2.6;
+        h.next = 45 + Math.random() * 40;
+        this.app.audio.play('flicker');
+      }
+    }
+    const ph = this.phone;
+    if (ph.rings > 0) {
+      ph.t -= dt;
+      if (ph.t <= 0) {
+        this.app.audio.play('phone');
+        if (!this.bubble) this.say('Дзынь.', HUB_SPOTS.desk + 20, STAGE_FEET - 60, 0.9);
+        ph.rings--;
+        ph.t = 1.3;
+      }
+    } else if (idle) {
+      ph.next -= dt;
+      if (ph.next <= 0) {
+        ph.rings = 2 + Math.floor(Math.random() * 2);
+        ph.t = 0;
+        ph.next = 60 + Math.random() * 50;
       }
     }
   }
@@ -387,8 +442,9 @@ export class HubView {
     if (x < -80 || x > L.w + 80 || !this.present(n)) return;
     const names = frameNames(n.sprite);
     let frame = names[0];
-    const beat = Math.floor(this.t * 2.2 + n.seed) % 2;
-    const near = Math.abs(n.x - this.hero.x) < 70;
+    // The girl's second frame is a slow hand to her hair: now and then, not on every beat.
+    const beat = n.sprite === 'npc_girl' ? +(Math.floor(this.t * 2.2 + n.seed) % 5 === 0) : Math.floor(this.t * 2.2 + n.seed) % 2;
+    const near = n.stare > 0 || this.hush.t > 0;
     if (n.kind === 'shadow') {
       if (names.includes('sit0')) frame = near && names.includes('look') ? 'look' : beat ? 'sit1' : 'sit0';
       else if (n.sprite === 'npc_sil_copier') frame = Math.floor(this.t * 1.6 + n.seed) % 3 === 0 ? 'idle1' : 'idle0';
@@ -396,8 +452,8 @@ export class HubView {
       else frame = Math.floor(this.t * 0.5 + n.seed) % 5 === 0 ? 'idle1' : 'idle0';
     }
     else if (n.kind === 'sit') frame = n.say ? (names.includes('grumble') ? 'grumble' : names.includes('talk') ? 'talk' : 'look') : near ? 'look' : beat ? 'sit1' : 'sit0';
-    else if (n.kind === 'mop') frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : beat ? 'mop1' : 'mop0';
-    else frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : beat ? 'idle1' : 'idle0';
+    else if (n.kind === 'mop') frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : near && names.includes('look') ? 'look' : beat ? 'mop1' : 'mop0';
+    else frame = n.say ? (names.includes('talk') ? 'talk' : 'look') : near && names.includes('look') ? 'look' : beat ? 'idle1' : 'idle0';
     let f = getFrame(n.sprite, frame);
     // Standing coworkers turn to face the intern (silhouettes keep to their business).
     if ((n.kind === 'stand' || n.kind === 'mop') && this.hero.x < n.x) f = flipped(f);

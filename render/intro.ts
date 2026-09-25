@@ -77,8 +77,9 @@ export class IntroView {
       this.hero.pose = 'carry1';
     });
     b(7.2, () => (this.walk = { to: HUB_SPOTS.cubicles + 330, speed: 110, carry: true }));
-    b(8.4, () => this.talk('Осторожно, не урони.', HUB_SPOTS.cubicles - 12, STAGE_FEET - 90));
-    b(10.2, () => this.talk('В архив? Ну-ну.', HUB_SPOTS.cubicles + 276, STAGE_FEET - 90));
+    // Nobody wishes him luck: one quiet word, one silence.
+    b(8.6, () => this.talk('Не урони.', HUB_SPOTS.cubicles - 12, STAGE_FEET - 90));
+    b(10.4, () => this.talk('…', HUB_SPOTS.cubicles + 276, STAGE_FEET - 90));
     b(11.4, () => (this.fadeTo = 1));
     b(12.0, () => {
       // ── The archive ──
@@ -259,8 +260,10 @@ export class IntroView {
           for (const [id, dx] of SEATED) {
             if (!hasSprite(id)) continue;
             const nx = HUB_SPOTS.cubicles + dx;
-            const near = Math.abs(nx - this.hero.x) < 70;
-            draw(b, getFrame(id, near ? 'look' : Math.floor(t * 2.2 + dx) % 2 ? 'sit1' : 'sit0'), nx - cam, STAGE_FEET);
+            // They look up as he comes and follow him with their eyes after he has passed.
+            const near = nx - this.hero.x < 70 && this.hero.x - nx < 200;
+            const beat = id === 'npc_girl' ? Math.floor(t * 2.2 + dx) % 5 === 0 : Math.floor(t * 2.2 + dx) % 2 === 1;
+            draw(b, getFrame(id, near ? 'look' : beat ? 'sit1' : 'sit0'), nx - cam, STAGE_FEET);
           }
         const x = this.hero.x;
         this.hero.x = x - cam;
