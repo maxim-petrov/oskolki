@@ -227,7 +227,7 @@ export const ITEMS: Record<string, ItemDef> = {
   }),
 
   // ── Rare ──────────────────────────────────────────────────────────
-  ring: i({ id: 'ring', unlock: 'bundle_relics', name: 'Кольцевая скоба', desc: 'Левый и правый края поля соединены: строки и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'rare', apply: (m) => (m.wrap = true) }),
+
   pen: i({ id: 'pen', unlock: 'bundle_relics', name: 'Бесконечная ручка', desc: 'Ракеты очищают строку и столбец сразу.', kind: 'passive', icon: 'item_pen', pool: 'rare', apply: (m) => (m.crossRockets = true) }),
   clock: i({ id: 'clock', name: 'Сломанные часы', desc: 'Каждый 4-й ход не тратит время: враги не тикают.', kind: 'passive', icon: 'item_clock', pool: 'rare', apply: (m) => (m.clockEvery = 4) }),
   puncher: i({ id: 'puncher', name: 'Пробойник', desc: 'Итоговый удар пробивает броню и щит врагов.', kind: 'passive', icon: 'item_punch', pool: 'rare', apply: (m) => (m.pierce = true) }),
@@ -246,6 +246,8 @@ export const ITEMS: Record<string, ItemDef> = {
   vault: i({ id: 'vault', name: 'Сейф директора', desc: '+1 множ за каждые 100 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinMultPer = 100) }),
   hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда, а заряд сверх навыка бьёт вдвое.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3, apply: (m) => (m.overflowX = 2) }),
   steeldoor: i({ id: 'steeldoor', name: 'Бронедверь', desc: 'После действия врагов половина брони остаётся.', kind: 'passive', icon: 'item_steeldoor', pool: 'boss', apply: (m) => (m.armorKeep = 0.5) }),
+  // The ring gives every row a second chance at the edge: too strong for a rare (+36 points to wins).
+  ring: i({ id: 'ring', unlock: 'bundle_relics', name: 'Кольцевая скоба', desc: 'Левый и правый края поля соединены: строки и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'boss', apply: (m) => (m.wrap = true) }),
   foldtable: i({ id: 'foldtable', name: 'Раскладной стол', desc: 'Поле больше на строку и столбец.', kind: 'passive', icon: 'item_foldtable', pool: 'boss', apply: (m) => ((m.boardW += 1), (m.boardH += 1)) }),
   closet: i({ id: 'closet', name: 'Тесная каморка', desc: 'Поле меньше на строку и столбец, зато каждый удар +3 множ.', kind: 'passive', icon: 'item_closet', pool: 'boss', apply: (m) => ((m.boardW -= 1), (m.boardH -= 1), (m.multFlat += 3)) }),
   prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Первая группа из 4 за ход создаёт призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
