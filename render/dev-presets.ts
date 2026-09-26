@@ -156,7 +156,7 @@ const SUITES: DevSuite[] = [
       {
         id: 'combo-ring',
         name: 'Кольцо и ракеты',
-        desc: 'Кольцевая скоба (края поля соединены), ручка (ракеты крестом), динамит 5×5: проверка обменов через край.',
+        desc: 'Кольцевая скоба (предмет босса: края поля соединены), ручка (ракеты крестом), динамит 5×5: проверка обменов через край.',
         cfg: combo(build(deck(['ruler', 2], ['scissors', 2], ['fist', 2], ['folder', 2], ['ink', 1]), ['ring', 'pen', 'dynamite'], 'eraser', ['bomb'])),
       },
       {
@@ -164,6 +164,53 @@ const SUITES: DevSuite[] = [
         name: 'Бомбы и карманы',
         desc: 'Портфель (+2 кармана), три бомбы, динамит, гирлянда и коробка с сюрпризом.',
         cfg: combo(build(deck(['fist', 3], ['folder', 2], ['ink', 2], ['clip', 2]), ['pocketbag', 'dynamite', 'garland'], 'giftbox', ['bomb', 'bomb', 'bomb'])),
+      },
+    ],
+  },
+  {
+    group: 'Поле',
+    items: [
+      {
+        id: 'board-big',
+        name: 'Поле 8×7',
+        desc: 'Удлинитель и раскладной стол: поле шире на два столбца и выше на строку; брошюровщик даёт +2 множ за группу из 5.',
+        cfg: combo(build(deck(['fist', 3], ['scissors', 2], ['folder', 2], ['ink', 2], ['clip', 2]), ['knife', 'extension', 'foldtable', 'binding'], 'eraser')),
+      },
+      {
+        id: 'board-small',
+        name: 'Тесная каморка',
+        desc: 'Поле 5×5, зато каждый удар +3 множ: меньше ходов, крупнее удар.',
+        cfg: combo(build(deck(['fist', 3], ['scissors', 2], ['folder', 2], ['ink', 2], ['clip', 2]), ['knife', 'closet'], 'eraser')),
+      },
+      {
+        id: 'board-moves',
+        name: 'Рулетка и угольник',
+        desc: 'Фишку можно протащить по всему ряду, меняться можно и по диагонали; скрепочница кладёт две ракеты в начале боя.',
+        cfg: combo(build(deck(['fist', 3], ['ruler', 2], ['folder', 2], ['ink', 2], ['clip', 2]), ['knife', 'tapemeasure', 'setsquare', 'clipholder'], 'eraser')),
+      },
+      {
+        id: 'board-turnstile',
+        name: 'Турникет',
+        desc: 'Пока он в бою, фишки ходят только вверх и вниз (и рулетка тоже). Убей его первым — вернутся обмены вбок.',
+        cfg: fight(0, 'fight', ['turnstile', 'drop']),
+      },
+      {
+        id: 'board-storekeeper',
+        name: 'Кладовщица',
+        desc: 'Начальство архива: пока она в бою, поле на столбец уже; упадёт — столбец вернётся.',
+        cfg: fight(1, 'elite', ['storekeeper', 'scribe']),
+      },
+      {
+        id: 'board-destapler',
+        name: 'Антистеплер против скоб',
+        desc: 'Скобогрызы прибивают фишки, якорь запирает столбцы — с антистеплером всё ходит.',
+        cfg: fight(0, 'fight', ['stapler', 'stapler'], { build: { ...ACT_BUILD[0], relics: [...ACT_BUILD[0].relics, 'destapler'] } }),
+      },
+      {
+        id: 'board-abacus',
+        name: 'Счёты и золото',
+        desc: 'Счёты (+1 множ за золотую группу) без калькулятора: проверка, что золото работает у любого героя.',
+        cfg: combo(build(deck(['coin', 3], ['receipt', 2], ['bonus', 2], ['fist', 3], ['folder', 2]), ['knife', 'abacus', 'calendar'], 'eraser')),
       },
     ],
   },
