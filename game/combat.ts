@@ -279,6 +279,12 @@ export function activeCost(run: RunState): number {
   return id ? (ITEMS[id]?.charge ?? 6) : 6;
 }
 
+/** Damage from a move's charge that does not fit the skill: 1 per point (no skill: every point). */
+export function inkOverflow(run: RunState, charge: number): number {
+  const room = run.hero.active ? Math.max(0, activeCost(run) - run.hero.charge) : 0;
+  return Math.max(0, Math.round(charge) - room);
+}
+
 // ── Damage ───────────────────────────────────────────────────────────
 
 /** Armor takes one enemy blow and burns out; the umbrella's ward softens the blow first. */
@@ -858,6 +864,12 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     notes.push(`Энергетик +${c.nextMult}`);
     c.nextMult = 0;
   }
+  // Ink beyond a full skill burns: it deals damage (without a skill, all of it does).
+  const spare = inkOverflow(run, t.charge);
+  if (spare > 0) {
+    t.dmg += spare;
+    notes.push(`Лишний заряд +${spare} урона`);
+  }
   let mult = t.mult * t.xmult;
   if (mods.firstMoveX && fromMove && c.moves === 1) {
     mult *= 2;
@@ -909,7 +921,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     hero.coins = Math.max(0, Math.min(999, hero.coins + coins));
     if (coins > 0) run.stats.coinsEarned += coins;
     c.bonusCoins += ms.bonusCoins;
-    hero.charge = run.dev?.ink ? activeCost(run) : Math.min(activeCost(run), hero.charge + Math.round(t.charge));
+    hero.charge = !hero.active ? 0 : run.dev?.ink ? activeCost(run) : Math.min(activeCost(run), hero.charge + Math.round(t.charge));
     if (target && damage > 0) {
       if (submerged) ctx.fx.push({ kind: 'damage', amount: 0, uid: target.uid, source: 'strike', text: 'Под водой' });
       else hitEnemy(ctx, target.uid, damage, { source: 'strike', pierce: ms.pierce || mods.pierce });
@@ -1025,7 +1037,7 @@ function moveEnd(ctx: Ctx) {
       const weakest = alive(c).sort((a, b) => a.hp - b.hp)[0];
       if (weakest) hitEnemy(ctx, weakest.uid, mods.spider * actScale(run).hp, { source: 'spider', pierce: true });
     }
-    if (mods.battery > 0) {
+    if (mods.battery > 0 && run.hero.active) {
       const before = run.hero.charge;
       run.hero.charge = Math.min(activeCost(run), run.hero.charge + mods.battery);
       if (run.hero.charge > before) ctx.fx.push({ kind: 'charge', amount: run.hero.charge - before, source: 'battery' });
@@ -1578,7 +1590,7 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
   if (set) for (const i of set.blast.cells) if (!matched.has(i)) scoreTile(ctx, cells[i], i, null, 1, scores);
   const t = ctx.ms.tally;
   const mult = t.mult * t.xmult;
-  let damage = Math.round(t.dmg * mult);
+  let damage = Math.round((t.dmg + inkOverflow(run, t.charge)) * mult);
   const target = targetEnemy(c);
   if (target && ENEMIES[target.def].material === 'paper') damage *= mods.paperX;
   return {

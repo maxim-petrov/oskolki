@@ -19,6 +19,7 @@ import type {
   PickState,
   RewardOption,
   RunState,
+  ShopState,
 } from './types.ts';
 
 export const RULES = 'office-3';
@@ -345,8 +346,22 @@ function enterNode(run: RunState, node: MapNode, ev: GameEvent[]) {
 
 const FINISH_PRICE: Record<Finish, number> = { sharp: 60, gild: 55, seal: 70, copy: 110, laminate: 40 };
 
-function openShop(run: RunState) {
-  const vary = (p: number) => Math.round(p * (0.9 + int(run.rng.loot, 21) / 100));
+/** Prices at the till grow from act to act, so coins keep their weight to the end of a shift. */
+export const PRICE_ACT = [1, 1.3, 1.6, 1.9];
+
+export function priceScale(run: RunState): number {
+  return PRICE_ACT[Math.min(run.act, PRICE_ACT.length - 1)];
+}
+
+/** Reprinting the till: 20 coins, 20 more each time in the same shop (grows with the act too). */
+export function rerollPrice(run: RunState): number {
+  return Math.round((20 + 20 * (run.shop?.rerolls ?? 0)) * priceScale(run));
+}
+
+/** Cards, items, pockets and the finish on offer (the services stay). */
+function stockShop(run: RunState): Pick<ShopState, 'cards' | 'relics' | 'pockets' | 'finish'> {
+  const scale = priceScale(run);
+  const vary = (p: number) => Math.round(p * scale * (0.9 + int(run.rng.loot, 21) / 100));
   const cards = rollCards(run, 5, 'shop').map((c) => ({ id: c.id, up: false, price: vary(RARITY_PRICE[CARDS[c.id].rarity]), sold: false }));
   if (cards.length) {
     const sale = int(run.rng.loot, cards.length);
@@ -367,14 +382,11 @@ function openShop(run: RunState) {
     .map((id) => ({ id, price: vary(POCKETS[id].price), sold: false }));
   const finishes: Finish[] = ['sharp', 'gild', 'seal', 'laminate', 'copy'];
   const kind = weighted(run.rng.loot, finishes.map((f) => [f, f === 'copy' ? 1 : 3] as const));
-  run.shop = {
-    cards,
-    relics,
-    pockets,
-    finish: { kind, price: vary(FINISH_PRICE[kind]), sold: false },
-    removePrice: 50 + 25 * run.removals,
-    removed: false,
-  };
+  return { cards, relics, pockets, finish: { kind, price: vary(FINISH_PRICE[kind]), sold: false } };
+}
+
+function openShop(run: RunState) {
+  run.shop = { ...stockShop(run), removePrice: Math.round((50 + 25 * run.removals) * priceScale(run)), removed: false, rerolls: 0 };
 }
 
 // ── Combat end ──────────────────────────────────────────────────────
@@ -665,6 +677,18 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       else gainRelic(run, slot.id, 'shop', ev);
       hero.coins -= slot.price;
       slot.sold = true;
+      break;
+    }
+    case 'reroll': {
+      const shop = run.shop;
+      if (run.phase !== 'shop' || !shop) return fail(run, ev, 'Здесь не касса');
+      const price = rerollPrice(run);
+      if (hero.coins < price) return fail(run, ev, 'Не хватает монет');
+      hero.coins -= price;
+      // Items not bought go back to the pool: a reprint shows new ones, it does not burn them.
+      for (const r of shop.relics) if (!r.sold && ITEMS[r.id]?.kind === 'passive' && !run.relicPool.includes(r.id)) run.relicPool.push(r.id);
+      run.shop = { ...shop, ...stockShop(run), rerolls: (shop.rerolls ?? 0) + 1 };
+      ev.push({ t: 'coins', amount: -price });
       break;
     }
     case 'remove': {

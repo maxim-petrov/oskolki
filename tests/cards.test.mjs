@@ -138,7 +138,8 @@ const CARD_CHECKS = {
     const res = play(run, double(run, 'clip', 'carbon'));
     assert.equal(res.strike.tally.coins, 6, 'группа после копирки срабатывает дважды');
     // The carbon's group scores first, so the next group is copied whatever its family.
-    const red = scene({ enemyHp: 999 });
+    // (A big skill takes the carbon's charge, so no spare ink adds damage here.)
+    const red = scene({ enemyHp: 999, active: 'giftbox' });
     assert.equal(play(red, double(red, 'fist', 'carbon')).strike.tally.dmg, 12, 'и красная тоже');
   },
   weight() {

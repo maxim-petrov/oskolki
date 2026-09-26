@@ -125,7 +125,8 @@ const ITEM_CHECKS = {
     assert.equal(res.acts[0].intent.kind, 'attack');
     assert.equal(foe(res.run).hp, 45);
   },
-  inkwell: () => assert.equal(hit({ relics: ['inkwell'] }, INKS).strike.damage, 6),
+  // A big skill takes the whole charge: no ink turns into multiplier here.
+  inkwell: () => assert.equal(hit({ relics: ['inkwell'], active: 'giftbox' }, INKS).strike.damage, 6),
   register: () => assert.equal(hit({ relics: ['register'] }, CLIPS).strike.damage, 6),
   tape() {
     const res = hit({ relics: ['tape'] }, FOLDERS);
@@ -188,7 +189,7 @@ const ITEM_CHECKS = {
     assert.ok(avg > 1.35 && avg < 1.65, `в среднем ×${avg.toFixed(2)}, ждём 1,5`);
   },
   lamp() {
-    assert.equal(hit({ relics: ['lamp'] }, INKS).strike.tally.mult, 2);
+    assert.equal(hit({ relics: ['lamp'], active: 'giftbox' }, INKS).strike.tally.mult, 2);
     const run = scene({ relics: ['lamp'], enemies: ['archivist'] });
     ready(run, 'censor');
     const res = play(run, line(run, FISTS));
@@ -411,4 +412,16 @@ test('effects outside the strike grow with the act: damage with enemy health, ar
   const mop = hit({ act, relics: ['mop'] });
   const junk = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
   assert.equal(mop.run.hero.armor, Math.round(junk * 2 * DMG), 'швабра');
+});
+
+test('ink beyond a full skill burns: 1 damage per extra charge', () => {
+  const dmg = (opts, cards = INKS) => hit(opts, cards).strike.tally.dmg;
+  assert.equal(dmg({ active: 'giftbox' }), 0, 'навык берёт весь заряд');
+  assert.equal(dmg({ active: 'eraser' }), 0, 'ровно на навык — без остатка');
+  assert.equal(dmg({ active: 'eraser', charge: 3 }), 3, 'навык полон: 3 лишних → 3 урона');
+  assert.equal(dmg({}), 3, 'без навыка весь заряд бьёт');
+  const s = hit({ active: 'eraser', charge: 2 }, INKS);
+  assert.equal(s.strike.tally.dmg, 2, 'одно деление на навык, два — в урон');
+  assert.ok(s.strike.notes.includes('Лишний заряд +2 урона'));
+  assert.equal(hit({}, INKS).run.hero.charge, 0, 'без навыка заряд не копится');
 });

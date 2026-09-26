@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dispatch, newRun, saveRun, loadRun, MIN_DECK } from '../game/run.ts';
+import { dispatch, newRun, saveRun, loadRun, MIN_DECK, PRICE_ACT, rerollPrice } from '../game/run.ts';
+import { ITEMS } from '../game/content/items.ts';
+import { RARITY_PRICE } from '../game/content/cards.ts';
 import { reachable } from '../game/actmap.ts';
 import { playRun } from '../game/bot.ts';
 import { EVENTS } from '../game/content/events.ts';
@@ -190,4 +192,42 @@ test('bots finish whole runs without errors', () => {
     assert.ok(res.won || res.cause, 'the run ended');
     assert.ok(res.fights.length >= 3);
   }
+});
+
+test('the till can be reprinted: new stock, unsold items back to the pool, a rising price', () => {
+  let { run } = newRun({ seed: 31, customSeed: true });
+  run = dispatch(run, { type: 'dev', op: { op: 'hero', coins: 500 } }).run;
+  run = dispatch(run, { type: 'dev', op: { op: 'enter', kind: 'shop' } }).run;
+  const first = run.shop;
+  const shown = first.relics.filter((r) => ITEMS[r.id].kind === 'passive').map((r) => r.id);
+  for (const id of shown) assert.ok(!run.relicPool.includes(id), 'выставленный предмет вынут из пула');
+  assert.equal(rerollPrice(run), 20);
+  const res = dispatch(run, { type: 'reroll' });
+  assert.ok(!res.events.some((e) => e.t === 'invalid'));
+  assert.equal(res.run.hero.coins, 480);
+  assert.equal(res.run.shop.rerolls, 1);
+  assert.equal(rerollPrice(res.run), 40, 'каждый раз дороже');
+  assert.equal(res.run.shop.removePrice, first.removePrice, 'шредер тот же');
+  for (const id of shown) assert.ok(res.run.relicPool.includes(id) || res.run.shop.relics.some((r) => r.id === id), 'непроданное вернулось в пул');
+  assert.notDeepEqual(
+    res.run.shop.cards.map((c) => c.id),
+    first.cards.map((c) => c.id),
+  );
+  const broke = dispatch(dispatch(res.run, { type: 'dev', op: { op: 'hero', coins: 10 } }).run, { type: 'reroll' });
+  assert.ok(broke.events.some((e) => e.t === 'invalid'), 'без денег не перепечатать');
+});
+
+test('prices at the till grow from act to act', () => {
+  const shopAt = (act) => {
+    let { run } = newRun({ seed: 32, customSeed: true });
+    run = dispatch(run, { type: 'dev', op: { op: 'act', act } }).run;
+    return dispatch(run, { type: 'dev', op: { op: 'enter', kind: 'shop' } }).run;
+  };
+  const a0 = shopAt(0);
+  const a2 = shopAt(2);
+  assert.equal(a0.shop.removePrice, 50);
+  assert.equal(a2.shop.removePrice, Math.round(50 * PRICE_ACT[2]));
+  assert.equal(rerollPrice(a2), Math.round(20 * PRICE_ACT[2]));
+  const lo = (run) => Math.min(...run.shop.cards.map((c) => c.price));
+  assert.ok(lo(a2) >= Math.round(RARITY_PRICE.common * 0.5 * 0.9 * PRICE_ACT[2]) - 1, 'фишки дороже');
 });

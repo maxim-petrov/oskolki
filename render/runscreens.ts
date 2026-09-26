@@ -1,7 +1,7 @@
 import { CARDS, FINISH_TEXT, cardValue } from '../game/content/cards.ts';
 import { EVENT_BY_ID } from '../game/content/events.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
-import { pickable } from '../game/run.ts';
+import { pickable, rerollPrice } from '../game/run.ts';
 import type { Action, DeckCard, RunState } from '../game/types.ts';
 import { CARD_H, CARD_W, cardName, cardRules, drawCard, drawCardBlock } from './cardview.ts';
 import { LINE, bigText, measure, measureBig, paragraph, text, wrap } from './font.ts';
@@ -220,6 +220,9 @@ export class ShopScreen {
     const rlabel = s.removed ? 'Шредер: занят' : `Шредер · ${s.removePrice}`;
     if (ui.button(ctx, 'shop-remove', x + 12 + bw, cy, bw, 18, rlabel, { disabled: s.removed || coins < s.removePrice, accent: 'red3' })) h.act({ type: 'remove' });
     if (ui.hovered === 'shop-remove') ui.tooltip('Шредер', 'Убрать одну фишку из колоды. Тонкая колода — предсказуемое поле.', ui.p.x, ui.p.y);
+    const rr = rerollPrice(run);
+    if (ui.button(ctx, 'shop-reroll', x + 8, y + hh - 22, 118, 16, `Перепечатать · ${rr}`, { disabled: coins < rr, accent: 'gold3' }) && h.act({ type: 'reroll' })) h.audio.play('buy');
+    if (ui.hovered === 'shop-reroll') ui.tooltip('Перепечатать витрину', 'Новые фишки, предметы, карманы и отделка. Шредер остаётся. Каждый раз дороже.', ui.p.x, ui.p.y - 30);
     if (ui.button(ctx, 'shop-leave', x + w - 80, y + hh - 22, 72, 16, 'Уйти', { accent: 'grey3' })) h.act({ type: 'leave' });
   }
 }

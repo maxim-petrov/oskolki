@@ -10,7 +10,7 @@ import { EVENT_BY_ID } from './content/events.ts';
 import { ITEMS } from './content/items.ts';
 import { reachable } from './actmap.ts';
 import { int, next, type Rng } from './rng.ts';
-import { clone, dispatch, modsOf, pickable } from './run.ts';
+import { clone, dispatch, modsOf, pickable, rerollPrice } from './run.ts';
 import type { Action, DeckCard, Move, RunState } from './types.ts';
 
 /**
@@ -334,6 +334,8 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
         if (s.finish && !s.finish.sold && coins >= s.finish.price + 40) return { type: 'buy', kind: 'finish', index: 0 };
         const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - 40);
         if (pocket >= 0 && run.hero.pockets.includes(null)) return { type: 'buy', kind: 'pocket', index: pocket };
+        // Plenty left: reprint the till for another look.
+        if (coins >= rerollPrice(run) + 150) return { type: 'reroll' };
       }
       return { type: 'leave' };
     }

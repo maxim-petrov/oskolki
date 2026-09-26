@@ -98,7 +98,7 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
   const id = run.hero.active;
   const def = id ? ITEMS[id] : null;
   const ready = !!def && d.charge >= d.cost;
-  const clicked = !!def && ui.area('skill', r.x, r.y, r.w, r.h);
+  const clicked = ui.area('skill', r.x, r.y, r.w, r.h) && !!def;
   const hot = ui.hovered === 'skill';
   ctx.fillStyle = hex('ink0');
   ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -108,6 +108,7 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
   ctx.fillRect(r.x + 1, r.y + 1, r.w - 2, 1);
   if (!def) {
     text(ctx, 'нет навыка', r.x + r.w / 2, r.y + r.h / 2 - 4, 'grey2', { align: 'center' });
+    if (hot) ui.tooltip('Нет навыка', 'Заряд фиолетовых фишек бьёт сам: 1 урона за деление.', ui.p.x, ui.p.y - 50, 'vio5');
     return false;
   }
   const icon = getFrame(def.icon);
@@ -124,7 +125,7 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
     ctx.fillRect(r.x, r.y, r.w, 1);
     ctx.fillRect(r.x, r.y + r.h - 1, r.w, 1);
   }
-  if (hot) ui.tooltip(def.name, `${def.desc}\nЗаряд: ${def.charge} чернил.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
+  if (hot) ui.tooltip(def.name, `${def.desc}\nЗаряд: ${def.charge} чернил. Лишний заряд бьёт: 1 урона за деление.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
   return clicked;
 }
 

@@ -257,6 +257,8 @@ export interface ShopState {
   finish: { kind: Finish; price: number; sold: boolean } | null;
   removePrice: number;
   removed: boolean;
+  /** Reprints of the till in this shop (each costs more). */
+  rerolls?: number;
 }
 
 export interface TreasureState {
@@ -365,6 +367,7 @@ export type Action =
   | { type: 'reward'; index: number; card?: number }
   | { type: 'buy'; kind: 'card' | 'relic' | 'pocket' | 'finish'; index: number }
   | { type: 'remove' }
+  | { type: 'reroll' }
   | { type: 'rest'; choice: 'heal' | 'upgrade' }
   | { type: 'event'; option: number }
   | { type: 'pick'; uid: number }
