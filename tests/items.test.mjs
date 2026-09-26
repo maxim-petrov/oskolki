@@ -9,6 +9,18 @@ import { FINISH_TEXT } from '../game/content/cards.ts';
 import { QUEUE_LEN } from '../game/types.ts';
 import { CLIPS, FISTS, FOLDERS, INKS, act, cascade, foe, hit, idx, line, moves, play, put, ready, scene, tile } from './scene.mjs';
 
+/**
+ * Removes the tile under a lifted fist: the fist drops into a ready pair and completes a line.
+ * `action` makes the action for the erased cell.
+ */
+function erasedLine(opts, action) {
+  const run = scene({ enemyHp: 999, ...opts });
+  put(run, 4, 0, 'fist');
+  put(run, 4, 1, 'fist');
+  put(run, 3, 2, 'fist');
+  return act(run, action(run, idx(4, 2)));
+}
+
 /** How often a note shows up on the strike over many seeds. */
 function noteRate(relic, prefix, n = 300) {
   const values = [];
@@ -129,7 +141,7 @@ const ITEM_CHECKS = {
     assert.equal(foe(res.run).burnTurns, 2, 'горит ещё два хода после первого');
     assert.equal(foe(res.run).hp, 999 - 8 - 4);
     assert.equal(foe(hit({ relics: ['match'] }).run).burnTurns, 0, 'группа из трёх не поджигает');
-    // Not in the tooltip: any blast (a swapped rocket) sets the target on fire as well.
+    // Any blast (a swapped rocket) sets the target on fire as well.
     const run = scene({ relics: ['match'], enemyHp: 999 });
     put(run, 2, 2, 'fist', { special: 'rocketH' });
     assert.equal(foe(play(run, { from: idx(2, 2), to: idx(2, 3) }).run).burnTurns, 2);
@@ -261,6 +273,10 @@ const ITEM_CHECKS = {
     assert.equal(res.waves[0].cleared[0].i, idx(0, 0));
     assert.equal(res.run.hero.charge, 0);
     assert.equal(foe(res.run).countdown, before, 'время не тратит');
+    const drop = erasedLine({ active: 'eraser', charge: 3 }, (run, cell) => ({ type: 'active', cell }));
+    assert.ok(drop.waves.some((w) => w.idle && w.groups.length), 'ряд сложился');
+    assert.equal(drop.strike, undefined, 'и сгорел впустую: ластик — не ход');
+    assert.equal(foe(drop.run).hp, 999);
   },
   stapler() {
     const run = scene({ active: 'stapler', charge: 6, enemies: ['rat'] });
@@ -285,9 +301,11 @@ const ITEM_CHECKS = {
     cells[8] = { ...cells[8], fuse: 2 };
     cells[9] = { ...cells[9], hidden: 3 };
     run.combat.board.colLock[5] = 2;
-    const after = act(run, { type: 'active' }).run.combat.board;
+    const res = act(run, { type: 'active' });
+    const after = res.run.combat.board;
     assert.ok(!after.cells.some((t) => t.kind === 'junk' || t.pin || t.fuse || t.hidden));
     assert.equal(after.colLock[5], 0);
+    assert.equal(res.strike, undefined, 'новые фишки, сложившиеся в ряд, сгорают впустую');
   },
   shredder() {
     const run = scene({ active: 'shredder', charge: 8, enemyHp: 999 });
@@ -323,6 +341,9 @@ const POCKET_CHECKS = {
     const res = act(run, { type: 'pocket', slot: 0, cell: idx(3, 3) });
     assert.equal(res.waves[0].cleared[0].i, idx(3, 3));
     assert.equal(foe(res.run).countdown, foe(run).countdown);
+    const drop = erasedLine({ pockets: ['eraser'] }, (run, cell) => ({ type: 'pocket', slot: 0, cell }));
+    assert.ok(drop.waves.some((w) => w.idle && w.groups.length));
+    assert.equal(drop.strike, undefined, 'сложившийся ряд сгорает впустую');
   },
   sticker() {
     const run = scene({ pockets: ['sticker'] });

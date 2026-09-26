@@ -650,11 +650,21 @@ function blastArea(ctx: Ctx, i: number, t: Tile, fam: Fam | undefined, cells: Ti
 }
 
 /**
+ * Groups in the order they score: a group with a carbon copy goes first, so «the next group of
+ * the move» is really the next one, whatever its family.
+ */
+export function scoringOrder(groups: Group[], cells: Tile[]): Group[] {
+  const carbon = (g: Group) => (g.cells.some((i) => cells[i]?.card === 'carbon') ? 1 : 0);
+  return [...groups].sort((a, b) => carbon(b) - carbon(a));
+}
+
+/**
  * Resolve matches and cascades until the board is stable, scoring every wave into the move's
  * tally. `forced` is an initial blast (pocket bomb, shredder, a swapped special) that happens with
- * the first wave; `spent` are specials that blast already used up.
+ * the first wave; `spent` are specials that blast already used up. With `score` off (board tools:
+ * the eraser, the corrector) lines that fall into place clear without scoring: tools are not moves.
  */
-export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: number[] = []) {
+export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: number[] = [], score = true) {
   const { c, mods, ms } = ctx;
   let first = true;
   for (let wave = 1; wave <= 30; wave++) {
@@ -700,14 +710,14 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
       }
     }
     // Multiplier: specials add to it; cascade waves only with the poster (more waves already mean more tiles).
-    if (wave >= 2 && mods.cascadeMult) {
+    if (score && wave >= 2 && mods.cascadeMult) {
       const n = mods.cascadeMult;
       ms.tally.mult += n;
       scores.push({ i: -1, id: -1, fam: 'prism', mult: n, note: `каскад ×${wave}` });
     }
     for (const b of blasts) {
       // Blasts add to the multiplier up to BLAST_MULT_CAP per move: long chains still pay in tiles.
-      const n = Math.min(WAVE_MULT[b.kind] ?? 0, BLAST_MULT_CAP - ms.blastMult);
+      const n = score ? Math.min(WAVE_MULT[b.kind] ?? 0, BLAST_MULT_CAP - ms.blastMult) : 0;
       if (b.kind === 'rocketH' || b.kind === 'rocketV') ctx.rocketsThisMove++;
       if (b.kind === 'cross') ctx.rocketsThisMove += 2;
       if (n > 0) {
@@ -716,11 +726,13 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
         scores.push({ i: b.at, id: -1, fam: 'prism', mult: n, note: 'взрыв' });
       }
     }
-    if (blasts.length && mods.igniteOn4) ms.burn = true;
+    if (score && blasts.length && mods.igniteOn4) ms.burn = true;
 
     // Score: groups first, then blasted tiles one by one.
-    for (const g of groups) scoreGroup(ctx, g, cells, wave, scores);
-    for (const i of blasted) scoreTile(ctx, cells[i], i, null, wave, scores);
+    if (score) {
+      for (const g of scoringOrder(groups, cells)) scoreGroup(ctx, g, cells, wave, scores);
+      for (const i of blasted) scoreTile(ctx, cells[i], i, null, wave, scores);
+    }
 
     // Junk next to a match is washed away.
     const splashed = new Set<number>();
@@ -764,6 +776,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     ctx.ev.push({
       t: 'wave',
       n: wave,
+      ...(score ? {} : { idle: true }),
       groups,
       blasts,
       cleared,
@@ -1411,9 +1424,9 @@ export function playerPocket(run: RunState, mods: Mods, slot: number, cell: numb
       strike(ctx, false);
       break;
     case 'eraser':
+      // A board tool: what falls into place clears for nothing (a free move would break the clock).
       removeCell(ctx, cell!);
-      resolve(ctx, []);
-      strike(ctx, false);
+      resolve(ctx, [], undefined, [], false);
       break;
     case 'sticker':
       for (const e of alive(c!)) e.countdown += 2;
@@ -1455,8 +1468,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
   switch (def.id) {
     case 'eraser':
       removeCell(ctx, arg.cell!);
-      resolve(ctx, []);
-      strike(ctx, false);
+      resolve(ctx, [], undefined, [], false);
       break;
     case 'coffeeToGo':
       c.freeTicks += 2;
@@ -1482,8 +1494,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
       c.board.colLock.fill(0);
       c.board.rowLock.fill(0);
       ev.push({ t: 'board', reason: 'active', board: snap(cells) });
-      resolve(ctx, []);
-      strike(ctx, false);
+      resolve(ctx, [], undefined, [], false);
       break;
     }
     case 'shredder': {
@@ -1550,7 +1561,7 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
   const scores: TileScore[] = [];
   const matched = new Set(groups.flatMap((g) => g.cells));
   if (set) ctx.ms.tally.mult += WAVE_MULT[set.blast.kind] ?? 0;
-  for (const g of groups) scoreGroup(ctx, g, cells, 1, scores);
+  for (const g of scoringOrder(groups, cells)) scoreGroup(ctx, g, cells, 1, scores);
   if (set) for (const i of set.blast.cells) if (!matched.has(i)) scoreTile(ctx, cells[i], i, null, 1, scores);
   const t = ctx.ms.tally;
   const mult = t.mult * t.xmult;

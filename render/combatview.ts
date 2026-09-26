@@ -469,7 +469,10 @@ export class CombatView {
               if (v) v.flash = 1;
             }
           this.h.audio.play('match', 1 + (e.n - 1) * 0.12);
-          if (e.n >= 2) juice.float(`КАСКАД ×${e.n}`, b.bx + b.bw / 2, b.by - 20, e.n >= 4 ? 'gold4' : 'cream', { scale: e.n >= 3 ? 2 : 1 });
+          // Lines dropped in by a board tool clear for nothing: no cascade fanfare.
+          if (e.idle) {
+            if (e.n === 1) juice.float('впустую', b.bx + b.bw / 2, b.by - 20, 'grey3');
+          } else if (e.n >= 2) juice.float(`КАСКАД ×${e.n}`, b.bx + b.bw / 2, b.by - 20, e.n >= 4 ? 'gold4' : 'cream', { scale: e.n >= 3 ? 2 : 1 });
         },
       });
     // 2. Special activations.

@@ -158,7 +158,7 @@ export const ITEMS: Record<string, ItemDef> = {
   register: i({ id: 'register', name: 'Кассовый аппарат', desc: 'Каждая золотая фишка наносит цели 2 урона.', kind: 'passive', icon: 'item_register', pool: 'uncommon', apply: (m) => (m.coinDamage += 2) }),
   tape: i({ id: 'tape', name: 'Двусторонний скотч', desc: 'Броня, полученная за ход, ещё и бьёт цель.', kind: 'passive', icon: 'item_tape', pool: 'uncommon', apply: (m) => (m.armorToDamage = true) }),
   rustyblade: i({ id: 'rustyblade', name: 'Ржавое лезвие', desc: 'Каждая красная группа даёт цели 2 кровотечения.', kind: 'passive', icon: 'item_scissors', pool: 'uncommon', apply: (m) => (m.bleedOnRed += 2) }),
-  match: i({ id: 'match', name: 'Тлеющая спичка', desc: 'Группа из 4+ фишек поджигает цель: 4 урона три хода.', kind: 'passive', icon: 'item_match', pool: 'uncommon', apply: (m) => (m.igniteOn4 = true) }),
+  match: i({ id: 'match', name: 'Тлеющая спичка', desc: 'Группа из 4+ фишек или взрыв поджигает цель: 4 урона три хода.', kind: 'passive', icon: 'item_match', pool: 'uncommon', apply: (m) => (m.igniteOn4 = true) }),
   ice: i({ id: 'ice', name: 'Ведро льда', desc: 'Синяя группа из 4+ замораживает врагов: таймеры +1.', kind: 'passive', icon: 'item_ice', pool: 'uncommon', apply: (m) => (m.freezeOn4Shields = true) }),
   plane: i({ id: 'plane', name: 'Бумажный самолётик', desc: 'Красная группа из 4+ — 6 урона каждому врагу.', kind: 'passive', icon: 'item_plane', pool: 'uncommon', apply: (m) => (m.planeOn4 += 6) }),
   lucky: i({ id: 'lucky', name: 'Счастливая монетка', desc: 'С шансом 20% множ хода удваивается.', kind: 'passive', icon: 'item_lucky', pool: 'uncommon', apply: (m) => (m.luck += 0.2) }),
@@ -198,10 +198,10 @@ export const ITEMS: Record<string, ItemDef> = {
   prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Группы из 4 создают призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
 
   // ── Active skills (charged by ink) ────────────────────────────────
-  eraser: i({ id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку: сверху упадёт новая. Время не тратит.', kind: 'active', icon: 'item_eraser', pool: 'shop', charge: 3, aim: 'cell' }),
+  eraser: i({ id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку, сверху падает новая. Время не тратит; сложившиеся ряды сгорают впустую.', kind: 'active', icon: 'item_eraser', pool: 'shop', charge: 3, aim: 'cell' }),
   stapler: i({ id: 'stapler', name: 'Степлер', desc: 'Выбранный враг пропускает следующее действие.', kind: 'active', icon: 'item_stapler', pool: 'uncommon', charge: 6, aim: 'enemy' }),
   coffeeToGo: i({ id: 'coffeeToGo', name: 'Кофе с собой', desc: 'Следующие 2 хода враги не тикают.', kind: 'active', icon: 'item_coffeeToGo', pool: 'uncommon', charge: 6 }),
-  corrector: i({ id: 'corrector', name: 'Корректор', desc: 'Снимает с поля кляксы, волокиту, скобы, угольки и цензуру.', kind: 'active', icon: 'item_corrector', pool: 'common', charge: 5 }),
+  corrector: i({ id: 'corrector', name: 'Корректор', desc: 'Снимает с поля кляксы, волокиту, скобы, угольки и цензуру. Сложившиеся ряды сгорают впустую.', kind: 'active', icon: 'item_corrector', pool: 'common', charge: 5 }),
   shredder: i({ id: 'shredder', name: 'Шредер', desc: 'Очищает выбранный столбец, фишки срабатывают.', kind: 'active', icon: 'item_shredder', pool: 'rare', charge: 8, aim: 'col' }),
   megaphone: i({ id: 'megaphone', name: 'Мегафон', desc: 'Таймеры всех врагов +2.', kind: 'active', icon: 'item_megaphone', pool: 'uncommon', charge: 8 }),
   giftbox: i({ id: 'giftbox', name: 'Коробка с сюрпризом', desc: 'Две бомбы и призма появляются на поле.', kind: 'active', icon: 'item_giftbox', pool: 'rare', charge: 10 }),
@@ -219,7 +219,7 @@ export interface PocketDef {
 export const POCKETS: Record<string, PocketDef> = {
   bomb: { id: 'bomb', name: 'Бомба', desc: 'Взрыв 3×3 в выбранном месте. Время не тратит.', icon: 'pocket_bomb', price: 30, aim: 'cell' },
   coffee: { id: 'coffee', name: 'Кофе', desc: 'Лечит 12 здоровья.', icon: 'pocket_coffee', price: 30 },
-  eraser: { id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку. Время не тратит.', icon: 'pocket_eraser', price: 25, aim: 'cell' },
+  eraser: { id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку. Время не тратит; сложившиеся ряды сгорают впустую.', icon: 'pocket_eraser', price: 25, aim: 'cell' },
   sticker: { id: 'sticker', name: 'Стикер «Срочно»', desc: 'Таймеры всех врагов +2.', icon: 'pocket_sticker', price: 35 },
   energy: { id: 'energy', name: 'Энергетик', desc: '+2 множ к следующему ходу.', icon: 'pocket_energy', price: 30 },
 };

@@ -429,6 +429,8 @@ export type GameEvent =
   | {
       t: 'wave';
       n: number;
+      /** Lines that fell into place after a board tool (eraser, corrector): they clear for nothing. */
+      idle?: boolean;
       groups: Group[];
       blasts: Blast[];
       cleared: { i: number; id: number; kind: TileKind; cause: 'match' | 'blast' | 'splash' }[];

@@ -4,6 +4,8 @@
 //   npm run balance                 full report (several minutes on all cores)
 //   npm run balance -- --quick      smaller samples (about a minute), same sections
 //   npm run balance -- --no-write   print the verdict only
+//   npm run balance -- --quick --only=encounters   whole runs plus the named sections only
+//                                   (encounters, lab, runab, bench, archetypes, events, chaos)
 //   npm run balance -- --patch=docs/balance/patches/example.mjs --out=/tmp/whatif
 //                                   try a tuning before changing the game: the patch module
 //                                   edits the content (acts, items, cards…) in every worker
@@ -29,9 +31,13 @@ import { rng, shuffle, int, derive } from '../game/rng.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const QUICK = argv.includes('--quick');
-const WRITE = !argv.includes('--no-write');
 const OUT = argv.find((a) => a.startsWith('--out='))?.slice(6);
+// A partial run (--only) never overwrites the main report: it prints, or writes to --out.
+const WRITE = !argv.includes('--no-write') && (!argv.some((a) => a.startsWith('--only=')) || !!OUT);
 const PATCH = argv.find((a) => a.startsWith('--patch='))?.slice(8);
+const ONLY = argv.find((a) => a.startsWith('--only='))?.slice(7).split(',');
+/** Sections to run: whole runs always, the rest unless --only names others. */
+const want = (key) => !ONLY || ONLY.includes(key);
 const PATCH_URL = PATCH ? pathToFileURL(path.resolve(PATCH)).href : null;
 if (PATCH_URL) await import(PATCH_URL);
 const N = QUICK
@@ -372,7 +378,8 @@ function mixed(a, k, salt) {
 // ── B. Encounters: every enemy group of every act, with builds of that point of the act ──
 
 const encounters = [];
-await stage('встречи отделов', async () => {
+if (want('encounters'))
+  await stage('встречи отделов', async () => {
   const specs = [];
   for (const a of LAB_ACTS) {
     const act = ACTS[a];
@@ -512,7 +519,8 @@ function comparisons(b) {
 
 const lab = {}; // `${group}:${id}` → { act → { hp: [], dead: [], moves: [] } }
 const labSnaps = [];
-await stage('лаборатория предметов, навыков, карманов, отделки и фишек', async () => {
+if (want('lab'))
+  await stage('лаборатория предметов, навыков, карманов, отделки и фишек', async () => {
   const specs = [];
   const index = [];
   for (const a of LAB_ACTS)
@@ -578,7 +586,8 @@ function labStat(key) {
 // ── D. Whole runs with one item or card from the start (paired with the plain runs) ──
 
 const runAB = {};
-await stage('забеги с предметом или фишкой со старта', async () => {
+if (want('runab'))
+  await stage('забеги с предметом или фишкой со старта', async () => {
   const jobs = [];
   const add = (key, spec, n) => {
     for (const seed of seeds(n)) jobs.push({ key, spec: { seed, policy: 'greedy', lite: true, ...spec } });
@@ -623,7 +632,8 @@ function runDelta(key, baseKey) {
 
 const bench = {}; // key → act → [ratios]; 'base' → act → [dps]
 const pairsDps = {};
-await stage('урон за ход и связки предметов', async () => {
+if (want('bench'))
+  await stage('урон за ход и связки предметов', async () => {
   const specs = [];
   const meta = [];
   const passives = PASSIVES.filter((id) => !STARTER_RELICS.has(id));
@@ -712,7 +722,8 @@ function archetypeBuild(b, arch) {
 }
 
 const archetypes = [];
-await stage('архетипы сборок (GDD §6)', async () => {
+if (want('archetypes'))
+  await stage('архетипы сборок (GDD §6)', async () => {
   const specs = [];
   const meta = [];
   for (const a of LAB_ACTS)
@@ -752,7 +763,8 @@ await stage('архетипы сборок (GDD §6)', async () => {
 // ── F. Events: every option for heroes of acts 1–3 ──────────────────
 
 const eventStats = [];
-await stage('события', async () => {
+if (want('events'))
+  await stage('события', async () => {
   const specs = [];
   const meta = [];
   for (const a of [0, 1, 2].filter((x) => POOLS[x].all.length)) {
@@ -803,7 +815,8 @@ await stage('события', async () => {
 // ── G. Chaos: random builds, random places, both bots, invariants on ──
 
 let chaos = { n: 0, violations: [], stuck: 0 };
-await stage('хаос-сборки (инварианты)', async () => {
+if (want('chaos'))
+  await stage('хаос-сборки (инварианты)', async () => {
   const r = rng(derive(99, 'chaos'));
   const allCards = Object.keys(CARDS);
   const enemyIds = Object.keys(ENEMIES);
@@ -881,8 +894,10 @@ for (const a of [0, 1, 2]) {
   metrics[`greedy.elite.hurt.${a}`] = G.kinds[`${a}.elite`].hurt;
   metrics[`greedy.boss.fast.${a}`] = G.kinds[`${a}.boss`].fast;
 }
-metrics['encounters.spikes'] = encounters.filter((e) => e.spike).length;
-metrics['encounters.free'] = encounters.filter((e) => e.free).length;
+if (want('encounters')) {
+  metrics['encounters.spikes'] = encounters.filter((e) => e.spike).length;
+  metrics['encounters.free'] = encounters.filter((e) => e.free).length;
+}
 
 // Items: run delta from the start + fight-lab saving.
 const itemRows = PASSIVES.map((id) => {
@@ -895,9 +910,11 @@ const itemRows = PASSIVES.map((id) => {
   else if (run && Math.abs(run.win) < 0.03 && Math.abs(run.floors) < 0.5 && Math.abs(fight.hp) < 0.01 && !(dps > 1.05)) verdict = 'weak';
   return { id, run, fight, dps, verdict };
 });
-metrics['items.op'] = itemRows.filter((r) => r.verdict === 'op').length;
-metrics['items.harmful'] = itemRows.filter((r) => r.verdict === 'harmful').length;
-metrics['items.weak'] = itemRows.filter((r) => r.verdict === 'weak').length;
+if (want('lab') && want('runab')) {
+  metrics['items.op'] = itemRows.filter((r) => r.verdict === 'op').length;
+  metrics['items.harmful'] = itemRows.filter((r) => r.verdict === 'harmful').length;
+  metrics['items.weak'] = itemRows.filter((r) => r.verdict === 'weak').length;
+}
 
 const cardRows = CARD_IDS.map((id) => {
   const fam = CARDS[id].fam;
@@ -911,8 +928,10 @@ const cardRows = CARD_IDS.map((id) => {
   else if (rule.hp + 2 * rule.hpSe < 0 && (!run || run.win < 0)) verdict = 'worse';
   return { id, fam, run, rule, take, up, dps, verdict };
 });
-metrics['cards.op'] = cardRows.filter((r) => r.verdict === 'op').length;
-metrics['cards.worse'] = cardRows.filter((r) => r.verdict === 'worse').length;
+if (want('lab') && want('runab')) {
+  metrics['cards.op'] = cardRows.filter((r) => r.verdict === 'op').length;
+  metrics['cards.worse'] = cardRows.filter((r) => r.verdict === 'worse').length;
+}
 
 const heroWins = ['vetIntern', 'vetAccountant', 'vetJanitor'].map((k) => runSummary[k].win);
 metrics['heroes.spread'] = Math.max(...heroWins) - Math.min(...heroWins);
@@ -924,10 +943,11 @@ metrics['full4.deathRate.3'] = runSummary.full4.deathRate[3];
 
 const verdicts = TARGETS.map((t) => {
   const v = metrics[t.metric];
-  const ok = v !== undefined && Number.isFinite(v) && (t.min === undefined || v >= t.min) && (t.max === undefined || v <= t.max);
-  return { ...t, value: v, ok };
+  const skipped = v === undefined;
+  const ok = !skipped && Number.isFinite(v) && (t.min === undefined || v >= t.min) && (t.max === undefined || v <= t.max);
+  return { ...t, value: v, ok, skipped };
 });
-const failedHard = verdicts.filter((v) => !v.ok && v.hard);
+const failedHard = verdicts.filter((v) => !v.ok && !v.skipped && v.hard);
 
 // ── Report ───────────────────────────────────────────────────────────
 
@@ -950,7 +970,7 @@ L.push('');
 L.push(
   table(
     ['', 'Цель', 'Сейчас', 'Норма', 'Откуда'],
-    verdicts.map((v) => [v.ok ? '✅' : v.hard ? '❌' : '⚠️', v.title, show(v, v.value), range(v), v.why]),
+    verdicts.filter((v) => !v.skipped).map((v) => [v.ok ? '✅' : v.hard ? '❌' : '⚠️', v.title, show(v, v.value), range(v), v.why]),
   ),
 );
 L.push('');
@@ -1411,6 +1431,26 @@ if (prev) {
   );
 }
 
+// Sections of skipped stages are left out of the report.
+if (ONLY) {
+  const SECTION = {
+    '## Урон за ход против здоровья врагов': 'bench',
+    '## Встречи': 'encounters',
+    '## Предметы': 'lab',
+    '## Фишки': 'lab',
+    '## Связки предметов (урон)': 'bench',
+    '## Архетипы сборок (GDD §6)': 'archetypes',
+    '## События': 'events',
+  };
+  let keep = true;
+  const kept = L.filter((line) => {
+    if (line.startsWith('## ')) keep = !SECTION[line] || want(SECTION[line]);
+    return keep;
+  });
+  L.length = 0;
+  L.push(...kept);
+}
+
 if (WRITE) {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'REPORT.md'), L.join('\n'));
@@ -1418,6 +1458,6 @@ if (WRITE) {
 }
 
 console.log('');
-for (const v of verdicts) console.log(`${v.ok ? 'ok  ' : v.hard ? 'FAIL' : 'warn'} ${v.title}: ${show(v, v.value)} (норма ${range(v)})`);
+for (const v of verdicts.filter((x) => !x.skipped)) console.log(`${v.ok ? 'ok  ' : v.hard ? 'FAIL' : 'warn'} ${v.title}: ${show(v, v.value)} (норма ${range(v)})`);
 console.log(`\n${((Date.now() - T0) / 1000).toFixed(0)} с${WRITE ? ' · docs/balance/REPORT.md' : ''}`);
 process.exit(failedHard.length ? 1 : 0);

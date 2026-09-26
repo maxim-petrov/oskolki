@@ -137,10 +137,9 @@ const CARD_CHECKS = {
     const run = scene({ enemyHp: 999 });
     const res = play(run, double(run, 'clip', 'carbon'));
     assert.equal(res.strike.tally.coins, 6, 'группа после копирки срабатывает дважды');
-    // Groups score in family order: red, blue, violet, gold. A red group is scored before the
-    // carbon, so it is not copied — the carbon only helps gold groups and later cascade waves.
+    // The carbon's group scores first, so the next group is copied whatever its family.
     const red = scene({ enemyHp: 999 });
-    assert.equal(play(red, double(red, 'fist', 'carbon')).strike.tally.dmg, 6);
+    assert.equal(play(red, double(red, 'fist', 'carbon')).strike.tally.dmg, 12, 'и красная тоже');
   },
   weight() {
     assert.equal(foe(hit({}, three('weight')).run).stunned, false);
