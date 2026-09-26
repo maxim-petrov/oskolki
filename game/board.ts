@@ -13,7 +13,7 @@ import {
   type Tile,
   type TileKind,
 } from './types.ts';
-import { int, shuffle, type Rng } from './rng.ts';
+import { int, pick, shuffle, type Rng } from './rng.ts';
 import { CARDS } from './content/cards.ts';
 
 export const idx = (r: number, c: number) => r * W + c;
@@ -273,14 +273,64 @@ export function validMoves(b: BoardState, wrap: boolean): Move[] {
 /** Where a created special prefers to appear: the dropped tile first, then its partner. */
 export const moveCells = (m: Move) => [m.to, m.from];
 
-function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind): boolean {
+/**
+ * Would `kind` at `i` complete a line of three with the tiles already dealt? Counts both ways along
+ * the row and the column; with `wrap` (the ring relic) the lines run on across the edge.
+ */
+function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind, wrap = false): boolean {
   if (kind === 'junk') return false;
   const r = rowOf(i);
   const c = colOf(i);
-  const at = (rr: number, cc: number) => cells[idx(rr, cc)]?.kind;
-  if (c >= 2 && at(r, c - 1) === kind && at(r, c - 2) === kind) return true;
-  if (r >= 2 && at(r - 1, c) === kind && at(r - 2, c) === kind) return true;
-  return false;
+  const run = (len: number, pos: number, get: (k: number) => TileKind | undefined) => {
+    let n = 1;
+    for (let d = 1; d < len; d++) {
+      let p = pos - d;
+      if (p < 0) {
+        if (!wrap) break;
+        p += len;
+      }
+      if (get(p) !== kind) break;
+      n++;
+    }
+    for (let d = 1; d < len; d++) {
+      let p = pos + d;
+      if (p >= len) {
+        if (!wrap) break;
+        p -= len;
+      }
+      if (get(p) !== kind) break;
+      n++;
+    }
+    return n;
+  };
+  return run(W, c, (cc) => cells[idx(r, cc)]?.kind) >= 3 || run(H, r, (rr) => cells[idx(rr, c)]?.kind) >= 3;
+}
+
+/**
+ * The token for cell `i` that does not complete a line: the bag's next one if it fits, else the
+ * nearest fitting one further down the bag, else a copy of a fitting deck card (a deck heavy in one
+ * family still starts without ready lines). Only a one-family deck leaves the line in place.
+ */
+function dealToken(b: BoardState, r: Rng, cells: Tile[], i: number, wrap: boolean): BagToken {
+  const tok = drawToken(b, r);
+  if (!wouldMatchAt(cells, i, tokenKind(tok), wrap)) return tok;
+  for (let k = b.bag.length - 1; k >= 0; k--) {
+    if (wouldMatchAt(cells, i, tokenKind(b.bag[k]), wrap)) continue;
+    const [fit] = b.bag.splice(k, 1);
+    b.bag.unshift(tok);
+    return fit;
+  }
+  const spare = b.source.filter((t) => !wouldMatchAt(cells, i, tokenKind(t), wrap));
+  if (!spare.length) return tok;
+  b.bag.unshift(tok);
+  return { ...pick(r, spare) };
+}
+
+/** How many cells stand in ready lines. */
+function matchedCells(cells: Tile[], wrap: boolean): number {
+  const seen = new Set<number>();
+  for (const g of findGroups(cells, wrap)) for (const k of g.cells) seen.add(k);
+  return seen.size;
 }
 
 export function fillQueue(b: BoardState, r: Rng) {
@@ -307,30 +357,24 @@ export function emptyBoard(source: BagToken[], firstId = 1): BoardState {
  * and enough legal swaps. A one-family deck may leave matches in place — its payoff.
  */
 export function createBoard(r: Rng, source: BagToken[], wrap = false, minMoves = 6, firstId = 1): BoardState {
-  let best: BoardState | null = null;
+  let best: { b: BoardState; score: number } | null = null;
   for (let attempt = 0; attempt < 60; attempt++) {
     const b = emptyBoard(source, firstId);
     const cells: Tile[] = [];
-    for (let i = 0; i < CELLS; i++) {
-      let tok = drawToken(b, r);
-      for (let tries = 0; tries < 10 && wouldMatchAt(cells, i, tokenKind(tok)); tries++) {
-        b.bag.unshift(tok);
-        tok = drawToken(b, r);
-      }
-      cells.push(tokenTile(b, tok));
-    }
+    for (let i = 0; i < CELLS; i++) cells.push(tokenTile(b, dealToken(b, r, cells, i, wrap)));
     b.cells = cells;
-    if (!best) best = b;
-    if (hasMatch(cells, wrap)) continue;
-    if (validMoves(b, wrap).length < minMoves) {
-      best = b;
-      continue;
+    const matched = matchedCells(cells, wrap);
+    const moves = validMoves(b, wrap).length;
+    if (!matched && moves >= minMoves) {
+      fillQueue(b, r);
+      return b;
     }
-    fillQueue(b, r);
-    return b;
+    // Keep the closest try: ready lines weigh far more than a lack of moves.
+    const score = matched * 100 + Math.max(0, minMoves - moves);
+    if (!best || score < best.score) best = { b, score };
   }
-  fillQueue(best!, r);
-  return best!;
+  fillQueue(best!.b, r);
+  return best!.b;
 }
 
 /**

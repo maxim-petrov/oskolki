@@ -141,3 +141,37 @@ test('the board is dealt from the deck bag and refills from it', () => {
   const redtape = createBoard(rng(5), [...bag, { card: 'redtape', up: false }]);
   assert.ok(redtape.cells.concat(redtape.queue.flat()).filter((t) => t.card === 'redtape').every((t) => t.kind === 'junk'), 'status cards become junk');
 });
+
+test('a fight never starts with ready lines, even with a deck heavy in one family', () => {
+  const tokens = (list) => list.flatMap(([card, n]) => Array(n * 3).fill({ card, up: false }));
+  // The deck from the report: eight red cards and two folders (30 red tiles to 6 blue in the bag).
+  const redHeavy = tokens([
+    ['redpen', 3],
+    ['pins', 2],
+    ['scissors', 2],
+    ['stapler', 1],
+    ['folder', 2],
+  ]);
+  const twoFam = tokens([
+    ['fist', 5],
+    ['folder', 5],
+  ]);
+  for (let seed = 1; seed <= 60; seed++) {
+    for (const [name, bag] of [
+      ['red-heavy', redHeavy],
+      ['two families', twoFam],
+      ['starter', STARTER_BAG],
+    ]) {
+      for (const wrap of [false, true]) {
+        const b = createBoard(rng(seed), bag, wrap);
+        assert.equal(findGroups(b.cells, wrap).length, 0, `${name}, seed ${seed}, wrap ${wrap}`);
+      }
+    }
+  }
+});
+
+test('a one-family deck still gets a board (lines are its payoff)', () => {
+  const b = createBoard(rng(7), Array(15).fill({ card: 'fist', up: false }));
+  assert.equal(b.cells.length, 36);
+  assert.ok(b.cells.every((t) => t.kind === 'blade'));
+});
