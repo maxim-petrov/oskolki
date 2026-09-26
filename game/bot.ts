@@ -13,7 +13,15 @@ import { int, next, type Rng } from './rng.ts';
 import { clone, dispatch, modsOf, pickable } from './run.ts';
 import type { Action, DeckCard, Move, RunState } from './types.ts';
 
-export type Policy = 'greedy' | 'randomCards' | 'noCards' | 'random';
+/**
+ * greedy: best move, best cards; focus: greedy play, but builds one family (red) — takes only red
+ * cards, cuts the others at the till; randomCards / noCards: control bots for card choice; random.
+ */
+export type Policy = 'greedy' | 'focus' | 'randomCards' | 'noCards' | 'random';
+
+/** The family the focus bot builds. */
+const FOCUS = 'blade';
+const inFocus = (id: string) => CARDS[id]?.fam === FOCUS;
 
 export interface BotOptions {
   policy: Policy;
@@ -193,7 +201,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
     }
   }
   if (!moves.length) return null;
-  if (policy === 'greedy' || policy === 'randomCards' || policy === 'noCards') {
+  if (policy === 'greedy' || policy === 'focus' || policy === 'randomCards' || policy === 'noCards') {
     let best = moves[0];
     let bestScore = -Infinity;
     for (const m of moves) {
@@ -251,13 +259,20 @@ function removeOrder(deck: DeckCard[]) {
   return [...deck].sort((a, b) => cardScore(a) - cardScore(b));
 }
 
-function pickAction(run: RunState): Action {
+function pickAction(run: RunState, policy: Policy): Action {
   const p = run.pick!;
   const list = run.hero.deck.filter((c) => pickable(run, p, c));
   if (!list.length) return { type: 'leave' };
+  const focus = policy === 'focus';
   let card: DeckCard;
-  if (p.purpose === 'remove' || p.purpose === 'transform') card = removeOrder(list)[0];
-  else card = [...list].sort((a, b) => cardScore(b) - cardScore(a))[0];
+  if (p.purpose === 'remove' || p.purpose === 'transform') {
+    const off = focus ? list.filter((c) => !inFocus(c.id)) : [];
+    card = removeOrder(off.length ? off : list)[0];
+    if (focus && off.length) return { type: 'pick', uid: card.uid };
+  } else {
+    const on = focus ? list.filter((c) => inFocus(c.id)) : [];
+    card = [...(on.length ? on : list)].sort((a, b) => cardScore(b) - cardScore(a))[0];
+  }
   if (p.purpose === 'remove' && cardScore(card) >= 4) return { type: 'leave' };
   return { type: 'pick', uid: card.uid };
 }
@@ -288,6 +303,11 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
         const cards = (x.cards ?? []).map((id, c) => ({ id, up: !!x.ups?.[c], c }));
         if (policy === 'noCards' || !cards.length) continue;
         if (policy === 'random' || policy === 'randomCards') return { type: 'reward', index: k, card: int(r, cards.length) };
+        if (policy === 'focus') {
+          const red = cards.filter((c) => inFocus(c.id)).sort((a, b) => cardScore(b) - cardScore(a))[0];
+          if (red) return { type: 'reward', index: k, card: red.c };
+          continue;
+        }
         const best = cards.sort((a, b) => cardScore(b) - cardScore(a))[0];
         if (best && wantCard(run, best)) return { type: 'reward', index: k, card: best.c };
       }
@@ -298,11 +318,17 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
       const coins = run.hero.coins;
       if (policy !== 'random') {
         const worst = removeOrder(run.hero.deck)[0];
-        if (!s.removed && coins >= s.removePrice && worst && cardScore(worst) < 2 && run.hero.deck.length > 8) return { type: 'remove' };
+        const offFocus = policy === 'focus' && run.hero.deck.some((c) => !inFocus(c.id));
+        if (!s.removed && coins >= s.removePrice && worst && (offFocus || (cardScore(worst) < 2 && run.hero.deck.length > 8)) && run.hero.deck.length > 5)
+          return { type: 'remove' };
         const relic = s.relics.findIndex((x) => !x.sold && x.price <= coins && ITEMS[x.id].kind === 'passive');
         if (relic >= 0) return { type: 'buy', kind: 'relic', index: relic };
         if (policy === 'greedy') {
           const card = s.cards.findIndex((x) => !x.sold && x.price <= coins && wantCard(run, x) && cardScore(x) >= 6);
+          if (card >= 0) return { type: 'buy', kind: 'card', index: card };
+        }
+        if (policy === 'focus') {
+          const card = s.cards.findIndex((x) => !x.sold && x.price <= coins && inFocus(x.id));
           if (card >= 0) return { type: 'buy', kind: 'card', index: card };
         }
         if (s.finish && !s.finish.sold && coins >= s.finish.price + 40) return { type: 'buy', kind: 'finish', index: 0 };
@@ -315,7 +341,7 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
       if (run.hero.hp < run.hero.maxHp * 0.55 || policy === 'random') return { type: 'rest', choice: 'heal' };
       return run.hero.deck.some((c) => !c.up && CARDS[c.id].rarity !== 'status') ? { type: 'rest', choice: 'upgrade' } : { type: 'rest', choice: 'heal' };
     case 'pick':
-      return pickAction(run);
+      return pickAction(run, policy);
     case 'treasure':
       return run.treasure && !run.treasure.opened ? { type: 'open' } : { type: 'leave' };
     case 'event': {

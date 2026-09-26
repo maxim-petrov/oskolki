@@ -207,6 +207,14 @@ export const TARGETS: Target[] = [
     why: 'редкая фишка должна быть не хуже стартовой',
   },
   {
+    id: 'focus.gain',
+    title: 'Колода одного семейства: прибавка к победам',
+    metric: 'focus.gain',
+    max: 0.15,
+    pct: true,
+    why: 'фокус на семействе — законный план, но не автопобеда',
+  },
+  {
     id: 'eraser.gain',
     title: 'Ластик на совпадения: прибавка к победам',
     metric: 'eraser.gain',

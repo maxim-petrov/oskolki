@@ -192,6 +192,11 @@ const RUN_CONFIGS = {
     spec: { policy: 'greedy', erase: 'match' },
     n: N.others,
   },
+  focus: {
+    title: 'Фокус на красных (берёт только красные, остальные утилизирует)',
+    spec: { policy: 'focus' },
+    n: N.others,
+  },
   accountant: {
     title: 'Бухгалтер (без открытий)',
     spec: { policy: 'greedy', char: 'accountant' },
@@ -681,6 +686,69 @@ const dpsOf = (key) => {
   return all.length ? geo(all) : NaN;
 };
 
+// ── F0. Build archetypes of GDD §6 on the budget of real builds ─────
+
+/**
+ * Each archetype replaces the cards a real build added to its starter deck with as many cards of
+ * the archetype (in this order, round and round) and adds its key items. Same budget, other plan.
+ */
+const ARCHETYPES = [
+  { id: 'paper', title: '«Бумажный резак» (красные против бумаги)', cards: ['cutter', 'sharpener', 'punch', 'cutter', 'scissors', 'awl', 'ruler', 'alarm'], relics: ['coffee'] },
+  { id: 'accountant', title: '«Бухгалтер» (золото ради множителя)', cards: ['bonus', 'goldclip', 'report', 'card', 'bonus', 'receipt', 'goldclip', 'coin'], relics: ['calculator', 'wallet'] },
+  { id: 'fortress', title: '«Крепость» (синие с отражением)', cards: ['vest', 'clipboard', 'laminator', 'archivebox', 'binder', 'clipboard', 'umbrella', 'drawer'], relics: ['tape', 'binderclip'] },
+  { id: 'ink', title: '«Чернильная магия» (фиолетовые)', cards: ['copystamp', 'blotcurse', 'carbon', 'quill', 'blotcurse', 'weight', 'copystamp', 'urgent'], relics: ['inkwell', 'lamp'], active: 'giftbox' },
+  { id: 'mono', title: '«Моно-масть» (только красные)', cards: ['scissors', 'ruler', 'stapler', 'sharpener', 'punch', 'alarm', 'redpen', 'pins'], relics: [], mono: 'blade' },
+];
+const STARTERS = new Set(['fist', 'folder', 'ink', 'clip']);
+
+function archetypeBuild(b, arch) {
+  const starters = b.deck.filter((c) => STARTERS.has(c.id));
+  const added = b.deck.length - starters.length;
+  const base = arch.mono ? starters.filter((c) => CARDS[c.id].fam === arch.mono) : starters;
+  // A one-family deck keeps its size: the other starters are swapped for the family's cards too.
+  const n = arch.mono ? b.deck.length - base.length : added;
+  const cards = Array.from({ length: n }, (_, k) => ({ id: arch.cards[k % arch.cards.length] }));
+  return { ...b, deck: [...base, ...cards], relics: [...new Set([...b.relics, ...arch.relics])], ...(arch.active ? { active: arch.active } : {}) };
+}
+
+const archetypes = [];
+await stage('архетипы сборок (GDD §6)', async () => {
+  const specs = [];
+  const meta = [];
+  for (const a of LAB_ACTS)
+    mixed(a, N.snaps, 'arch').forEach((s, j) => {
+      const fight = { act: s.act, kind: s.kind, enemies: s.enemies, seed: 60000 + j };
+      meta.push({ a, arch: null, s });
+      specs.push({ ...fight, build: s.build });
+      for (const arch of ARCHETYPES) {
+        meta.push({ a, arch: arch.id, s });
+        specs.push({ ...fight, build: archetypeBuild(s.build, arch) });
+      }
+    });
+  const out = await pool.map('fight', specs, 12);
+  const base = new Map();
+  meta.forEach((m, k) => {
+    if (!m.arch) base.set(m.s, out[k]);
+  });
+  for (const arch of ARCHETYPES) {
+    const row = { ...arch, per: {} };
+    for (const a of LAB_ACTS) {
+      const hp = [];
+      const dead = [];
+      const moves = [];
+      meta.forEach((m, k) => {
+        if (m.arch !== arch.id || m.a !== a) return;
+        const b0 = base.get(m.s);
+        hp.push((b0.hpLost - out[k].hpLost) / m.s.build.maxHp);
+        dead.push((b0.dead ? 1 : 0) - (out[k].dead ? 1 : 0));
+        moves.push(b0.moves - out[k].moves);
+      });
+      row.per[a] = { hp: mean(hp), hpSe: stderr(hp), dead: mean(dead), moves: mean(moves) };
+    }
+    archetypes.push(row);
+  }
+});
+
 // ── F. Events: every option for heroes of acts 1–3 ──────────────────
 
 const eventStats = [];
@@ -849,6 +917,7 @@ metrics['cards.worse'] = cardRows.filter((r) => r.verdict === 'worse').length;
 const heroWins = ['vetIntern', 'vetAccountant', 'vetJanitor'].map((k) => runSummary[k].win);
 metrics['heroes.spread'] = Math.max(...heroWins) - Math.min(...heroWins);
 metrics['eraser.gain'] = runSummary.eraserMatch.win - G.win;
+metrics['focus.gain'] = runSummary.focus.win - G.win;
 metrics['eraser.freeShare'] = runSummary.eraserMatch.freeShare;
 metrics['greedy.shops.buy'] = G.shopBuy;
 metrics['full4.deathRate.3'] = runSummary.full4.deathRate[3];
@@ -904,6 +973,11 @@ const confRows = Object.entries(RUN_CONFIGS).map(([k, c]) => {
 });
 L.push(
   table(['Конфигурация', 'Забегов', 'Победы', 'Прошли отделы', 'Этажей', 'Колода', 'Предметов', 'Макс. множ (медиана)', 'Макс. удар (медиана)'], confRows),
+);
+L.push('');
+const FO = runSummary.focus;
+L.push(
+  `Одно семейство: каскады растут экспоненциально с долей семейства в колоде. Бот, который берёт только красные фишки и утилизирует остальные, выигрывает ${pctx(FO.win, 1)} против ${pctx(G.win, 1)} (проходит отделы: ${FO.clear.map((x) => pctx(x)).join(' / ')}), медиана максимального удара — ${num(median(FO.maxHit), 0)}.`,
 );
 L.push('');
 const EM = runSummary.eraserMatch;
@@ -1171,6 +1245,18 @@ L.push(
       .sort((a, b) => b.ratio - a.ratio)
       .slice(0, 10)
       .map((p) => [`${itemName(p.A)} + ${itemName(p.B)}`, num(p.ratio, 2)]),
+  ),
+);
+L.push('');
+
+L.push('## Архетипы сборок (GDD §6)');
+L.push('');
+L.push('Реальные сборки бота, в которых добранные фишки заменены фишками архетипа (столько же), плюс его ключевые предметы. Здоровье, сбережённое в бою против той же сборки как есть (плюс — архетип лучше), и изменение поражений.');
+L.push('');
+L.push(
+  table(
+    ['Архетип', ...LAB_ACTS.map((a) => ACTS[a].name)],
+    archetypes.map((r) => [r.title, ...LAB_ACTS.map((a) => (r.per[a] ? `${signed(r.per[a].hp * 100, 1, '%')} ± ${num(r.per[a].hpSe * 100, 1)}${Math.abs(r.per[a].dead) >= 0.02 ? `, поражений ${pp(-r.per[a].dead)}` : ''}` : '—'))]),
   ),
 );
 L.push('');
