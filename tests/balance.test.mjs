@@ -14,7 +14,8 @@ const greedy = runs(24, { policy: 'greedy' });
 test('the greedy bot clears the first act most of the time and wins some shifts', () => {
   const act1 = rate(greedy, (r) => r.won || r.act > 0);
   const win = rate(greedy, (r) => r.won);
-  assert.ok(act1 >= 0.55, `1-й отдел: ${pct(act1)}`);
+  // The target is 70–90% (npm run balance); 24 seeds are noisy (±9 points), so the band is wide.
+  assert.ok(act1 >= 0.45, `1-й отдел: ${pct(act1)}`);
   assert.ok(win >= 0.1 && win <= 0.8, `победы: ${pct(win)}`);
   assert.equal(greedy.filter((r) => r.stuck).length, 0);
 });

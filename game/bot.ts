@@ -4,14 +4,14 @@
  * offers. They never inspect hidden refills or RNG state.
  */
 import { colOf, findGroups, idx, rowOf, validMoves } from './board.ts';
-import { activeCost, alive, currentIntent, intentDamage, moveRules, previewMove } from './combat.ts';
+import { BANK_MAX, activeCost, alive, currentIntent, intentDamage, moveRules, previewMove, type MovePreview } from './combat.ts';
 import { CARDS } from './content/cards.ts';
 import { EVENT_BY_ID } from './content/events.ts';
 import { ITEMS } from './content/items.ts';
 import { reachable } from './actmap.ts';
 import { int, next, type Rng } from './rng.ts';
 import { clone, dispatch, modsOf, pickable, rerollPrice } from './run.ts';
-import type { Action, DeckCard, Move, RunState } from './types.ts';
+import type { Action, DeckCard, RunState } from './types.ts';
 
 /**
  * greedy: best move, best cards; focus: greedy play, but builds one family (red) — takes only red
@@ -86,9 +86,17 @@ function threat(run: RunState): number {
   return t;
 }
 
-function scoreMove(run: RunState, m: Move): number {
-  const mods = modsOf(run);
-  const p = previewMove(run, mods, m);
+/**
+ * What +1 mult put aside by the abacus is worth: most of the base damage of the best attack on the
+ * board now (the next strike will be about as good).
+ */
+function bankWorth(previews: MovePreview[]): number {
+  let best = 0;
+  for (const p of previews) if (p.valid) best = Math.max(best, p.tally.dmg * p.tally.xmult);
+  return best * 0.6;
+}
+
+function scoreMove(run: RunState, p: MovePreview, worth: number): number {
   if (!p.valid) return -1;
   const c = run.combat!;
   // A dived enemy cannot be hit: the strike goes to one above water, or nowhere.
@@ -107,7 +115,8 @@ function scoreMove(run: RunState, m: Move): number {
     const back = Math.max(1, Math.min(Math.round(p.damage * 0.25), Math.round(18 * target.dmgMul)));
     shine = back >= run.hero.hp + run.hero.armor ? 1e6 : back * 1.4 * low;
   }
-  return dmg + kill + armor + charge + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
+  const saved = p.bank ? Math.min(p.bank, Math.max(0, BANK_MAX - (c.bank ?? 0))) * worth : 0;
+  return dmg + kill + armor + charge + saved + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
 }
 
 const FAM_WEIGHT: Record<string, number> = { blade: 2, shield: 1.5, ink: 1, coin: 1 };
@@ -177,15 +186,18 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
   if (id && hero.charge >= activeCost(run)) {
     const cells = c.board.cells;
     const junk = cells.findIndex((x) => x.kind === 'junk' || x.pin);
+    // The hot key pays for every skill used: then the board tools are worth pressing anyway.
+    const eager = mods.skillMult > 0 && !(c.skillMult ?? 0);
     switch (id) {
       case 'eraser': {
-        const t = erase === 'match' ? eraseTarget(run) : null;
+        const t = erase === 'match' || eager ? eraseTarget(run) : null;
         if (t) return { type: 'active', cell: t.cell };
         if (erase === 'junk' && junk >= 0) return { type: 'active', cell: junk };
+        if (eager) return { type: 'active', cell: cells.findIndex((x) => x.kind !== 'junk' && !x.special && x.kind !== 'prism') };
         break;
       }
       case 'corrector':
-        if (cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
+        if (eager || cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
         break;
       case 'stapler': {
         const e = alive(c).sort((a, b) => intentDamage(c, b) / Math.max(1, b.countdown) - intentDamage(c, a) / Math.max(1, a.countdown))[0];
@@ -208,8 +220,11 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
   if (policy === 'greedy' || policy === 'focus' || policy === 'randomCards' || policy === 'noCards') {
     let best = moves[0];
     let bestScore = -Infinity;
-    for (const m of moves) {
-      const s = scoreMove(run, m) + next(r) * 0.01;
+    const previews = moves.map((m) => previewMove(run, mods, m));
+    const worth = mods.goldBank ? bankWorth(previews) : 0;
+    for (let k = 0; k < moves.length; k++) {
+      const m = moves[k];
+      const s = scoreMove(run, previews[k], worth) + next(r) * 0.01;
       if (s > bestScore) {
         bestScore = s;
         best = m;

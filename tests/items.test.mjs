@@ -73,10 +73,12 @@ const ITEM_CHECKS = {
   },
   closet() {
     const b = scene({ relics: ['closet'] }).combat.board;
-    assert.deepEqual([b.w, b.h], [5, 5]);
-    assert.equal(hit({ relics: ['closet'] }).strike.tally.mult, 4, 'каждый удар +3 множ');
+    assert.deepEqual([b.w, b.h], [5, 6]);
+    const s = hit({ relics: ['closet'] }).strike;
+    assert.equal(s.damage, 24, 'каждый удар ×4');
+    assert.ok(s.notes.includes('Тесная каморка ×4'));
     const both = scene({ relics: ['closet', 'extension'] }).combat.board;
-    assert.deepEqual([both.w, both.h], [6, 5], 'размеры складываются');
+    assert.deepEqual([both.w, both.h], [6, 6], 'размеры складываются');
     fightsThrough(['closet']);
   },
   tapemeasure() {
@@ -124,8 +126,17 @@ const ITEM_CHECKS = {
     assert.equal(win(8).maxHp, 60, 'не больше +8 за смену');
   },
   abacus() {
-    assert.equal(hit({ relics: ['abacus'] }, CLIPS).strike.tally.mult, 2);
-    assert.equal(hit({ relics: ['abacus'] }).strike.tally.mult, 1, 'без золота — без бонуса');
+    // Gold groups put mult aside; the next strike that deals damage takes it all.
+    let run = scene({ relics: ['abacus'], enemyHp: 999 });
+    run = play(run, line(run, CLIPS, { row: 2 })).run;
+    assert.equal(run.combat.bank, 3, '+1 за каждую золотую фишку');
+    run = play(run, line(run, CLIPS, { row: 4 })).run;
+    assert.equal(run.combat.bank, 4, 'не больше +4');
+    const res = play(run, line(run, FISTS));
+    assert.equal(res.strike.tally.mult, 5, '1 + 4 отложенных');
+    assert.ok(res.strike.notes.includes('Счёты +4'));
+    assert.equal(res.run.combat.bank, 0);
+    assert.equal(hit({}, CLIPS).run.combat.bank ?? 0, 0, 'без счётов золото ничего не откладывает');
   },
   binding() {
     const five = ['fist', 'fist', 'fist', 'fist', 'fist'];
@@ -370,8 +381,9 @@ const ITEM_CHECKS = {
     assert.equal(hit({ relics: ['vault'], coins: 99 }).strike.tally.mult, 1);
   },
   hotkey() {
-    // A full skill: the ink of the move burns into damage, twice as hard.
-    assert.equal(hit({ active: 'eraser', relics: ['hotkey'], charge: 2, enemies: ['anchor'] }, INKS).strike.damage, 6, '3 лишних деления × 2');
+    // After a skill, the next move strikes with +2 mult.
+    const after = act(scene({ active: 'eraser', relics: ['hotkey'], charge: 2, enemyHp: 999 }), { type: 'active', cell: idx(5, 5) }).run;
+    assert.equal(play(after, line(after, FISTS)).strike.tally.mult, 5);
     assert.equal(activeCost(scene({ active: 'eraser' })), 3);
     assert.equal(activeCost(scene({ active: 'eraser', relics: ['hotkey'] })), 2);
     assert.equal(activeCost(scene({ active: 'stapler', relics: ['hotkey'] })), 4);

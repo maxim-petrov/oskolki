@@ -207,6 +207,10 @@ export interface Combat {
   bonusCoins: number;
   /** The guard's vest has taken this fight's first blow. */
   guarded?: boolean;
+  /** Mult the abacus has put aside for the next strike that deals damage. */
+  bank?: number;
+  /** Mult the hot key gives the move after a skill. */
+  skillMult?: number;
 }
 
 export type NodeKind = 'fight' | 'elite' | 'event' | 'shop' | 'rest' | 'treasure' | 'boss';

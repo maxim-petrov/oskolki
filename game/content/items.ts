@@ -43,8 +43,12 @@ export interface Mods {
   startArmor: number;
   /** The first enemy blow of every fight does not get through. */
   firstBlowGuard: boolean;
-  /** Ink beyond a full skill deals this many times its damage. */
-  overflowX: number;
+  /** The move's strike is multiplied by this (the cramped room). */
+  strikeX: number;
+  /** Mult a gold group puts aside for the next strike that deals damage (the abacus). */
+  goldBank: number;
+  /** Mult the strike of the move after a skill gets (the hot key). */
+  skillMult: number;
   /** The first group of every move scores twice. */
   echo: boolean;
   censorImmune: boolean;
@@ -78,8 +82,6 @@ export interface Mods {
   unpinned: boolean;
   /** Rockets placed on the board when a fight starts. */
   startRockets: number;
-  /** +mult for every gold group of the move. */
-  goldGroupMult: number;
   /** +mult for every group of 5 or more tiles. */
   bigGroupMult: number;
   /** +1 max health after each won fight, up to this much in a run. */
@@ -119,7 +121,9 @@ export function baseMods(): Mods {
     battery: 0,
     startArmor: 0,
     firstBlowGuard: false,
-    overflowX: 1,
+    strikeX: 1,
+    goldBank: 0,
+    skillMult: 0,
     echo: false,
     censorImmune: false,
     emberImmune: false,
@@ -141,7 +145,6 @@ export function baseMods(): Mods {
     diagonal: false,
     unpinned: false,
     startRockets: 0,
-    goldGroupMult: 0,
     bigGroupMult: 0,
     growHp: 0,
   };
@@ -208,9 +211,9 @@ export const ITEMS: Record<string, ItemDef> = {
   dynamite: i({ id: 'dynamite', name: 'Праздничный динамит', desc: 'Бомбы взрывают квадрат 5×5.', kind: 'passive', icon: 'item_dynamite', pool: 'uncommon', apply: (m) => (m.bombRadius = 2) }),
   garland: i({ id: 'garland', name: 'Гирлянда', desc: 'Каждый 5-й ход случайная фишка становится бомбой.', kind: 'passive', icon: 'item_garland', pool: 'uncommon', apply: (m) => (m.garlandEvery = 5) }),
   timesheet: i({ id: 'timesheet', name: 'Табель', desc: 'Первый удар по каждому врагу ×2.', kind: 'passive', icon: 'item_timesheet', pool: 'uncommon', apply: (m) => (m.firstHitDouble = true) }),
-  tapemeasure: i({ id: 'tapemeasure', name: 'Рулетка', desc: 'Фишку можно протащить по строке или столбцу на любое расстояние: фишки между сдвигаются на клетку.', kind: 'passive', icon: 'item_tapemeasure', pool: 'uncommon', apply: (m) => (m.slide = true) }),
+  tapemeasure: i({ id: 'tapemeasure', name: 'Рулетка', desc: 'Фишку можно протащить по строке или столбцу на любое расстояние: фишки между сдвигаются на клетку.', kind: 'passive', icon: 'item_tapemeasure', pool: 'rare', apply: (m) => (m.slide = true) }),
   setsquare: i({ id: 'setsquare', name: 'Угольник', desc: 'Фишки меняются местами и по диагонали.', kind: 'passive', icon: 'item_setsquare', pool: 'uncommon', apply: (m) => (m.diagonal = true) }),
-  abacus: i({ id: 'abacus', name: 'Счёты', desc: 'Каждая золотая группа хода: +1 множ.', kind: 'passive', icon: 'item_abacus', pool: 'uncommon', apply: (m) => (m.goldGroupMult += 1) }),
+  abacus: i({ id: 'abacus', name: 'Счёты', desc: 'Каждая собранная золотая фишка откладывает +1 множ к следующему удару с уроном (до +4).', kind: 'passive', icon: 'item_abacus', pool: 'uncommon', apply: (m) => (m.goldBank += 1) }),
   binding: i({ id: 'binding', name: 'Брошюровщик', desc: 'Группа из 5 и больше фишек: +2 множ.', kind: 'passive', icon: 'item_binding', pool: 'uncommon', apply: (m) => (m.bigGroupMult += 2) }),
   calc2: i({ id: 'calc2', name: 'Кривой калькулятор', desc: 'Множ хода умножается на случайное число от 0,5 до 2,5.', kind: 'passive', icon: 'item_calculator', pool: 'uncommon', apply: (m) => (m.chaos = true) }),
   lamp: i({
@@ -244,12 +247,12 @@ export const ITEMS: Record<string, ItemDef> = {
   pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +15 к максимуму здоровья (и к потолку брони).', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 15, heal: 15, apply: (m) => (m.pockets += 2) }),
   stamprelic: i({ id: 'stamprelic', name: 'Печать отдела', desc: 'В начале боя 3 фишки поля получают печать: +1 множ при сборе.', kind: 'passive', icon: 'item_stamprelic', pool: 'boss', apply: (m) => (m.sealStart += 3) }),
   vault: i({ id: 'vault', name: 'Сейф директора', desc: '+1 множ за каждые 100 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinMultPer = 100) }),
-  hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда, а заряд сверх навыка бьёт вдвое.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3, apply: (m) => (m.overflowX = 2) }),
+  hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда; после навыка удар следующего хода +4 множ.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3, apply: (m) => (m.skillMult = 4) }),
   steeldoor: i({ id: 'steeldoor', name: 'Бронедверь', desc: 'После действия врагов половина брони остаётся.', kind: 'passive', icon: 'item_steeldoor', pool: 'boss', apply: (m) => (m.armorKeep = 0.5) }),
   // The ring gives every row a second chance at the edge: too strong for a rare (+36 points to wins).
   ring: i({ id: 'ring', unlock: 'bundle_relics', name: 'Кольцевая скоба', desc: 'Левый и правый края поля соединены: строки и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'boss', apply: (m) => (m.wrap = true) }),
   foldtable: i({ id: 'foldtable', name: 'Раскладной стол', desc: 'Поле больше на строку и столбец.', kind: 'passive', icon: 'item_foldtable', pool: 'boss', apply: (m) => ((m.boardW += 1), (m.boardH += 1)) }),
-  closet: i({ id: 'closet', name: 'Тесная каморка', desc: 'Поле меньше на строку и столбец, зато каждый удар +3 множ.', kind: 'passive', icon: 'item_closet', pool: 'boss', apply: (m) => ((m.boardW -= 1), (m.boardH -= 1), (m.multFlat += 3)) }),
+  closet: i({ id: 'closet', name: 'Тесная каморка', desc: 'Поле уже на столбец, зато каждый удар ×4.', kind: 'passive', icon: 'item_closet', pool: 'boss', apply: (m) => ((m.boardW -= 1), (m.strikeX *= 4)) }),
   prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Первая группа из 4 за ход создаёт призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
 
   // ── Active skills (charged by ink) ────────────────────────────────

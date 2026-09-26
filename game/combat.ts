@@ -67,6 +67,8 @@ const isDead = (run: RunState) => run.phase === 'dead';
 /** Everything a move accumulates before the final strike. */
 export interface MoveState {
   tally: Tally;
+  /** Mult the move's gold groups put aside for the next strike (the abacus). */
+  bank: number;
   redGroups: number;
   redTiles: number;
   fams: Set<Fam>;
@@ -104,6 +106,7 @@ export function newTally(): Tally {
 function newMoveState(): MoveState {
   return {
     tally: newTally(),
+    bank: 0,
     redGroups: 0,
     redTiles: 0,
     fams: new Set(),
@@ -460,6 +463,9 @@ export function hitEnemy(ctx: Ctx, uid: number, raw: number, opts: { source: str
 /** Cascade waves that score: later waves still clear the board, but for nothing (endless chains ran away). */
 export const SCORED_WAVES = 6;
 
+/** The abacus holds at most this much mult. */
+export const BANK_MAX = 4;
+
 /** Most multiplier blasts can add in one move. */
 export const BLAST_MULT_CAP = 6;
 const WAVE_MULT: Partial<Record<Blast['kind'], number>> = { rocketH: 1, rocketV: 1, bomb: 1, prism: 2, cross: 2, bigCross: 2, bigBomb: 2, nova: 3 };
@@ -505,6 +511,7 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
     scores.push(s);
     return;
   }
+  if (fam === 'coin' && mods.goldBank) ms.bank += mods.goldBank;
   switch (card) {
     case 'punch':
       add('dmg', v);
@@ -664,7 +671,6 @@ function scoreGroup(ctx: Ctx, g: Group, cells: Tile[], wave: number, scores: Til
     ms.tally.mult += n;
     scores.push({ i: g.cells[0], id: -1, fam: g.fam, mult: n, note });
   };
-  if (g.fam === 'coin' && mods.goldGroupMult) bonus(mods.goldGroupMult, 'Счёты');
   if (g.size >= 5 && mods.bigGroupMult) bonus(mods.bigGroupMult, 'Брошюровщик');
   if (g.size >= 4) {
     if (mods.igniteOn4) ms.burn = true;
@@ -975,12 +981,35 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     c.nextMult = 0;
   }
   // Ink beyond a full skill burns: it deals damage (without a skill, all of it does).
-  const spare = inkOverflow(run, t.charge) * mods.overflowX;
+  const spare = inkOverflow(run, t.charge);
   if (spare > 0) {
     t.dmg += spare;
     notes.push(`Лишний заряд +${spare} урона`);
   }
+  if (fromMove) {
+    // The abacus: gold groups put mult aside; the next strike that deals damage takes it.
+    const saved = c.bank ?? 0;
+    if (saved && t.dmg > 0) {
+      t.mult += saved;
+      notes.push(`Счёты +${saved}`);
+      c.bank = 0;
+    }
+    if (ms.bank) {
+      c.bank = Math.min(BANK_MAX, (c.bank ?? 0) + ms.bank);
+      notes.push(`Счёты: отложено +${c.bank}`);
+    }
+    // The hot key: the move after a skill strikes harder.
+    if (c.skillMult) {
+      t.mult += c.skillMult;
+      notes.push(`Горячая клавиша +${c.skillMult}`);
+      c.skillMult = 0;
+    }
+  }
   let mult = t.mult * t.xmult;
+  if (mods.strikeX !== 1 && fromMove) {
+    mult *= mods.strikeX;
+    notes.push(`Тесная каморка ×${mods.strikeX}`);
+  }
   if (mods.firstMoveX && fromMove && c.moves === 1) {
     mult *= 2;
     notes.push('Кофемашина ×2');
@@ -1622,6 +1651,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     return false;
   }
   hero.charge = run.dev?.ink ? hero.charge : hero.charge - cost;
+  if (mods.skillMult) c.skillMult = mods.skillMult;
   ev.push({ t: 'activeUsed', item: def.id });
   switch (def.id) {
     case 'eraser':
@@ -1710,11 +1740,13 @@ export interface MovePreview {
   charge: number;
   coins: number;
   specials: number;
+  /** Mult the move's gold groups put aside (the abacus). */
+  bank: number;
 }
 
 export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview {
   const c = run.combat;
-  const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0 };
+  const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0, bank: 0 };
   const rules = c ? moveRules(run, mods) : null;
   if (!c || !rules || !isValidMove(c.board, move, rules)) return empty;
   const kind = moveKind(c.board, move, rules)!;
@@ -1728,8 +1760,10 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
   for (const g of scoringOrder(groups, cells)) scoreGroup(ctx, g, cells, 1, scores);
   if (set) for (const i of set.blast.cells) if (!matched.has(i)) scoreTile(ctx, cells[i], i, null, 1, scores);
   const t = ctx.ms.tally;
-  const mult = t.mult * t.xmult;
-  let damage = Math.round((t.dmg + inkOverflow(run, t.charge) * mods.overflowX) * mult);
+  const base = t.dmg + inkOverflow(run, t.charge);
+  // What the strike adds on top: the abacus's savings (on a hit), the hot key, the cramped room.
+  const mult = (t.mult + (base > 0 ? (c.bank ?? 0) : 0) + (c.skillMult ?? 0)) * t.xmult * mods.strikeX;
+  let damage = Math.round(base * mult);
   const target = targetEnemy(c);
   if (target && ENEMIES[target.def].material === 'paper') damage *= mods.paperX;
   return {
@@ -1742,6 +1776,7 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
     charge: Math.round(t.charge),
     coins: Math.round(t.coins),
     specials: groups.filter((g) => g.make).length,
+    bank: ctx.ms.bank,
   };
 }
 
