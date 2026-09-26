@@ -80,10 +80,12 @@ function scoreMove(run: RunState, m: Move): number {
   const p = previewMove(run, mods, m);
   if (!p.valid) return -1;
   const c = run.combat!;
-  const target = alive(c).find((e) => e.uid === c.target) ?? alive(c)[0];
+  // A dived enemy cannot be hit: the strike goes to one above water, or nowhere.
+  const aimed = alive(c).find((e) => e.uid === c.target) ?? alive(c)[0];
+  const target = aimed?.submerged ? alive(c).find((e) => !e.submerged) : aimed;
   const need = Math.max(0, threat(run) - run.hero.armor);
   const low = run.hero.hp < run.hero.maxHp * 0.35 ? 1.5 : 1;
-  const dmg = target ? Math.min(p.damage, target.hp + target.block + 4) : p.damage;
+  const dmg = target ? Math.min(p.damage, target.hp + target.block + 4) : 0;
   const kill = target && p.damage >= target.hp + target.block ? 8 : 0;
   const armor = Math.min(p.armor, need) * 1.4 * low + Math.max(0, p.armor - need) * 0.1;
   const cost = run.hero.active ? activeCost(run) : 0;

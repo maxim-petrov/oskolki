@@ -2,7 +2,7 @@
 
 Browser pixel-art roguelike deckbuilder (Russian UI) in a bleak office: the deck is the tiles of a 6×6 swap match-3 board, a move's tiles add up to damage × mult (Balatro-like), acts are Slay-the-Spire-like maps, death wakes the intern at his desk in the office hub.
 
-- Start: `npm run dev` (port 4531). Build: `npm run build`. Tests: `npm test`. Balance: `npm run sim [runs] [policy]`.
+- Start: `npm run dev` (port 4531). Build: `npm run build`. Tests: `npm test`. Balance: `npm run balance` (report `docs/balance/REPORT.md`, how-to `docs/balance/README.md`), quick check `npm run sim [runs] [policy]`.
 - Keep `.openai/hosting.json` project_id unchanged; never store credentials.
 - Do not import proprietary assets or decompiled code from reference games (Isaac, 10,000,000, Mirror, Puzzle Quest). Mechanics may be inspired, content must be original.
 
@@ -18,7 +18,8 @@ Browser pixel-art roguelike deckbuilder (Russian UI) in a bleak office: the deck
 ## Rules of the prototype stage
 
 - One active engine, no frozen legacy copies. When the save format or rules change incompatibly, bump `RULES` in `game/run.ts`; old saves are simply discarded.
-- Numbers are tuned with `npm run sim`, then with people. A bot win rate is a diagnostic, not proof of fun. Targets live in GDD §13.
+- Numbers are tuned with `npm run balance` (try a tuning first with `--patch`), then with people. A bot win rate is a diagnostic, not proof of fun. Targets live in GDD §13 and `game/balance/targets.ts`.
+- Every item, skill, pocket, finish, card and enemy action has a check in `tests/` (items, cards, enemies): a new one fails the registry test until its check is written; new cards also need a bot score (`CARD_SCORE`).
 - QA in a browser: `window.__osk` (`newRun(seed)`, `hub()`, `intro()`, `auto(true)`, `state()`, `act(a)`, `warp(act)`, `layout()`, `errors`, `perf()`).
 - Dev mode (`?dev`, or the backquote / Ё key; F9 repeats the last test): the panel «Отдел тестов» `components/dev-panel.tsx` (drawn in the game's look; previews from `components/dev-previews.tsx` use the game's own sprites, card badges and rooms rendered by the stage renderer) over `render/dev.ts` (`__osk.dev`) starts test runs with any hero, build (deck, relics, skill, pockets), act, place (fight/elite/boss with chosen enemies, event, shop, rest, treasure, boss reward, map), room and cheats; edits the live run; the office and the profile; presets and links (`?dev#test=…`). In the engine it is the `dev` action (`DevOp` in `game/types.ts`, `applyDev` in `game/run.ts`) with `run.dev` cheats/knobs (god, ink, freeze, enemy hp/damage and hero damage multipliers, room override, travel anywhere) — custom runs only, never counted. Check wide and tall layouts (e.g. 1920×1080, iPad 1024×768 and 768×1024 @2, iPhone 390×844 @3).
 - Pixel crispness: integer positions, no rotation or fractional scaling of sprites, palette colours only, text via `render/font.ts` (Tiny5 on the 8 px grid).

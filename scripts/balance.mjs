@@ -4,9 +4,13 @@
 //   npm run balance                 full report (several minutes on all cores)
 //   npm run balance -- --quick      smaller samples (about a minute), same sections
 //   npm run balance -- --no-write   print the verdict only
+//   npm run balance -- --patch=docs/balance/patches/example.mjs --out=/tmp/whatif
+//                                   try a tuning before changing the game: the patch module
+//                                   edits the content (acts, items, cards…) in every worker
 //
 // Everything new in the content (items, cards, enemies, events) is picked up automatically.
 import { Worker } from 'node:worker_threads';
+import { pathToFileURL } from 'node:url';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,6 +22,7 @@ import { EVENTS } from '../game/content/events.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import { REQUESTS } from '../render/profile.ts';
 import { TARGETS } from '../game/balance/targets.ts';
+import { CARD_SCORE } from '../game/bot.ts';
 import { mean, median, paired, quantile, stderr } from '../game/balance/lab.ts';
 import { rng, shuffle, int, derive } from '../game/rng.ts';
 
@@ -26,6 +31,9 @@ const argv = process.argv.slice(2);
 const QUICK = argv.includes('--quick');
 const WRITE = !argv.includes('--no-write');
 const OUT = argv.find((a) => a.startsWith('--out='))?.slice(6);
+const PATCH = argv.find((a) => a.startsWith('--patch='))?.slice(8);
+const PATCH_URL = PATCH ? pathToFileURL(path.resolve(PATCH)).href : null;
+if (PATCH_URL) await import(PATCH_URL);
 const N = QUICK
   ? {
       runs: 160,
@@ -77,7 +85,7 @@ class Pool {
     this.pending = new Map();
     this.seq = 0;
     this.workers = Array.from({ length: size }, () => {
-      const w = new Worker(new URL('./balance-worker.mjs', import.meta.url));
+      const w = new Worker(new URL('./balance-worker.mjs', import.meta.url), { workerData: { patch: PATCH_URL } });
       w.on('message', (m) => this.done(w, m));
       w.on('error', (err) => {
         console.error('worker failed:', err);
@@ -866,6 +874,7 @@ L.push(
 );
 L.push('');
 L.push('Сгенерировано `npm run balance`; цели — `game/balance/targets.ts` (по GDD §13), методика — в конце отчёта.');
+if (PATCH) L.push('', `**Пробный прогон с правкой \`${PATCH}\`** — цифры игры изменены только на время прогона.`);
 L.push('');
 L.push('## Итог');
 L.push('');
@@ -1107,7 +1116,7 @@ L.push(
 L.push('');
 L.push(
   table(
-    ['Фишка', 'Семейство', 'Редкость', 'Правило', 'Взять', 'Повышение', 'Забег', 'Урон ×', ''],
+    ['Фишка', 'Семейство', 'Редкость', 'Правило', 'Взять', 'Повышение', 'Забег', 'Урон ×', 'Бот ценит', ''],
     [...cardRows]
       .sort((x, y) => y.rule.hp - x.rule.hp)
       .map((r) => [
@@ -1119,6 +1128,7 @@ L.push(
         signed(r.up.hp * 100, 1, '%'),
         r.run ? `${pp(r.run.win)} ± ${num(r.run.winSe * 100, 1)}` : '—',
         num(r.dps, 2),
+        num(CARD_SCORE[r.id] ?? 3, 1),
         r.verdict === 'op' ? '🔥 имба' : r.verdict === 'worse' ? '⬇️ хуже простой' : '',
       ]),
   ),
@@ -1276,8 +1286,10 @@ const baseline = {
   cards: Object.fromEntries(cardRows.map((r) => [r.id, { rule: r.rule.hp, take: r.take.hp, win: r.run?.win ?? null, dps: r.dps }])),
   encounters: Object.fromEntries(encounters.map((e) => [`${e.act}:${e.enemies.join('+')}`, { loss: e.loss, hurt: e.hurt, moves: e.moves }])),
 };
-const outDir = OUT ? path.resolve(OUT) : path.join(ROOT, 'docs', 'balance');
-const prevPath = path.join(outDir, 'baseline.json');
+// A what-if run writes next to the main report and compares itself with the main baseline.
+const mainDir = path.join(ROOT, 'docs', 'balance');
+const outDir = OUT ? path.resolve(OUT) : PATCH ? path.join(mainDir, 'whatif', path.basename(PATCH).replace(/\.[mc]?[jt]s$/, '')) : mainDir;
+const prevPath = path.join(PATCH ? mainDir : outDir, 'baseline.json');
 let prev = null;
 try {
   prev = JSON.parse(fs.readFileSync(prevPath, 'utf8'));
@@ -1306,7 +1318,7 @@ if (prev) {
   L.splice(
     L.indexOf('## Забеги'),
     0,
-    `## Изменения с прошлого прогона (${prev.date}${prev.quick ? ', быстрый' : ''})`,
+    PATCH ? `## Изменения относительно основного прогона (${prev.date})` : `## Изменения с прошлого прогона (${prev.date}${prev.quick ? ', быстрый' : ''})`,
     '',
     ...(changes.length ? changes : ['Заметных изменений нет.']),
     '',
@@ -1316,7 +1328,7 @@ if (prev) {
 if (WRITE) {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'REPORT.md'), L.join('\n'));
-  fs.writeFileSync(prevPath, `${JSON.stringify(baseline, null, 1)}\n`);
+  fs.writeFileSync(path.join(outDir, 'baseline.json'), `${JSON.stringify(baseline, null, 1)}\n`);
 }
 
 console.log('');
