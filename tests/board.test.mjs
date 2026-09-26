@@ -201,3 +201,25 @@ test('boards of other sizes: dealt match-free and playable, lines, gravity and t
     assert.deepEqual(B.neighbors(b, B.idx(b, 0, last)).sort((x, y) => x - y), [B.idx(b, 0, last - 1), B.idx(b, 1, last)].sort((x, y) => x - y));
   }
 });
+
+test('move rules: swaps, slides along a line, diagonals, up-and-down only, staples in the way', () => {
+  const slide = { wrap: false, slide: true };
+  assert.equal(B.moveKind(D6, { from: idx(2, 0), to: idx(2, 1) }, { wrap: false }), 'swap');
+  assert.equal(B.moveKind(D6, { from: idx(2, 0), to: idx(2, 3) }, { wrap: false }), null, 'без рулетки — только соседи');
+  assert.equal(B.moveKind(D6, { from: idx(2, 0), to: idx(2, 3) }, slide), 'slide');
+  assert.equal(B.moveKind(D6, { from: idx(2, 0), to: idx(4, 2) }, slide), null, 'протаскивают только по строке или столбцу');
+  assert.equal(B.moveKind(D6, { from: idx(2, 2), to: idx(3, 3) }, { wrap: false, diagonal: true }), 'swap');
+  assert.equal(B.moveKind(D6, { from: idx(2, 2), to: idx(2, 3) }, { wrap: false, vertical: true }), null, 'турникет: вбок нельзя');
+  assert.equal(B.moveKind(D6, { from: idx(2, 2), to: idx(3, 2) }, { wrap: false, vertical: true }), 'swap');
+  // A slide carries the tile to the end; the tiles between step back by one.
+  const row = cells(['bsicbs', ...filler.slice(1)]);
+  const out = B.applyMove(D6, row, { from: idx(0, 0), to: idx(0, 3) }, 'slide');
+  assert.deepEqual(out.slice(0, 6).map((t) => t.kind), ['shield', 'ink', 'coin', 'blade', 'blade', 'shield']);
+  const back = B.applyMove(D6, row, { from: idx(0, 3), to: idx(0, 0) }, 'slide');
+  assert.deepEqual(back.slice(0, 6).map((t) => t.kind), ['coin', 'blade', 'shield', 'ink', 'blade', 'shield']);
+  // A staple anywhere along the slide holds it; the staple remover lets it through.
+  const b = { ...createBoard(rng(3), STARTER_BAG), cells: cells(['bsicbs', ...filler.slice(1)]) };
+  b.cells[idx(0, 2)].pin = true;
+  assert.equal(B.moveBlock(b, { from: idx(0, 0), to: idx(0, 3) }, slide), 'Фишка прибита скобой');
+  assert.equal(B.moveBlock(b, { from: idx(0, 0), to: idx(0, 3) }, { ...slide, unpinned: true }), null);
+});
