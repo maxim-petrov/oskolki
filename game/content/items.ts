@@ -59,6 +59,10 @@ export interface Mods {
   pockets: number;
   /** Seal finish on N random tiles at the start of a fight. */
   sealStart: number;
+  /** +1 mult for every this many coins in the wallet (0 = off). */
+  coinMultPer: number;
+  /** Share of the armour that survives the enemies' action. */
+  armorKeep: number;
 }
 
 export function baseMods(): Mods {
@@ -106,6 +110,8 @@ export function baseMods(): Mods {
     timerBonus: 0,
     pockets: 3,
     sealStart: 0,
+    coinMultPer: 0,
+    armorKeep: 0,
   };
 }
 
@@ -126,6 +132,8 @@ export interface ItemDef {
   maxHp?: number;
   heal?: number;
   coins?: number;
+  /** The skill costs this share of its charge (items multiply). */
+  skillCost?: number;
   apply?: (m: Mods) => void;
 }
 
@@ -180,7 +188,7 @@ export const ITEMS: Record<string, ItemDef> = {
   }),
 
   // ── Rare ──────────────────────────────────────────────────────────
-  ring: i({ id: 'ring', unlock: 'bundle_relics', name: 'Кольцевая скоба', desc: 'Края поля соединены: линии и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'rare', apply: (m) => (m.wrap = true) }),
+  ring: i({ id: 'ring', unlock: 'bundle_relics', name: 'Кольцевая скоба', desc: 'Левый и правый края поля соединены: строки и обмены идут через край.', kind: 'passive', icon: 'item_ring', pool: 'rare', apply: (m) => (m.wrap = true) }),
   pen: i({ id: 'pen', unlock: 'bundle_relics', name: 'Бесконечная ручка', desc: 'Ракеты очищают строку и столбец сразу.', kind: 'passive', icon: 'item_pen', pool: 'rare', apply: (m) => (m.crossRockets = true) }),
   clock: i({ id: 'clock', name: 'Сломанные часы', desc: 'Каждый 4-й ход не тратит время: враги не тикают.', kind: 'passive', icon: 'item_clock', pool: 'rare', apply: (m) => (m.clockEvery = 4) }),
   puncher: i({ id: 'puncher', name: 'Пробойник', desc: 'Итоговый удар пробивает броню и щит врагов.', kind: 'passive', icon: 'item_punch', pool: 'rare', apply: (m) => (m.pierce = true) }),
@@ -195,7 +203,10 @@ export const ITEMS: Record<string, ItemDef> = {
   espresso: i({ id: 'espresso', name: 'Двойной эспрессо', desc: 'Красные фишки +2 к урону.', kind: 'passive', icon: 'item_espresso', pool: 'boss', apply: (m) => (m.redPlus += 2) }),
   pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +15 к максимуму здоровья.', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 15, heal: 15, apply: (m) => (m.pockets += 2) }),
   stamprelic: i({ id: 'stamprelic', name: 'Печать отдела', desc: 'В начале боя 3 фишки поля получают печать: +1 множ при сборе.', kind: 'passive', icon: 'item_stamprelic', pool: 'boss', apply: (m) => (m.sealStart += 3) }),
-  prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Группы из 4 создают призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
+  vault: i({ id: 'vault', name: 'Сейф директора', desc: '+1 множ за каждые 100 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinMultPer = 100) }),
+  hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3 }),
+  steeldoor: i({ id: 'steeldoor', name: 'Бронедверь', desc: 'После действия врагов половина брони остаётся.', kind: 'passive', icon: 'item_steeldoor', pool: 'boss', apply: (m) => (m.armorKeep = 0.5) }),
+  prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Первая группа из 4 за ход создаёт призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
 
   // ── Active skills (charged by ink) ────────────────────────────────
   eraser: i({ id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку, сверху падает новая. Время не тратит; сложившиеся ряды сгорают впустую.', kind: 'active', icon: 'item_eraser', pool: 'shop', charge: 3, aim: 'cell' }),

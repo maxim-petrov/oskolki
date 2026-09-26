@@ -239,7 +239,7 @@ export function gainRelic(run: RunState, id: string, source: string, ev: GameEve
   const hero = run.hero;
   if (def.kind === 'active') {
     hero.active = id;
-    hero.charge = Math.min(hero.charge, def.charge ?? 0);
+    hero.charge = Math.min(hero.charge, activeCost(run));
   } else {
     hero.relics.push(id);
     if (def.maxHp) {
@@ -250,6 +250,8 @@ export function gainRelic(run: RunState, id: string, source: string, ev: GameEve
     if (def.coins) hero.coins = Math.min(999, hero.coins + def.coins);
     const slots = modsOf(run).pockets;
     while (hero.pockets.length < slots) hero.pockets.push(null);
+    // A cheaper skill: the charge never exceeds its new cost.
+    hero.charge = Math.min(hero.charge, activeCost(run));
   }
   run.relicPool = run.relicPool.filter((x) => x !== id);
   run.stats.relicsTaken++;

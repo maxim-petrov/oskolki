@@ -78,16 +78,17 @@ test('an L shape becomes one group that makes a bomb', () => {
   assert.equal(groups[0].at, idx(2, 0));
 });
 
-test('prisms are wild and wrap mode joins opposite edges', () => {
+test('prisms are wild and the ring joins the left and right edges only', () => {
   const wild = cells(['bpbics', ...filler.slice(1)]);
   assert.equal(findGroups(wild, false)[0].fam, 'blade');
   const wrap = cells(['bsicbb', ...filler.slice(1)]);
   assert.equal(findGroups(wrap, false).length, 0);
   const g = findGroups(wrap, true);
   assert.equal(g.length, 1);
-  // Row 0 wraps (cells 4,5,0) and column 5 wraps (rows 5,0,1): one cross group.
-  assert.deepEqual(g[0].cells, [0, 4, 5, 11, 35]);
-  assert.equal(g[0].make, 'bomb');
+  // Row 0 wraps (cells 4, 5, 0); column 5 (rows 5, 0, 1) does not: the ring joins rows only.
+  assert.deepEqual(g[0].cells, [0, 4, 5]);
+  assert.equal(adjacent(idx(0, 5), idx(0, 0), true), true, 'края строки соседи');
+  assert.equal(adjacent(idx(5, 2), idx(0, 2), true), false, 'верх и низ — нет');
 });
 
 test('gravity drops tiles and refills from the queue head first', () => {

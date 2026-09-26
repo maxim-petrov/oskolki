@@ -38,15 +38,10 @@ test('every hero can clear the first act', () => {
   }
 });
 
-test(
-  'free actions do not carry the fight',
-  {
-    todo: 'ластик на совпадения: бесплатные действия дают основную часть урона (см. docs/balance/REPORT.md)',
-  },
-  () => {
-    const list = runs(6, { policy: 'greedy', erase: 'match' });
-    const free = list.reduce((s, r) => s + r.dmgFree, 0);
-    const all = free + list.reduce((s, r) => s + r.dmgMoves, 0);
-    assert.ok(free / all <= 0.35, `бесплатный урон: ${pct(free / all)}`);
-  },
-);
+test('free actions do not carry the fight: board tools are not moves', () => {
+  // A bot that drops lines into place with the eraser gets nothing for them.
+  const list = runs(6, { policy: 'greedy', erase: 'match' });
+  const free = list.reduce((s, r) => s + r.dmgFree, 0);
+  const all = free + list.reduce((s, r) => s + r.dmgMoves, 0);
+  assert.ok(free / all <= 0.35, `бесплатный урон: ${pct(free / all)}`);
+});

@@ -276,7 +276,10 @@ export function targetEnemy(c: Combat): EnemyState | undefined {
 
 export function activeCost(run: RunState): number {
   const id = run.hero.active;
-  return id ? (ITEMS[id]?.charge ?? 6) : 6;
+  const base = id ? (ITEMS[id]?.charge ?? 6) : 6;
+  let share = 1;
+  for (const r of run.hero.relics) share *= ITEMS[r]?.skillCost ?? 1;
+  return share === 1 ? base : Math.max(1, Math.ceil(base * share - 1e-9));
 }
 
 /** Damage from a move's charge that does not fit the skill: 1 per point (no skill: every point). */
@@ -306,7 +309,8 @@ export function hurtHero(ctx: Ctx, amount: number, source: string, burnsArmor = 
   }
   const armor = Math.min(hero.armor, left);
   hero.armor -= armor;
-  if (burnsArmor) hero.armor = 0;
+  // A blow burns the rest of the armour, unless the steel door keeps it for the end of the tick.
+  if (burnsArmor && !ctx.mods.armorKeep) hero.armor = 0;
   left -= armor;
   const red = Math.min(hero.hp, left);
   hero.hp -= red;
@@ -776,7 +780,11 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     for (const g of groups) {
       let make = g.make;
       if (!make || g.at < 0) continue;
-      if (mods.prismOn4 && (make === 'rocketH' || make === 'rocketV')) make = 'prism';
+      // The rainbow clip turns the first line of four of a move into a prism (chains of prisms ran away).
+      if (mods.prismOn4 && (make === 'rocketH' || make === 'rocketV') && !ms.flags.has('prismpact')) {
+        make = 'prism';
+        ms.flags.add('prismpact');
+      }
       if (created.some((x) => x.at === g.at)) continue;
       // The special keeps the card of the tile it grew from.
       const src = cells[g.at];
@@ -859,6 +867,13 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   }
   if (ms.flags.has('drawer') && ms.fams.has('blade') && ms.fams.has('shield')) t.mult += 1;
   if (mods.multFlat && fromMove) t.mult += mods.multFlat;
+  if (mods.coinMultPer && fromMove) {
+    const k = Math.floor(hero.coins / mods.coinMultPer);
+    if (k > 0) {
+      t.mult += k;
+      notes.push(`Сейф +${k}`);
+    }
+  }
   if (c.nextMult && fromMove) {
     t.mult += c.nextMult;
     notes.push(`Энергетик +${c.nextMult}`);
@@ -1341,10 +1356,11 @@ function advanceTime(ctx: Ctx) {
     flushDeaths(ctx);
     if (isDead(ctx.run)) return;
   }
-  // Armor is for the enemies' next action: whatever they did, it is spent.
+  // Armor is for the enemies' next action: whatever they did, it is spent (the steel door keeps some).
   if (acted && ctx.run.hero.armor > 0) {
-    const lost = ctx.run.hero.armor;
-    ctx.run.hero.armor = 0;
+    const kept = Math.floor(ctx.run.hero.armor * mods.armorKeep);
+    const lost = ctx.run.hero.armor - kept;
+    ctx.run.hero.armor = kept;
     ctx.ev.push({ t: 'effects', effects: [{ kind: 'armor', amount: -lost, source: 'expire' }] });
   }
 }
@@ -1475,7 +1491,8 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     ev.push({ t: 'invalid', reason: 'Сейчас нельзя' });
     return false;
   }
-  if (hero.charge < (def.charge ?? 0)) {
+  const cost = activeCost(run);
+  if (hero.charge < cost) {
     ev.push({ t: 'invalid', reason: 'Мало чернил' });
     return false;
   }
@@ -1488,7 +1505,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     ev.push({ t: 'invalid', reason: 'Выбери цель' });
     return false;
   }
-  hero.charge = run.dev?.ink ? hero.charge : hero.charge - (def.charge ?? 0);
+  hero.charge = run.dev?.ink ? hero.charge : hero.charge - cost;
   ev.push({ t: 'activeUsed', item: def.id });
   switch (def.id) {
     case 'eraser':

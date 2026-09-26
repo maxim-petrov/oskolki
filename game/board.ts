@@ -92,7 +92,10 @@ export function shiftCells(cells: Tile[], m: LineShift): Tile[] {
 /** Rockets, bombs and prisms: swapping one sets it off even without a match. */
 export const isSpecialTile = (t: Tile | undefined) => !!t && (!!t.special || t.kind === 'prism');
 
-/** Orthogonal neighbours; with `wrap` (the ring binder) opposite edges touch too. */
+/**
+ * Orthogonal neighbours; with `wrap` (the ring binder) the left and right edges touch too. The ring
+ * joins rows only: rows and columns both joined made every line endless and every cascade run away.
+ */
 export function adjacent(a: number, b: number, wrap: boolean): boolean {
   if (a === b || a < 0 || b < 0 || a >= CELLS || b >= CELLS) return false;
   const ra = rowOf(a);
@@ -105,7 +108,7 @@ export function adjacent(a: number, b: number, wrap: boolean): boolean {
   }
   if (ca === cb) {
     const d = Math.abs(ra - rb);
-    return d === 1 || (wrap && d === H - 1);
+    return d === 1;
   }
   return false;
 }
@@ -183,7 +186,7 @@ export function findGroups(cells: Tile[], wrap: boolean, prefer: readonly number
     const real = (i: number) => cells[i]?.kind === fam;
     const runs: { cells: number[]; h: boolean }[] = [];
     for (const line of ROWS) for (const cs of runsInLine(line, ok, real, wrap)) runs.push({ cells: cs, h: true });
-    for (const line of COLS) for (const cs of runsInLine(line, ok, real, wrap)) runs.push({ cells: cs, h: false });
+    for (const line of COLS) for (const cs of runsInLine(line, ok, real, false)) runs.push({ cells: cs, h: false });
     if (!runs.length) continue;
     const parent = runs.map((_, k) => k);
     const find = (k: number): number => (parent[k] === k ? k : (parent[k] = find(parent[k])));
@@ -248,11 +251,7 @@ for (let r = 0; r < H; r++)
     if (c + 1 < W) PAIRS.push({ from: idx(r, c), to: idx(r, c + 1) });
     if (r + 1 < H) PAIRS.push({ from: idx(r, c), to: idx(r + 1, c) });
   }
-const WRAP_PAIRS: Move[] = [
-  ...PAIRS,
-  ...Array.from({ length: H }, (_, r) => ({ from: idx(r, W - 1), to: idx(r, 0) })),
-  ...Array.from({ length: W }, (_, c) => ({ from: idx(H - 1, c), to: idx(0, c) })),
-];
+const WRAP_PAIRS: Move[] = [...PAIRS, ...Array.from({ length: H }, (_, r) => ({ from: idx(r, W - 1), to: idx(r, 0) }))];
 
 /** Every neighbouring pair once (from < to, except the wrap pairs). */
 export function allMoves(wrap: boolean): readonly Move[] {
@@ -275,13 +274,13 @@ export const moveCells = (m: Move) => [m.to, m.from];
 
 /**
  * Would `kind` at `i` complete a line of three with the tiles already dealt? Counts both ways along
- * the row and the column; with `wrap` (the ring relic) the lines run on across the edge.
+ * the row and the column; with `wrap` (the ring relic) rows run on across the edge.
  */
 function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind, wrap = false): boolean {
   if (kind === 'junk') return false;
   const r = rowOf(i);
   const c = colOf(i);
-  const run = (len: number, pos: number, get: (k: number) => TileKind | undefined) => {
+  const run = (len: number, pos: number, get: (k: number) => TileKind | undefined, wrap: boolean) => {
     let n = 1;
     for (let d = 1; d < len; d++) {
       let p = pos - d;
@@ -303,7 +302,7 @@ function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind, wr
     }
     return n;
   };
-  return run(W, c, (cc) => cells[idx(r, cc)]?.kind) >= 3 || run(H, r, (rr) => cells[idx(rr, c)]?.kind) >= 3;
+  return run(W, c, (cc) => cells[idx(r, cc)]?.kind, wrap) >= 3 || run(H, r, (rr) => cells[idx(rr, c)]?.kind, false) >= 3;
 }
 
 /**

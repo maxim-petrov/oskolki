@@ -119,11 +119,9 @@ export class BoardView {
   /** Neighbour of cell i one step along (dc, dr), or -1 at an edge (unless the ring joins it). */
   neighbour(i: number, dc: number, dr: number): number {
     let c = (i % W) + dc;
-    let r = Math.floor(i / W) + dr;
-    if (this.wrap) {
-      c = (c + W) % W;
-      r = (r + H) % H;
-    }
+    const r = Math.floor(i / W) + dr;
+    // The ring joins the left and right edges only.
+    if (this.wrap) c = (c + W) % W;
     if (c < 0 || r < 0 || c >= W || r >= H) return -1;
     return r * W + c;
   }

@@ -39,7 +39,7 @@ test('items: names, texts, icons, pools, prices, unlocks', () => {
     if (d.kind === 'active') {
       assert.ok(Number.isInteger(d.charge) && d.charge > 0, `${d.name}: цена заряда`);
       assert.ok(!d.apply, `${d.name}: у навыка нет пассивного эффекта`);
-    } else assert.ok(d.apply || d.maxHp || d.heal || d.coins, `${d.name}: предмет ничего не делает`);
+    } else assert.ok(d.apply || d.maxHp || d.heal || d.coins || d.skillCost, `${d.name}: предмет ничего не делает`);
   }
   for (const [key, p] of Object.entries(POCKETS)) {
     assert.equal(p.id, key);
@@ -65,13 +65,9 @@ const bossItems = relicPool([], []).filter((id) => ITEMS[id].pool === 'boss').le
 test('boss rewards: three items after each of the first two bosses (3-act shift)', () => {
   assert.ok(bossItems >= 3 * 2, `предметов босса ${bossItems}`);
 });
-test(
-  'boss rewards: three items after each of the first three bosses (4-act shift)',
-  {
-    todo: 'предметов босса 6: после Кривого зеркала выбирать не из чего, экран награды пропускается',
-  },
-  () => assert.ok(bossItems >= 3 * 3, `предметов босса ${bossItems}, нужно 9`),
-);
+test('boss rewards: three items after each of the first three bosses (4-act shift)', () => {
+  assert.ok(bossItems >= 3 * 3, `предметов босса ${bossItems}, нужно 9`);
+});
 
 test('cards: families, values, texts, prices, unlocks, art', () => {
   for (const [key, d] of Object.entries(CARDS)) {

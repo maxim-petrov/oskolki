@@ -5,10 +5,11 @@ import assert from 'node:assert/strict';
 import { gainRelic, newRun } from '../game/run.ts';
 import { validMoves } from '../game/board.ts';
 import { ITEMS, POCKETS, computeMods } from '../game/content/items.ts';
+import { activeCost } from '../game/combat.ts';
 import { FINISH_TEXT } from '../game/content/cards.ts';
 import { QUEUE_LEN } from '../game/types.ts';
 import { ACTS } from '../game/content/acts.ts';
-import { CLIPS, FISTS, FOLDERS, INKS, act, cascade, foe, hit, idx, line, moves, play, put, ready, scene, tile } from './scene.mjs';
+import { CLIPS, FISTS, FOLDERS, INKS, act, cascade, foe, hit, idx, line, moves, play, put, queue, ready, scene, tile } from './scene.mjs';
 
 /**
  * Removes the tile under a lifted fist: the fist drops into a ready pair and completes a line.
@@ -261,10 +262,48 @@ const ITEM_CHECKS = {
     const run = scene({ relics: ['stamprelic'], real: true });
     assert.equal(run.combat.board.cells.filter((t) => t.finish === 'seal').length, 3);
   },
+  vault() {
+    assert.equal(hit({ relics: ['vault'], coins: 250 }).strike.tally.mult, 3, '250 монет — +2 множ');
+    assert.equal(hit({ relics: ['vault'], coins: 99 }).strike.tally.mult, 1);
+  },
+  hotkey() {
+    assert.equal(activeCost(scene({ active: 'eraser' })), 3);
+    assert.equal(activeCost(scene({ active: 'eraser', relics: ['hotkey'] })), 2);
+    assert.equal(activeCost(scene({ active: 'stapler', relics: ['hotkey'] })), 4);
+    const { run } = newRun({ seed: 1 });
+    run.hero.charge = 3;
+    gainRelic(run, 'hotkey', 'test', []);
+    assert.equal(run.hero.charge, 2, 'заряд не больше новой цены');
+  },
+  steeldoor() {
+    const left = (relics) => {
+      const run = scene({ relics, enemies: ['rat'], enemyHp: 999 });
+      run.hero.armor = 20;
+      ready(run, 'attack');
+      return play(run, line(run, CLIPS)).run.hero.armor;
+    };
+    assert.equal(left([]), 0, 'обычно остаток брони сгорает');
+    assert.equal(left(['steeldoor']), 3, 'удар 14 из 20, половина остатка 6 остаётся');
+  },
   prismpact() {
     const made = (relics) => hit({ relics }, [...FISTS, 'fist']).waves[0].created[0].tile;
     assert.equal(made([]).special, 'rocketH');
     assert.equal(made(['prismpact']).kind, 'prism');
+    // Only the first line of four of a move: a second one in the cascade is a rocket again.
+    const cascade4 = (relics) => {
+      const run = scene({ relics, enemyHp: 999 });
+      const move = line(run, ['fist', 'fist', 'fist', 'fist'], { row: 5 });
+      // The first line clears row 5 and splashes row 4: two tiles fall in columns 0–2 and the queued
+      // folders land in row 1. Column 3 keeps the new special, so one tile falls there: a folder
+      // put on top of it slides into row 1 as well — a second line of four.
+      for (let c = 0; c < 3; c++) queue(run, c, ['folder', 'redtape', 'redtape']);
+      put(run, 0, 3, 'folder');
+      return play(run, move).waves.flatMap((w) => w.created.map((x) => x.tile));
+    };
+    const made2 = cascade4(['prismpact']);
+    assert.equal(made2.length, 2, 'две группы из 4 за ход');
+    assert.equal(made2[0].kind, 'prism');
+    assert.equal(made2[1].special, 'rocketH', 'вторая — ракета');
   },
 
   // ── Skills ─────────────────────────────────────────────────────────

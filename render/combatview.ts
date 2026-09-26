@@ -1,5 +1,5 @@
 import { adjacent, isValidMove, swapBlock } from '../game/board.ts';
-import { alive, intentDamage, previewMove } from '../game/combat.ts';
+import { activeCost, alive, intentDamage, previewMove } from '../game/combat.ts';
 import { CARDS } from '../game/content/cards.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
@@ -367,7 +367,7 @@ export class CombatView {
             juice.float(def.name, r.x + r.w / 2, r.y - 4, 'vio5');
             burst(this.h.ps, r.x + 12, r.y + r.h / 2, 18, { ramp: ['vio5', 'vio4', 'vio3'], add: true, layer: 'ui', speed: [20, 70], max: 0.5 });
             au.play('ink', 0.8);
-            this.h.disp.charge = Math.max(0, this.h.disp.charge - (def.charge ?? 0));
+            this.h.disp.charge = Math.max(0, this.h.disp.charge - this.h.disp.cost);
           },
         });
         return true;
@@ -719,7 +719,8 @@ export class CombatView {
         }
         case 'armor':
           if (f.source === 'expire' && f.amount < 0) {
-            this.h.disp.armor = 0;
+            // What the steel door keeps stays on the meter.
+            this.h.disp.armor = Math.max(0, this.h.disp.armor + f.amount);
             burst(this.h.ps, hx + 10, hy, 10, { ramp: ['cold5', 'cold3', 'ink3'], layer: 'ui', speed: [10, 50], ay: 120, max: 0.5 });
           }
           break;
@@ -807,7 +808,7 @@ export class CombatView {
     const juice = this.h.juice;
     const au = this.h.audio;
     const d = this.h.disp;
-    if (burnArmor) d.armor = 0;
+    if (burnArmor && !this.h.mods.armorKeep) d.armor = 0;
     else d.armor = Math.max(0, d.armor - h.armor);
     d.hp = Math.max(0, d.hp - h.red);
     const [hx, hy] = this.heroChest();
@@ -1213,7 +1214,7 @@ export class CombatView {
     const id = this.run.hero.active;
     if (!id || !this.canPlay()) return;
     const def = ITEMS[id];
-    if (this.run.hero.charge < (def.charge ?? 0)) {
+    if (this.run.hero.charge < activeCost(this.run)) {
       this.h.fail('Мало чернил');
       return;
     }

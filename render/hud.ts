@@ -125,7 +125,7 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
     ctx.fillRect(r.x, r.y, r.w, 1);
     ctx.fillRect(r.x, r.y + r.h - 1, r.w, 1);
   }
-  if (hot) ui.tooltip(def.name, `${def.desc}\nЗаряд: ${def.charge} чернил. Лишний заряд бьёт: 1 урона за деление.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
+  if (hot) ui.tooltip(def.name, `${def.desc}\nЗаряд: ${d.cost} чернил. Лишний заряд бьёт: 1 урона за деление.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
   return clicked;
 }
 
