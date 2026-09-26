@@ -209,7 +209,7 @@ function tallyEvents(events: GameEvent[], res: FightResult, before: RunState) {
     } else if (e.t === 'ember' && e.hurt.red > 0) res.hurtBy.ember = (res.hurtBy.ember ?? 0) + e.hurt.red;
     else if (e.t === 'strike') {
       res.maxHit = Math.max(res.maxHit, e.damage);
-      res.maxMult = Math.max(res.maxMult, e.tally.mult);
+      res.maxMult = Math.max(res.maxMult, 1 + e.tally.bonus);
     } else if (e.t === 'effects' || e.t === 'wave')
       for (const f of e.effects) if (f.kind === 'proc' && f.source === 'mirror') res.hurtBy.mirror = (res.hurtBy.mirror ?? 0) + f.amount;
   }
@@ -422,7 +422,7 @@ export function simRun(spec: RunSpec): RunResult {
       }
       if (e.t === 'strike' && fight) {
         fight.maxHit = Math.max(fight.maxHit, e.damage);
-        fight.maxMult = Math.max(fight.maxMult, e.tally.mult);
+        fight.maxMult = Math.max(fight.maxMult, 1 + e.tally.bonus);
       }
       if (e.t === 'swap' && fight) fight.moves++;
       if (e.t === 'enemyAct' && fight) fight.enemyActs++;

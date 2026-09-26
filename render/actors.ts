@@ -1,4 +1,5 @@
 import { currentIntent } from '../game/combat.ts';
+import { heartText, heartsText } from '../game/content/cards.ts';
 import { ENEMIES, INTENT_TEXT, MATERIAL_NAME } from '../game/content/enemies.ts';
 import type { EnemyState, Intent } from '../game/types.ts';
 import { text } from './font.ts';
@@ -325,8 +326,11 @@ export class EnemyView {
     const kind = this.intent.kind;
     const icon = getFrame(hasSprite(`int_${kind}`) ? `int_${kind}` : (INTENT_ICON[kind] ?? 'int_attack'));
     const counts = kind === 'ink' || kind === 'pin' || kind === 'censor' || kind === 'ember' || kind === 'tape';
-    const label = dmg > 0 ? `${dmg}` : counts ? `×${this.intent.value}` : '';
-    const w = 14 + (label ? label.length * 5 + 3 : 0);
+    // A blow shows the hearts it will take: small hearts up to four, then one heart and a number.
+    const many = dmg > 8;
+    const minis = many ? 1 : Math.ceil(dmg / 2);
+    const label = many ? heartText(dmg) : dmg > 0 ? '' : counts ? `×${this.intent.value}` : '';
+    const w = 14 + (minis ? minis * 7 + 1 : 0) + (label ? label.length * 5 + 3 : 0);
     const danger = this.countdown <= 1;
     const bxI = x - Math.round(w / 2);
     const blink = this.alertT > 0 && Math.floor(this.alertT * 12) % 2 === 0;
@@ -335,7 +339,11 @@ export class EnemyView {
     ctx.fillStyle = hex(this.acting ? (this.intentDamages() ? 'red2' : 'vio2') : danger && this.intentDamages() ? 'red1' : 'ink2');
     ctx.fillRect(bxI, iy, w, 13);
     draw(ctx, icon, bxI + 1 + icon.ox, iy + 1 + icon.oy);
-    if (label) text(ctx, label, bxI + 14, iy + 3, danger || this.acting ? 'cream' : 'cold6', { outline: 'ink0' });
+    for (let k = 0; k < minis; k++) {
+      const half = !many && dmg - k * 2 === 1;
+      draw(ctx, getFrame(half ? 'ui_heart_mini_half' : 'ui_heart_mini'), bxI + 14 + k * 7 + 3, iy + 7);
+    }
+    if (label) text(ctx, label, bxI + 14 + (minis ? minis * 7 + 1 : 0), iy + 3, danger || this.acting ? 'cream' : 'cold6', { outline: 'ink0' });
     // Countdown pips: one per move left; the last one blinks.
     const n = Math.max(0, Math.min(6, this.countdown));
     for (let p = 0; p < n; p++) {
@@ -362,7 +370,7 @@ export class EnemyView {
     const def = ENEMIES[this.def];
     const i = this.intent;
     const what = INTENT_TEXT[i.kind] ?? i.kind;
-    const detail = dmg > 0 ? `${what}: ${dmg} урона` : `${what}${i.value > 1 ? ` ×${i.value}` : ''}`;
+    const detail = dmg > 0 ? `${what}: −${heartsText(dmg)}` : `${what}${i.value > 1 ? ` ×${i.value}` : ''}`;
     const mat = def ? MATERIAL_NAME[def.material] : '';
     return {
       title: def?.name ?? this.def,

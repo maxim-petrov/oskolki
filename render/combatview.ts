@@ -1,6 +1,6 @@
 import { area, isValidMove, lineCells, moveBlock, moveKind } from '../game/board.ts';
-import { activeCost, alive, intentDamage, moveRules, previewMove } from '../game/combat.ts';
-import { CARDS } from '../game/content/cards.ts';
+import { activeCost, alive, intentDamage, moveRules, previewMove, swapCost } from '../game/combat.ts';
+import { CARDS, heartText, heartsText } from '../game/content/cards.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
 import type { Blast, Effect, GameEvent, Move, RunState, TileScore } from '../game/types.ts';
@@ -8,7 +8,7 @@ import { EnemyView, HeroView, enemySlots, heroX } from './actors.ts';
 import { cardName, cardRules } from './cardview.ts';
 import { BoardView } from './boardview.ts';
 import { paragraph, text } from './font.ts';
-import { drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
+import { drawPockets, drawRelics, drawSkill, drawWeapons, type Disp } from './hud.ts';
 import type { Juice } from './juice.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
@@ -310,6 +310,18 @@ export class CombatView {
           },
         });
         return true;
+      case 'weapon':
+        S.push({
+          dur: 0.25,
+          begin: () => {
+            // Every red tile turns into the new weapon: they flash as it comes in hand.
+            this.h.toast(`В руке: ${ITEMS[e.id]?.name ?? e.id}`);
+            this.h.disp.charge = this.run.hero.charge;
+            for (const v of this.board.tiles.values()) if (v.tile.kind === 'blade') v.flash = 1;
+            au.play('swap', 1.3);
+          },
+        });
+        return true;
       case 'resize':
         S.push({
           dur: 0.4,
@@ -433,7 +445,8 @@ export class CombatView {
   private skillRect() {
     if (L.mode === 'wide') return { x: L.side.x, y: L.side.y, w: L.side.w, h: 34 };
     const b = L.bottom;
-    const pw = this.pocketSize() * 3 + 12;
+    // Pockets on the right and the weapon in hand next to them.
+    const pw = this.pocketSize() * 4 + 21;
     return { x: b.x + 4, y: b.y + 4, w: b.w - pw - 12, h: Math.min(44, b.h - 8) };
   }
 
@@ -453,11 +466,10 @@ export class CombatView {
     const tr = L.tally;
     const [x, y] = s.i >= 0 ? this.board.center(s.i) : [L.board.x + L.board.w / 2, L.board.y - 6];
     const fam = s.fam === 'prism' ? 'prism' : s.fam;
-    const label = s.dmg ? `+${s.dmg}` : s.armor ? `+${s.armor}` : s.charge ? `+${s.charge}` : s.coins ? `+${s.coins}` : s.mult ? `+${s.mult} множ` : s.xmult ? `×${s.xmult}` : '';
-    const color = s.dmg ? 'red5' : s.armor ? 'cold6' : s.charge ? 'vio5' : s.coins ? 'gold4' : 'vio5';
+    const label = s.dmg ? `+${s.dmg}` : s.armor ? `+${heartText(s.armor)}` : s.charge ? `+${s.charge}` : s.coins ? `+${s.coins}` : s.bonus ? `+${Math.round(s.bonus * 100)}%` : '';
+    const color = s.dmg ? 'red5' : s.armor ? 'cold6' : s.charge ? 'vio5' : s.coins ? 'gold4' : 'gold4';
     if (label) this.h.juice.float(label, x, y - 6, color, { max: 0.55, outline: 'ink0' });
-    const toMult = !!(s.mult || s.xmult);
-    const tx = L.mode === 'wide' ? (toMult ? tr.x + tr.w * 0.75 : tr.x + tr.w * 0.25) : toMult ? tr.x + tr.w / 2 + 40 : tr.x + tr.w / 2 - 40;
+    const tx = L.mode === 'wide' ? tr.x + tr.w * 0.5 : tr.x + tr.w / 2;
     const ty = tr.y + (L.mode === 'wide' ? 26 : tr.h / 2);
     this.h.juice.shoot({
       x0: x,
@@ -474,10 +486,9 @@ export class CombatView {
         if (s.armor) this.tally.add('armor', s.armor);
         if (s.charge) this.tally.add('charge', s.charge);
         if (s.coins) this.tally.add('coins', s.coins);
-        if (s.mult) this.tally.add('mult', s.mult);
-        if (s.xmult) this.tally.mult = Math.round(this.tally.mult * s.xmult * 10) / 10;
+        if (s.bonus) this.tally.add('bonus', s.bonus);
         this.chips++;
-        if (s.mult || s.xmult) this.h.audio.play('mult', 1 + Math.min(1, this.chips * 0.02));
+        if (s.bonus) this.h.audio.play('mult', 1 + Math.min(1, this.chips * 0.02));
         else this.h.audio.play('chip', 1 + Math.min(1.5, this.chips * 0.06));
       },
     });
@@ -596,7 +607,7 @@ export class CombatView {
     const S = this.h.steps;
     const juice = this.h.juice;
     const au = this.h.audio;
-    const big = e.damage >= 40 || e.tally.mult >= 5;
+    const big = e.damage >= 40 || e.tally.bonus >= 1;
     S.push({
       dur: big ? 0.5 : 0.28,
       begin: () => {
@@ -614,11 +625,11 @@ export class CombatView {
         const d = this.h.disp;
         d.armor += e.armor;
         d.coins = Math.max(0, d.coins + Math.round(e.tally.coins));
-        d.charge = Math.min(d.cost, d.charge + Math.round(e.tally.charge));
+        d.charge = Math.min(d.cap, d.charge + Math.round(e.tally.charge));
         if (e.armor > 0) {
           const [hx, hy] = this.heroChest();
           burst(this.h.ps, hx + 10, hy, 14, { ramp: ['white', 'cold6', 'cold4'], add: true, layer: 'ui', speed: [20, 70], max: 0.45 });
-          juice.float(`+${e.armor} брони`, hx, hy - 40, 'cold6', { outline: 'ink0' });
+          juice.float(`+${heartText(e.armor)} брони`, hx, hy - 40, 'cold6', { outline: 'ink0' });
           au.play('armor');
         }
       },
@@ -757,7 +768,7 @@ export class CombatView {
           }
           break;
         case 'charge':
-          if (f.amount > 0) this.h.disp.charge = Math.min(this.h.disp.cost, this.h.disp.charge + f.amount);
+          if (f.amount > 0) this.h.disp.charge = Math.min(this.h.disp.cap, this.h.disp.charge + f.amount);
           break;
         case 'coins':
           if (f.amount <= 0) break;
@@ -783,7 +794,7 @@ export class CombatView {
           break;
         case 'heal':
           this.h.disp.hp = Math.min(this.h.disp.maxHp, this.h.disp.hp + f.amount);
-          juice.float(`+${f.amount}`, hx, hy - 44, 'green4', { outline: 'ink0' });
+          juice.float(`+${heartsText(f.amount)}`, hx, hy - 44, 'green4', { outline: 'ink0' });
           burst(this.h.ps, hx, hy, 12, { ramp: ['green4', 'green3', 'green2'], add: true, layer: 'ui', speed: [10, 40], ay: -40, max: 0.7 });
           break;
         case 'status': {
@@ -851,7 +862,7 @@ export class CombatView {
       for (let k = 0; k < 9; k++)
         this.h.ps.spawn({ x: hx + 18, y: hy - 20 + k * 5, vx: rand(20, 60), vy: rand(-30, 30), max: 0.4, ramp: ['white', 'cold6', 'cold4'], add: true, layer: 'ui', size: 2 });
       burst(this.h.ps, hx + 16, hy, 16, { ramp: ['white', 'cold6', 'cold5', 'cold3'], add: true, layer: 'ui', speed: [30, 100], max: 0.45 });
-      if (h.red > 0) juice.float(`броня −${h.armor}`, hx, hy - 50, 'cold5', { outline: 'ink0' });
+      if (h.red > 0) juice.float(`броня −${heartText(h.armor)}`, hx, hy - 50, 'cold5', { outline: 'ink0' });
       else juice.float('БЛОК', hx, hy - 54, 'cold5', { outline: 'ink0', scale: 2 });
       au.play('armor', 0.7);
       juice.shake(0.15);
@@ -861,10 +872,10 @@ export class CombatView {
       this.hero.flash = 1;
       this.hero.flashColor = 'red4';
       this.hero.offX = -10;
-      juice.shake(0.3 + Math.min(0.6, h.red / 20));
-      juice.flash('red2', 0.15 + Math.min(0.3, h.red / 40));
+      juice.shake(0.3 + Math.min(0.6, h.red / 6));
+      juice.flash('red2', 0.15 + Math.min(0.3, h.red / 12));
       juice.stop(0.07);
-      juice.float(`−${h.red}`, hx, hy - 56, 'red4', { outline: 'ink0', scale: 2 });
+      juice.float(`−${heartText(h.red)}`, hx, hy - 56, 'red4', { outline: 'ink0', scale: 2 });
       burst(this.h.ps, hx, hy, 16, { ramp: ['red4', 'red3', 'red1'], layer: 'ui', speed: [30, 100], ay: 180, max: 0.5 });
       this.heartPulse = 0.4;
       au.play('hurt');
@@ -1050,7 +1061,7 @@ export class CombatView {
               const n = e.stolen ?? 0;
               if (coins) this.h.disp.coins = Math.max(0, this.h.disp.coins - n);
               else this.h.disp.charge = Math.max(0, this.h.disp.charge - n);
-              juice.float(n ? `-${n} ${coins ? 'монет' : 'чернил'}` : 'Нечего красть', x, y - 20, coins ? 'gold4' : 'vio5');
+              juice.float(n ? `-${n} ${coins ? 'монет' : 'энергии'}` : 'Нечего красть', x, y - 20, coins ? 'gold4' : 'vio5');
               break;
             }
             case 'submerge':
@@ -1088,12 +1099,13 @@ export class CombatView {
     this.board.slide = !!rules.slide;
     this.board.diagonal = !!rules.diagonal;
     this.board.vertical = !!rules.vertical;
+    this.board.weaponArt = ITEMS[this.run.hero.weapon]?.icon ?? 'card_knife';
     this.board.layout();
     this.board.update(frozen ? 0 : dt * speed);
     this.hero.update(dt);
     for (const v of this.enemies.values()) v.update(dt);
     for (const [uid, v] of this.enemies) if (v.dying > 0.8) this.enemies.delete(uid);
-    this.tally.pending = (this.run.combat?.bank ?? 0) + (this.run.combat?.skillMult ?? 0);
+    this.tally.pending = (this.run.combat?.bank ?? 0) + (this.run.combat?.skillBonus ?? 0) + (this.run.combat?.nextBonus ?? 0);
     this.tally.update(dt);
     if (!frozen) this.tally.burn(this.h.ps);
     this.heartPulse = Math.max(0, this.heartPulse - dt);
@@ -1124,14 +1136,14 @@ export class CombatView {
     b.blastCells = p.blast ? p.blast.cells : [];
     const parts: string[] = [];
     if (p.damage) parts.push(`урон ~${p.damage}`);
-    if (p.armor) parts.push(`броня +${p.armor}`);
-    if (p.charge) parts.push(`чернила +${p.charge}`);
+    if (p.armor) parts.push(`броня +${heartText(p.armor)}`);
+    if (p.charge) parts.push(`энергия +${p.charge}`);
     if (p.coins) parts.push(`монеты +${p.coins}`);
     if (p.specials) parts.push('особая!');
     b.previewText = block ?? (p.valid ? parts.join(' · ') || (p.blast ? 'взрыв' : 'совпадение') : 'нет совпадения');
   }
 
-  /** Damage the next tick will deal after armor (the health bar blinks that much). */
+  /** Half-hearts the next tick will take through the armour (those halves blink). */
   incoming(): number {
     const c = this.run.combat;
     if (!c || !this.active || this.h.busy()) return 0;
@@ -1250,7 +1262,7 @@ export class CombatView {
     if (!id || !this.canPlay()) return;
     const def = ITEMS[id];
     if (this.run.hero.charge < activeCost(this.run)) {
-      this.h.fail('Мало чернил');
+      this.h.fail('Мало энергии');
       return;
     }
     if (def.aim) {
@@ -1430,6 +1442,11 @@ export class CombatView {
     const [px, py] = this.pocketXY();
     const slot = drawPockets(ctx, ui, px, py, this.pocketSize(), this.run, this.targeting?.kind === 'pocket' ? (this.targeting.slot ?? -1) : -1);
     if (slot >= 0) this.usePocket(slot);
+    // Weapons: all of them next to the pockets on wide screens, the one in hand on phones.
+    const size = this.pocketSize();
+    const wx = L.mode === 'wide' ? px + this.run.hero.pockets.length * (size + 3) + 6 : px - size - 6;
+    const weapon = drawWeapons(ctx, ui, wx, py, size, this.run, this.h.disp, swapCost(this.run), L.mode !== 'wide');
+    if (weapon && this.canPlay()) this.h.act({ type: 'weapon', id: weapon });
     if (L.mode === 'wide') {
       drawRelics(ctx, ui, { ...L.side2, h: L.side2.h - 12 }, this.run);
       // Deck by family: what the bag is made of.
@@ -1467,7 +1484,7 @@ export class CombatView {
       ctx.fillRect(r.x, r.y, r.w, L.mode === 'wide' ? 60 : r.h);
       if (L.mode === 'wide') {
         paragraph(ctx, 'Потяни фишку на соседнюю клетку: три одинаковых в ряд — это ход.', r.x + 6, r.y + 6, r.w - 12, 'gold4', { alpha: a });
-        paragraph(ctx, 'Все фишки хода складываются в УРОН × МНОЖ. Враги ходят по таймерам.', r.x + 6, r.y + 32, r.w - 12, 'cold5', { alpha: a });
+        paragraph(ctx, 'Красные фишки бьют оружием в руке, синие — броня, фиолетовые — энергия. Враги ходят по таймерам.', r.x + 6, r.y + 32, r.w - 12, 'cold5', { alpha: a });
       } else text(ctx, 'Потяни фишку к соседней: 3 в ряд — ход', r.x + r.w / 2, r.y + r.h / 2 - 4, 'gold4', { align: 'center', alpha: a });
     }
     if (this.targeting) text(ctx, L.touch ? 'Коснись цели · вне поля — отмена' : 'Выбери цель · Esc — отмена', L.w / 2, b.by - 20, 'orange4', { align: 'center', outline: 'ink0' });

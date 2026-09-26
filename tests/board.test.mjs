@@ -141,12 +141,9 @@ test('the board is dealt from the deck bag and refills from it', () => {
 
 test('a fight never starts with ready lines, even with a deck heavy in one family', () => {
   const tokens = (list) => list.flatMap(([card, n]) => Array(n * 3).fill({ card, up: false }));
-  // The deck from the report: eight red cards and two folders (30 red tiles to 6 blue in the bag).
+  // Eight red cards and two folders (24 red tiles to 6 blue in the bag).
   const redHeavy = tokens([
-    ['redpen', 3],
-    ['pins', 2],
-    ['scissors', 2],
-    ['stapler', 1],
+    ['fist', 8],
     ['folder', 2],
   ]);
   const twoFam = tokens([

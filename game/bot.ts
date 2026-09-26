@@ -39,19 +39,12 @@ export interface BotOptions {
  */
 export const CARD_SCORE: Record<string, number> = {
   fist: 2,
+  pins: 5,
+  redpen: 7,
+  alarm: 7,
   folder: 1.5,
   ink: 1,
   clip: 0.5,
-  punch: 4.9,
-  redpen: 7.3,
-  sharpener: 4.4,
-  pins: 3.9,
-  scissors: 6.4,
-  ruler: 6.3,
-  stapler: 5.6,
-  awl: 2,
-  cutter: 5.6,
-  alarm: 6.9,
   binder: 7.6,
   sleeve: 6.3,
   umbrella: 8.2,
@@ -92,7 +85,7 @@ function threat(run: RunState): number {
  */
 function bankWorth(previews: MovePreview[]): number {
   let best = 0;
-  for (const p of previews) if (p.valid) best = Math.max(best, p.tally.dmg * p.tally.xmult);
+  for (const p of previews) if (p.valid) best = Math.max(best, p.tally.dmg);
   return best * 0.6;
 }
 
@@ -187,7 +180,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
     const cells = c.board.cells;
     const junk = cells.findIndex((x) => x.kind === 'junk' || x.pin);
     // The hot key pays for every skill used: then the board tools are worth pressing anyway.
-    const eager = mods.skillMult > 0 && !(c.skillMult ?? 0);
+    const eager = mods.skillBonus > 0 && !(c.skillBonus ?? 0);
     switch (id) {
       case 'eraser': {
         const t = erase === 'match' || eager ? eraseTarget(run) : null;
@@ -221,7 +214,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
     let best = moves[0];
     let bestScore = -Infinity;
     const previews = moves.map((m) => previewMove(run, mods, m));
-    const worth = mods.goldBank ? bankWorth(previews) : 0;
+    const worth = mods.bankPer ? bankWorth(previews) : 0;
     for (let k = 0; k < moves.length; k++) {
       const m = moves[k];
       const s = scoreMove(run, previews[k], worth) + next(r) * 0.01;

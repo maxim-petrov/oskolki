@@ -452,6 +452,25 @@ export const ITEM_ICONS: Record<string, SpriteDef> = {
     '.......kk33221kk',
     '........kkkkkk..',
   ]),
+  // Пропуск стажёра — a plastic pass with a photo on a red lanyard.
+  item_badge: icon([
+    '...kRk....kRk...',
+    '...kRxk..kRxk...',
+    '....kRxkkRxk....',
+    '.....kRyyxk.....',
+    '......kyGk......',
+    '......kgdk......',
+    '..kkkkkykkkkkk..',
+    '..k5555555554k..',
+    '..k3333333332k..',
+    '..kwwwwwwwwwqk..',
+    '..kwkkkkwwwwqk..',
+    '..kwkLSkwgggqk..',
+    '..kwksskwwwwqk..',
+    '..kwk33kwggwqk..',
+    '..kwkkkkwwwwqk..',
+    '..kkkkkkkkkkkk..',
+  ]),
   // Кассовый аппарат — brass register with a drawer.
   item_register: icon([
     '................',

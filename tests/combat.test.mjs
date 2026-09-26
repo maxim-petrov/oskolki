@@ -1,23 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dispatch } from '../game/run.ts';
-import { BLAST_MULT_CAP } from '../game/combat.ts';
 import { combatRun, idx, setCard } from './helpers.mjs';
 import { foe, line, play, ready, scene } from './scene.mjs';
+import { energyCap } from '../game/combat.ts';
 
 /** Swapping (0,2) down into (1,2) completes the blade line in row 1 on this board. */
 const ROWS = ['sibcsi', 'bbiccs', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'];
 const DOWN = { type: 'move', move: { from: idx(0, 2), to: idx(1, 2) } };
 const strikeOf = (events) => events.find((e) => e.t === 'strike');
 
-test('three fists deal 6 × mult; the paper knife doubles it against paper', () => {
+test('three red tiles strike with the knife: 6 damage, +100% against paper', () => {
   const run = combatRun({ rows: ROWS, enemies: ['rat'] });
   const hp = run.combat.enemies[0].hp;
   const res = dispatch(run, DOWN);
   const s = strikeOf(res.events);
   assert.equal(s.tally.dmg, 6);
-  assert.equal(s.tally.mult, 1);
-  assert.equal(s.damage, 12, 'knife ×2 against a paper rat');
+  assert.equal(s.tally.bonus, 1, 'the paper bonus of the knife');
+  assert.equal(s.damage, 12, 'knife +100% against a paper rat');
   assert.equal(res.run.combat.enemies[0].hp, hp - 12);
   const ink = combatRun({ rows: ROWS, enemies: ['drop'] });
   assert.equal(strikeOf(dispatch(ink, DOWN).events).damage, 6, 'no bonus against ink');
@@ -30,29 +30,27 @@ test('every tile of a group scores on the tally, one line per tile', () => {
   assert.ok(wave.scores.every((s) => s.dmg === 2));
 });
 
-test('bonus cards add mult per tile; a gold clip multiplies once per move', () => {
+test('bonus cards add damage per tile; a gold clip adds +30% once per move', () => {
   const run = combatRun({ rows: ['sicbsi', 'ccbisb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'] });
   // Row 1: c c _ → swap (0,2) coin? Build a gold line: put coins at (1,0),(1,1) and drop a coin into (1,2).
   run.combat.board.cells[idx(0, 2)] = { id: 9000, kind: 'coin', card: 'bonus' };
   setCard(run, idx(1, 0), 'clip');
   run.combat.board.cells[idx(1, 1)] = { id: 9001, kind: 'coin', card: 'goldclip' };
   const s = strikeOf(dispatch(run, DOWN).events);
-  assert.equal(s.tally.mult, 1.5 * 2, 'mult (1 + 1 bonus) × 1.5');
+  assert.equal(s.tally.dmg, 3, 'the bonus card: +3 damage');
+  assert.equal(s.tally.bonus, 0.3);
+  assert.equal(s.damage, 4, '3 damage +30%');
 });
 
-test('blast multipliers are capped per move', () => {
-  assert.equal(BLAST_MULT_CAP, 6);
-});
-
-test('armor from blue tiles is not multiplied and is spent after the enemies act', () => {
+test('a blue group blocks half a heart and the armour is spent after the enemies act', () => {
   const run = combatRun({ rows: ['sicbsi', 'issbcb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'], enemies: ['rat'] });
-  // Drop a sealed shield (+1 mult) from (0,3) into (1,3): s s s in row 1.
+  // Drop a sealed shield (+2 damage) from (0,3) into (1,3): s s s in row 1.
   run.combat.board.cells[idx(0, 3)] = { id: 9100, kind: 'shield', card: 'folder', finish: 'seal' };
   run.combat.enemies[0].countdown = 1;
   const res = dispatch(run, { type: 'move', move: { from: idx(0, 3), to: idx(1, 3) } });
   const s = strikeOf(res.events);
-  assert.equal(s.tally.mult, 2);
-  assert.equal(s.armor, 3, 'three folders give 1 armor each, whatever the multiplier');
+  assert.equal(s.tally.dmg, 2, 'the seal');
+  assert.equal(s.armor, 1, 'a group of three folders: half a heart');
   const act = res.events.find((e) => e.t === 'enemyAct');
   assert.equal(act.hurt.armor, act.hurt.amount, 'armor soaks the blow');
   assert.equal(act.hurt.red, 0);
@@ -60,14 +58,14 @@ test('armor from blue tiles is not multiplied and is spent after the enemies act
 });
 
 test('armor never outgrows the hero: at most the maximum health, heavier blows wound', () => {
-  const run = scene({ hp: 10, maxHp: 10, enemies: ['rat'], enemyHp: 999 });
+  const run = scene({ hp: 3, maxHp: 3, enemies: ['rat'], enemyHp: 999 });
   ready(run, 'attack');
   foe(run).dmgMul = 30; // a rat that hits for 15 hearts
   const res = play(run, line(run, ['vest', 'vest', 'vest']));
-  assert.equal(res.strike.armor, 10, 'двенадцать брони, влезло десять');
+  assert.equal(res.strike.armor, 3, 'четыре половинки брони, влезло три');
   assert.ok(res.strike.notes.some((n) => n.includes('потолок')));
   const blow = res.acts[0].hurt;
-  assert.equal(blow.armor, 10);
+  assert.equal(blow.armor, 3);
   assert.equal(res.run.phase, 'dead', 'удар сильнее потолка ранит');
 });
 
@@ -123,7 +121,7 @@ test('invalid moves change nothing and spend no time', () => {
   assert.equal(res.run.combat.moves, 0);
 });
 
-test('a swapped rocket fires where it lands and adds to the multiplier', () => {
+test('a swapped rocket fires where it lands and pays only in the tiles it clears', () => {
   const run = combatRun({ enemies: ['anchor'] });
   run.combat.board.cells[idx(2, 1)] = { id: 5000, kind: 'blade', card: 'fist', special: 'rocketH' };
   const res = dispatch(run, { type: 'move', move: { from: idx(2, 1), to: idx(2, 2) } });
@@ -131,7 +129,7 @@ test('a swapped rocket fires where it lands and adds to the multiplier', () => {
   const rocket = wave.blasts.find((b) => b.kind === 'rocketH');
   assert.equal(rocket.at, idx(2, 2));
   assert.deepEqual(rocket.cells, [12, 13, 14, 15, 16, 17]);
-  assert.ok(strikeOf(res.events).tally.mult >= 2);
+  assert.equal(strikeOf(res.events).tally.bonus, 0, 'no multiplier from blasts');
 });
 
 test('two swapped specials combine; a prism wipes the family it touches', () => {
@@ -163,4 +161,26 @@ test('the fight is deterministic for a seed', () => {
   const a = dispatch(combatRun({ rows: ROWS, seed: 9 }), DOWN);
   const b = dispatch(combatRun({ rows: ROWS, seed: 9 }), DOWN);
   assert.deepEqual(a.events, b.events);
+});
+
+test('weapons: swapping costs energy in a fight, nothing between fights; three at most', () => {
+  const run = scene({ weapons: ['knife', 'scissors'], charge: 2 });
+  const swapped = dispatch(run, { type: 'weapon', id: 'scissors' });
+  assert.deepEqual([swapped.run.hero.weapon, swapped.run.hero.charge], ['scissors', 0], '2 энергии');
+  assert.ok(swapped.events.some((e) => e.t === 'weapon' && e.id === 'scissors'));
+  assert.equal(swapped.run.combat.moves, 0, 'смена не тратит ход');
+  const broke = dispatch(swapped.run, { type: 'weapon', id: 'knife' });
+  assert.equal(broke.events.find((e) => e.t === 'invalid')?.reason, 'Нужно 2 энергии');
+  const calm = { ...swapped.run, combat: null, phase: 'map' };
+  assert.equal(dispatch(calm, { type: 'weapon', id: 'knife' }).run.hero.weapon, 'knife', 'вне боя — бесплатно');
+  // Red tiles strike with the new weapon at once.
+  const cut = scene({ weapons: ['knife', 'awl'], charge: 2, enemyHp: 999 });
+  const awl = dispatch(cut, { type: 'weapon', id: 'awl' }).run;
+  assert.equal(play(awl, line(awl, ['fist', 'fist', 'fist'])).strike.tally.dmg, 9, 'шило: 3 за фишку');
+});
+
+test('energy holds as much as the skill or a weapon swap needs', () => {
+  assert.equal(energyCap(scene({})), 0, 'ни навыка, ни второго оружия — энергия не копится');
+  assert.equal(energyCap(scene({ weapons: ['knife', 'scissors'] })), 2);
+  assert.equal(energyCap(scene({ active: 'stapler', weapons: ['knife', 'scissors'] })), 6);
 });

@@ -45,6 +45,14 @@ const CARD: Record<string, [string, string, string]> = {
   prism: ['grey1', 'grey3', 'ink2'],
 };
 
+/** Corner signs of red cards with a rule of their own (5×5): the tile face is the weapon. */
+const RED_SIGNS: Record<string, string[]> = {
+  pins: ['.RRR.', '.RPR.', '..y..', '..y..', '.....'],
+  redpen: ['....R', '...R.', '..R..', '.y...', 'y....'],
+  alarm: ['..Z..', '..Z..', '..Z..', '.....', '..Z..'],
+};
+const SIGN_COLORS: Record<string, string> = { R: 'red4', P: 'red5', y: 'grey4', Z: 'gold4' };
+
 export class BoardView {
   /** Geometry from the layout: tile size and the grid's top-left corner. */
   T = 26;
@@ -66,6 +74,8 @@ export class BoardView {
   rowLock: number[] = Array(H).fill(0);
   /** The ring binder: edge tiles swap with the opposite edge. */
   wrap = false;
+  /** Art of the weapon in hand: every red tile shows it. */
+  weaponArt = 'card_knife';
   /** Move rules of the fight: slides along a line, diagonal swaps, only up and down. */
   slide = false;
   diagonal = false;
@@ -689,7 +699,9 @@ export class BoardView {
         ctx.fillStyle = hex('grey2');
         ctx.fillRect(x + 6, y + 11, T - 12, 1);
       } else {
-        const id = tile.card && hasSprite(`card_${tile.card}`) ? `card_${tile.card}` : `tile_${tile.kind}`;
+        // Red tiles are the weapon in hand; the others show their card.
+        const id =
+          tile.kind === 'blade' && hasSprite(this.weaponArt) ? this.weaponArt : tile.card && hasSprite(`card_${tile.card}`) ? `card_${tile.card}` : `tile_${tile.kind}`;
         this.icon(ctx, id, x + T / 2, y + T / 2);
         this.drawMarks(ctx, tile, x + inset, y + inset, w, t);
       }
@@ -744,6 +756,12 @@ export class BoardView {
       px('ink0', w - 7, 1, 5, 5);
       px('gold4', w - 6, 3, 3, 1);
       px('gold4', w - 5, 2, 1, 3);
+    }
+    // Red tiles show the weapon in hand; a red card with its own rule gets a sign in the corner.
+    const sign = tile.kind === 'blade' && tile.card ? RED_SIGNS[tile.card] : undefined;
+    if (sign) {
+      px('ink0', w - 8, w - 8, 7, 7);
+      sign.forEach((row, dy) => row.split('').forEach((ch, dx) => ch !== '.' && px(SIGN_COLORS[ch], w - 7 + dx, w - 7 + dy)));
     }
     switch (tile.finish) {
       case 'sharp':

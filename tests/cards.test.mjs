@@ -3,66 +3,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CARDS, cardText } from '../game/content/cards.ts';
+import { REFLECT_PER_HALF } from '../game/combat.ts';
 import { CLIPS, FISTS, FOLDERS, blowOf, cascade, double, foe, hit, idx, line, play, put, ready, scene } from './scene.mjs';
 
 const three = (card) => [card, card, card];
 const four = (card) => [card, card, card, card];
 
 const CARD_CHECKS = {
-  // ── Red ────────────────────────────────────────────────────────────
-  fist: () => assert.equal(hit({}, three('fist')).strike.tally.dmg, 6),
-  punch() {
-    const dealt = (card) => 999 - foe(hit({ enemies: ['eraser'] }, three(card)).run).hp;
-    assert.equal(dealt('fist'), 4, 'резиновый ластик: броня 2');
-    assert.equal(dealt('punch'), 6, 'дырокол пробивает');
+  // ── Red: the weapon in hand strikes (weapons are checked with the items) ──
+  fist() {
+    assert.equal(hit({}, three('fist')).strike.tally.dmg, 6, 'нож: 2 за фишку');
+    assert.equal(hit({}, three({ card: 'fist', up: true })).strike.tally.dmg, 9, 'улучшенный удар: +1 к оружию');
+    assert.equal(hit({ weapon: 'awl' }, three('fist')).strike.tally.dmg, 9, 'шило: 3 за фишку');
   },
+  pins: () => assert.equal(hit({}, three('pins')).strike.tally.dmg, 9, 'нож 2 + 1 за фишку'),
   redpen() {
-    const res = hit({}, three('redpen'));
-    assert.equal(res.strike.tally.dmg, 3);
-    assert.equal(foe(res.run).hp, 999 - 3 - 6, 'кровотечение 2 с каждой фишки');
-    assert.equal(foe(res.run).bleed, 5);
-  },
-  sharpener() {
-    assert.equal(hit({}, three('sharpener')).strike.tally.dmg, 3);
-    assert.equal(cascade({}, FOLDERS, three('sharpener')).strike.tally.dmg, 15, 'в каскаде — впятеро');
-  },
-  pins() {
     const run = scene({ enemies: ['anchor', 'drop'] });
-    const res = play(run, line(run, three('pins')));
-    assert.equal(res.strike.aoe, 3);
-    assert.equal(foe(res.run, 1).hp, 21, 'каждому врагу');
-    assert.equal(foe(res.run, 0).hp, 64 - 6, 'цели — и удар, и общий урон');
-  },
-  scissors() {
-    const s3 = hit({}, three('scissors')).strike;
-    assert.equal(s3.tally.dmg, 9);
-    assert.equal(s3.tally.mult, 1);
-    const s4 = hit({}, four('scissors')).strike;
-    assert.equal(s4.tally.dmg, 12);
-    assert.equal(s4.tally.mult, 2, 'группа из 4 — +1 множ один раз');
-  },
-  ruler() {
-    assert.equal(hit({}, three('ruler')).strike.tally.dmg, 9);
-    assert.equal(hit({}, four('ruler')).strike.tally.dmg, 16);
-  },
-  stapler: () => assert.equal(hit({}, three('stapler')).strike.tally.dmg, 2 + 3 + 4),
-  awl() {
-    const res = hit({}, three('awl'));
-    assert.equal(res.strike.tally.dmg, 24);
-    assert.equal(res.run.hero.hp, 54, 'минус 2 здоровья за фишку');
-  },
-  cutter() {
-    assert.equal(hit({ enemies: ['rat'] }, three('cutter')).strike.tally.dmg, 36);
-    assert.equal(hit({ enemies: ['anchor'] }, three('cutter')).strike.tally.dmg, 12);
+    const res = play(run, line(run, ['fist', 'redpen', 'fist']));
+    assert.equal(res.strike.aoe, 6, 'супер-удар ножа из трёх: 2 за фишку всем');
+    assert.equal(hit({}, FISTS).strike.aoe, 0, 'без ручки тройка бьёт обычным ударом');
   },
   alarm() {
-    assert.equal(hit({}, three('alarm')).strike.tally.mult, 2, 'одна красная группа — +1');
-    assert.equal(cascade({}, three('alarm'), three('alarm')).strike.tally.mult, 1 + 1 + 2, 'вторая красная группа хода — +2');
+    assert.equal(hit({}, three('alarm')).strike.tally.dmg, 6 + 3, 'одна красная группа — +3');
+    assert.equal(cascade({}, three('alarm'), three('alarm')).strike.tally.dmg, 6 + 3 + 6 + 6, 'вторая красная группа хода — +6');
   },
 
-  // ── Blue ───────────────────────────────────────────────────────────
-  folder: () => assert.equal(hit({}, FOLDERS).strike.armor, 3),
-  binder: () => assert.equal(hit({}, three('binder')).strike.armor, 6),
+  // ── Blue: a group blocks once, by its best card (half-hearts), +½ heart per tile past three ──
+  folder() {
+    assert.equal(hit({}, FOLDERS).strike.armor, 1, 'половинка сердца');
+    assert.equal(hit({}, four('folder')).strike.armor, 2, 'четвёртая фишка — ещё половинка');
+    assert.equal(hit({}, three({ card: 'folder', up: true })).strike.armor, 2);
+  },
+  binder() {
+    assert.equal(hit({}, three('binder')).strike.armor, 2, 'сердце');
+    assert.equal(hit({}, ['folder', 'binder', 'folder']).strike.armor, 2, 'группа берёт лучшую карту');
+  },
   sleeve() {
     const run = scene({ enemyHp: 999 });
     run.combat.board.source = [{ card: 'fist', up: false }];
@@ -71,39 +46,43 @@ const CARD_CHECKS = {
     const cleaned = res.events.find((e) => e.t === 'board' && e.reason === 'active');
     assert.ok(cleaned, 'поле почищено после удара');
     assert.ok(junk(cleaned.board) < junk(res.waves.at(-1).board), 'кляксы рядом убраны');
+    assert.equal(res.strike.armor, 1);
   },
   umbrella() {
-    const res = hit({ enemies: ['rat'] }, three('umbrella'));
-    assert.equal(res.run.hero.ward, 6);
+    const res = hit({ enemies: ['neighbor'] }, three('umbrella'));
+    assert.equal(res.run.hero.ward, 1, 'половинка сердца на группу, не на фишку');
     const next = res.run;
     ready(next, 'attack');
     const blow = play(next, line(next, CLIPS, { row: 4 })).acts[0].hurt;
-    const full = blowOf('rat', 'attack');
+    const full = blowOf('neighbor', 'attack');
     assert.equal(blow.amount, full);
-    assert.equal(blow.armor + blow.red, Math.max(0, full - 6), 'зонтик гасит 2 за фишку (остаток — броне и здоровью)');
+    assert.equal(blow.armor + blow.red, full - 1, 'зонтик гасит половинку сердца');
   },
   drawer() {
-    assert.equal(hit({}, three('drawer')).strike.tally.mult, 1);
+    const s = hit({}, three('drawer')).strike;
+    assert.equal(s.armor, 2);
+    assert.equal(s.tally.dmg, 0, 'без красных — без урона');
     const run = scene({ enemyHp: 999 });
-    assert.equal(play(run, double(run, 'fist', 'drawer')).strike.tally.mult, 2, 'красные и синие в одном ходу');
+    assert.equal(play(run, double(run, 'fist', 'drawer')).strike.tally.dmg, 6 + 3, 'красные и синие в одном ходу: +3');
   },
   laminator() {
-    assert.equal(hit({}, three('laminator')).strike.armor, 3);
-    assert.equal(hit({}, four('laminator')).strike.armor, 8);
+    assert.equal(hit({}, three('laminator')).strike.armor, 1);
+    assert.equal(hit({}, four('laminator')).strike.armor, 4, 'группа из 4: (½ + ½) × 2');
   },
   archivebox() {
     assert.equal(hit({ hp: 30 }, three('archivebox')).run.hero.hp, 30);
     assert.equal(hit({ hp: 30 }, four('archivebox')).run.hero.hp, 31, 'группа из 4 лечит ½ сердца');
+    assert.equal(hit({}, three('archivebox')).strike.armor, 2);
   },
-  vest: () => assert.equal(hit({}, three('vest')).strike.armor, 12),
+  vest: () => assert.equal(hit({}, three('vest')).strike.armor, 4, 'сердце, и броня хода вдвое'),
   clipboard() {
-    const res = hit({ enemies: ['rat'] }, three('clipboard'));
-    assert.equal(res.run.hero.reflect, 0.5);
+    const res = hit({ enemies: ['neighbor'] }, three('clipboard'));
+    assert.equal(res.run.hero.reflect, REFLECT_PER_HALF);
     const next = res.run;
     ready(next, 'attack');
     const hp = foe(next).hp;
     const after = play(next, line(next, CLIPS, { row: 4 })).run;
-    assert.equal(hp - foe(after).hp, Math.round(blowOf('rat', 'attack') * 0.5), 'половина удара летит обратно');
+    assert.equal(hp - foe(after).hp, blowOf('neighbor', 'attack') * REFLECT_PER_HALF, '4 урона за каждую половинку сердца удара');
   },
 
   // ── Violet ─────────────────────────────────────────────────────────
@@ -125,14 +104,14 @@ const CARD_CHECKS = {
     assert.equal(foe(res.run, 1).hp, 18);
   },
   quill() {
-    assert.equal(hit({ active: 'eraser' }, three('quill')).strike.tally.mult, 2, 'навык зарядился — +1 множ');
-    assert.equal(hit({ active: 'giftbox' }, three('quill')).strike.tally.mult, 1, 'не хватило заряда');
+    assert.equal(hit({ active: 'stapler' }, three('quill')).strike.tally.dmg, 3, 'навык зарядился — +3 урона');
+    assert.equal(hit({ active: 'giftbox' }, three('quill')).strike.tally.dmg, 0, 'не хватило энергии');
   },
   copystamp() {
-    const run = scene({ enemyHp: 999, deck: ['fist', 'cutter'] });
+    const run = scene({ enemyHp: 999, deck: ['fist', 'binder'] });
     const res = play(run, line(run, three('copystamp')));
     const copied = res.events.find((e) => e.t === 'board' && e.reason === 'active').board;
-    assert.equal(copied.filter((t) => t.card === 'cutter').length, 6, 'по 2 копии лучшей карты с фишки');
+    assert.equal(copied.filter((t) => t.card === 'binder').length, 6, 'по 2 копии лучшей карты с фишки');
   },
   carbon() {
     const run = scene({ enemyHp: 999 });
@@ -152,12 +131,16 @@ const CARD_CHECKS = {
   clip: () => assert.equal(hit({}, CLIPS).strike.tally.coins, 3),
   coin: () => assert.equal(hit({}, three('coin')).strike.tally.coins, 6),
   receipt: () => assert.equal(hit({}, three('receipt')).strike.tally.coins, 9),
-  bonus: () => assert.equal(hit({}, three('bonus')).strike.tally.mult, 4),
+  bonus() {
+    const s = hit({}, three('bonus')).strike;
+    assert.equal(s.tally.dmg, 9, '+3 урона с фишки');
+    assert.equal(s.tally.coins, 3);
+  },
   card() {
     const paid = hit({ coins: 10 }, three('card'));
-    assert.equal(paid.strike.tally.mult, 7);
+    assert.equal(paid.strike.tally.dmg, 18);
     assert.equal(paid.run.hero.coins, 4, 'по 2 монеты за фишку');
-    assert.equal(hit({ coins: 0 }, three('card')).strike.tally.mult, 1, 'без денег не работает');
+    assert.equal(hit({ coins: 0 }, three('card')).strike.tally.dmg, 0, 'без денег не работает');
   },
   piggy() {
     const res = hit({}, three('piggy'));
@@ -165,15 +148,15 @@ const CARD_CHECKS = {
     assert.equal(res.run.combat.bonusCoins, 9, 'после боя +3 с каждой');
   },
   report() {
-    assert.equal(hit({}, three('report')).strike.tally.mult, 2, 'одно семейство — +1');
+    assert.equal(hit({}, three('report')).strike.tally.dmg, 2, 'одно семейство — +2');
     const run = scene({ enemyHp: 999 });
-    assert.equal(play(run, double(run, 'fist', 'report')).strike.tally.mult, 3, 'красные до отчёта — +2');
+    assert.equal(play(run, double(run, 'fist', 'report')).strike.tally.dmg, 6 + 4, 'красные до отчёта — +4');
   },
   goldclip() {
     const s = hit({}, three('goldclip')).strike;
     assert.equal(s.tally.coins, 9);
-    assert.equal(s.tally.mult, 1.5, 'раз за ход ×1,5');
-    assert.equal(hit({}, three({ card: 'goldclip', up: true })).strike.tally.mult, 2);
+    assert.equal(s.tally.bonus, 0.3, 'раз за ход +30%');
+    assert.equal(hit({}, three({ card: 'goldclip', up: true })).strike.tally.bonus, 0.5);
   },
 
   // ── Status ─────────────────────────────────────────────────────────

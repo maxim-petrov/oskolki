@@ -110,7 +110,7 @@ export interface Request {
 
 export const REQUESTS: Request[] = [
   { id: 'start_coffee', title: 'Аптечка', text: 'Каждая смена начинается с кофе в кармане.', cost: 3 },
-  { id: 'bundle_paper', title: 'Канцелярия+', text: 'В наградах и кассе: Резак, Шило, Тревожная кнопка.', cost: 4 },
+  { id: 'bundle_paper', title: 'Канцелярия+', text: 'В наградах и кассе появится оружие: Резак и Шило.', cost: 4 },
   { id: 'start_coins', title: 'Аванс', text: '+25 монет в начале смены.', cost: 4 },
   { id: 'bundle_accounting', title: 'Бухгалтерия+', text: 'Квартальный отчёт, Золотая скрепка, Кредитка.', cost: 5 },
   { id: 'char_accountant', title: 'Перевод: Бухгалтер', text: 'Коллега из бухгалтерии выйдет в смену вместо тебя.', cost: 6 },

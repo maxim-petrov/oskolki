@@ -63,7 +63,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { kind: 'attack', value: 1, timer: 3 },
       { kind: 'stealCharge', value: 3, timer: 3 },
     ],
-    blurb: 'Ест чернила из навыка.',
+    blurb: 'Ест энергию: навык и смена оружия откладываются.',
   },
   stapler: {
     id: 'stapler',
@@ -455,7 +455,7 @@ export const INTENT_TEXT: Record<string, string> = {
   pin: 'Скрепка',
   ember: 'Уголёк',
   censor: 'Цензура',
-  stealCharge: 'Кража чернил',
+  stealCharge: 'Кража энергии',
   stealCoins: 'Кража монет',
   pinch: 'Клешня',
   tide: 'Прилив',

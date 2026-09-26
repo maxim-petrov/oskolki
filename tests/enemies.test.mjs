@@ -84,7 +84,7 @@ const INTENT_CHECKS = {
     assert.equal(foe(run).submerged, true);
     const hp = foe(run).hp;
     const res = play(run, line(run, FISTS, { row: 4 }));
-    assert.equal(foe(res.run).hp, hp, 'под водой удар не достаёт');
+    assert.equal(foe(res.run).hp, hp - res.strike.aoe, 'под водой удар не достаёт (урон всем — достаёт)');
   },
   shine() {
     const { run } = doing('shine', { enemies: ['mirror'] });
@@ -296,7 +296,7 @@ test('enemy armour, shields and heals grow with enemy health from act to act', (
 test('armour holds for one tick: it burns out even when no enemy acts', () => {
   const run = scene({ enemies: ['anchor'], enemyHp: 999 });
   const res = play(run, line(run, ['folder', 'folder', 'folder']));
-  assert.equal(res.strike.armor, 3);
+  assert.equal(res.strike.armor, 1);
   assert.equal(res.acts.length, 0, 'враг в этот тик не действует');
   assert.equal(res.run.hero.armor, 0, 'а броня всё равно сгорела');
 });

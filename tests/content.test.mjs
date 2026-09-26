@@ -37,8 +37,14 @@ test('items: names, texts, icons, pools, prices, unlocks', () => {
     assert.ok(d.pool in RELIC_PRICE, `${d.name}: пул ${d.pool}`);
     if (d.unlock) assert.ok(UNLOCKS.has(d.unlock), `${d.name}: открытие ${d.unlock}`);
     if (d.kind === 'active') {
-      assert.ok(Number.isInteger(d.charge) && d.charge > 0, `${d.name}: цена заряда`);
+      assert.ok(Number.isInteger(d.charge) && d.charge > 0, `${d.name}: цена энергии`);
       assert.ok(!d.apply, `${d.name}: у навыка нет пассивного эффекта`);
+    } else if (d.kind === 'weapon') {
+      // A weapon: damage per red tile, its strike and super strike, and what they say.
+      assert.ok(d.weapon && d.weapon.tile > 0, `${d.name}: урон за фишку`);
+      assert.ok(text(d.weapon.strikeText) && text(d.weapon.superText), `${d.name}: тексты удара и супер-удара`);
+      assert.ok(Object.keys(d.weapon.super).length > 0, `${d.name}: супер-удар что-то делает`);
+      assert.ok(!d.apply, `${d.name}: у оружия нет пассивного эффекта`);
     } else assert.ok(d.apply || d.maxHp || d.heal || d.coins || d.skillCost, `${d.name}: предмет ничего не делает`);
   }
   for (const [key, p] of Object.entries(POCKETS)) {
@@ -79,7 +85,7 @@ test('cards: families, values, texts, prices, unlocks, art', () => {
     if (d.unlock) assert.ok(UNLOCKS.has(d.unlock), `${d.name}: открытие ${d.unlock}`);
     for (const up of [false, true]) assert.ok(!cardText(key, up).includes('{'), `${d.name}: текст с подстановкой`);
     if (d.fam !== 'status') {
-      assert.ok(d.text.includes('{v}') || key === 'report', `${d.name}: значение в тексте`);
+      assert.ok(d.text.includes('{v}') || d.text.includes('{h}') || key === 'report', `${d.name}: значение в тексте`);
       assert.ok(ART.has(`card_${key}`), `${d.name}: нет картинки card_${key}`);
     }
   }
@@ -99,9 +105,10 @@ test('heroes: starting decks, items and pockets exist', () => {
     assert.equal(deck?.length, 12, `${ch.name}: 12 карт`);
     for (const id of deck) assert.ok(CARDS[id], `${ch.name}: карта ${id}`);
   }
+  // Starting items belong to a hero; the starting weapon is in every hero's hands.
   for (const r of Object.values(ITEMS).filter((d) => d.pool === 'starter'))
     assert.ok(
-      Object.values(CHARACTERS).some((c) => c.relic === r.id),
+      r.kind === 'weapon' || Object.values(CHARACTERS).some((c) => c.relic === r.id),
       `стартовый предмет ${r.name} ничей`,
     );
 });

@@ -102,10 +102,10 @@ export const CHARACTERS: Record<CharId, CharDef> = {
   intern: {
     id: 'intern',
     name: 'Стажёр',
-    desc: 'Первая неделя. Канцелярский нож и ластик в кармане.',
+    desc: 'Первая неделя. Канцелярский нож, пропуск и ластик.',
     maxHp: 8,
     coins: 20,
-    relic: 'knife',
+    relic: 'badge',
     active: 'eraser',
     pockets: [],
     unlock: null,
@@ -113,7 +113,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
   accountant: {
     id: 'accountant',
     name: 'Бухгалтер',
-    desc: 'Считает каждую монету. Золото даёт ему множитель.',
+    desc: 'Считает каждую монету. Калькулятор: золотые группы добавляют урон удару.',
     maxHp: 8,
     coins: 40,
     relic: 'calculator',

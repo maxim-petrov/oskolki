@@ -1,4 +1,4 @@
-import { activeCost } from '../game/combat.ts';
+import { activeCost, energyCap } from '../game/combat.ts';
 import { ACTS } from '../game/content/acts.ts';
 import { CARDS, FINISH_TEXT } from '../game/content/cards.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
@@ -89,7 +89,7 @@ export class RunView implements CombatHost {
 
   heroDisp(): Disp {
     const h = this.run.hero;
-    return { hp: h.hp, maxHp: h.maxHp, armor: h.armor, charge: h.charge, cost: activeCost(this.run), coins: h.coins };
+    return { hp: h.hp, maxHp: h.maxHp, armor: h.armor, charge: h.charge, cost: activeCost(this.run), cap: energyCap(this.run), coins: h.coins };
   }
 
   busy() {

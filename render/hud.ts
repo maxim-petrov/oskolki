@@ -1,4 +1,5 @@
 import { ACTS } from '../game/content/acts.ts';
+import { heartText, heartsText } from '../game/content/cards.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import type { RunState } from '../game/types.ts';
 import { bigText, text } from './font.ts';
@@ -12,8 +13,10 @@ export interface Disp {
   hp: number;
   maxHp: number;
   armor: number;
+  /** Energy now, the skill's cost and how much energy the meter holds (skill and weapon swaps). */
   charge: number;
   cost: number;
+  cap: number;
   coins: number;
 }
 
@@ -45,30 +48,44 @@ export function drawTopBar(ctx: Ctx2D, ui: UI, run: RunState, d: Disp, t: number
   ctx.globalAlpha = 1;
   ctx.fillStyle = hex('ink2');
   ctx.fillRect(0, L.top.h - 1, w, 1);
-  // Health.
-  draw(ctx, getFrame('ui_hp'), 8, y + 6);
-  const hbw = L.mode === 'wide' ? 90 : Math.min(76, Math.floor(w * 0.28));
-  const low = d.hp <= d.maxHp * 0.3;
-  bar(ctx, 15, y + 3, hbw, 7, d.hp / d.maxHp, low && Math.floor(t * 4) % 2 ? ['red5', 'red4', 'red2'] : ['red5', 'red3', 'red1'], 'red0');
-  if (incoming > 0) {
-    // The part of health the next blow will take blinks.
-    const k0 = Math.max(0, d.hp - incoming) / d.maxHp;
-    const k1 = d.hp / d.maxHp;
-    if (Math.floor(t * 5) % 2 === 0) {
-      ctx.fillStyle = hex('cream');
-      ctx.fillRect(15 + Math.round(hbw * k0), y + 3, Math.max(1, Math.round(hbw * (k1 - k0))), 7);
-    }
+  // Health in hearts (half-heart units): containers for the maximum, filled for what is left;
+  // armour follows as blue hearts (it takes the blow first and burns out after the enemies act).
+  // The halves the next blows will take through the armour (`incoming`) blink; the last heart
+  // beats when it is all that is left.
+  const hearts = Math.ceil(d.maxHp / 2);
+  const step = L.mode === 'wide' ? 10 : 9;
+  const room = L.mode === 'wide' ? 12 : 8;
+  const low = d.hp <= 2;
+  const blink = incoming > 0 && Math.floor(t * 5) % 2 === 0;
+  const hpShown = blink ? Math.max(0, d.hp - incoming) : d.hp;
+  let x = 3;
+  const hx = x;
+  const row = Math.min(hearts, room);
+  for (let i = 0; i < row; i++) {
+    const fill = Math.max(0, Math.min(2, hpShown - i * 2));
+    const icon = fill === 2 ? 'ui_heart' : fill === 1 ? 'ui_heart_half' : 'ui_heart_empty';
+    const beat = (low && fill > 0 && Math.floor(t * 3) % 2 === 0) || (pulse > 0 && fill > 0) ? -1 : 0;
+    draw(ctx, getFrame(icon), x + 4, y + 6 + beat);
+    x += step;
   }
-  text(ctx, `${d.hp}/${d.maxHp}`, 15 + hbw / 2, y + 2 - (pulse > 0 ? 1 : 0), 'cream', { align: 'center', outline: 'ink0' });
-  let x = 15 + hbw + 6;
+  // More hearts than fit: the rest as a number.
+  if (hearts > room) x += text(ctx, `+${heartText(Math.max(0, d.hp - room * 2))}`, x + 1, y + 2, 'red4', { outline: 'ink0' }) + 2;
+  ui.area('hp', hx, y, x - hx, 10);
+  if (ui.hovered === 'hp')
+    ui.tooltip('Здоровье', `${heartText(d.hp)} из ${heartsText(d.maxHp)}. Удары врагов отнимают половинки сердца; новые сердца дают предметы.`, ui.p.x, ui.p.y + 24, 'red4');
   if (d.armor > 0) {
     const ax = x;
-    draw(ctx, getFrame('ui_armor'), x + 4, y + 6);
-    x += 10 + text(ctx, `${d.armor}`, x + 10, y + 2, 'cold5', { outline: 'ink0' }) + 4;
+    const blue = Math.ceil(d.armor / 2);
+    for (let i = 0; i < Math.min(blue, room); i++) {
+      const fill = Math.max(0, Math.min(2, d.armor - i * 2));
+      if (fill) draw(ctx, getFrame(fill === 2 ? 'ui_heart_blue' : 'ui_heart_blue_half'), x + 4, y + 6);
+      x += step;
+    }
     ui.area('armor', ax, y, x - ax, 10);
     if (ui.hovered === 'armor')
-      ui.tooltip('Броня', `Гасит удары до конца хода врагов и сгорает. Не больше максимума здоровья (${d.maxHp}): удар тяжелее ранит всегда.`, ui.p.x, ui.p.y + 24, 'cold5');
+      ui.tooltip('Броня', `${heartsText(d.armor)}: гасит удары до конца хода врагов и сгорает. Не больше твоих сердец: удар тяжелее ранит всегда.`, ui.p.x, ui.p.y + 24, 'cold5');
   }
+  x += 4;
   draw(ctx, getFrame('ui_coin'), x + 4, y + 6);
   x += 10 + text(ctx, `${d.coins}`, x + 10, y + 2, 'gold4', { outline: 'ink0' }) + 6;
   // Right: buttons.
@@ -112,7 +129,11 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
   ctx.fillRect(r.x + 1, r.y + 1, r.w - 2, 1);
   if (!def) {
     text(ctx, 'нет навыка', r.x + r.w / 2, r.y + r.h / 2 - 4, 'grey2', { align: 'center' });
-    if (hot) ui.tooltip('Нет навыка', 'Заряд фиолетовых фишек бьёт сам: 1 урона за деление.', ui.p.x, ui.p.y - 50, 'vio5');
+    if (d.cap > 0) {
+      bar(ctx, r.x + 6, r.y + r.h - 9, r.w - 12, 4, d.charge / d.cap, ['vio5', 'vio4', 'vio2'], 'ink1');
+      text(ctx, `${d.charge}/${d.cap}`, r.x + r.w - 5, r.y + 4, 'cold3', { align: 'right' });
+    }
+    if (hot) ui.tooltip('Нет навыка', 'Энергия фиолетовых фишек идёт на смену оружия, а лишняя бьёт сама: 1 урона за деление.', ui.p.x, ui.p.y - 50, 'vio5');
     return false;
   }
   const icon = getFrame(def.icon);
@@ -122,15 +143,52 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
   const tx = r.x + (big ? 40 : 24);
   text(ctx, def.name, tx, r.y + 4, ready ? 'cream' : 'cold4', { outline: 'ink0' });
   const mw = r.x + r.w - 6 - tx;
-  bar(ctx, tx, r.y + r.h - 9, mw, 4, d.charge / d.cost, ['vio5', 'vio4', 'vio2'], 'ink1');
+  bar(ctx, tx, r.y + r.h - 9, mw, 4, d.charge / Math.max(1, d.cap), ['vio5', 'vio4', 'vio2'], 'ink1');
   text(ctx, `${d.charge}/${d.cost}`, r.x + r.w - 5, r.y + 4, ready ? 'vio5' : 'cold3', { align: 'right' });
   if (ready && Math.floor(t * 3) % 2 === 0) {
     ctx.fillStyle = hex('vio5');
     ctx.fillRect(r.x, r.y, r.w, 1);
     ctx.fillRect(r.x, r.y + r.h - 1, r.w, 1);
   }
-  if (hot) ui.tooltip(def.name, `${def.desc}\nЗаряд: ${d.cost} чернил. Лишний заряд бьёт: 1 урона за деление.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
+  if (hot) ui.tooltip(def.name, `${def.desc}\nНавык: ${d.cost} энергии. Лишняя энергия бьёт: 1 урона за деление.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
   return clicked;
+}
+
+/**
+ * Weapon slots: the one in hand is framed in gold; a click on another takes it in hand (energy in
+ * a fight). `compact` draws only the weapon in hand (a tap swaps to the next one). Returns the
+ * weapon to take in hand, or null.
+ */
+export function drawWeapons(ctx: Ctx2D, ui: UI, x: number, y: number, size: number, run: RunState, d: Disp, cost: number, compact = false): string | null {
+  const hero = run.hero;
+  let picked: string | null = null;
+  const list = compact ? [hero.weapon] : hero.weapons;
+  list.forEach((id, k) => {
+    const def = ITEMS[id];
+    if (!def?.weapon) return;
+    const sx = x + k * (size + 3);
+    const key = `weapon-${k}`;
+    const inHand = id === hero.weapon;
+    const next = compact ? hero.weapons[(hero.weapons.indexOf(id) + 1) % hero.weapons.length] : id;
+    const can = next !== hero.weapon && d.charge >= cost;
+    if (ui.area(key, sx, y, size, size) && can) picked = next;
+    const hot = ui.hovered === key;
+    ctx.fillStyle = hex(inHand ? 'gold4' : 'ink0');
+    ctx.fillRect(sx, y, size, size);
+    ctx.fillStyle = hex(inHand ? 'red1' : hot && can ? 'ink3' : 'ink2');
+    ctx.fillRect(sx + 1, y + 1, size - 2, size - 2);
+    const f = getFrame(def.icon);
+    if (size >= 36) drawScaled(ctx, f, sx + size / 2 - f.w + f.ox * 2, Math.round(y + size / 2) + f.oy * 2 - f.h, 2);
+    else draw(ctx, f, Math.round(sx + size / 2 - f.w / 2 + f.ox), Math.round(y + size / 2 - f.h / 2 + f.oy));
+    if (!inHand && !compact) text(ctx, `${cost}`, sx + size - 5, y + size - 9, can ? 'vio5' : 'grey2', { outline: 'ink0' });
+    if (compact && hero.weapons.length > 1) text(ctx, '⇆', sx + size - 7, y + 1, can ? 'vio5' : 'grey2', { outline: 'ink0' });
+    if (hot) {
+      const w = def.weapon;
+      const swap = inHand && !compact ? 'В руке.' : `Взять в руку: ${cost} энергии.`;
+      ui.tooltip(def.name, `Удар: ${w.strikeText}\nСупер-удар (группа из 4+): ${w.superText}\n${swap}`, ui.p.x, ui.p.y - 60, 'red4');
+    }
+  });
+  return picked;
 }
 
 /** Pocket slots in a row. Returns the clicked slot index, or -1. */

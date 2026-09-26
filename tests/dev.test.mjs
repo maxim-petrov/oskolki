@@ -74,7 +74,9 @@ test('every ready-made dev test uses real content and starts', async () => {
       for (const e of c.enemies ?? []) assert.ok(ENEMIES[e], `${item.id}: enemy ${e}`);
       if (c.build) {
         for (const card of c.build.deck) assert.ok(CARDS[card.id], `${item.id}: card ${card.id}`);
-        for (const r of c.build.relics) assert.equal(ITEMS[r]?.kind, 'passive', `${item.id}: relic ${r}`);
+        // Items and weapons share the list: the build op puts weapons in the hands.
+        for (const r of c.build.relics) assert.ok(['passive', 'weapon'].includes(ITEMS[r]?.kind), `${item.id}: relic ${r}`);
+        assert.ok(c.build.relics.filter((r) => ITEMS[r]?.kind === 'weapon').length <= 3, `${item.id}: не больше трёх оружий`);
         if (c.build.active) assert.equal(ITEMS[c.build.active]?.kind, 'active', `${item.id}: active ${c.build.active}`);
         for (const p of c.build.pockets) if (p) assert.ok(POCKETS[p], `${item.id}: pocket ${p}`);
       }

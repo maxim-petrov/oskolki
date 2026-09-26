@@ -1,3 +1,4 @@
+import { heartText } from '../game/content/cards.ts';
 import type { Tally } from '../game/types.ts';
 import { bigText, measureBig, text } from './font.ts';
 import { hex } from './palette.ts';
@@ -5,15 +6,16 @@ import { draw, getFrame, type Ctx2D } from './sprite.ts';
 import { L } from './view.ts';
 
 /**
- * The move's counter, Balatro-style: УРОН × МНОЖ. Every scored tile bumps a number; the
- * multiplier flares; at the end the product slams in as the strike. Display values chase the
- * engine's tally so the counting reads even when waves come fast.
+ * The move's counter: every scored tile bumps УРОН (and armour, energy, coins); a damage bonus
+ * of the move shows as «+N%» next to it; at the end the strike slams in. No explicit multiplier.
+ * Display values chase the engine's tally so the counting reads even when waves come fast.
  */
 export class TallyView {
   dmg = 0;
-  mult = 1;
+  /** Damage bonus of the move, as a fraction (+0.25 = +25%). */
+  bonus = 0;
   armor = 0;
-  /** Mult waiting for the next strike (the abacus's savings, the hot key): shown in the МНОЖ box. */
+  /** Bonus waiting for the next strike (the abacus's savings, the hot key), as a fraction. */
   pending = 0;
   coins = 0;
   charge = 0;
@@ -30,7 +32,7 @@ export class TallyView {
 
   reset() {
     this.dmg = 0;
-    this.mult = 1;
+    this.bonus = 0;
     this.armor = 0;
     this.coins = 0;
     this.charge = 0;
@@ -39,11 +41,11 @@ export class TallyView {
     this.idleT = 0;
   }
 
-  add(k: 'dmg' | 'mult' | 'armor' | 'coins' | 'charge', n: number) {
+  add(k: 'dmg' | 'bonus' | 'armor' | 'coins' | 'charge', n: number) {
     if (!n) return;
-    this[k] = Math.round((this[k] + n) * 10) / 10;
+    this[k] = Math.round((this[k] + n) * 100) / 100;
     if (k === 'dmg') this.bumpD = 1;
-    if (k === 'mult') {
+    if (k === 'bonus') {
       this.bumpM = 1;
       this.shake = 0.3;
     }
@@ -53,7 +55,7 @@ export class TallyView {
   /** Snap to the engine's numbers after a wave. */
   sync(t: Tally) {
     this.dmg = t.dmg;
-    this.mult = Math.round(t.mult * t.xmult * 10) / 10;
+    this.bonus = t.bonus;
     this.armor = t.armor;
     this.coins = t.coins;
     this.charge = t.charge;
@@ -69,14 +71,14 @@ export class TallyView {
     this.idleT = 0;
   }
 
-  /** Flames over the counter when the multiplier runs hot (Balatro-style), in screen particles. */
+  /** Flames over the counter when a move runs hot (a big bonus or a big hit), in screen particles. */
   burn(ps: import('./particles.ts').Particles) {
-    const heat = this.live ? Math.max(0, Math.min(1, (this.mult - 3) / 9)) : 0;
+    const heat = this.live ? Math.max(0, Math.min(1, Math.max(this.bonus - 0.5, (this.dmg - 30) / 60))) : 0;
     if (heat <= 0) return;
     const r = L.tally;
     const wide = L.mode === 'wide';
-    const bw = wide ? Math.floor((r.w - 26) / 2) : Math.min(88, Math.floor((r.w - 70) / 2));
-    const mx = wide ? r.x + r.w - 4 - bw : Math.round(r.x + r.w / 2) + 10;
+    const bw = wide ? r.w - 8 : Math.min(176, r.w - 70);
+    const mx = wide ? r.x + 4 : Math.round(r.x + (r.w - bw) / 2);
     const my = wide ? r.y + 14 : r.y + 3;
     const n = Math.round(1 + heat * 4);
     for (let k = 0; k < n; k++)
@@ -127,7 +129,12 @@ export class TallyView {
     ctx.fillRect(x + 1, y + 1, w - 2, 1);
   }
 
-  /** Wide screens: a panel left of the board with two big boxes and the result line. */
+  /** «+25%» for a bonus. */
+  private pct(v: number) {
+    return `${v >= 0 ? '+' : '−'}${Math.round(Math.abs(v) * 100)}%`;
+  }
+
+  /** Wide screens: a panel left of the board with the damage box and the result line. */
   private drawWide(ctx: Ctx2D, x: number, y: number, w: number, t: number) {
     const a = this.alpha();
     const sx = this.shake > 0 ? Math.round(Math.sin(t * 80) * this.shake * 2) : 0;
@@ -135,35 +142,27 @@ export class TallyView {
     // Panel.
     this.box(ctx, x, y, w, 60, 'ink1', 'ink2');
     text(ctx, 'ХОД', x + 5, y + 3, 'cold3');
-    const bw = Math.floor((w - 26) / 2);
+    const bw = w - 8;
     const by = y + 14;
-    // УРОН box (red).
+    // УРОН box (red), the bonus of the move on its left.
     this.box(ctx, x + 4 + sx, by, bw, 26, this.bumpD > 0.5 ? 'red2' : 'red1', 'red3');
     text(ctx, 'УРОН', x + 7 + sx, by + 2, 'red5', { alpha: 0.8 });
-    const dStr = this.num(this.dmg);
+    if (this.bonus) text(ctx, this.pct(this.bonus), x + 7 + sx, by + 13 - Math.round(this.bumpM * 2), this.bonus > 0 ? 'gold4' : 'cold4', { outline: 'ink0', alpha: a });
+    else if (this.pending > 0) text(ctx, `${this.pct(this.pending)} ждёт`, x + 7 + sx, by + 13, 'gold4', { outline: 'ink0' });
     ctx.globalAlpha = a;
-    bigText(ctx, dStr, x + 4 + bw - 4 + sx, by + 12 - Math.round(this.bumpD * 2), 'cream', { align: 'right' });
+    bigText(ctx, this.num(this.dmg), x + 4 + bw - 4 + sx, by + 12 - Math.round(this.bumpD * 2), 'cream', { align: 'right' });
     ctx.globalAlpha = 1;
-    // ×
-    text(ctx, '×', x + 4 + bw + 7, by + 9, 'gold4', { outline: 'ink0' });
-    // МНОЖ box (violet).
-    const mx = x + w - 4 - bw;
-    this.box(ctx, mx - sx, by, bw, 26, this.bumpM > 0.5 ? 'vio3' : 'vio1', 'vio4');
-    text(ctx, 'МНОЖ', mx + 3 - sx, by + 2, 'vio5', { alpha: 0.8 });
-    ctx.globalAlpha = a;
-    bigText(ctx, this.num(this.mult), mx + bw - 4 - sx, by + 12 - Math.round(this.bumpM * 3), this.mult >= 5 ? 'gold4' : 'cream', { align: 'right' });
-    ctx.globalAlpha = 1;
-    if (this.pending > 0) text(ctx, `+${this.pending} ждёт`, mx + 3 - sx, by + 15, 'gold4', { outline: 'ink0' });
     // Small resources of the move.
     let cx = x + 5;
     const cy = by + 30;
-    const small = (icon: string, v: number, color: string) => {
+    const small = (icon: string, v: number, color: string, show = (n: number) => this.num(n)) => {
       if (!v) return;
       draw(ctx, getFrame(icon), cx + 4, cy + 4);
       cx += 10;
-      cx += text(ctx, `+${this.num(v)}`, cx, cy, color, { alpha: a }) + 6;
+      cx += text(ctx, `+${show(v)}`, cx, cy, color, { alpha: a }) + 6;
     };
-    small('ui_armor', this.armor, 'cold5');
+    // Armour in hearts (it is counted in half-hearts).
+    small('ui_armor', this.armor, 'cold5', (n) => heartText(Math.round(n)));
     small('ui_charge', this.charge, 'vio5');
     small('ui_coin', this.coins, 'gold4');
     // Result of the strike.
@@ -190,26 +189,20 @@ export class TallyView {
     const a = this.alpha();
     const sx = this.shake > 0 ? Math.round(Math.sin(t * 80) * this.shake * 2) : 0;
     this.box(ctx, x, y, w, h, 'ink1', 'ink2');
-    const bw = Math.min(88, Math.floor((w - 70) / 2));
-    const cx = Math.round(x + w / 2);
-    // УРОН
-    this.box(ctx, cx - 10 - bw + sx, y + 3, bw, h - 6, this.bumpD > 0.5 ? 'red2' : 'red1', 'red3');
-    text(ctx, 'УРОН', cx - 7 - bw + sx, y + 5, 'red5', { alpha: 0.75 });
+    const bw = Math.min(176, w - 70);
+    const bx = Math.round(x + (w - bw) / 2);
+    // УРОН, the bonus of the move inside on the left.
+    this.box(ctx, bx + sx, y + 3, bw, h - 6, this.bumpD > 0.5 ? 'red2' : 'red1', 'red3');
+    text(ctx, 'УРОН', bx + 3 + sx, y + 5, 'red5', { alpha: 0.75 });
+    if (this.bonus) text(ctx, this.pct(this.bonus), bx + 3 + sx, y + h - 12, this.bonus > 0 ? 'gold4' : 'cold4', { outline: 'ink0', alpha: a });
+    else if (this.pending > 0) text(ctx, this.pct(this.pending), bx + 3 + sx, y + h - 12, 'gold4', { outline: 'ink0' });
     ctx.globalAlpha = a;
-    bigText(ctx, this.num(this.dmg), cx - 14 + sx, y + 8 - Math.round(this.bumpD * 2), 'cream', { align: 'right' });
+    bigText(ctx, this.num(this.dmg), bx + bw - 4 + sx, y + 8 - Math.round(this.bumpD * 2), 'cream', { align: 'right' });
     ctx.globalAlpha = 1;
-    text(ctx, '×', cx - 3, y + 8, 'gold4', { outline: 'ink0' });
-    // МНОЖ
-    this.box(ctx, cx + 10 - sx, y + 3, bw, h - 6, this.bumpM > 0.5 ? 'vio3' : 'vio1', 'vio4');
-    text(ctx, 'МНОЖ', cx + 13 - sx, y + 5, 'vio5', { alpha: 0.75 });
-    ctx.globalAlpha = a;
-    bigText(ctx, this.num(this.mult), cx + 6 + bw - sx, y + 8 - Math.round(this.bumpM * 3), this.mult >= 5 ? 'gold4' : 'cream', { align: 'right' });
-    ctx.globalAlpha = 1;
-    if (this.pending > 0) text(ctx, `+${this.pending}`, cx + 13 - sx, y + h - 11, 'gold4', { outline: 'ink0' });
     // Side notes: armor on the left, the result on the right.
     if (this.armor) {
       draw(ctx, getFrame('ui_armor'), x + 8, y + h / 2);
-      text(ctx, `+${this.num(this.armor)}`, x + 14, y + h / 2 - 4, 'cold5', { alpha: a });
+      text(ctx, `+${heartText(Math.round(this.armor))}`, x + 14, y + h / 2 - 4, 'cold5', { alpha: a });
     }
     const res = this.result;
     if (res) {

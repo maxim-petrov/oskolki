@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { gainRelic, newRun } from '../game/run.ts';
 import { validMoves } from '../game/board.ts';
 import { ITEMS, POCKETS, computeMods } from '../game/content/items.ts';
-import { activeCost } from '../game/combat.ts';
+import { activeCost, swapCost } from '../game/combat.ts';
 import { FINISH_TEXT } from '../game/content/cards.ts';
 import { QUEUE_LEN } from '../game/types.ts';
 import { ACTS } from '../game/content/acts.ts';
@@ -29,7 +29,7 @@ function armorOfMove(res) {
   return -(res.effects.find((f) => f.kind === 'armor' && f.source === 'expire')?.amount ?? 0) || res.run.hero.armor;
 }
 
-/** How often a note shows up on the strike over many seeds. */
+/** How often a note shows up on the strike over many seeds, with the percent it names (+30% → 0.3). */
 function noteRate(relic, prefix, n = 300) {
   const values = [];
   let hits = 0;
@@ -38,7 +38,8 @@ function noteRate(relic, prefix, n = 300) {
     const note = s.notes.find((x) => x.startsWith(prefix));
     if (note) {
       hits++;
-      values.push(Number(note.slice(prefix.length).replace(',', '.')));
+      const m = note.match(/([+−])(\d+)%/);
+      if (m) values.push(((m[1] === '−' ? -1 : 1) * Number(m[2])) / 100);
     }
   }
   return { rate: hits / n, values };
@@ -74,9 +75,7 @@ const ITEM_CHECKS = {
   closet() {
     const b = scene({ relics: ['closet'] }).combat.board;
     assert.deepEqual([b.w, b.h], [5, 6]);
-    const s = hit({ relics: ['closet'] }).strike;
-    assert.equal(s.damage, 24, 'каждый удар ×4');
-    assert.ok(s.notes.includes('Тесная каморка ×4'));
+    assert.equal(hit({ relics: ['closet'] }).strike.damage, 12, 'урон +100%');
     const both = scene({ relics: ['closet', 'extension'] }).combat.board;
     assert.deepEqual([both.w, both.h], [6, 6], 'размеры складываются');
     fightsThrough(['closet']);
@@ -128,39 +127,45 @@ const ITEM_CHECKS = {
     assert.equal(win(2, 3).maxHp, 8, 'не больше трёх сердец за смену');
   },
   abacus() {
-    // Gold groups put mult aside; the next strike that deals damage takes it all.
+    // Gold tiles put a damage bonus aside; the next strike that deals damage takes it all.
     let run = scene({ relics: ['abacus'], enemyHp: 999 });
     run = play(run, line(run, CLIPS, { row: 2 })).run;
-    assert.equal(run.combat.bank, 3, '+1 за каждую золотую фишку');
+    assert.equal(Math.round(run.combat.bank * 100), 30, '+10% за каждую золотую фишку');
     run = play(run, line(run, CLIPS, { row: 4 })).run;
-    assert.equal(run.combat.bank, 4, 'не больше +4');
+    assert.equal(run.combat.bank, 0.5, 'не больше +50%');
     const res = play(run, line(run, FISTS));
-    assert.equal(res.strike.tally.mult, 5, '1 + 4 отложенных');
-    assert.ok(res.strike.notes.includes('Счёты +4'));
+    assert.equal(res.strike.damage, 9, '6 урона +50%');
+    assert.ok(res.strike.notes.includes('Счёты +50%'));
     assert.equal(res.run.combat.bank, 0);
     assert.equal(hit({}, CLIPS).run.combat.bank ?? 0, 0, 'без счётов золото ничего не откладывает');
   },
   binding() {
     const five = ['fist', 'fist', 'fist', 'fist', 'fist'];
-    assert.equal(hit({ relics: ['binding'] }, five).strike.tally.mult, 3);
-    assert.equal(hit({ relics: ['binding'] }, [...FISTS, 'fist']).strike.tally.mult, 1, 'группа из 4 — без бонуса');
+    // The staple gun has no super strike damage: the group's own numbers are plain.
+    assert.equal(hit({ relics: ['binding'], weapon: 'staplegun' }, five).strike.damage, 15, '10 урона +50%');
+    assert.equal(hit({ relics: ['binding'], weapon: 'staplegun' }, [...FISTS, 'fist']).strike.damage, 8, 'группа из 4 — без бонуса');
   },
-  knife() {
-    assert.equal(hit({ relics: ['knife'], enemies: ['rat'] }).strike.damage, 12, 'бумажная крыса: удар ×2');
-    assert.equal(hit({ relics: ['knife'], enemies: ['anchor'] }).strike.damage, 6, 'металл — без бонуса');
+  badge() {
+    const run = scene({ weapons: ['knife', 'scissors'], charge: 1 });
+    assert.equal(swapCost(run), 2);
+    assert.equal(act(run, { type: 'weapon', id: 'scissors' }).invalid?.reason, 'Нужно 2 энергии');
+    const pass = scene({ relics: ['badge'], weapons: ['knife', 'scissors'], charge: 1 });
+    assert.equal(swapCost(pass), 1, 'с пропуском — на 1 дешевле');
+    const swapped = act(pass, { type: 'weapon', id: 'scissors' }).run;
+    assert.deepEqual([swapped.hero.weapon, swapped.hero.charge], ['scissors', 0]);
   },
   calculator() {
-    assert.equal(hit({ relics: ['calculator'] }, CLIPS).strike.tally.mult, 2);
-    assert.equal(hit({ relics: ['calculator'] }).strike.tally.mult, 1, 'без золота — без бонуса');
+    assert.equal(hit({ relics: ['calculator'] }, CLIPS).strike.tally.dmg, 3, '+3 урона за золотую группу');
+    assert.equal(hit({ relics: ['calculator'] }).strike.tally.dmg, 6, 'без золота — без бонуса');
   },
   mop() {
     const res = hit({ relics: ['mop'] });
     const junk = res.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
-    assert.ok(junk > 0);
-    assert.equal(armorOfMove(res), byBlows(junk), '1 броня за каждую убранную кляксу');
+    assert.ok(junk >= 2);
+    assert.equal(armorOfMove(res), Math.floor(junk / 2), 'половинка сердца за каждые 2 убранные кляксы');
   },
   coffee: () => assert.equal(hit({ relics: ['coffee'] }).strike.tally.dmg, 9),
-  binderclip: () => assert.equal(hit({ relics: ['binderclip'] }, FOLDERS).strike.armor, 6),
+  binderclip: () => assert.equal(hit({ relics: ['binderclip'] }, FOLDERS).strike.armor, 2, 'синяя группа: ещё половинка сердца'),
   inkpot: () => assert.equal(hit({ relics: ['inkpot'] }, INKS).strike.tally.charge, 6),
   wallet: () => assert.equal(hit({ relics: ['wallet'] }, CLIPS).strike.tally.coins, 6),
   vestrelic() {
@@ -247,8 +252,8 @@ const ITEM_CHECKS = {
   register: () => assert.equal(hit({ relics: ['register'] }, CLIPS).strike.damage, 6),
   tape() {
     const res = hit({ relics: ['tape'] }, FOLDERS);
-    assert.equal(res.strike.armor, 3);
-    assert.equal(res.strike.damage, 3, 'броня хода бьёт цель');
+    assert.equal(res.strike.armor, 1);
+    assert.equal(res.strike.damage, 4, 'броня хода бьёт цель: 4 за половинку сердца');
   },
   rustyblade() {
     const res = hit({ relics: ['rustyblade'] });
@@ -256,7 +261,7 @@ const ITEM_CHECKS = {
     assert.equal(foe(res.run).bleed, 1);
   },
   match() {
-    const res = hit({ relics: ['match'] }, [...FISTS, 'fist']);
+    const res = hit({ relics: ['match'], weapon: 'staplegun' }, [...FISTS, 'fist']);
     assert.equal(foe(res.run).burnTurns, 2, 'горит ещё два хода после первого');
     assert.equal(foe(res.run).hp, 999 - 8 - 4);
     assert.equal(foe(hit({ relics: ['match'] }).run).burnTurns, 0, 'группа из трёх не поджигает');
@@ -270,12 +275,12 @@ const ITEM_CHECKS = {
     assert.equal(foe(hit({ relics: [] }, [...FOLDERS, 'folder']).run).countdown, 2);
   },
   plane() {
-    const run = scene({ relics: ['plane'], enemies: ['anchor', 'drop'] });
+    const run = scene({ relics: ['plane'], weapon: 'staplegun', enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, [...FISTS, 'fist']));
     assert.equal(foe(res.run, 1).hp, 18, '6 урона каждому врагу');
   },
   lucky() {
-    const { rate } = noteRate('lucky', 'Удача ×');
+    const { rate } = noteRate('lucky', 'Удача');
     assert.ok(rate > 0.13 && rate < 0.27, `удвоение в ${(rate * 100).toFixed(0)}% ходов, ждём 20%`);
   },
   dynamite() {
@@ -299,14 +304,15 @@ const ITEM_CHECKS = {
     assert.equal(again.strike.damage, 6, 'только первый удар по врагу');
   },
   calc2() {
-    const { rate, values } = noteRate('calc2', 'Калькулятор ×');
+    const { rate, values } = noteRate('calc2', 'Калькулятор');
     assert.equal(rate, 1);
-    assert.ok(Math.min(...values) >= 0.5 && Math.max(...values) <= 2.5);
+    assert.equal(values.length, 300);
+    assert.ok(Math.min(...values) >= -0.5 && Math.max(...values) <= 1);
     const avg = values.reduce((s, x) => s + x, 0) / values.length;
-    assert.ok(avg > 1.35 && avg < 1.65, `в среднем ×${avg.toFixed(2)}, ждём 1,5`);
+    assert.ok(avg > 0.15 && avg < 0.35, `в среднем +${Math.round(avg * 100)}%, ждём +25%`);
   },
   lamp() {
-    assert.equal(hit({ relics: ['lamp'], active: 'giftbox' }, INKS).strike.tally.mult, 2);
+    assert.equal(hit({ relics: ['lamp'], active: 'giftbox' }, INKS).strike.tally.dmg, 3, '+3 урона за фиолетовую группу');
     const run = scene({ relics: ['lamp'], enemies: ['archivist'] });
     ready(run, 'censor');
     const res = play(run, line(run, FISTS));
@@ -347,8 +353,8 @@ const ITEM_CHECKS = {
   poster() {
     const res = cascade({ relics: ['poster'] }, FISTS, FOLDERS);
     assert.equal(res.waves.length >= 2, true, 'есть каскад');
-    assert.equal(res.strike.tally.mult, 2);
-    assert.equal(cascade({}, FISTS, FOLDERS).strike.tally.mult, 1, 'без плаката волны множ не дают');
+    assert.equal(res.strike.tally.bonus, 0.15, '+15% за вторую волну');
+    assert.equal(cascade({}, FISTS, FOLDERS).strike.tally.bonus, 0, 'без плаката волны бонуса не дают');
   },
   coffeemachine() {
     const first = hit({ relics: ['coffeemachine'] });
@@ -365,7 +371,7 @@ const ITEM_CHECKS = {
     ready(saved, 'attack');
     assert.equal(play(saved, line(saved, CLIPS, { row: 4 })).run.phase, 'dead', 'второй раз за отдел — нет');
   },
-  award: () => assert.equal(hit({ relics: ['award'] }).strike.damage, 12),
+  award: () => assert.equal(hit({ relics: ['award'] }).strike.damage, 8, '6 урона +25% (7,5 → 8)'),
   nightshift: () => assert.equal(foe(scene({ relics: ['nightshift'] })).countdown, 4),
   espresso: () => assert.equal(hit({ relics: ['espresso'] }).strike.tally.dmg, 12),
   pocketbag() {
@@ -379,13 +385,13 @@ const ITEM_CHECKS = {
     assert.equal(run.combat.board.cells.filter((t) => t.finish === 'seal').length, 3);
   },
   vault() {
-    assert.equal(hit({ relics: ['vault'], coins: 250 }).strike.tally.mult, 3, '250 монет — +2 множ');
-    assert.equal(hit({ relics: ['vault'], coins: 99 }).strike.tally.mult, 1);
+    assert.equal(hit({ relics: ['vault'], coins: 250 }).strike.damage, 9, '250 монет — +50%');
+    assert.equal(hit({ relics: ['vault'], coins: 49 }).strike.damage, 6);
   },
   hotkey() {
-    // After a skill, the next move strikes with +2 mult.
+    // After a skill, the next move strikes +50%.
     const after = act(scene({ active: 'eraser', relics: ['hotkey'], charge: 2, enemyHp: 999 }), { type: 'active', cell: idx(5, 5) }).run;
-    assert.equal(play(after, line(after, FISTS)).strike.tally.mult, 5);
+    assert.equal(play(after, line(after, FISTS)).strike.damage, 9);
     assert.equal(activeCost(scene({ active: 'eraser' })), 3);
     assert.equal(activeCost(scene({ active: 'eraser', relics: ['hotkey'] })), 2);
     assert.equal(activeCost(scene({ active: 'stapler', relics: ['hotkey'] })), 4);
@@ -402,7 +408,7 @@ const ITEM_CHECKS = {
       return play(run, line(run, CLIPS)).run.hero.armor;
     };
     assert.equal(left([]), 0, 'обычно остаток брони сгорает');
-    assert.equal(left(['steeldoor']), Math.floor((20 - blowOf('rat', 'attack')) / 2), 'удар гасится бронёй, половина остатка остаётся');
+    assert.equal(left(['steeldoor']), Math.round((20 - blowOf('rat', 'attack')) / 2), 'удар гасится бронёй, половина остатка остаётся');
   },
   prismpact() {
     const made = (relics) => hit({ relics }, [...FISTS, 'fist']).waves[0].created[0].tile;
@@ -423,6 +429,58 @@ const ITEM_CHECKS = {
     assert.equal(made2.length, 2, 'две группы из 4 за ход');
     assert.equal(made2[0].kind, 'prism');
     assert.equal(made2[1].special, 'rocketH', 'вторая — ракета');
+  },
+
+  // ── Weapons: red tiles strike with the one in hand, a red group of 4+ is its super strike ──
+  knife() {
+    assert.equal(hit({ enemies: ['rat'] }).strike.damage, 12, 'бумажная крыса: +100%');
+    assert.equal(hit({ enemies: ['anchor'] }).strike.damage, 6, 'металл — без бонуса');
+    const run = scene({ enemies: ['anchor', 'drop'] });
+    const res = play(run, line(run, [...FISTS, 'fist']));
+    assert.equal(res.strike.aoe, 8, 'супер: 2 за фишку каждому');
+    assert.equal(foe(res.run, 1).hp, 24 - 8);
+  },
+  staplegun() {
+    const res = hit({ weapon: 'staplegun' });
+    assert.equal(res.strike.damage, 6);
+    assert.equal(foe(res.run).countdown, 3, 'таймер +1 перед тиком');
+    assert.equal(foe(hit({ weapon: 'staplegun' }, [...FISTS, 'fist']).run).stunned, true, 'супер: цель пропускает действие');
+  },
+  scissors() {
+    const res = hit({ weapon: 'scissors' });
+    assert.equal(foe(res.run).hp, 999 - 6 - 1, 'удар и кровотечение 1 в конце хода');
+    const big = hit({ weapon: 'scissors' }, [...FISTS, 'fist']);
+    assert.equal(foe(big.run).hp, 999 - 8 - 4, 'супер: ещё 3 кровотечения');
+    assert.equal(foe(big.run).bleed, 3);
+  },
+  punch() {
+    const dealt = (weapon, cards = FISTS) => 999 - foe(hit({ weapon, enemies: ['eraser'] }, cards).run).hp;
+    assert.equal(dealt('knife'), 4, 'резиновый ластик: броня 2');
+    assert.equal(dealt('punch'), 6, 'дырокол пробивает');
+    assert.equal(foe(hit({ weapon: 'punch' }, [...FISTS, 'fist']).run).stunned, true, 'супер: цель пропускает действие');
+  },
+  ruler() {
+    const run = scene({ weapon: 'ruler', enemies: ['anchor', 'drop'] });
+    const res = play(run, line(run, FISTS));
+    assert.deepEqual([res.strike.damage, res.strike.aoe], [3, 3], '1 за фишку цели и каждому');
+    assert.equal(foe(res.run, 1).hp, 21);
+    assert.equal(hit({ weapon: 'ruler' }, [...FISTS, 'fist']).strike.aoe, 4 + 8, 'супер: ещё 2 за фишку всем');
+  },
+  sharpener() {
+    assert.equal(hit({ weapon: 'sharpener' }).strike.tally.dmg, 3);
+    assert.equal(cascade({ weapon: 'sharpener' }, FOLDERS, FISTS).strike.tally.dmg, 12, 'в каскаде — 4 за фишку');
+    assert.equal(hit({ weapon: 'sharpener' }, [...FISTS, 'fist']).strike.tally.dmg, 8, 'супер: ещё 1 за фишку');
+  },
+  awl() {
+    assert.equal(hit({ weapon: 'awl' }).strike.tally.dmg, 9);
+    const big = hit({ weapon: 'awl' }, [...FISTS, 'fist']);
+    assert.equal(big.strike.tally.dmg, 24, 'супер: ещё 3 за фишку');
+    assert.equal(big.run.hero.hp, 59, 'и половинка сердца героя');
+  },
+  cutter() {
+    assert.equal(hit({ weapon: 'cutter', enemies: ['rat'] }).strike.damage, 9, 'по бумаге +200%');
+    assert.equal(hit({ weapon: 'cutter', enemies: ['anchor'] }).strike.damage, 3);
+    assert.equal(hit({ weapon: 'cutter', enemies: ['anchor'] }, [...FISTS, 'fist']).strike.damage, 20, 'супер: ещё 4 за фишку');
   },
 
   // ── Skills ─────────────────────────────────────────────────────────
@@ -472,8 +530,8 @@ const ITEM_CHECKS = {
     for (let r = 0; r < 6; r++) put(run, r, 0, r % 2 ? 'folder' : 'fist');
     const res = act(run, { type: 'active', col: 0 });
     assert.equal(res.waves[0].blasts[0].cells.length, 6);
-    assert.equal(res.strike.damage, 6, 'три кулака срабатывают');
-    assert.equal(res.strike.armor, 3);
+    assert.equal(res.strike.damage, 6, 'три удара срабатывают');
+    assert.equal(res.strike.armor, 1, 'три синие во взрыве — половинка сердца');
   },
   megaphone() {
     const run = scene({ active: 'megaphone', charge: 8 });
@@ -514,14 +572,14 @@ const POCKET_CHECKS = {
       type: 'pocket',
       slot: 0,
     }).run;
-    assert.equal(play(run, line(run, FISTS)).strike.tally.mult, 3);
+    assert.equal(play(run, line(run, FISTS)).strike.damage, 12, 'урон +100%');
   },
 };
 
 const FINISH_CHECKS = {
   sharp: () => assert.equal(hit({}, ['fist', { card: 'fist', finish: 'sharp' }, 'fist']).strike.tally.dmg, 7),
   gild: () => assert.equal(hit({}, ['fist', { card: 'fist', finish: 'gild' }, 'fist']).strike.tally.coins, 1),
-  seal: () => assert.equal(hit({}, ['fist', { card: 'fist', finish: 'seal' }, 'fist']).strike.tally.mult, 2),
+  seal: () => assert.equal(hit({}, ['fist', { card: 'fist', finish: 'seal' }, 'fist']).strike.tally.dmg, 8, '+2 урона'),
   copy: () => assert.equal(hit({}, ['fist', { card: 'fist', finish: 'copy' }, 'fist']).strike.tally.dmg, 8),
   laminate() {
     const run = scene({ enemies: ['blot'], real: true });
@@ -549,7 +607,7 @@ test('effects outside the strike grow with the act: damage with enemy health, ar
   const HP = ACTS[act].hpMul;
   const DMG = ACTS[act].dmgMul;
   const hurt = (relics, cards, k = 1) => {
-    const run = scene({ act, relics, enemies: ['anchor', 'drop'] });
+    const run = scene({ act, relics, weapon: 'staplegun', enemies: ['anchor', 'drop'] });
     const before = foe(run, k).hp;
     return before - foe(play(run, line(run, cards)).run, k).hp;
   };
@@ -569,10 +627,10 @@ test('effects outside the strike grow with the act: damage with enemy health, ar
   assert.equal(99999 - foe(play(cactus, line(cactus, CLIPS)).run).hp, 5 * HP, 'кактус');
   const mop = hit({ act, relics: ['mop'] });
   const junk = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
-  assert.equal(armorOfMove(mop), Math.round(junk * DMG), 'швабра');
+  assert.equal(armorOfMove(mop), Math.round(Math.floor(junk / 2) * DMG), 'швабра');
 });
 
-test('ink beyond a full skill burns: 1 damage per extra charge', () => {
+test('energy beyond a full meter burns: 1 damage per extra point', () => {
   const dmg = (opts, cards = INKS) => hit(opts, cards).strike.tally.dmg;
   assert.equal(dmg({ active: 'giftbox' }), 0, 'навык берёт весь заряд');
   assert.equal(dmg({ active: 'eraser' }), 0, 'ровно на навык — без остатка');
@@ -580,6 +638,6 @@ test('ink beyond a full skill burns: 1 damage per extra charge', () => {
   assert.equal(dmg({}), 3, 'без навыка весь заряд бьёт');
   const s = hit({ active: 'eraser', charge: 2 }, INKS);
   assert.equal(s.strike.tally.dmg, 2, 'одно деление на навык, два — в урон');
-  assert.ok(s.strike.notes.includes('Лишний заряд +2 урона'));
+  assert.ok(s.strike.notes.includes('Лишняя энергия +2 урона'));
   assert.equal(hit({}, INKS).run.hero.charge, 0, 'без навыка заряд не копится');
 });

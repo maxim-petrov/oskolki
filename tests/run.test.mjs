@@ -8,10 +8,11 @@ import { playRun } from '../game/bot.ts';
 import { EVENTS } from '../game/content/events.ts';
 import { ACTS } from '../game/content/acts.ts';
 
-test('a new run: starter deck, knife, map of the first act', () => {
+test('a new run: starter deck, the paper knife in hand, map of the first act', () => {
   const { run } = newRun({ seed: 1 });
   assert.equal(run.hero.deck.length, 12);
-  assert.deepEqual(run.hero.relics, ['knife']);
+  assert.deepEqual(run.hero.relics, ['badge']);
+  assert.deepEqual([run.hero.weapons, run.hero.weapon], [['knife'], 'knife']);
   assert.equal(run.hero.hp, 8, '4 сердца');
   assert.equal(run.phase, 'map');
   assert.ok(reachable(run.map, -1).length >= 2, 'several ways to start');
@@ -109,10 +110,10 @@ test('the till sells cards and removes one for a rising price', () => {
   const s = newRun({ seed: 5 }).run;
   s.hero.coins = 500;
   s.phase = 'shop';
-  s.shop = { cards: [{ id: 'scissors', up: false, price: 70, sold: false }], relics: [], pockets: [], finish: { kind: 'sharp', price: 60, sold: false }, removePrice: 50, removed: false };
+  s.shop = { cards: [{ id: 'binder', up: false, price: 70, sold: false }], relics: [], pockets: [], finish: { kind: 'sharp', price: 60, sold: false }, removePrice: 50, removed: false };
   const bought = dispatch(s, { type: 'buy', kind: 'card', index: 0 }).run;
   assert.equal(bought.hero.coins, 430);
-  assert.equal(bought.hero.deck.at(-1).id, 'scissors');
+  assert.equal(bought.hero.deck.at(-1).id, 'binder');
   const picking = dispatch(bought, { type: 'remove' }).run;
   assert.equal(picking.phase, 'pick');
   const victim = picking.hero.deck.find((c) => c.id === 'clip');

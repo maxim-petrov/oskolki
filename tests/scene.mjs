@@ -17,14 +17,17 @@ let nextTile = 100000;
 const junk = () => ({ id: nextTile++, kind: 'junk' });
 
 /**
- * A run standing in a fight. Options: relics (replace the hero's), enemies, act, hero numbers,
- * active, pockets, enemy hp override, and `deck: true` for a real board dealt from the hero's deck.
+ * A run standing in a fight. Options: relics (replace the hero's), the weapon in hand (the knife;
+ * `weapons` for several), enemies, act, hero numbers, active, pockets, enemy hp override, and
+ * `real: true` for a real board dealt from the hero's deck.
  */
 export function scene({
   seed = 1,
   act = 0,
   char,
   relics = [],
+  weapon,
+  weapons,
   enemies = ['anchor'],
   enemyHp,
   hp,
@@ -40,6 +43,10 @@ export function scene({
   const { run } = newRun({ seed, char, lastAct: 3 });
   run.act = act;
   run.hero.relics = [...relics];
+  if (weapon || weapons) {
+    run.hero.weapons = [...(weapons ?? [weapon])];
+    run.hero.weapon = weapon ?? run.hero.weapons[0];
+  }
   run.hero.active = active;
   if (deck)
     run.hero.deck = deck.map((c, k) => ({

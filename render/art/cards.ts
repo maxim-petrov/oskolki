@@ -41,6 +41,27 @@ const icon = (rows: string[]): SpriteDef => ({ w: 18, h: 18, legend, frames: { i
 export const CARD_ICONS: Record<string, SpriteDef> = {
   // ── Удар (red) ──────────────────────────────────────────────────────
 
+  // Канцелярский нож — the intern's paper knife: blue handle, gold slider, snap-off blade (the weapon in hand).
+  card_knife: icon([
+    '..................',
+    '.............kkk..',
+    '............kYYyk.',
+    '...........kYYygk.',
+    '..........kYYGgk..',
+    '........kkYYygk...',
+    '.......k44YGgk....',
+    '......k4433gk.....',
+    '.....k44332k......',
+    '....k443321k......',
+    '...k4Z3321k.......',
+    '..k443Z21k........',
+    '.k443321k.........',
+    'k443321k..........',
+    'k43321k...........',
+    '.k321k............',
+    '..kkk.............',
+    '..................',
+  ]),
   // Кулак — a raised fist with a shirt cuff.
   card_fist: icon([
     '..................',

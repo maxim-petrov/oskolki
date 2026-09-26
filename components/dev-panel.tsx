@@ -50,6 +50,7 @@ const POOLS: [string, string][] = [
   ['rare', 'редкие'],
   ['boss', 'босс'],
   ['shop', 'касса'],
+  ['weapon', 'оружие'],
 ];
 const KIND_ICON: Record<string, string> = { fight: 'map_fight', elite: 'map_elite', boss: 'map_boss', event: 'map_event', shop: 'map_shop', rest: 'map_rest', treasure: 'map_treasure' };
 const PHASE_NAME: Record<string, string> = {
@@ -140,7 +141,7 @@ function TipLayer() {
   );
 }
 
-const POOL_NAME: Record<string, string> = { starter: 'стартовый', common: 'обычный', uncommon: 'необычный', rare: 'редкий', boss: 'от босса', shop: 'из кассы' };
+const POOL_NAME: Record<string, string> = { starter: 'стартовый', common: 'обычный', uncommon: 'необычный', rare: 'редкий', boss: 'от босса', shop: 'из кассы', weapon: 'оружие' };
 const SIZE_NAME: Record<string, string> = { S: 'мелкий', M: 'средний', L: 'крупный', boss: 'босс' };
 const FAM_TITLE: Record<string, string> = { blade: 'удар', shield: 'защита', ink: 'чернила', coin: 'деньги', status: 'волокита' };
 const RARITY_NAME: Record<string, string> = { starter: 'стартовая', common: 'обычная', uncommon: 'необычная', rare: 'редкая', status: 'статус' };
@@ -181,7 +182,7 @@ function tipItem(catalog: Catalog, id: string): TipData | undefined {
   const r = catalog.relics.find((x) => x.id === id);
   if (r) return { title: r.name, icon: r.icon, lines: [`предмет · ${POOL_NAME[r.pool] ?? r.pool}`], body: r.desc };
   const a = catalog.actives.find((x) => x.id === id);
-  if (a) return { title: a.name, icon: a.icon, lines: [`навык · заряд ${a.charge} чернил`], body: a.desc, accent: 'vio' };
+  if (a) return { title: a.name, icon: a.icon, lines: [`навык · ${a.charge} энергии`], body: a.desc, accent: 'vio' };
   const p = catalog.pockets.find((x) => x.id === id);
   if (p) return { title: p.name, icon: p.icon, lines: ['расходник для кармана'], body: p.desc };
   return undefined;
@@ -918,7 +919,7 @@ function BuildTab(props: {
             <Tile key={a.id} on={build.active === a.id} onClick={() => edit({ active: a.id })} tip={tipItem(catalog, a.id)} className="item">
               <Sprite id={a.icon} scale={2} />
               <span className="dp-name">{a.name}</span>
-              <span className="dp-cap">{a.charge} чернил</span>
+              <span className="dp-cap">{a.charge} энергии</span>
             </Tile>
           ))}
         </div>
@@ -1066,7 +1067,7 @@ function FightTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
           <Stepper icon="ui_hp" label="здоровье" value={hero.hp} placeholder={String(run.hp)} onChange={(v) => setHero({ ...hero, hp: v })} />
           <Stepper icon="ui_hp" label="максимум" value={hero.maxHp} placeholder={String(run.maxHp)} step={5} onChange={(v) => setHero({ ...hero, maxHp: v })} />
           <Stepper icon="ui_coin" label="монеты" value={hero.coins} placeholder={String(run.coins)} step={25} onChange={(v) => setHero({ ...hero, coins: v })} />
-          <Stepper icon="ui_charge" label="чернила" value={hero.charge} placeholder={String(run.charge)} onChange={(v) => setHero({ ...hero, charge: v })} />
+          <Stepper icon="ui_charge" label="энергия" value={hero.charge} placeholder={String(run.charge)} onChange={(v) => setHero({ ...hero, charge: v })} />
           <Stepper icon="ui_armor" label="броня" value={hero.armor} placeholder={String(run.armor)} step={5} onChange={(v) => setHero({ ...hero, armor: v })} />
         </div>
         <div className="dp-row wrap">
@@ -1080,7 +1081,7 @@ function FightTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
             +100 ¤
           </button>
           <button className="dp-btn" onClick={() => apply({ op: 'hero', charge: run.cost })}>
-            полные чернила
+            полная энергия
           </button>
         </div>
       </Section>

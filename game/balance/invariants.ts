@@ -4,12 +4,12 @@
  * in the engine or the content, never a balance question.
  */
 import { MAX_SIDE, MIN_SIDE, validMoves } from '../board.ts';
-import { MAX_ENEMIES, activeCost, alive, moveRules } from '../combat.ts';
+import { MAX_ENEMIES, REFLECT_PER_HALF, alive, energyCap, moveRules } from '../combat.ts';
 import { ACTS } from '../content/acts.ts';
 import { CARDS } from '../content/cards.ts';
 import { ENEMIES } from '../content/enemies.ts';
 import { EVENT_BY_ID } from '../content/events.ts';
-import { ITEMS, POCKETS, computeMods } from '../content/items.ts';
+import { ITEMS, MAX_WEAPONS, POCKETS, computeMods } from '../content/items.ts';
 import { FAMS, QUEUE_LEN, type RunState, type Tile } from '../types.ts';
 
 const KINDS = new Set<string>([...FAMS, 'prism', 'junk']);
@@ -60,8 +60,11 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
   if (!Number.isInteger(h.coins) || h.coins < 0 || h.coins > 999) bad(`монеты ${h.coins}`);
   if (!Number.isInteger(h.armor) || h.armor < 0 || h.armor > h.maxHp) bad(`броня ${h.armor}/${h.maxHp}`);
   if (h.ward < 0) bad(`зонтик ${h.ward}`);
-  if (h.reflect < 0 || h.reflect > 1) bad(`отражение ${h.reflect}`);
-  if (!Number.isInteger(h.charge) || h.charge < 0 || h.charge > activeCost(run)) bad(`заряд ${h.charge}/${activeCost(run)}`);
+  if (h.reflect !== 0 && h.reflect !== REFLECT_PER_HALF) bad(`отражение ${h.reflect}`);
+  if (!Number.isInteger(h.charge) || h.charge < 0 || h.charge > energyCap(run)) bad(`энергия ${h.charge}/${energyCap(run)}`);
+  if (!h.weapons.length || h.weapons.length > MAX_WEAPONS || new Set(h.weapons).size !== h.weapons.length) bad(`оружие ${h.weapons.join(', ')}`);
+  for (const id of h.weapons) if (ITEMS[id]?.kind !== 'weapon') bad(`оружие ${id}`);
+  if (!h.weapons.includes(h.weapon)) bad(`в руке ${h.weapon}, а есть ${h.weapons.join(', ')}`);
   if (h.active !== null && ITEMS[h.active]?.kind !== 'active') bad(`навык ${h.active}`);
   if (new Set(h.relics).size !== h.relics.length) bad(`предмет дважды: ${h.relics.join(', ')}`);
   for (const id of h.relics) if (ITEMS[id]?.kind !== 'passive') bad(`предмет ${id}`);

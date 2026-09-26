@@ -151,9 +151,10 @@ export class DevApi {
       acts: ACTS.map((a, k) => ({ index: k, name: a.name, boss: a.boss, weak: a.weak, strong: a.strong, elites: a.elites, room: roomFor(k, 0, 'fight').id })),
       cards: Object.values(CARDS).map((c) => ({ id: c.id, name: c.name, fam: c.fam, rarity: c.rarity, text: cardText(c.id, false), textUp: cardText(c.id, true) })),
       finishText: FINISH_TEXT,
+      // Weapons are picked among the items (pool «оружие»): the build puts them in the hands.
       relics: Object.values(ITEMS)
-        .filter((i) => i.kind === 'passive')
-        .map((i) => ({ id: i.id, name: i.name, pool: i.pool, desc: i.desc, icon: i.icon })),
+        .filter((i) => i.kind === 'passive' || i.kind === 'weapon')
+        .map((i) => ({ id: i.id, name: i.name, pool: i.kind === 'weapon' ? 'weapon' : i.pool, desc: i.desc, icon: i.icon })),
       actives: Object.values(ITEMS)
         .filter((i) => i.kind === 'active')
         .map((i) => ({ id: i.id, name: i.name, desc: i.desc, charge: i.charge ?? 0, icon: i.icon })),
@@ -188,7 +189,7 @@ export class DevApi {
     const ch = CHARACTERS[char];
     return {
       deck: STARTER_DECKS[char].map((id) => ({ id, up: false })),
-      relics: [ch.relic],
+      relics: [ch.relic, 'knife'],
       active: ch.active,
       pockets: [...ch.pockets, null, null, null].slice(0, 3),
     };
@@ -301,6 +302,8 @@ export class DevApi {
             armor: run.hero.armor,
             deck: run.hero.deck.map((c) => ({ id: c.id, up: c.up, finish: c.finish })),
             relics: [...run.hero.relics],
+            weapons: [...run.hero.weapons],
+            weapon: run.hero.weapon,
             active: run.hero.active,
             pockets: [...run.hero.pockets],
             dev: { ...run.dev },
@@ -316,7 +319,7 @@ export class DevApi {
     if (!run) return null;
     return {
       deck: run.hero.deck.map((c) => ({ id: c.id, up: c.up, finish: c.finish })),
-      relics: [...run.hero.relics],
+      relics: [...run.hero.relics, ...run.hero.weapons],
       active: run.hero.active,
       pockets: [...run.hero.pockets],
     };

@@ -1,4 +1,4 @@
-import { CARDS, FINISH_TEXT, cardText, cardValue } from '../game/content/cards.ts';
+import { CARDS, FINISH_TEXT, cardText, cardValue, heartText } from '../game/content/cards.ts';
 import type { Finish } from '../game/types.ts';
 import { bigText, measure, paragraph, text } from './font.ts';
 import { hex } from './palette.ts';
@@ -17,21 +17,24 @@ export interface CardLike {
   finish?: Finish;
 }
 
-const MULT_CARDS = new Set(['bonus', 'card', 'report']);
+/** Gold cards that add damage to the strike: their badge shows the damage. */
+const DAMAGE_CARDS = new Set(['bonus', 'card', 'report']);
 
 /** Short value line for the card body: number and a resource icon. */
 export function cardBadge(c: CardLike): { value: string; icon: string; color: string } {
   const def = CARDS[c.id];
   const v = cardValue(c.id, c.up);
   if (!def || def.fam === 'status') return { value: '—', icon: '', color: 'grey3' };
-  if (c.id === 'goldclip') return { value: c.up ? '×2' : '×1,5', icon: 'ui_mult', color: 'vio5' };
-  if (MULT_CARDS.has(c.id)) return { value: `+${v}`, icon: 'ui_mult', color: 'vio5' };
+  if (c.id === 'goldclip') return { value: c.up ? '+50%' : '+30%', icon: 'int_attack', color: 'gold4' };
+  if (DAMAGE_CARDS.has(c.id)) return { value: `+${v}`, icon: 'int_attack', color: 'red5' };
   if (c.id === 'blotcurse') return { value: `${v}`, icon: 'int_attack', color: 'vio5' };
   switch (def.fam) {
     case 'blade':
-      return { value: `${v}`, icon: 'int_attack', color: 'red5' };
+      // The red strike: the weapon's damage (the card only adds its upgrade).
+      return { value: v ? `+${v}` : '', icon: 'int_attack', color: 'red5' };
     case 'shield':
-      return { value: `${v}`, icon: 'ui_armor', color: 'cold6' };
+      // Armour in hearts: a group of these blocks this much.
+      return { value: heartText(v), icon: 'ui_armor', color: 'cold6' };
     case 'ink':
       return { value: `${v}`, icon: 'ui_charge', color: 'vio5' };
     default:

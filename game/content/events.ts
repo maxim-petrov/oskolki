@@ -21,6 +21,8 @@ export interface EventApi {
   curse(): void;
   /** A random relic of a tier; returns its name or null when the pool is empty. */
   relic(tier?: 'common' | 'uncommon' | 'rare'): string | null;
+  /** A weapon into a free slot; returns its name or null when the slots are full (or it is there). */
+  weapon(id: string): string | null;
   /** A random consumable into a free pocket; returns its name or null when pockets are full. */
   pocket(): string | null;
   shards(n: number): void;
@@ -264,8 +266,11 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Взять ножницы',
-        hint: 'Фишка «Ножницы»',
-        run: (a) => `Ножницы тёплые, будто их только что держали. ${a.card('scissors')} — в колоде.`,
+        hint: 'Оружие «Ножницы»',
+        run: (a) => {
+          const name = a.weapon('scissors');
+          return name ? `Ножницы тёплые, будто их только что держали. ${name} — теперь твоё оружие.` : 'Ножницы тёплые, но руки заняты: ты кладёшь их обратно.';
+        },
       },
       {
         label: 'Взять зонтик',
@@ -371,7 +376,7 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Поставить печать',
-        hint: 'Отделка «Печать» на фишку: +1 множ',
+        hint: 'Отделка «Печать» на фишку: +2 урона',
         run: (a) => {
           a.pick('finish', 1, 'seal');
           return 'Оттиск ложится ровно. Кажется, так и было задумано.';

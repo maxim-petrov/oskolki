@@ -998,6 +998,79 @@ export const UI_KIT: Record<string, SpriteDef> = {
       ],
     },
   },
+  // Hearts of the hero (Isaac-style): a full heart is two halves; the empty one is a dark container.
+  ui_heart: {
+    w: 9,
+    h: 9,
+    ox: 4,
+    oy: 4,
+    legend: L,
+    frames: {
+      idle0: ['.kkk.kkk.', 'kPYRkRRrk', 'kPRRkRrxk', 'kRRRRRrxk', 'kRRRRrrxk', '.kRRrrxk.', '..kRrxk..', '...kxk...', '....k....'],
+    },
+  },
+  ui_heart_half: {
+    w: 9,
+    h: 9,
+    ox: 4,
+    oy: 4,
+    legend: L,
+    frames: {
+      idle0: ['.kkk.kkk.', 'kPYRkNnjk', 'kPRRknnjk', 'kRRRknnjk', 'kRRrknnjk', '.kRrknjk.', '..kRknk..', '...kxk...', '....k....'],
+    },
+  },
+  ui_heart_empty: {
+    w: 9,
+    h: 9,
+    ox: 4,
+    oy: 4,
+    legend: L,
+    frames: {
+      idle0: ['.kkk.kkk.', 'kNnnkNnjk', 'knnnknnjk', 'knnnnnnjk', 'knnnnnnjk', '.knnnnjk.', '..knnjk..', '...kjk...', '....k....'],
+    },
+  },
+  // Armour as blue hearts after the red ones: it takes the blow first and burns out after the enemies act.
+  ui_heart_blue: {
+    w: 9,
+    h: 9,
+    ox: 4,
+    oy: 4,
+    legend: L,
+    frames: {
+      idle0: ['.kkk.kkk.', 'k564k443k', 'k544k432k', 'k4444432k', 'k4444332k', '.k44332k.', '..k432k..', '...k2k...', '....k....'],
+    },
+  },
+  ui_heart_blue_half: {
+    w: 9,
+    h: 9,
+    ox: 4,
+    oy: 4,
+    legend: L,
+    frames: {
+      idle0: ['.kkk.....', 'k564k....', 'k544k....', 'k444k....', 'k443k....', '.k43k....', '..k3k....', '...k2k...', '....k....'],
+    },
+  },
+  // Enemy blows in the intent bubble: a small heart (7×6) per heart the blow takes.
+  ui_heart_mini: {
+    w: 7,
+    h: 6,
+    ox: 3,
+    oy: 3,
+    legend: L,
+    frames: {
+      idle0: ['.kk.kk.', 'kPRkRrk', 'kRRRrxk', '.kRrxk.', '..kxk..', '...k...'],
+    },
+  },
+  ui_heart_mini_half: {
+    w: 7,
+    h: 6,
+    ox: 3,
+    oy: 3,
+    legend: L,
+    frames: {
+      idle0: ['.kk....', 'kPRk...', 'kRRk...', '.kRk...', '..kk...', '.......'],
+    },
+  },
   ui_armor: {
     w: 9,
     h: 9,

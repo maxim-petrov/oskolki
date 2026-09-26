@@ -1,10 +1,10 @@
 import { derive, int, pick, range, rng, shuffle, weighted } from './rng.ts';
-import { MAX_ENEMIES, alive, activeCost, deckTokens, playerActive, playerMove, playerPocket, setTarget, startCombat } from './combat.ts';
+import { MAX_ENEMIES, alive, activeCost, deckTokens, energyCap, playerActive, playerMove, playerPocket, setTarget, startCombat, swapCost } from './combat.ts';
 import { ACTS, CHARACTERS } from './content/acts.ts';
 import { CARDS, RARITY_PRICE, STARTER_DECKS, rewardPool, type Rarity } from './content/cards.ts';
 import { ENEMIES } from './content/enemies.ts';
 import { EVENTS, EVENT_BY_ID, type EventApi } from './content/events.ts';
-import { ITEMS, POCKETS, RELIC_PRICE, computeMods, relicPool, type Mods } from './content/items.ts';
+import { ITEMS, MAX_WEAPONS, POCKETS, RELIC_PRICE, computeMods, relicPool, type Mods } from './content/items.ts';
 import { generateActMap, reachable } from './actmap.ts';
 import type {
   Action,
@@ -22,7 +22,7 @@ import type {
   ShopState,
 } from './types.ts';
 
-export const RULES = 'office-3';
+export const RULES = 'office-4';
 /** A deck never gets thinner than this. */
 export const MIN_DECK = 5;
 
@@ -83,6 +83,8 @@ export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[
       charge: 0,
       coins: ch.coins + (opts.coins ?? 0),
       active: ch.active,
+      weapons: ['knife'],
+      weapon: 'knife',
       relics: [ch.relic],
       pockets: [],
       deck,
@@ -219,8 +221,10 @@ const RELIC_ODDS: [('common' | 'uncommon' | 'rare'), number][] = [
 /** A relic from the pool (removed from it); null when nothing is left. */
 export function rollRelic(run: RunState, tier?: 'common' | 'uncommon' | 'rare' | 'boss'): string | null {
   const want = tier ?? weighted(run.rng.loot, RELIC_ODDS);
-  let pool = run.relicPool.filter((id) => ITEMS[id].pool === want);
-  if (!pool.length && want !== 'boss') pool = run.relicPool.filter((id) => ITEMS[id].pool !== 'boss');
+  // Weapons only while a slot is free (and never one already in the bag).
+  const fits = (id: string) => ITEMS[id].kind !== 'weapon' || (run.hero.weapons.length < MAX_WEAPONS && !run.hero.weapons.includes(id));
+  let pool = run.relicPool.filter((id) => ITEMS[id].pool === want && fits(id));
+  if (!pool.length && want !== 'boss') pool = run.relicPool.filter((id) => ITEMS[id].pool !== 'boss' && fits(id));
   if (!pool.length) return null;
   const id = pick(run.rng.loot, pool);
   run.relicPool = run.relicPool.filter((x) => x !== id);
@@ -237,9 +241,12 @@ function activePool(run: RunState): string[] {
 export function gainRelic(run: RunState, id: string, source: string, ev: GameEvent[]) {
   const def = ITEMS[id];
   const hero = run.hero;
-  if (def.kind === 'active') {
+  if (def.kind === 'weapon') {
+    // A new weapon goes into a free slot (the pools stop offering weapons when the slots are full).
+    if (!hero.weapons.includes(id) && hero.weapons.length < MAX_WEAPONS) hero.weapons.push(id);
+  } else if (def.kind === 'active') {
     hero.active = id;
-    hero.charge = Math.min(hero.charge, activeCost(run));
+    hero.charge = Math.min(hero.charge, energyCap(run));
   } else {
     hero.relics.push(id);
     if (def.maxHp) {
@@ -250,8 +257,8 @@ export function gainRelic(run: RunState, id: string, source: string, ev: GameEve
     if (def.coins) hero.coins = Math.min(999, hero.coins + def.coins);
     const slots = modsOf(run).pockets;
     while (hero.pockets.length < slots) hero.pockets.push(null);
-    // A cheaper skill: the charge never exceeds its new cost.
-    hero.charge = Math.min(hero.charge, activeCost(run));
+    // A cheaper skill: the energy never exceeds the meter.
+    hero.charge = Math.min(hero.charge, energyCap(run));
   }
   run.relicPool = run.relicPool.filter((x) => x !== id);
   run.stats.relicsTaken++;
@@ -577,6 +584,11 @@ function eventApi(run: RunState, ev: GameEvent[]): EventApi {
       gainRelic(run, id, 'event', ev);
       return relicName(id);
     },
+    weapon: (id) => {
+      if (run.hero.weapons.includes(id) || run.hero.weapons.length >= MAX_WEAPONS) return null;
+      gainRelic(run, id, 'event', ev);
+      return relicName(id);
+    },
     pocket: () => {
       const id = rollPocket(run);
       if (!givePocket(run, id)) return null;
@@ -635,6 +647,20 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       if (!inCombat) return fail(run, ev, 'Только в бою');
       playerActive(run, mods, action, ev);
       break;
+    case 'weapon': {
+      // Another weapon in hand: free between fights, energy in a fight; it spends no time.
+      const hero = run.hero;
+      if (!hero.weapons.includes(action.id)) return fail(run, ev, 'Нет такого оружия');
+      if (hero.weapon === action.id) return fail(run, ev, 'Уже в руке');
+      if (inCombat) {
+        const cost = swapCost(run);
+        if (hero.charge < cost) return fail(run, ev, `Нужно ${cost} энергии`);
+        hero.charge -= cost;
+      }
+      hero.weapon = action.id;
+      ev.push({ t: 'weapon', id: action.id });
+      break;
+    }
     case 'pocket':
       if (!playerPocket(run, mods, action.slot, action.cell, ev)) return { run, events: ev };
       break;
@@ -836,6 +862,13 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
         hero.deck = op.deck.filter((c) => CARDS[c.id]).map((c) => ({ uid: uid++, id: c.id, up: !!c.up, finish: c.finish }));
       }
       if (op.relics) hero.relics = op.relics.filter((id, k, all) => ITEMS[id]?.kind === 'passive' && all.indexOf(id) === k);
+      // Weapons may come in their own list or among the items (the dev panel picks them there).
+      const weapons = op.weapons ?? (op.relics?.some((id) => ITEMS[id]?.kind === 'weapon') ? op.relics : undefined);
+      if (weapons) {
+        const list = weapons.filter((id, k, all) => ITEMS[id]?.kind === 'weapon' && all.indexOf(id) === k).slice(0, MAX_WEAPONS);
+        hero.weapons = list.length ? list : ['knife'];
+        if (!hero.weapons.includes(hero.weapon)) hero.weapon = hero.weapons[0];
+      }
       if (op.active !== undefined) hero.active = op.active && ITEMS[op.active]?.kind === 'active' ? op.active : null;
       const slots = modsOf(run).pockets;
       const wanted = op.pockets ?? hero.pockets;
@@ -843,7 +876,7 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
         const id = wanted[k];
         return id && POCKETS[id] ? id : null;
       });
-      hero.charge = run.dev?.ink ? activeCost(run) : Math.min(hero.charge, activeCost(run));
+      hero.charge = run.dev?.ink ? energyCap(run) : Math.min(hero.charge, energyCap(run));
       // A fight in progress draws from the new deck from now on.
       if (run.combat) {
         run.combat.board.source = deckTokens(run);
@@ -853,7 +886,7 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
     }
     case 'set':
       run.dev = { ...run.dev, ...op.dev };
-      if (run.dev.ink) hero.charge = activeCost(run);
+      if (run.dev.ink) hero.charge = energyCap(run);
       break;
     case 'act':
       run.combat = null;

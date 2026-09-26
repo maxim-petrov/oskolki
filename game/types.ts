@@ -179,9 +179,13 @@ export interface Hero {
   ward: number;
   /** Share of the next blow sent back (clipboard), 0..1. */
   reflect: number;
+  /** Energy: violet tiles fill it; the skill and weapon swaps spend it. */
   charge: number;
   coins: number;
   active: string | null;
+  /** Weapons carried (up to MAX_WEAPONS) and the one in hand: red tiles strike with it. */
+  weapons: string[];
+  weapon: string;
   relics: string[];
   pockets: (string | null)[];
   deck: DeckCard[];
@@ -202,16 +206,16 @@ export interface Combat {
   damageTaken: number;
   nextUid: number;
   garland: number;
-  /** Energy drink: bonus multiplier for the next move. */
-  nextMult: number;
+  /** Energy drink: damage bonus of the next strike (+1 = +100%). */
+  nextBonus: number;
   /** Piggy banks and other end-of-fight payouts collected during the fight. */
   bonusCoins: number;
   /** The guard's vest has taken this fight's first blow. */
   guarded?: boolean;
-  /** Mult the abacus has put aside for the next strike that deals damage. */
+  /** Damage bonus the abacus has put aside for the next strike that deals damage. */
   bank?: number;
-  /** Mult the hot key gives the move after a skill. */
-  skillMult?: number;
+  /** Damage bonus the hot key gives the move after a skill. */
+  skillBonus?: number;
 }
 
 export type NodeKind = 'fight' | 'elite' | 'event' | 'shop' | 'rest' | 'treasure' | 'boss';
@@ -329,7 +333,7 @@ export interface DevState {
 /** Dev panel commands (the `dev` action; custom runs only). */
 export type DevOp =
   | { op: 'hero'; hp?: number; maxHp?: number; coins?: number; charge?: number; armor?: number }
-  | { op: 'build'; deck?: { id: string; up?: boolean; finish?: Finish }[]; relics?: string[]; active?: string | null; pockets?: (string | null)[] }
+  | { op: 'build'; deck?: { id: string; up?: boolean; finish?: Finish }[]; relics?: string[]; weapons?: string[]; active?: string | null; pockets?: (string | null)[] }
   | { op: 'set'; dev: DevState }
   | { op: 'act'; act: number }
   | { op: 'enter'; kind: NodeKind | 'bossReward' | 'map'; enemies?: string[]; event?: string }
@@ -378,6 +382,8 @@ export type Action =
   | { type: 'move'; move: Move }
   | { type: 'target'; uid: number }
   | { type: 'active'; cell?: number; col?: number; uid?: number }
+  /** Take another carried weapon in hand (costs energy in a fight). */
+  | { type: 'weapon'; id: string }
   | { type: 'pocket'; slot: number; cell?: number }
   | { type: 'discardPocket'; slot: number }
   | { type: 'travel'; node: number }
@@ -428,18 +434,18 @@ export interface TileScore {
   aoe?: number;
   coins?: number;
   charge?: number;
-  mult?: number;
-  xmult?: number;
+  /** Damage bonus this tile adds to the move, as a fraction (+0.25 = +25%). */
+  bonus?: number;
   note?: string;
 }
 
-/** The move's running score: resources and the multiplier. */
+/** The move's running score: damage, armour, energy, coins and the damage bonus of the move. */
 export interface Tally {
   dmg: number;
   armor: number;
   aoe: number;
-  mult: number;
-  xmult: number;
+  /** Damage bonus of the move as a fraction (+0.25 = +25%): no explicit multiplier. */
+  bonus: number;
   coins: number;
   charge: number;
 }
@@ -496,6 +502,8 @@ export type GameEvent =
   | { t: 'board'; reason: 'reshuffle' | 'enemy' | 'active' | 'timers'; board: BoardSnap; queue?: Tile[][] }
   /** The board changed its size mid-fight (a cramped enemy fell): new cells came in. */
   | { t: 'resize'; w: number; h: number; board: BoardSnap; queue: Tile[][] }
+  /** Another weapon in hand: red tiles strike with it. */
+  | { t: 'weapon'; id: string }
   | { t: 'enemyDie'; uid: number; split?: EnemyState[] }
   | { t: 'combatStart'; kind: Combat['kind'] }
   | { t: 'combatWon'; kind: Combat['kind'] }
