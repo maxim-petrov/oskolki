@@ -3,7 +3,7 @@
  * the board (censored tiles unknown), the visible queue, intents and timers, the map and the
  * offers. They never inspect hidden refills or RNG state.
  */
-import { colOf, validMoves } from './board.ts';
+import { colOf, findGroups, idx, rowOf, validMoves } from './board.ts';
 import { activeCost, alive, currentIntent, intentDamage, previewMove } from './combat.ts';
 import { CARDS } from './content/cards.ts';
 import { EVENT_BY_ID } from './content/events.ts';
@@ -18,10 +18,15 @@ export type Policy = 'greedy' | 'randomCards' | 'noCards' | 'random';
 export interface BotOptions {
   policy: Policy;
   seed: number;
+  /**
+   * How the eraser (skill and pocket) is used: on junk only, or to drop a line into place — the
+   * matches it sets off are resolved and scored without spending time.
+   */
+  erase?: 'junk' | 'match';
 }
 
 /** How much a card is worth to the greedy bot (rough, by feel). */
-const CARD_SCORE: Record<string, number> = {
+export const CARD_SCORE: Record<string, number> = {
   fist: 2,
   folder: 1.5,
   ink: 1,
@@ -83,7 +88,39 @@ function scoreMove(run: RunState, m: Move): number {
   const armor = Math.min(p.armor, need) * 1.4 * low + Math.max(0, p.armor - need) * 0.1;
   const cost = run.hero.active ? activeCost(run) : 0;
   const charge = run.hero.charge < cost ? p.charge * 1.1 : p.charge * 0.1;
-  return dmg + kill + armor + charge + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0);
+  // A shining mirror sends a quarter of the blow back: never hit it for a lethal reflection.
+  let shine = 0;
+  if (target?.shining && p.damage > 0) {
+    const back = Math.max(1, Math.min(Math.round(p.damage * 0.25), Math.round(18 * target.dmgMul)));
+    shine = back >= run.hero.hp + run.hero.armor ? 1e6 : back * 1.4 * low;
+  }
+  return dmg + kill + armor + charge + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
+}
+
+const FAM_WEIGHT: Record<string, number> = { blade: 2, shield: 1.5, ink: 1, coin: 1 };
+
+/**
+ * The eraser's cell, as a player sees it: removing a tile drops its column by one and lets the
+ * visible queue head in at the top; whatever lines up is resolved for free (no time passes).
+ * Returns the best cell and the value of what falls into place (junk and staples are worth a bit).
+ */
+function eraseTarget(run: RunState): { cell: number; value: number } | null {
+  const c = run.combat!;
+  const wrap = modsOf(run).wrap;
+  const cells = c.board.cells;
+  let best: { cell: number; value: number } | null = null;
+  for (let i = 0; i < cells.length; i++) {
+    const col = colOf(i);
+    const head = c.board.queue[col][0];
+    if (!head) continue;
+    const next = cells.slice();
+    for (let r = rowOf(i); r > 0; r--) next[idx(r, col)] = cells[idx(r - 1, col)];
+    next[idx(0, col)] = head;
+    let value = cells[i].kind === 'junk' || cells[i].pin ? 1 : 0;
+    for (const g of findGroups(next, wrap)) value += g.size * (FAM_WEIGHT[g.fam] ?? 1) + (g.make ? 4 : 0);
+    if (!best || value > best.value) best = { cell: i, value };
+  }
+  return best && best.value > 0 ? best : null;
 }
 
 function pickTarget(run: RunState): number | null {
@@ -99,7 +136,7 @@ function pickTarget(run: RunState): number | null {
   return list.sort((a, b) => rank(b) - rank(a))[0].uid;
 }
 
-function combatAction(run: RunState, policy: Policy, r: Rng): Action | null {
+function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['erase'] = 'junk'): Action | null {
   const c = run.combat!;
   const mods = modsOf(run);
   const hero = run.hero;
@@ -115,7 +152,11 @@ function combatAction(run: RunState, policy: Policy, r: Rng): Action | null {
     if (p === 'coffee' && hero.hp < hero.maxHp * 0.4) return { type: 'pocket', slot };
     if (p === 'sticker' && danger >= hero.hp * 0.4) return { type: 'pocket', slot };
     if (p === 'energy' && alive(c).some((e) => e.hp > 40)) return { type: 'pocket', slot };
-    if ((p === 'bomb' || p === 'eraser') && danger >= hero.hp * 0.5) return { type: 'pocket', slot, cell: 14 };
+    if ((p === 'bomb' || (p === 'eraser' && erase === 'junk')) && danger >= hero.hp * 0.5) return { type: 'pocket', slot, cell: 14 };
+    if (p === 'eraser' && erase === 'match') {
+      const t = eraseTarget(run);
+      if (t && (t.value >= 8 || (danger >= hero.hp * 0.5 && t.value >= 3))) return { type: 'pocket', slot, cell: t.cell };
+    }
   }
   // Active skill.
   const id = hero.active;
@@ -123,9 +164,12 @@ function combatAction(run: RunState, policy: Policy, r: Rng): Action | null {
     const cells = c.board.cells;
     const junk = cells.findIndex((x) => x.kind === 'junk' || x.pin);
     switch (id) {
-      case 'eraser':
-        if (junk >= 0) return { type: 'active', cell: junk };
+      case 'eraser': {
+        const t = erase === 'match' ? eraseTarget(run) : null;
+        if (t) return { type: 'active', cell: t.cell };
+        if (erase === 'junk' && junk >= 0) return { type: 'active', cell: junk };
         break;
+      }
       case 'corrector':
         if (cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
         break;
@@ -226,7 +270,7 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
   const policy = opts.policy;
   switch (run.phase) {
     case 'combat':
-      return combatAction(run, policy, r);
+      return combatAction(run, policy, r, opts.erase);
     case 'map':
       if (policy === 'random') {
         const opts2 = reachable(run.map, run.node);
