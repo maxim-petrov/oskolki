@@ -250,9 +250,10 @@ export function deckTokens(run: RunState): BagToken[] {
 }
 
 /** How tiles move in this fight: the hero's items open slides and diagonals, a turnstile allows only up and down. */
-export function moveRules(run: RunState, mods: Mods): MoveRules {
+export function moveRules(run: RunState, mods: Mods, enemyIds?: readonly string[]): MoveRules {
   const c = run.combat;
-  const vertical = !!c && alive(c).some((e) => !!ENEMIES[e.def].traits?.includes('turnstile'));
+  const ids = enemyIds ?? (c ? alive(c).map((e) => e.def) : []);
+  const vertical = ids.some((id) => !!ENEMIES[id]?.traits?.includes('turnstile'));
   return { wrap: mods.wrap, slide: mods.slide, diagonal: mods.diagonal, vertical, unpinned: mods.unpinned };
 }
 
@@ -311,6 +312,10 @@ export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: strin
       ev.push({ t: 'message', text: `Проценты: +${bonus}` });
     }
   }
+  // A board dealt for plain swaps may have no move under the fight's rules (a turnstile allows only
+  // up and down): shuffle it until it has some.
+  const rules = moveRules(run, mods, enemyIds);
+  if (validMoves(board, rules).length === 0) reshuffle(board, run.rng.board, rules);
   ev.push({ t: 'combatStart', kind });
   return c;
 }
