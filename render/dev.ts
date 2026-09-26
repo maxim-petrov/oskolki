@@ -11,6 +11,8 @@ import { REQUESTS, blankProfile, saveProfile } from './profile.ts';
 import { RunView } from './runview.ts';
 import { roomFor, type RoomId } from './stage.ts';
 
+export { cheatList } from './dev-cheats.ts';
+
 /**
  * Dev mode: start a test run with any hero, build, act, place, enemies and room; edit the live
  * run; cheats and number knobs; the profile and the office; presets and links. Test runs are

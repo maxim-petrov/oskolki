@@ -871,6 +871,8 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   if (tune && tune !== 1) {
     damage = Math.round(damage * tune);
     aoe = Math.round(aoe * tune);
+    // Dev cheat: named first, so the strike's result never passes for the real math.
+    notes.unshift(`Чит ×${String(tune).replace('.', ',')}`);
   }
   const submerged = target?.submerged;
   ctx.ev.push({ t: 'strike', tally: { ...t, mult }, damage, aoe, armor, target: target?.uid ?? -1, notes: [...notes] });

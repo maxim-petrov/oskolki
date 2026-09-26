@@ -799,3 +799,12 @@ textarea.dp-input {
 .dp-suite:hover .dp-edit {
   opacity: 1;
 }
+.dp-cheat {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 4px 0;
+  color: var(--cream);
+  background: #a8263a;
+  box-shadow: 2px 2px 0 var(--ink0);
+}

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react';
 import { CardBadge, RoomThumb, Sprite } from '@/components/dev-previews';
 import type { CharId, DevOp, DevState, Finish } from '@/game/types';
+import { cheatList } from '@/render/dev-cheats';
 import type { DevApi, DevBuild, DevCard, DevPlace, DevStart } from '@/render/dev';
 import { DEV_SUITES, type DevSuiteItem } from '@/render/dev-presets';
 
@@ -242,7 +243,11 @@ export function DevPanel({ dev, onClose }: { dev: DevApi; onClose: () => void })
   };
   const apply = (op: DevOp, done = 'Готово') => say(dev.apply(op) ?? done);
   const fullCfg = (): DevStart => ({ ...cfg, build: useBuild ? build : undefined });
-  const launch = () => say(`Смена началась · сид ${dev.start(fullCfg())}`);
+  const launch = () => {
+    const cfg = fullCfg();
+    const list = cheatList(cfg.cheats);
+    say(`Смена началась · сид ${dev.start(cfg)}${list.length ? ` · ЧИТЫ: ${list.join(', ')}` : ''}`);
+  };
   const run = snap.run;
 
   return (
@@ -532,10 +537,9 @@ function suiteTip(catalog: Catalog, item: DevSuiteItem): TipData {
     const relics = c.build.relics.map((id) => catalog.relics.find((r) => r.id === id)?.name ?? id);
     lines.push(`колода ${c.build.deck.length} · предметы: ${relics.slice(0, 6).join(', ')}${relics.length > 6 ? ` и ещё ${relics.length - 6}` : ''}`);
   } else lines.push('стартовая сборка');
-  const cheats = c.cheats ?? {};
-  const knobs = [cheats.god && 'бессмертие', cheats.enemyHp && `♥ врагов ×${cheats.enemyHp}`, cheats.heroDmg && `урон ×${cheats.heroDmg}`].filter(Boolean);
-  if (knobs.length) lines.push(knobs.join(' · '));
-  return { title: item.name, lines, body: item.desc };
+  const cheats = cheatList(c.cheats);
+  if (cheats.length) lines.unshift(`ЧИТЫ: ${cheats.join(', ')}`);
+  return { title: item.name, lines, body: item.desc, accent: cheats.length ? 'red' : undefined };
 }
 
 function SuitePreview({ catalog, group, item }: { catalog: Catalog; group: string; item: DevSuiteItem }) {
@@ -587,13 +591,15 @@ function TestsTab({ dev, catalog, fullCfg, say, toForm }: { dev: DevApi; catalog
   });
   const launch = (name: string, cfg: DevStart) => {
     setTip(null);
-    say(`«${name}» · сид ${dev.start({ ...cfg, cheats: { ...cfg.cheats, ...extra() } })}`);
+    const cheats = { ...cfg.cheats, ...extra() };
+    const list = cheatList(cheats);
+    say(`«${name}» · сид ${dev.start({ ...cfg, cheats })}${list.length ? ` · ЧИТЫ: ${list.join(', ')}` : ''}`);
   };
   const placeIcon = (p: DevPlace) => catalog.places.find((x) => x.id === p)?.icon ?? 'map_fight';
 
   return (
     <>
-      <Section title="Поверх любого теста">
+      <Section title="Читы поверх любого теста" right={<span className="dp-hint">тест станет нечестным</span>}>
         <div className="dp-row wrap">
           <Chip on={!!mods.god} onClick={() => setMod({ god: !mods.god })} icon="ui_hp">
             бессмертие
@@ -617,6 +623,7 @@ function TestsTab({ dev, catalog, fullCfg, say, toForm }: { dev: DevApi; catalog
             {suite.items.map((item) => (
               <div key={item.id} className="dp-suite">
                 <Tile onClick={() => launch(item.name, item.cfg)} tip={suiteTip(catalog, item)} className="suite">
+                  {cheatList(item.cfg.cheats).length > 0 && <span className="dp-cheat">ЧИТЫ</span>}
                   <span className="dp-pic suite">
                     <SuitePreview catalog={catalog} group={suite.group} item={item} />
                   </span>

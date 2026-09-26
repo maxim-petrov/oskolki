@@ -173,7 +173,11 @@ export class TallyView {
       ctx.globalAlpha = a;
       this.box(ctx, x + w - ww - 2, ry, ww, 16, 'red2', 'red4');
       bigText(ctx, str, x + w - 7, ry + 3, 'gold4', { align: 'right' });
-      if (res.notes.length) text(ctx, res.notes.slice(0, 2).join(' · '), x + 4, ry + 4, 'gold4', { outline: 'ink0' });
+      // A dev cheat is named right over the result, in red; the other notes keep their place.
+      const cheat = res.notes.find((n) => n.startsWith('Чит'));
+      const notes = res.notes.filter((n) => n !== cheat);
+      if (cheat) text(ctx, cheat, x + w - 4, ry - 10, 'red4', { align: 'right', outline: 'ink0' });
+      if (notes.length) text(ctx, notes.slice(0, 2).join(' · '), x + 4, ry + 4, 'gold4', { outline: 'ink0' });
       ctx.globalAlpha = 1;
     }
   }
@@ -204,6 +208,9 @@ export class TallyView {
       text(ctx, `+${this.num(this.armor)}`, x + 14, y + h / 2 - 4, 'cold5', { alpha: a });
     }
     const res = this.result;
-    if (res) text(ctx, `=${res.damage}`, x + w - 4, y + h / 2 - 4, 'gold4', { align: 'right', outline: 'ink0', alpha: a });
+    if (res) {
+      const cheat = res.notes.find((n) => n.startsWith('Чит'));
+      text(ctx, `=${res.damage}${cheat ? ` (${cheat.toLowerCase()})` : ''}`, x + w - 4, y + h / 2 - 4, cheat ? 'red4' : 'gold4', { align: 'right', outline: 'ink0', alpha: a });
+    }
   }
 }

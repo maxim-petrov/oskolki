@@ -1,3 +1,4 @@
+import { cheatList } from './dev-cheats.ts';
 import type { DevBuild, DevCard, DevStart } from './dev.ts';
 
 /**
@@ -60,7 +61,7 @@ const fight = (act: number, place: DevStart['place'], enemies: string[], extra: 
   ...extra,
 });
 
-/** A synergy test: act 1, a sturdy enemy pair with triple health, so the combo has time to show. */
+/** A synergy test: act 1, a sturdy enemy pair with triple health (a cheat), so the combo has time to show. */
 const combo = (b: DevBuild, enemies = ['copier', 'rat'], extra: Partial<DevStart> = {}): DevStart => ({
   char: 'intern',
   act: 0,
@@ -71,7 +72,14 @@ const combo = (b: DevBuild, enemies = ['copier', 'rat'], extra: Partial<DevStart
   ...extra,
 });
 
-export const DEV_SUITES: DevSuite[] = [
+/** Every test that uses cheats says so in its description (and the panel marks the tile). */
+function sayCheats(item: DevSuiteItem): DevSuiteItem {
+  const list = cheatList(item.cfg.cheats);
+  if (!list.length || /(^|[^а-яё])чит/i.test(item.desc)) return item;
+  return { ...item, desc: `С читами: ${list.join(', ')}. ${item.desc}` };
+}
+
+const SUITES: DevSuite[] = [
   {
     group: 'Боссы',
     items: [
@@ -186,15 +194,15 @@ export const DEV_SUITES: DevSuite[] = [
       { id: 'place-treasure', name: 'Сейф', desc: 'Сокровище: предмет и монеты.', cfg: { char: 'intern', act: 0, place: 'treasure' } },
       { id: 'place-bossreward', name: 'Награда босса', desc: 'Выбор одного из трёх предметов босса.', cfg: { char: 'intern', act: 0, place: 'bossReward' } },
       { id: 'place-event', name: 'Случайное событие', desc: 'Служебная записка с выбором.', cfg: { char: 'intern', act: 0, place: 'event', hero: { coins: 200 } } },
-      { id: 'place-map', name: 'Карта 3-го отдела', desc: 'План эвакуации котельной, ходить можно куда угодно.', cfg: { char: 'intern', act: 2, place: 'map', build: ACT_BUILD[2], cheats: { anywhere: true } } },
+      { id: 'place-map', name: 'Карта 3-го отдела', desc: 'План эвакуации котельной: любой узел открыт для входа.', cfg: { char: 'intern', act: 2, place: 'map', build: ACT_BUILD[2], cheats: { anywhere: true } } },
     ],
   },
   {
     group: 'Стресс-тесты',
     items: [
-      { id: 'stress-numbers', name: 'Огромные числа', desc: 'Урон героя ×100 и множ-сборка: как счётчик и числа урона выглядят на миллионах.', cfg: fight(2, 'boss', ['mirror'], { cheats: { heroDmg: 100 } }) },
-      { id: 'stress-three', name: 'Три сильных врага', desc: 'Сейф, звонарь и кочегар в 3-м отделе, с бессмертием: плотность эффектов на экране.', cfg: fight(2, 'fight', ['safe', 'bell', 'stoker'], { cheats: { god: true } }) },
-      { id: 'stress-long', name: 'Долгий бой', desc: 'Враги ×10 здоровья и бессмертие: сверхурочные после 20 ходов.', cfg: fight(0, 'fight', ['copier', 'rat'], { cheats: { god: true, enemyHp: 10 } }) },
+      { id: 'stress-numbers', name: 'Огромные числа', desc: 'С читом «урон героя ×100»: итог каждого удара умножается на 100 после всех множителей. Сборка 3-го отдела против Кривого зеркала — проверка, как выглядят числа на десятках и сотнях тысяч.', cfg: fight(2, 'boss', ['mirror'], { cheats: { heroDmg: 100 } }) },
+      { id: 'stress-three', name: 'Три сильных врага', desc: 'С читом «бессмертие». Сейф, звонарь и кочегар в 3-м отделе: плотность эффектов на экране.', cfg: fight(2, 'fight', ['safe', 'bell', 'stoker'], { cheats: { god: true } }) },
+      { id: 'stress-long', name: 'Долгий бой', desc: 'С читами «здоровье врагов ×10» и «бессмертие»: бой тянется до сверхурочных после 20 ходов.', cfg: fight(0, 'fight', ['copier', 'rat'], { cheats: { god: true, enemyHp: 10 } }) },
       { id: 'stress-lowhp', name: 'На волоске', desc: '1 здоровье и флешка: смертельный удар оставляет 1.', cfg: { ...fight(0, 'fight', ['rat', 'rat']), hero: { hp: 1 }, build: { ...ACT_BUILD[0], relics: [...ACT_BUILD[0].relics, 'flash'] } } },
       { id: 'stress-thin', name: 'Тонкая колода', desc: 'Пять фишек — минимум колоды.', cfg: combo(build(deck(['fist', 2], ['folder', 1], ['ink', 1], ['clip', 1]), ['knife'], 'eraser')) },
       { id: 'stress-fat', name: 'Толстая колода', desc: '30 фишек всех семейств: мешок и поле на большой колоде.', cfg: combo(build(deck(['fist', 4], ['scissors', 3], ['redpen', 2], ['pins', 2], ['folder', 4], ['binder', 3], ['ink', 4], ['quill', 2], ['clip', 3], ['coin', 3]), ['knife'], 'eraser')) },
@@ -218,3 +226,5 @@ export const DEV_SUITES: DevSuite[] = [
     ],
   },
 ];
+
+export const DEV_SUITES: DevSuite[] = SUITES.map((suite) => ({ ...suite, items: suite.items.map(sayCheats) }));

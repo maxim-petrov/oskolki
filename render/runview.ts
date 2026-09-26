@@ -6,7 +6,8 @@ import { dispatch, modsOf, saveRun } from '../game/run.ts';
 import type { Action, GameEvent, RunState } from '../game/types.ts';
 import type { App } from './app.ts';
 import { CombatView, type CombatHost } from './combatview.ts';
-import { bigText, text } from './font.ts';
+import { bigText, measure, text } from './font.ts';
+import { cheatList } from './dev-cheats.ts';
 import { ditherFade, drawDanger, drawVignette } from './fx.ts';
 import { drawTopBar, type Disp } from './hud.ts';
 import { Juice } from './juice.ts';
@@ -465,6 +466,13 @@ export class RunView implements CombatHost {
     this.drawPhase(ctx, ui);
     // Top bar.
     const click = drawTopBar(ctx, ui, this.run, this.disp, t, this.combat.heartPulse, this.combat.incoming());
+    // A test run with cheats says so on screen, so its numbers are never taken for the real game.
+    const cheats = cheatList(this.run.dev);
+    if (cheats.length) {
+      let label = `ЧИТЫ: ${cheats.join(', ')}`;
+      while (measure(label) > L.w - 8 && label.length > 12) label = label.slice(0, -2) + '…';
+      text(ctx, label, 4, L.top.h + 2, 'red4', { outline: 'ink0' });
+    }
     if (click === 'pause') this.paused = !this.paused;
     if (click === 'deck') this.deckOpen = !this.deckOpen;
     if (click === 'map') this.mapOpen = !this.mapOpen;
