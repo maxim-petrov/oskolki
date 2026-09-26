@@ -150,7 +150,17 @@ const ITEM_CHECKS = {
   binderclip: () => assert.equal(hit({ relics: ['binderclip'] }, FOLDERS).strike.armor, 6),
   inkpot: () => assert.equal(hit({ relics: ['inkpot'] }, INKS).strike.tally.charge, 6),
   wallet: () => assert.equal(hit({ relics: ['wallet'] }, CLIPS).strike.tally.coins, 6),
-  vestrelic: () => assert.equal(scene({ relics: ['vestrelic'] }).hero.armor, byBlows(6)),
+  vestrelic() {
+    let run = scene({ relics: ['vestrelic'], enemies: ['rat'], enemyHp: 999 });
+    ready(run, 'attack');
+    let res = play(run, line(run, CLIPS));
+    assert.equal(res.acts[0].hurt.red, 0, 'первый удар боя не прошёл');
+    assert.equal(res.run.hero.hp, run.hero.hp);
+    run = res.run;
+    ready(run, 'attack');
+    res = play(run, line(run, CLIPS, { row: 4 }));
+    assert.equal(res.acts[0].hurt.red, blowOf('rat', 'attack'), 'второй — как обычно');
+  },
   sandwich() {
     const { run } = newRun({ seed: 1 });
     run.hero.hp = 30;
@@ -360,6 +370,8 @@ const ITEM_CHECKS = {
     assert.equal(hit({ relics: ['vault'], coins: 99 }).strike.tally.mult, 1);
   },
   hotkey() {
+    // A full skill: the ink of the move burns into damage, twice as hard.
+    assert.equal(hit({ active: 'eraser', relics: ['hotkey'], charge: 2, enemies: ['anchor'] }, INKS).strike.damage, 6, '3 лишних деления × 2');
     assert.equal(activeCost(scene({ active: 'eraser' })), 3);
     assert.equal(activeCost(scene({ active: 'eraser', relics: ['hotkey'] })), 2);
     assert.equal(activeCost(scene({ active: 'stapler', relics: ['hotkey'] })), 4);
@@ -541,7 +553,6 @@ test('effects outside the strike grow with the act: damage with enemy health, ar
   const cactus = scene({ act, relics: ['cactus'], enemies: ['rat'], enemyHp: 99999, hp: 9999, maxHp: 9999 });
   ready(cactus, 'attack');
   assert.equal(99999 - foe(play(cactus, line(cactus, CLIPS)).run).hp, 5 * HP, 'кактус');
-  assert.equal(scene({ act, relics: ['vestrelic'] }).hero.armor, Math.round(6 * DMG), 'жилет');
   const mop = hit({ act, relics: ['mop'] });
   const junk = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
   assert.equal(armorOfMove(mop), Math.round(junk * DMG), 'швабра');

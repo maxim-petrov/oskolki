@@ -41,6 +41,10 @@ export interface Mods {
   cactus: number;
   battery: number;
   startArmor: number;
+  /** The first enemy blow of every fight does not get through. */
+  firstBlowGuard: boolean;
+  /** Ink beyond a full skill deals this many times its damage. */
+  overflowX: number;
   /** The first group of every move scores twice. */
   echo: boolean;
   censorImmune: boolean;
@@ -114,6 +118,8 @@ export function baseMods(): Mods {
     cactus: 0,
     battery: 0,
     startArmor: 0,
+    firstBlowGuard: false,
+    overflowX: 1,
     echo: false,
     censorImmune: false,
     emberImmune: false,
@@ -176,7 +182,7 @@ export const ITEMS: Record<string, ItemDef> = {
   binderclip: i({ id: 'binderclip', name: 'Зажим для бумаг', desc: 'Синие фишки +1 к броне.', kind: 'passive', icon: 'item_binderclip', pool: 'common', apply: (m) => (m.bluePlus += 1) }),
   inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к заряду.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
   wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Золотые фишки +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
-  vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Каждый бой начинается с 6 брони (растёт с отделом).', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.startArmor += 6) }),
+  vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Первый удар врага в каждом бою не проходит.', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.firstBlowGuard = true) }),
   sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+8 к максимуму здоровья (и к потолку брони). Лечит 8.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 8, heal: 8 }),
   bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит 5.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 5) }),
   gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 8.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 8) }),
@@ -238,7 +244,7 @@ export const ITEMS: Record<string, ItemDef> = {
   pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +15 к максимуму здоровья (и к потолку брони).', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 15, heal: 15, apply: (m) => (m.pockets += 2) }),
   stamprelic: i({ id: 'stamprelic', name: 'Печать отдела', desc: 'В начале боя 3 фишки поля получают печать: +1 множ при сборе.', kind: 'passive', icon: 'item_stamprelic', pool: 'boss', apply: (m) => (m.sealStart += 3) }),
   vault: i({ id: 'vault', name: 'Сейф директора', desc: '+1 множ за каждые 100 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinMultPer = 100) }),
-  hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3 }),
+  hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда, а заряд сверх навыка бьёт вдвое.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3, apply: (m) => (m.overflowX = 2) }),
   steeldoor: i({ id: 'steeldoor', name: 'Бронедверь', desc: 'После действия врагов половина брони остаётся.', kind: 'passive', icon: 'item_steeldoor', pool: 'boss', apply: (m) => (m.armorKeep = 0.5) }),
   foldtable: i({ id: 'foldtable', name: 'Раскладной стол', desc: 'Поле больше на строку и столбец.', kind: 'passive', icon: 'item_foldtable', pool: 'boss', apply: (m) => ((m.boardW += 1), (m.boardH += 1)) }),
   closet: i({ id: 'closet', name: 'Тесная каморка', desc: 'Поле меньше на строку и столбец, зато каждый удар +3 множ.', kind: 'passive', icon: 'item_closet', pool: 'boss', apply: (m) => ((m.boardW -= 1), (m.boardH -= 1), (m.multFlat += 3)) }),

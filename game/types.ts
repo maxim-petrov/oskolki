@@ -205,6 +205,8 @@ export interface Combat {
   nextMult: number;
   /** Piggy banks and other end-of-fight payouts collected during the fight. */
   bonusCoins: number;
+  /** The guard's vest has taken this fight's first blow. */
+  guarded?: boolean;
 }
 
 export type NodeKind = 'fight' | 'elite' | 'event' | 'shop' | 'rest' | 'treasure' | 'boss';

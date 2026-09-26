@@ -975,7 +975,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     c.nextMult = 0;
   }
   // Ink beyond a full skill burns: it deals damage (without a skill, all of it does).
-  const spare = inkOverflow(run, t.charge);
+  const spare = inkOverflow(run, t.charge) * mods.overflowX;
   if (spare > 0) {
     t.dmg += spare;
     notes.push(`Лишний заряд +${spare} урона`);
@@ -1202,7 +1202,12 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     const prev = ctx.fx;
     const list: Effect[] = [];
     ctx.fx = list;
-    act.hurt = hurtHero(ctx, dmg, ENEMIES[e.def].name, true, e);
+    // The guard's vest: the first blow of the fight does not get through.
+    if (ctx.mods.firstBlowGuard && !c.guarded && dmg > 0) {
+      c.guarded = true;
+      act.hurt = { amount: dmg, armor: 0, red: 0 };
+      ctx.fx.push({ kind: 'proc', amount: 0, source: 'vest', text: 'Жилет: удар не прошёл' });
+    } else act.hurt = hurtHero(ctx, dmg, ENEMIES[e.def].name, true, e);
     ctx.fx = prev;
     ctx.ev.push(act);
     if (list.length) ctx.ev.push({ t: 'effects', effects: list });
@@ -1724,7 +1729,7 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
   if (set) for (const i of set.blast.cells) if (!matched.has(i)) scoreTile(ctx, cells[i], i, null, 1, scores);
   const t = ctx.ms.tally;
   const mult = t.mult * t.xmult;
-  let damage = Math.round((t.dmg + inkOverflow(run, t.charge)) * mult);
+  let damage = Math.round((t.dmg + inkOverflow(run, t.charge) * mods.overflowX) * mult);
   const target = targetEnemy(c);
   if (target && ENEMIES[target.def].material === 'paper') damage *= mods.paperX;
   return {
