@@ -163,6 +163,20 @@ test('a splitting enemy falls apart into two on death', () => {
   }
 });
 
+test('a dive ends on time even when the timer is pushed back (no endless fight under water)', () => {
+  let run = scene({ enemies: ['eel'], enemyHp: 999 });
+  ready(run, 'submerge');
+  run = play(run, line(run, CLIPS)).run;
+  assert.equal(foe(run).submerged, true, 'угорь нырнул');
+  const ticks = foe(run).countdown;
+  for (let k = 0; k < ticks; k++) {
+    foe(run).countdown += 5; // urgent stamps, ice, the megaphone…
+    run = play(run, line(run, CLIPS)).run;
+  }
+  assert.equal(foe(run).submerged, false, 'вынырнул через столько же ходов, сколько длится нырок');
+  assert.ok(foe(run).countdown > 1, 'но ударит позже — задержка таймера работает');
+});
+
 test('long fights get harder: +2 damage every 5 moves after the 20th', () => {
   const run = scene({ enemies: ['rat'] });
   const c = run.combat;

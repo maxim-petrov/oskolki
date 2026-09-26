@@ -150,6 +150,8 @@ export interface EnemyState {
   /** Just shook off a stun: cannot be stunned again until it acts. */
   stunImmune: boolean;
   submerged: boolean;
+  /** Ticks left under water: a dive ends on time even when the enemy's timer is pushed back. */
+  dive?: number;
   shining: boolean;
   hitOnce: boolean;
   /** Act damage multiplier baked in at spawn. */

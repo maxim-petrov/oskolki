@@ -1222,6 +1222,8 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     if (intent.kind === 'shine') e.shining = true;
   }
   advanceCycle(ctx, e);
+  if (e.submerged) e.dive = e.countdown;
+  else delete e.dive;
 }
 
 function boardTimers(ctx: Ctx) {
@@ -1283,6 +1285,13 @@ function advanceTime(ctx: Ctx) {
   c.ticks++;
   // Dev freeze: the enemies' timers stand still.
   if (!ctx.run.dev?.freeze) for (const e of alive(c)) e.countdown -= 1;
+  // A dive lasts as long as it was meant to: pushing the timer back (urgent stamps, ice, the
+  // megaphone) must not keep an enemy out of reach for ever.
+  for (const e of alive(c))
+    if (e.submerged && e.dive !== undefined && --e.dive <= 0) {
+      e.submerged = false;
+      delete e.dive;
+    }
   ctx.ev.push({ t: 'tick', timers: alive(c).map((e) => ({ uid: e.uid, countdown: e.countdown })) });
   boardTimers(ctx);
   if (isDead(ctx.run)) return;
