@@ -410,6 +410,12 @@ function winCombat(run: RunState, ev: GameEvent[]) {
     run.stats.bossesKilled.push(boss);
     if (c.damageTaken === 0) run.stats.bossesNoHit++;
   }
+  if (mods.growHp && (hero.grown ?? 0) < mods.growHp) {
+    hero.grown = (hero.grown ?? 0) + 1;
+    hero.maxHp += 1;
+    hero.hp += 1;
+    ev.push({ t: 'message', text: 'Календарь: +1 к здоровью' });
+  }
   heal(run, mods.healAfterFight + (c.damageTaken === 0 ? mods.healNoHit : 0), ev);
   if (kind === 'elite') gainShards(run, 1, ev);
   if (kind === 'boss') gainShards(run, 3, ev);
@@ -943,7 +949,10 @@ export function loadRun(raw: string): RunState | null {
   try {
     const data = JSON.parse(raw);
     if (data?.rules !== RULES || data.run?.v !== 3) return null;
-    return data.run as RunState;
+    const run = data.run as RunState;
+    // Saves from before boards had a size: they were all 6×6.
+    if (run.combat && !run.combat.board.w) Object.assign(run.combat.board, { w: 6, h: 6 });
+    return run;
   } catch {
     return null;
   }

@@ -3,14 +3,14 @@
  * seed. The fuzz tests and the balance runner check them after each dispatch; a violation is a bug
  * in the engine or the content, never a balance question.
  */
-import { validMoves } from '../board.ts';
-import { MAX_ENEMIES, activeCost, alive } from '../combat.ts';
+import { MAX_SIDE, MIN_SIDE, validMoves } from '../board.ts';
+import { MAX_ENEMIES, activeCost, alive, moveRules } from '../combat.ts';
 import { ACTS } from '../content/acts.ts';
 import { CARDS } from '../content/cards.ts';
 import { ENEMIES } from '../content/enemies.ts';
 import { EVENT_BY_ID } from '../content/events.ts';
 import { ITEMS, POCKETS, computeMods } from '../content/items.ts';
-import { CELLS, FAMS, H, QUEUE_LEN, W, type RunState, type Tile } from '../types.ts';
+import { FAMS, QUEUE_LEN, type RunState, type Tile } from '../types.ts';
 
 const KINDS = new Set<string>([...FAMS, 'prism', 'junk']);
 const SPECIALS = new Set(['rocketH', 'rocketV', 'bomb']);
@@ -107,9 +107,14 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
   // Combat.
   if (c && run.phase === 'combat') {
     const b = c.board;
-    if (b.cells.length !== CELLS) bad(`клеток ${b.cells.length}`);
+    for (const [side, n] of [
+      ['ширина', b.w],
+      ['высота', b.h],
+    ] as const)
+      if (!Number.isInteger(n) || n < MIN_SIDE || n > MAX_SIDE) bad(`${side} поля ${n}`);
+    if (b.cells.length !== b.w * b.h) bad(`клеток ${b.cells.length} на поле ${b.w}×${b.h}`);
     b.cells.forEach((t, i) => checkTile(t, `клетка ${i}`, bad));
-    if (b.queue.length !== W) bad(`очередей ${b.queue.length}`);
+    if (b.queue.length !== b.w) bad(`очередей ${b.queue.length}`);
     b.queue.forEach((q, col) => {
       if (q.length !== QUEUE_LEN) bad(`очередь ${col}: ${q.length}`);
       q.forEach((t, k) => checkTile(t, `очередь ${col}/${k}`, bad));
@@ -117,7 +122,7 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
     const ids = [...b.cells, ...b.queue.flat()].map((t) => t?.id);
     if (new Set(ids).size !== ids.length) bad('id фишек повторяются');
     if (b.flood < 0 || b.flood > 3) bad(`вода ${b.flood}`);
-    if (b.colLock.length !== W || b.rowLock.length !== H || [...b.colLock, ...b.rowLock].some((x) => !Number.isInteger(x) || x < 0))
+    if (b.colLock.length !== b.w || b.rowLock.length !== b.h || [...b.colLock, ...b.rowLock].some((x) => !Number.isInteger(x) || x < 0))
       bad('замки строк/столбцов');
     for (const t of b.source) if (!CARDS[t.card]) bad(`в мешке карта ${t.card}`);
     const living = alive(c);
@@ -129,7 +134,7 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
       if (e.block < 0 || e.armor < 0 || e.bleed < 0 || e.burnTurns < 0) bad(`${e.def}: отрицательный статус`);
       if (e.hp > 0 && e.countdown < 1) bad(`${e.def}: таймер ${e.countdown}`);
     }
-    if (!validMoves(b, mods.wrap).length) bad('на поле нет ходов');
+    if (!validMoves(b, moveRules(run, mods)).length) bad('на поле нет ходов');
   }
 
   // Monotonic counters.

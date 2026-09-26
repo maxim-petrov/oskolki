@@ -45,7 +45,13 @@ export interface BagToken {
   finish?: Finish;
 }
 
-export interface BoardState {
+/** Board size in cells (6×6 by default; items and enemies change it). */
+export interface Dims {
+  w: number;
+  h: number;
+}
+
+export interface BoardState extends Dims {
   cells: Tile[];
   queue: Tile[][];
   nextId: number;
@@ -127,7 +133,7 @@ export interface EnemyDef {
   intents: Intent[];
   /** Boss phases: when hp <= at * maxHp the cycle switches (after the current action). */
   phases?: { at: number; intents: Intent[] }[];
-  traits?: ('splits' | 'light' | 'diver')[];
+  traits?: ('splits' | 'light' | 'diver' | 'turnstile' | 'cramped')[];
   splitInto?: string;
   coins?: number;
   blurb: string;
@@ -180,6 +186,8 @@ export interface Hero {
   pockets: (string | null)[];
   deck: DeckCard[];
   flashUsed: boolean;
+  /** Max health the desk calendar has added this run. */
+  grown?: number;
 }
 
 export interface Combat {
@@ -430,7 +438,7 @@ export interface Tally {
 }
 
 export type GameEvent =
-  | { t: 'swap'; move: Move; board: BoardSnap }
+  | { t: 'swap'; move: Move; board: BoardSnap; /** The tile was dragged along its line (the ones between shifted). */ slide?: boolean }
   | {
       t: 'wave';
       n: number;
@@ -479,6 +487,8 @@ export type GameEvent =
   | { t: 'phase'; uid: number; phase: number }
   | { t: 'ember'; cells: number[]; hurt: { amount: number; armor: number; red: number } }
   | { t: 'board'; reason: 'reshuffle' | 'enemy' | 'active' | 'timers'; board: BoardSnap; queue?: Tile[][] }
+  /** The board changed its size mid-fight (a cramped enemy fell): new cells came in. */
+  | { t: 'resize'; w: number; h: number; board: BoardSnap; queue: Tile[][] }
   | { t: 'enemyDie'; uid: number; split?: EnemyState[] }
   | { t: 'combatStart'; kind: Combat['kind'] }
   | { t: 'combatWon'; kind: Combat['kind'] }

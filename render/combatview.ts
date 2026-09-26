@@ -1,5 +1,5 @@
-import { adjacent, isValidMove, swapBlock } from '../game/board.ts';
-import { activeCost, alive, intentDamage, previewMove } from '../game/combat.ts';
+import { area, isValidMove, lineCells, moveBlock, moveKind } from '../game/board.ts';
+import { activeCost, alive, intentDamage, moveRules, previewMove } from '../game/combat.ts';
 import { CARDS } from '../game/content/cards.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
@@ -16,7 +16,7 @@ import type { Steps } from './steps.ts';
 import { TallyView } from './tally.ts';
 import { easeOut } from './tween.ts';
 import type { UI } from './ui.ts';
-import { L, STAGE_FEET } from './view.ts';
+import { L, STAGE_FEET, setBoardSize } from './view.ts';
 import type { Audio } from './audio.ts';
 
 const FAM_TRAIL: Record<string, string[]> = {
@@ -130,11 +130,20 @@ export class CombatView {
     list.forEach((v, k) => (v.tx = slots[k] ?? L.w - 60));
   }
 
+  /** The fight's board size: the view and the layout follow it (items and enemies change it). */
+  private syncSize() {
+    const c = this.run.combat;
+    if (!c) return;
+    this.board.setSize(c.board.w, c.board.h);
+    setBoardSize(c.board.w, c.board.h);
+    this.board.layout();
+  }
+
   show(animate: boolean) {
     const c = this.run.combat;
     if (!c) return;
     this.active = true;
-    this.board.layout();
+    this.syncSize();
     this.board.active = true;
     this.enemies.clear();
     for (const e of c.enemies) if (e.hp > 0) this.enemies.set(e.uid, new EnemyView(e, L.w + 80));
@@ -155,7 +164,7 @@ export class CombatView {
       const T = this.board.T;
       for (const v of this.board.tiles.values()) {
         const row = Math.round(v.y / T);
-        this.board.moveTo(v.tile.id, row * 6 + Math.round(v.x / T), 0.35 + (5 - row) * 0.04, easeOut, [v.x, v.y - this.board.bh - 30]);
+        this.board.moveTo(v.tile.id, row * this.board.w + Math.round(v.x / T), 0.35 + (this.board.h - 1 - row) * 0.04, easeOut, [v.x, v.y - this.board.bh - 30]);
       }
     } else this.board.visible = 1;
   }
@@ -170,6 +179,7 @@ export class CombatView {
     this.endEnemyTurn();
     const c = this.run.combat;
     if (!c || !this.active) return;
+    this.syncSize();
     this.board.set(c.board.cells, this.h.t);
     this.board.queue = c.board.queue;
     this.board.flood = c.board.flood;
@@ -227,7 +237,7 @@ export class CombatView {
             this.board.highlight = [];
             this.board.blastCells = [];
             this.board.previewText = '';
-            this.board.animateSwap(e.move);
+            this.board.animateSwap(e.move, !!e.slide);
             this.tally.reset();
             this.chips = 0;
             au.play('swap');
@@ -297,6 +307,28 @@ export class CombatView {
             }
             au.play('ember');
             this.hurtHero(e.hurt, false);
+          },
+        });
+        return true;
+      case 'resize':
+        S.push({
+          dur: 0.4,
+          begin: () => {
+            // The board grows: the old tiles slide to their new places, the new ones flash in.
+            this.h.toast('Место освободилось: поле шире');
+            const old = new Map([...this.board.tiles].map(([id, v]) => [id, [v.x + this.board.bx, v.y + this.board.by] as [number, number]]));
+            this.board.setSize(e.w, e.h);
+            setBoardSize(e.w, e.h);
+            this.board.layout();
+            this.board.set(e.board, this.h.t);
+            this.board.queue = e.queue;
+            e.board.forEach((tile, i) => {
+              const from = old.get(tile.id);
+              const v = this.board.tiles.get(tile.id);
+              if (from) this.board.moveTo(tile.id, i, 0.3, easeOut, [from[0] - this.board.bx, from[1] - this.board.by]);
+              else if (v) v.flash = 1;
+            });
+            au.play('swap', 0.7);
           },
         });
         return true;
@@ -1045,7 +1077,17 @@ export class CombatView {
 
   // ── Update ────────────────────────────────────────────────────────
 
+  /** How tiles move right now (items, the ring, a turnstile on the field). */
+  private rules() {
+    return moveRules(this.run, this.h.mods);
+  }
+
   update(dt: number, frozen: boolean, speed: number) {
+    const rules = this.rules();
+    this.board.wrap = rules.wrap;
+    this.board.slide = !!rules.slide;
+    this.board.diagonal = !!rules.diagonal;
+    this.board.vertical = !!rules.vertical;
     this.board.layout();
     this.board.update(frozen ? 0 : dt * speed);
     this.hero.update(dt);
@@ -1062,7 +1104,7 @@ export class CombatView {
     const b = this.board;
     const m = b.dragMove();
     if (m) return m;
-    if (!b.drag && b.selected >= 0 && b.hover >= 0 && adjacent(b.selected, b.hover, this.h.mods.wrap)) return { from: b.selected, to: b.hover };
+    if (!b.drag && b.selected >= 0 && b.hover >= 0 && moveKind(b, { from: b.selected, to: b.hover }, this.rules())) return { from: b.selected, to: b.hover };
     return null;
   }
 
@@ -1075,7 +1117,7 @@ export class CombatView {
       b.previewText = '';
       return;
     }
-    const block = swapBlock(this.run.combat.board, m, this.h.mods.wrap);
+    const block = moveBlock(this.run.combat.board, m, this.rules());
     const p = previewMove(this.run, this.h.mods, m);
     b.highlight = p.valid ? p.groups : [];
     b.blastCells = p.blast ? p.blast.cells : [];
@@ -1130,18 +1172,10 @@ export class CombatView {
     if (this.targeting && this.run.combat) {
       const cell = this.board.cellAt(x, y);
       const aim = this.targeting.aim;
-      const r = this.h.mods.bombRadius;
+      const b = this.run.combat.board;
       const bomb = this.targeting.kind === 'pocket' && this.run.hero.pockets[this.targeting.slot ?? -1] === 'bomb';
       this.board.aimCells =
-        cell < 0
-          ? []
-          : bomb
-            ? Array.from({ length: 36 }, (_, i) => i).filter((i) => Math.abs((i % 6) - (cell % 6)) <= r && Math.abs(Math.floor(i / 6) - Math.floor(cell / 6)) <= r)
-            : aim === 'col'
-              ? Array.from({ length: 6 }, (_, k) => k * 6 + (cell % 6))
-              : aim === 'cell'
-                ? [cell]
-                : [];
+        cell < 0 ? [] : bomb ? area(b, cell, this.h.mods.bombRadius) : aim === 'col' ? lineCells(b, 'col', cell % b.w) : aim === 'cell' ? [cell] : [];
     }
     if (this.board.drag) this.board.dragTo(x, y);
   }
@@ -1154,7 +1188,7 @@ export class CombatView {
     if (!d.moved) {
       b.drag = null;
       if (b.selected < 0 || b.selected === d.cell) b.selected = b.selected === d.cell ? -1 : d.cell;
-      else if (adjacent(b.selected, d.cell, this.h.mods.wrap)) this.trySwap({ from: b.selected, to: d.cell });
+      else if (moveKind(b, { from: b.selected, to: d.cell }, this.rules())) this.trySwap({ from: b.selected, to: d.cell });
       else b.selected = d.cell;
       return;
     }
@@ -1167,7 +1201,7 @@ export class CombatView {
     const c = this.run.combat;
     if (!c) return;
     const b = this.board;
-    if (isValidMove(c.board, m, this.h.mods.wrap)) {
+    if (isValidMove(c.board, m, this.rules())) {
       b.selected = -1;
       this.h.act({ type: 'move', move: m });
       return;
@@ -1175,7 +1209,7 @@ export class CombatView {
     b.refuse(m);
     b.selected = -1;
     b.shake = 0.6;
-    this.h.fail(swapBlock(c.board, m, this.h.mods.wrap) ?? 'Нет совпадения');
+    this.h.fail(moveBlock(c.board, m, this.rules()) ?? 'Нет совпадения');
   }
 
   private aimAt(x: number, y: number, cell: number) {
@@ -1258,9 +1292,9 @@ export class CombatView {
           if (!this.h.busy()) b.cursor = from;
         }
       } else {
-        const c = (b.cursor % 6) + dx;
-        const r = Math.floor(b.cursor / 6) + dy;
-        if (c >= 0 && c < 6 && r >= 0 && r < 6) b.cursor = r * 6 + c;
+        const c = (b.cursor % b.w) + dx;
+        const r = Math.floor(b.cursor / b.w) + dy;
+        if (c >= 0 && c < b.w && r >= 0 && r < b.h) b.cursor = r * b.w + c;
       }
       return true;
     }
@@ -1357,7 +1391,8 @@ export class CombatView {
     const c = this.run.combat;
     const b = this.board;
     if (b.visible > 0) {
-      b.draw(ctx, t, (a, bb) => (c ? !swapBlock(c.board, { from: a, to: bb }, this.h.mods.wrap) : false));
+      const rules = this.rules();
+      b.draw(ctx, t, (a, bb) => (c ? !moveBlock(c.board, { from: a, to: bb }, rules) : false));
       if (this.boardDim > 0.02) {
         ctx.globalAlpha = this.boardDim * 0.5 * b.visible;
         ctx.fillStyle = hex('ink0');

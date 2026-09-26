@@ -6,6 +6,8 @@ import { ENEMIES } from '../game/content/enemies.ts';
 import { ACTS } from '../game/content/acts.ts';
 import { MAX_HOLD, OVERTIME_AFTER, intentDamage } from '../game/combat.ts';
 import { playFight } from '../game/balance/lab.ts';
+import { checkRun } from '../game/balance/invariants.ts';
+import { validMoves } from '../game/board.ts';
 import { CLIPS, FISTS, act, blowOf, byBlows, foe, idx, line, moves, play, put, ready, scene } from './scene.mjs';
 
 /** The enemy (first in `enemies`) does `kind` on the next tick; returns the move's result. */
@@ -138,6 +140,47 @@ test('every kind of enemy action has a check', () => {
 });
 
 for (const [kind, check] of Object.entries(INTENT_CHECKS)) test(`действие врага «${kind}»`, check);
+
+// Traits that change the rules of the fight (the others are labels for the view).
+const TRAIT_CHECKS = {
+  turnstile() {
+    const sideways = (enemies, hp = 999) => {
+      const run = scene({ enemies, enemyHp: hp });
+      put(run, 2, 0, 'fist');
+      put(run, 2, 1, 'fist');
+      put(run, 2, 3, 'fist');
+      return { run, move: { from: idx(2, 3), to: idx(2, 2) } };
+    };
+    const held = sideways(['turnstile']);
+    assert.equal(play(held.run, held.move).invalid?.reason, 'Турникет: только вверх и вниз');
+    assert.ok(!play(held.run, line(held.run, FISTS, { row: 4 })).invalid, 'вверх и вниз можно');
+    assert.ok(validMoves(held.run.combat.board, { wrap: false, vertical: true }).every((m) => m.to - m.from !== 1), 'бот видит только вертикальные ходы');
+    // With the turnstile down, tiles move sideways again.
+    const free = sideways(['turnstile', 'rat']);
+    foe(free.run).hp = 0;
+    assert.equal(play(free.run, free.move).strike.tally.dmg, 6);
+  },
+  cramped() {
+    const run = scene({ real: true, enemies: ['storekeeper', 'rat'], hp: 999, maxHp: 999 });
+    assert.equal(run.combat.board.w, 5, 'пока она в бою, поле на столбец уже');
+    const before = run.combat.board.cells.map((t) => t.id);
+    foe(run).hp = 1;
+    const kill = validMoves(run.combat.board, { wrap: false })[0];
+    const res = play(run, kill);
+    const grown = res.events.find((e) => e.t === 'resize');
+    assert.ok(grown, 'упала — поле растёт');
+    assert.deepEqual([res.run.combat.board.w, res.run.combat.board.cells.length], [6, 36]);
+    assert.deepEqual(checkRun(res.run), [], 'поле цело');
+    assert.ok(res.run.combat.board.cells.filter((t) => before.includes(t.id)).length > 0, 'старые фишки на месте');
+  },
+};
+
+test('every trait that changes the rules has a check', () => {
+  const traits = new Set(Object.values(ENEMIES).flatMap((e) => e.traits ?? []));
+  for (const t of ['turnstile', 'cramped']) assert.ok(traits.has(t) && TRAIT_CHECKS[t], `нет проверки для свойства «${t}»`);
+});
+
+for (const [trait, check] of Object.entries(TRAIT_CHECKS)) test(`свойство врага «${trait}»`, check);
 
 test('bosses and the cabinet change phase at their thresholds', () => {
   for (const e of Object.values(ENEMIES).filter((x) => x.phases))

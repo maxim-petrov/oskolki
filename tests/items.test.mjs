@@ -9,6 +9,7 @@ import { activeCost } from '../game/combat.ts';
 import { FINISH_TEXT } from '../game/content/cards.ts';
 import { QUEUE_LEN } from '../game/types.ts';
 import { ACTS } from '../game/content/acts.ts';
+import { playFight } from '../game/balance/lab.ts';
 import { CLIPS, FISTS, FOLDERS, INKS, act, blowOf, byBlows, cascade, foe, hit, idx, line, moves, play, put, queue, ready, scene, tile } from './scene.mjs';
 
 /**
@@ -43,7 +44,94 @@ function noteRate(relic, prefix, n = 300) {
   return { rate: hits / n, values };
 }
 
+/** Row 2 with two fists and a gap; `far` is where the third fist waits (a move must bring it in). */
+function gapRow(relics, far) {
+  const run = scene({ relics, enemyHp: 999 });
+  put(run, 2, 0, 'fist');
+  put(run, 2, 1, 'fist');
+  put(run, far[0], far[1], 'fist');
+  return run;
+}
+
+/** A real fight on the item's board to the end, invariants on after every move. */
+function fightsThrough(relics) {
+  const res = playFight(scene({ relics, real: true, enemies: ['rat', 'drop'], hp: 999, maxHp: 999 }), { seed: 3, check: true });
+  assert.deepEqual(res.violations, [], 'движок держит правила на таком поле');
+  assert.ok(res.won, 'бой выигран');
+}
+
 const ITEM_CHECKS = {
+  extension() {
+    const b = scene({ relics: ['extension'] }).combat.board;
+    assert.deepEqual([b.w, b.h, b.cells.length, b.queue.length], [7, 6, 42, 7], 'поле 7×6, очередь над каждым столбцом');
+    fightsThrough(['extension']);
+  },
+  foldtable() {
+    const b = scene({ relics: ['foldtable'] }).combat.board;
+    assert.deepEqual([b.w, b.h], [7, 7]);
+    fightsThrough(['foldtable']);
+  },
+  closet() {
+    const b = scene({ relics: ['closet'] }).combat.board;
+    assert.deepEqual([b.w, b.h], [5, 5]);
+    assert.equal(hit({ relics: ['closet'] }).strike.tally.mult, 4, 'каждый удар +3 множ');
+    const both = scene({ relics: ['closet', 'extension'] }).combat.board;
+    assert.deepEqual([both.w, both.h], [6, 5], 'размеры складываются');
+    fightsThrough(['closet']);
+  },
+  tapemeasure() {
+    // The fist from column 4 is dragged to column 2: the two tiles between step right.
+    const move = { from: idx(2, 4), to: idx(2, 2) };
+    assert.equal(play(gapRow([], [2, 4]), move).invalid?.reason, 'Только с соседней фишкой');
+    const res = play(gapRow(['tapemeasure'], [2, 4]), move);
+    assert.equal(res.strike.tally.dmg, 6, 'три кулака в ряд');
+    assert.ok(res.events.find((e) => e.t === 'swap').slide);
+    // Tiles between do not jump over a staple.
+    const pinned = gapRow(['tapemeasure'], [2, 4]);
+    put(pinned, 2, 3, 'redtape', { pin: true });
+    assert.equal(play(pinned, move).invalid?.reason, 'Фишка прибита скобой');
+    fightsThrough(['tapemeasure']);
+  },
+  setsquare() {
+    const move = { from: idx(1, 3), to: idx(2, 2) };
+    assert.ok(play(gapRow([], [1, 3]), move).invalid, 'без угольника по диагонали нельзя');
+    assert.equal(play(gapRow(['setsquare'], [1, 3]), move).strike.tally.dmg, 6);
+    fightsThrough(['setsquare']);
+  },
+  clipholder() {
+    const rockets = (relics) => scene({ relics, real: true, seed: 5 }).combat.board.cells.filter((t) => t.special === 'rocketH' || t.special === 'rocketV').length;
+    assert.equal(rockets([]), 0);
+    assert.equal(rockets(['clipholder']), 2);
+  },
+  destapler() {
+    const stapled = (relics) => {
+      const run = scene({ relics, enemyHp: 999 });
+      const move = line(run, FISTS);
+      run.combat.board.cells[move.from].pin = true;
+      return play(run, move);
+    };
+    assert.equal(stapled([]).invalid?.reason, 'Фишка прибита скобой');
+    assert.equal(stapled(['destapler']).strike.tally.dmg, 6);
+  },
+  calendar() {
+    const win = (grown) => {
+      const run = scene({ relics: ['calendar'], enemies: ['rat'], enemyHp: 1, hp: 30, maxHp: 60 });
+      run.hero.grown = grown;
+      return play(run, line(run, FISTS)).run.hero;
+    };
+    const hero = win(0);
+    assert.deepEqual([hero.maxHp, hero.grown], [61, 1], 'выигранный бой: +1 к максимуму');
+    assert.equal(win(8).maxHp, 60, 'не больше +8 за смену');
+  },
+  abacus() {
+    assert.equal(hit({ relics: ['abacus'] }, CLIPS).strike.tally.mult, 2);
+    assert.equal(hit({ relics: ['abacus'] }).strike.tally.mult, 1, 'без золота — без бонуса');
+  },
+  binding() {
+    const five = ['fist', 'fist', 'fist', 'fist', 'fist'];
+    assert.equal(hit({ relics: ['binding'] }, five).strike.tally.mult, 3);
+    assert.equal(hit({ relics: ['binding'] }, [...FISTS, 'fist']).strike.tally.mult, 1, 'группа из 4 — без бонуса');
+  },
   knife() {
     assert.equal(hit({ relics: ['knife'], enemies: ['rat'] }).strike.damage, 12, 'бумажная крыса: удар ×2');
     assert.equal(hit({ relics: ['knife'], enemies: ['anchor'] }).strike.damage, 6, 'металл — без бонуса');

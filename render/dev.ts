@@ -168,7 +168,9 @@ export class DevApi {
         hpIn: actsOf(e.id).map((k) => ({ act: k, hp: Math.max(1, Math.round(e.hp * ACTS[k].hpMul)), armor: Math.round((e.armor ?? 0) * ACTS[k].hpMul) })),
         armor: e.armor ?? 0,
         material: MATERIAL_NAME[e.material] ?? e.material,
-        traits: (e.traits ?? []).map((t) => ({ splits: 'распадается при смерти', light: 'светится', diver: 'ныряет' })[t] ?? t),
+        traits: (e.traits ?? []).map(
+          (t) => ({ splits: 'распадается при смерти', light: 'светится', diver: 'ныряет', turnstile: 'пока жив — только вверх-вниз', cramped: 'пока в бою — поле на столбец уже' })[t] ?? t,
+        ),
         intents: e.intents.map((i) => `${INTENT_TEXT[i.kind] ?? i.kind}${i.value ? ` ${i.value}` : ''} · раз в ${i.timer} хода`),
         blurb: e.blurb,
       })),

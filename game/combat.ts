@@ -6,22 +6,27 @@ import {
   drawTile,
   findGroups,
   gravity,
+  growBoard,
   idx,
   isSpecialTile,
+  applyMove,
   isValidMove,
   lineCells,
   lineFree,
+  MAX_SIDE,
+  MIN_SIDE,
   makeTile,
+  moveBlock,
   moveCells,
+  moveKind,
   neighbors,
   randomCells,
   reshuffle,
   rowOf,
   shiftCells,
-  swapBlock,
-  swapCells,
   tokenTile,
   validMoves,
+  type MoveRules,
 } from './board.ts';
 import { chance, next, pick, shuffle } from './rng.ts';
 import { ENEMIES } from './content/enemies.ts';
@@ -30,13 +35,13 @@ import { CARDS, cardValue } from './content/cards.ts';
 import { ITEMS, POCKETS, type Mods } from './content/items.ts';
 import {
   BAG_COPIES,
-  CELLS,
   FAMS,
   H,
   W,
   type BagToken,
   type Blast,
   type Combat,
+  type Dims,
   type Effect,
   type EnemyState,
   type Fam,
@@ -244,8 +249,36 @@ export function deckTokens(run: RunState): BagToken[] {
   return out;
 }
 
+/** How tiles move in this fight: the hero's items open slides and diagonals, a turnstile allows only up and down. */
+export function moveRules(run: RunState, mods: Mods): MoveRules {
+  const c = run.combat;
+  const vertical = !!c && alive(c).some((e) => !!ENEMIES[e.def].traits?.includes('turnstile'));
+  return { wrap: mods.wrap, slide: mods.slide, diagonal: mods.diagonal, vertical, unpinned: mods.unpinned };
+}
+
+/**
+ * Board size of a fight: 6×6 plus what the hero's items add, a column less for every cramped enemy
+ * on the field (5 to 8 cells a side).
+ */
+export function boardDims(run: RunState, mods: Mods, enemyIds: readonly string[]): Dims {
+  void run;
+  const cramped = enemyIds.filter((id) => ENEMIES[id]?.traits?.includes('cramped')).length;
+  const side = (n: number) => Math.max(MIN_SIDE, Math.min(MAX_SIDE, n));
+  return { w: side(W + mods.boardW - cramped), h: side(H + mods.boardH) };
+}
+
+/** A cramped enemy fell: its column comes back (the board only grows during a fight). */
+function fitBoard(ctx: Ctx) {
+  const { run, c, mods } = ctx;
+  const want = boardDims(run, mods, alive(c).map((e) => e.def));
+  if (want.w <= c.board.w && want.h <= c.board.h) return;
+  growBoard(c.board, want, run.rng.board, mods.wrap);
+  syncIds(run, c);
+  ctx.ev.push({ t: 'resize', w: c.board.w, h: c.board.h, board: snap(c.board.cells), queue: snapQueue(c) });
+}
+
 export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: string[], mods: Mods, ev: GameEvent[]): Combat {
-  const board = createBoard(run.rng.board, deckTokens(run), mods.wrap, 6, run.nextId);
+  const board = createBoard(run.rng.board, deckTokens(run), mods.wrap, 6, run.nextId, boardDims(run, mods, enemyIds));
   const c: Combat = {
     kind,
     board,
@@ -267,6 +300,10 @@ export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: strin
   run.hero.reflect = 0;
   if (mods.sealStart > 0)
     for (const i of randomCells(run.rng.fx, board.cells, mods.sealStart, (t) => t.kind !== 'junk' && t.kind !== 'prism')) board.cells[i].finish = 'seal';
+  if (mods.startRockets > 0)
+    randomCells(run.rng.fx, board.cells, mods.startRockets, (t) => t.kind !== 'junk' && t.kind !== 'prism' && !t.special).forEach(
+      (i, k) => (board.cells[i].special = k % 2 ? 'rocketV' : 'rocketH'),
+    );
   if (mods.interest) {
     const bonus = Math.floor(run.hero.coins / 10);
     if (bonus > 0) {
@@ -617,12 +654,19 @@ function scoreGroup(ctx: Ctx, g: Group, cells: Tile[], wave: number, scores: Til
   }
   for (let r = 0; r < reps; r++) for (const i of g.cells) scoreTile(ctx, cells[i], i, g, wave, scores, r > 0);
   if (g.fam === 'blade' && mods.bleedOnRed) ms.bleed += mods.bleedOnRed;
+  // Group bonuses to the multiplier, shown on the tally at the group.
+  const bonus = (n: number, note: string) => {
+    ms.tally.mult += n;
+    scores.push({ i: g.cells[0], id: -1, fam: g.fam, mult: n, note });
+  };
+  if (g.fam === 'coin' && mods.goldGroupMult) bonus(mods.goldGroupMult, 'Счёты');
+  if (g.size >= 5 && mods.bigGroupMult) bonus(mods.bigGroupMult, 'Брошюровщик');
   if (g.size >= 4) {
     if (mods.igniteOn4) ms.burn = true;
     if (g.fam === 'blade' && mods.planeOn4) ms.plane += mods.planeOn4;
     if (g.fam === 'shield' && mods.freezeOn4Shields) ms.freeze = true;
   }
-  if (g.fam === 'shield' && c.board.flood > 0 && g.cells.some((i) => rowOf(i) >= H - c.board.flood)) ms.floodDown++;
+  if (g.fam === 'shield' && c.board.flood > 0 && g.cells.some((i) => rowOf(c.board, i) >= c.board.h - c.board.flood)) ms.floodDown++;
 }
 
 function mostCommonFam(cells: Tile[]): Fam {
@@ -638,15 +682,15 @@ function mostCommonFam(cells: Tile[]): Fam {
   return best;
 }
 
-const rowCells = (i: number) => Array.from({ length: W }, (_, k) => idx(rowOf(i), k));
-const colCells = (i: number) => Array.from({ length: H }, (_, k) => idx(k, colOf(i)));
+const rowCells = (d: Dims, i: number) => Array.from({ length: d.w }, (_, k) => idx(d, rowOf(d, i), k));
+const colCells = (d: Dims, i: number) => Array.from({ length: d.h }, (_, k) => idx(d, k, colOf(d, i)));
 const uniq = (list: number[]) => [...new Set(list)].sort((a, b) => a - b);
 
 /** Cells a rocket or a bomb clears from cell i. */
-function specialArea(t: Tile, i: number, mods: Mods): number[] {
-  if (t.special === 'rocketH') return uniq(mods.crossRockets ? [...rowCells(i), ...colCells(i)] : rowCells(i));
-  if (t.special === 'rocketV') return uniq(mods.crossRockets ? [...colCells(i), ...rowCells(i)] : colCells(i));
-  return area(i, mods.bombRadius);
+function specialArea(d: Dims, t: Tile, i: number, mods: Mods): number[] {
+  if (t.special === 'rocketH') return uniq(mods.crossRockets ? [...rowCells(d, i), ...colCells(d, i)] : rowCells(d, i));
+  if (t.special === 'rocketV') return uniq(mods.crossRockets ? [...colCells(d, i), ...rowCells(d, i)] : colCells(d, i));
+  return area(d, i, mods.bombRadius);
 }
 
 /**
@@ -654,7 +698,17 @@ function specialArea(t: Tile, i: number, mods: Mods): number[] {
  * lands; a prism wipes the family it was swapped with; two specials swapped together combine.
  * `spent` are the swapped specials, already used up by this blast.
  */
-export function swapBlast(cells: Tile[], m: Move, mods: Mods): { blast: Blast; spent: number[] } | null {
+export function swapBlast(d: Dims, cells: Tile[], m: Move, mods: Mods, kind: 'swap' | 'slide' = 'swap'): { blast: Blast; spent: number[] } | null {
+  if (kind === 'slide') {
+    // A slide carries one tile: a special fires where it lands, a prism wipes the commonest family.
+    const t = cells[m.to];
+    if (!isSpecialTile(t)) return null;
+    if (t.kind === 'prism') {
+      const fam = mostCommonFam(cells);
+      return { blast: { kind: 'prism', at: m.to, cells: uniq([...cells.map((x, k) => (x.kind === fam ? k : -1)).filter((k) => k >= 0), m.to]) }, spent: [m.to] };
+    }
+    return { blast: { kind: t.special!, at: m.to, cells: specialArea(d, t, m.to, mods) }, spent: [m.to] };
+  }
   const a = cells[m.to];
   const b = cells[m.from];
   const sa = isSpecialTile(a);
@@ -668,22 +722,22 @@ export function swapBlast(cells: Tile[], m: Move, mods: Mods): { blast: Blast; s
     if (a.kind === 'prism' && b.kind === 'prism') return { blast: { kind: 'nova', at, cells: all }, spent };
     if (a.kind === 'prism' || b.kind === 'prism') {
       const [other, otherAt] = a.kind === 'prism' ? [b, m.from] : [a, m.to];
-      return { blast: { kind: 'prism', at, cells: uniq([...famCells(other.kind), ...specialArea(other, otherAt, mods), m.to, m.from]) }, spent };
+      return { blast: { kind: 'prism', at, cells: uniq([...famCells(other.kind), ...specialArea(d, other, otherAt, mods), m.to, m.from]) }, spent };
     }
     const rocketA = a.special === 'rocketH' || a.special === 'rocketV';
     const rocketB = b.special === 'rocketH' || b.special === 'rocketV';
-    if (rocketA && rocketB) return { blast: { kind: 'cross', at, cells: uniq([...rowCells(at), ...colCells(at)]) }, spent };
+    if (rocketA && rocketB) return { blast: { kind: 'cross', at, cells: uniq([...rowCells(d, at), ...colCells(d, at)]) }, spent };
     if (rocketA || rocketB) {
       const wide: number[] = [];
-      for (const d of [-1, 0, 1]) {
-        const r = rowOf(at) + d;
-        const c = colOf(at) + d;
-        if (r >= 0 && r < H) wide.push(...rowCells(idx(r, 0)));
-        if (c >= 0 && c < W) wide.push(...colCells(idx(0, c)));
+      for (const k of [-1, 0, 1]) {
+        const r = rowOf(d, at) + k;
+        const c = colOf(d, at) + k;
+        if (r >= 0 && r < d.h) wide.push(...rowCells(d, idx(d, r, 0)));
+        if (c >= 0 && c < d.w) wide.push(...colCells(d, idx(d, 0, c)));
       }
       return { blast: { kind: 'bigCross', at, cells: uniq(wide) }, spent };
     }
-    return { blast: { kind: 'bigBomb', at, cells: area(at, mods.bombRadius + 1) }, spent };
+    return { blast: { kind: 'bigBomb', at, cells: area(d, at, mods.bombRadius + 1) }, spent };
   }
   const i = sa ? m.to : m.from;
   const t = cells[i];
@@ -692,7 +746,7 @@ export function swapBlast(cells: Tile[], m: Move, mods: Mods): { blast: Blast; s
     const fam = partner.kind === 'junk' || partner.kind === 'prism' ? mostCommonFam(cells) : partner.kind;
     return { blast: { kind: 'prism', at: i, cells: uniq([...famCells(fam), i]) }, spent: [i] };
   }
-  return { blast: { kind: t.special!, at: i, cells: specialArea(t, i, mods) }, spent: [i] };
+  return { blast: { kind: t.special!, at: i, cells: specialArea(d, t, i, mods) }, spent: [i] };
 }
 
 function blastArea(ctx: Ctx, i: number, t: Tile, fam: Fam | undefined, cells: Tile[]): { kind: Blast['kind']; cells: number[] } {
@@ -700,8 +754,8 @@ function blastArea(ctx: Ctx, i: number, t: Tile, fam: Fam | undefined, cells: Ti
     const f = fam ?? mostCommonFam(cells);
     return { kind: 'prism', cells: cells.map((x, k) => (x.kind === f || k === i ? k : -1)).filter((k) => k >= 0) };
   }
-  if (t.special === 'rocketH' || t.special === 'rocketV') return { kind: t.special, cells: specialArea(t, i, ctx.mods) };
-  return { kind: 'bomb', cells: area(i, ctx.mods.bombRadius) };
+  if (t.special === 'rocketH' || t.special === 'rocketV') return { kind: t.special, cells: specialArea(ctx.c.board, t, i, ctx.mods) };
+  return { kind: 'bomb', cells: area(ctx.c.board, i, ctx.mods.bombRadius) };
 }
 
 /**
@@ -724,7 +778,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
   let first = true;
   for (let wave = 1; wave <= 30; wave++) {
     const cells = c.board.cells;
-    const groups: Group[] = findGroups(cells, mods.wrap, first ? prefer : []);
+    const groups: Group[] = findGroups(c.board, cells, mods.wrap, first ? prefer : []);
     if (!groups.length && !forced) break;
     ctx.wave = wave;
     const scoring = score && wave <= SCORED_WAVES;
@@ -793,7 +847,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     // Junk next to a match is washed away.
     const splashed = new Set<number>();
     for (const i of matched)
-      for (const n of neighbors(i)) if (!matched.has(n) && !blasted.has(n) && cells[n].kind === 'junk') splashed.add(n);
+      for (const n of neighbors(c.board, i)) if (!matched.has(n) && !blasted.has(n) && cells[n].kind === 'junk') splashed.add(n);
     for (const i of blasted) if (cells[i].kind === 'junk') ms.junkCleared++;
     ms.junkCleared += splashed.size;
 
@@ -1023,7 +1077,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   const cells = c.board.cells;
   if (ms.cleanse.length) {
     for (const i of ms.cleanse)
-      for (const n of [i, ...neighbors(i)]) {
+      for (const n of [i, ...neighbors(c.board, i)]) {
         const u = cells[n];
         if (!u) continue;
         if (u.kind === 'junk') {
@@ -1260,17 +1314,18 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'pinch': {
-      const rows = Array.from({ length: H }, (_, r) => r).filter((r) => lineFree(c.board, 'row', r));
+      const b = c.board;
+      const rows = Array.from({ length: b.h }, (_, r) => r).filter((r) => lineFree(b, 'row', r));
       const options: LineShift[] = [];
       for (const r of rows)
-        for (const d of [1, W - 1]) {
+        for (const d of [1, b.w - 1]) {
           const m: LineShift = { line: 'row', index: r, delta: d };
-          if (!findGroups(shiftCells(cells, m), mods.wrap).length) options.push(m);
+          if (!findGroups(b, shiftCells(b, cells, m), mods.wrap).length) options.push(m);
         }
       if (options.length) {
         const m = pick(run.rng.ai, options);
-        c.board.cells = shiftCells(cells, m);
-        act.cells = lineCells(m.line, m.index);
+        b.cells = shiftCells(b, cells, m);
+        act.cells = lineCells(b, m.line, m.index);
         act.board = snap(c.board.cells);
         ctx.ev.push(act);
       } else attack(blow(4));
@@ -1290,11 +1345,11 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       ctx.ev.push(act);
       break;
     case 'anchor': {
-      const cols = Array.from({ length: W }, (_, k) => k).filter((k) => c.board.colLock[k] === 0);
+      const cols = Array.from({ length: c.board.w }, (_, k) => k).filter((k) => c.board.colLock[k] === 0);
       if (cols.length) {
         const col = pick(run.rng.ai, cols);
         c.board.colLock[col] = 3;
-        act.cells = Array.from({ length: H }, (_, r) => idx(r, col));
+        act.cells = lineCells(c.board, 'col', col);
       }
       ctx.ev.push(act);
       break;
@@ -1327,7 +1382,7 @@ function boardTimers(ctx: Ctx) {
   const cells = c.board.cells;
   const burnt: number[] = [];
   let changed = false;
-  for (let i = 0; i < CELLS; i++) {
+  for (let i = 0; i < cells.length; i++) {
     const t = cells[i];
     if (t.hidden) {
       changed = true;
@@ -1343,12 +1398,12 @@ function boardTimers(ctx: Ctx) {
       }
     }
   }
-  for (let k = 0; k < W; k++)
+  for (let k = 0; k < c.board.w; k++)
     if (c.board.colLock[k] > 0) {
       c.board.colLock[k]--;
       changed = true;
     }
-  for (let k = 0; k < H; k++)
+  for (let k = 0; k < c.board.h; k++)
     if (c.board.rowLock[k] > 0) {
       c.board.rowLock[k]--;
       changed = true;
@@ -1410,8 +1465,9 @@ function advanceTime(ctx: Ctx) {
 export function ensurePlayable(ctx: Ctx) {
   const { c, mods, run } = ctx;
   if (!alive(c).length) return;
-  if (validMoves(c.board, mods.wrap).length === 0) {
-    reshuffle(c.board, run.rng.board, mods.wrap);
+  const rules = moveRules(run, mods);
+  if (validMoves(c.board, rules).length === 0) {
+    reshuffle(c.board, run.rng.board, rules);
     syncIds(run, c);
     ctx.ev.push({ t: 'board', reason: 'reshuffle', board: snap(c.board.cells), queue: snapQueue(c) });
   }
@@ -1422,17 +1478,19 @@ export function ensurePlayable(ctx: Ctx) {
 export function playerMove(run: RunState, mods: Mods, move: Move, ev: GameEvent[]): boolean {
   const c = run.combat!;
   const m: Move = { from: move.from, to: move.to };
-  const block = swapBlock(c.board, m, mods.wrap);
-  if (block || !isValidMove(c.board, m, mods.wrap)) {
+  const rules = moveRules(run, mods);
+  const block = moveBlock(c.board, m, rules);
+  if (block || !isValidMove(c.board, m, rules)) {
     ev.push({ t: 'invalid', reason: block ?? 'Нет совпадения' });
     return false;
   }
   const ctx = newCtx(run, mods, ev);
-  c.board.cells = swapCells(c.board.cells, m);
+  const kind = moveKind(c.board, m, rules)!;
+  c.board.cells = applyMove(c.board, c.board.cells, m, kind);
   c.moves++;
   run.stats.moves++;
-  ev.push({ t: 'swap', move: m, board: snap(c.board.cells) });
-  const set = swapBlast(c.board.cells, m, mods);
+  ev.push({ t: 'swap', move: m, board: snap(c.board.cells), ...(kind === 'slide' ? { slide: true } : {}) });
+  const set = swapBlast(c.board, c.board.cells, m, mods, kind);
   resolve(ctx, moveCells(m), set?.blast, set?.spent);
   run.stats.maxRocketsInMove = Math.max(run.stats.maxRocketsInMove, ctx.rocketsThisMove);
   strike(ctx, true);
@@ -1443,10 +1501,12 @@ export function playerMove(run: RunState, mods: Mods, move: Move, ev: GameEvent[
 /** Shared tail for moves, bombs and actives. */
 export function afterAction(ctx: Ctx, spendsTime: boolean) {
   if (isDead(ctx.run)) return;
+  if (alive(ctx.c).length) fitBoard(ctx);
   if (spendsTime) moveEnd(ctx);
   else phaseCheck(ctx);
   if (spendsTime && alive(ctx.c).length && !isDead(ctx.run)) advanceTime(ctx);
   syncIds(ctx.run, ctx.c);
+  if (!isDead(ctx.run) && alive(ctx.c).length) fitBoard(ctx);
   if (!isDead(ctx.run)) ensurePlayable(ctx);
 }
 
@@ -1488,7 +1548,7 @@ export function playerPocket(run: RunState, mods: Mods, slot: number, cell: numb
     ev.push({ t: 'invalid', reason: 'Только в бою' });
     return false;
   }
-  if (def.aim === 'cell' && (cell === undefined || cell < 0 || cell >= CELLS)) {
+  if (def.aim === 'cell' && (cell === undefined || cell < 0 || !c || cell >= c.board.cells.length)) {
     ev.push({ t: 'invalid', reason: 'Выбери клетку' });
     return false;
   }
@@ -1503,7 +1563,7 @@ export function playerPocket(run: RunState, mods: Mods, slot: number, cell: numb
   const ctx = newCtx(run, mods, ev);
   switch (id) {
     case 'bomb':
-      resolve(ctx, [], { kind: 'bomb-item', at: cell!, cells: area(cell!, mods.bombRadius) });
+      resolve(ctx, [], { kind: 'bomb-item', at: cell!, cells: area(c!.board, cell!, mods.bombRadius) });
       strike(ctx, false);
       break;
     case 'eraser':
@@ -1544,8 +1604,8 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
   }
   const ctx = newCtx(run, mods, ev);
   const cells = c.board.cells;
-  const needCell = def.aim === 'cell' && (arg.cell === undefined || arg.cell < 0 || arg.cell >= CELLS);
-  const needCol = def.aim === 'col' && (arg.col === undefined || arg.col < 0 || arg.col >= W);
+  const needCell = def.aim === 'cell' && (arg.cell === undefined || arg.cell < 0 || arg.cell >= cells.length);
+  const needCol = def.aim === 'col' && (arg.col === undefined || arg.col < 0 || arg.col >= c.board.w);
   const needEnemy = def.aim === 'enemy' && !alive(c).some((e) => e.uid === arg.uid);
   if (needCell || needCol || needEnemy) {
     ev.push({ t: 'invalid', reason: 'Выбери цель' });
@@ -1568,7 +1628,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
       break;
     }
     case 'corrector': {
-      for (let i = 0; i < CELLS; i++) {
+      for (let i = 0; i < cells.length; i++) {
         const t = cells[i];
         if (t.kind === 'junk') {
           cells[i] = drawTile(c.board, run.rng.board);
@@ -1587,7 +1647,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     }
     case 'shredder': {
       const col = arg.col!;
-      resolve(ctx, [], { kind: 'active', at: idx(0, col), cells: Array.from({ length: H }, (_, r) => idx(r, col)) });
+      resolve(ctx, [], { kind: 'active', at: idx(c.board, 0, col), cells: lineCells(c.board, 'col', col) });
       strike(ctx, false);
       break;
     }
@@ -1645,10 +1705,12 @@ export interface MovePreview {
 export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview {
   const c = run.combat;
   const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0 };
-  if (!c || !isValidMove(c.board, move, mods.wrap)) return empty;
-  const cells = swapCells(c.board.cells, move);
-  const groups = findGroups(cells, mods.wrap, moveCells(move));
-  const set = swapBlast(cells, move, mods);
+  const rules = c ? moveRules(run, mods) : null;
+  if (!c || !rules || !isValidMove(c.board, move, rules)) return empty;
+  const kind = moveKind(c.board, move, rules)!;
+  const cells = applyMove(c.board, c.board.cells, move, kind);
+  const groups = findGroups(c.board, cells, mods.wrap, moveCells(move));
+  const set = swapBlast(c.board, cells, move, mods, kind);
   const ctx: Ctx = { run, c, mods, ev: [], fx: [], wave: 1, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
   const scores: TileScore[] = [];
   const matched = new Set(groups.flatMap((g) => g.cells));

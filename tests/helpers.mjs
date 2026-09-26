@@ -1,6 +1,10 @@
 import { newRun } from '../game/run.ts';
 import { makeEnemy, startCombat } from '../game/combat.ts';
 import { computeMods } from '../game/content/items.ts';
+import * as B from '../game/board.ts';
+
+/** Cell of the usual 6×6 board. */
+export const idx = (r, c) => B.idx({ w: 6, h: 6 }, r, c);
 
 const F = { b: 'blade', s: 'shield', i: 'ink', c: 'coin', p: 'prism', j: 'junk' };
 const CARD = { blade: 'fist', shield: 'folder', ink: 'ink', coin: 'clip' };

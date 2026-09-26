@@ -1,21 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  adjacent,
-  createBoard,
-  findGroups,
-  gravity,
-  idx,
-  isValidMove,
-  lineFree,
-  shiftCells,
-  swapBlock,
-  swapCells,
-  validMoves,
-} from '../game/board.ts';
+import * as B from '../game/board.ts';
+import { createBoard, gravity, isValidMove, lineFree, swapBlock, swapCells, validMoves } from '../game/board.ts';
 import { rng } from '../game/rng.ts';
 import { QUEUE_LEN } from '../game/types.ts';
 import { STARTER_BAG } from './helpers.mjs';
+
+// The usual 6×6 board; the size tests below pass their own.
+const D6 = { w: 6, h: 6 };
+const idx = (r, c) => B.idx(D6, r, c);
+const adjacent = (a, b, wrap) => B.adjacent(D6, a, b, wrap);
+const findGroups = (cells, wrap, prefer) => B.findGroups(D6, cells, wrap, prefer);
+const shiftCells = (cells, m) => B.shiftCells(D6, cells, m);
 
 const F = { b: 'blade', s: 'shield', i: 'ink', c: 'coin', p: 'prism', j: 'junk' };
 /** Board from 6 strings of letters b/s/i/c/p/j. */
@@ -36,7 +32,7 @@ test('a swap exchanges two neighbours; only neighbours may swap', () => {
 });
 
 test('a swap is a move only when it matches or sets off a special', () => {
-  const b = { cells: cells(['sicbsi', 'bbiccs', ...filler.slice(2)]), queue: [], nextId: 100, flood: 0, colLock: Array(6).fill(0), rowLock: Array(6).fill(0), bag: [], source: [] };
+  const b = { w: 6, h: 6, cells: cells(['sicbsi', 'bbiccs', ...filler.slice(2)]), queue: [], nextId: 100, flood: 0, colLock: Array(6).fill(0), rowLock: Array(6).fill(0), bag: [], source: [] };
   b.cells[idx(0, 2)].kind = 'blade';
   assert.ok(isValidMove(b, { from: idx(0, 2), to: idx(1, 2) }, false), 'completes b b b in row 1');
   assert.ok(!isValidMove(b, { from: idx(4, 4), to: idx(4, 5) }, false), 'no match anywhere');
@@ -175,4 +171,33 @@ test('a one-family deck still gets a board (lines are its payoff)', () => {
   const b = createBoard(rng(7), Array(15).fill({ card: 'fist', up: false }));
   assert.equal(b.cells.length, 36);
   assert.ok(b.cells.every((t) => t.kind === 'blade'));
+});
+
+test('boards of other sizes: dealt match-free and playable, lines, gravity and the queue follow the size', () => {
+  for (const d of [
+    { w: 7, h: 6 },
+    { w: 5, h: 5 },
+    { w: 8, h: 7 },
+  ]) {
+    const b = createBoard(rng(11), STARTER_BAG, false, 6, 1, d);
+    assert.equal(b.cells.length, d.w * d.h, `${d.w}×${d.h}: клетки`);
+    assert.equal(b.queue.length, d.w, 'очередь над каждым столбцом');
+    assert.equal(b.colLock.length, d.w);
+    assert.equal(b.rowLock.length, d.h);
+    assert.equal(B.findGroups(b, b.cells, false).length, 0, 'без готовых рядов');
+    assert.ok(validMoves(b, false).length >= 6, 'есть ходы');
+    // The last column falls and refills from its own queue.
+    const last = d.w - 1;
+    const head = b.queue[last][0];
+    const next = b.cells.slice();
+    next[B.idx(b, d.h - 1, last)] = null;
+    gravity(b, rng(1), next);
+    assert.equal(b.cells[B.idx(b, 0, last)].id, head.id);
+    // A line of three along the bottom right corner is found.
+    const cells = b.cells.map((t, i) => ({ ...t, kind: (i + Math.floor(i / d.w)) % 2 ? 'shield' : 'ink' }));
+    for (let k = 1; k <= 3; k++) cells[B.idx(b, d.h - 1, d.w - k)] = { id: 90000 + k, kind: 'blade' };
+    const g = B.findGroups(b, cells, false).filter((x) => x.fam === 'blade');
+    assert.deepEqual(g[0].cells, [1, 2, 3].map((k) => B.idx(b, d.h - 1, d.w - k)).sort((x, y) => x - y));
+    assert.deepEqual(B.neighbors(b, B.idx(b, 0, last)).sort((x, y) => x - y), [B.idx(b, 0, last - 1), B.idx(b, 1, last)].sort((x, y) => x - y));
+  }
 });

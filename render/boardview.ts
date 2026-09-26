@@ -27,7 +27,7 @@ export interface VTile {
   fresh: number;
 }
 
-/** One tile held by the pointer. dx/dy follow the pointer along one axis, at most one cell. */
+/** One tile held by the pointer. dx/dy follow the pointer along one axis (one cell, or the whole line with slides; both axes for a diagonal). */
 export interface Drag {
   cell: number;
   sx: number;
@@ -48,13 +48,16 @@ const CARD: Record<string, [string, string, string]> = {
 export class BoardView {
   /** Geometry from the layout: tile size and the grid's top-left corner. */
   T = 26;
+  /** Columns and rows of the fight's board. */
+  w = W;
+  h = H;
   bx = 0;
   by = 0;
   get bw() {
-    return W * this.T;
+    return this.w * this.T;
   }
   get bh() {
-    return H * this.T;
+    return this.h * this.T;
   }
   tiles = new Map<number, VTile>();
   queue: Tile[][] = [];
@@ -63,6 +66,10 @@ export class BoardView {
   rowLock: number[] = Array(H).fill(0);
   /** The ring binder: edge tiles swap with the opposite edge. */
   wrap = false;
+  /** Move rules of the fight: slides along a line, diagonal swaps, only up and down. */
+  slide = false;
+  diagonal = false;
+  vertical = false;
   drag: Drag | null = null;
   /** Click-to-swap: the tile picked first, waiting for a neighbour. */
   selected = -1;
@@ -99,8 +106,20 @@ export class BoardView {
     this.by = L.board.y;
   }
 
+  /** A board of another size: locks follow, tiles keep their ids (positions are set by the next snapshot). */
+  setSize(w: number, h: number) {
+    if (w === this.w && h === this.h) return;
+    this.w = w;
+    this.h = h;
+    this.colLock = Array(w).fill(0);
+    this.rowLock = Array(h).fill(0);
+    this.selected = -1;
+    this.cursor = -1;
+    this.drag = null;
+  }
+
   cellXY(i: number): [number, number] {
-    return [(i % W) * this.T, Math.floor(i / W) * this.T];
+    return [(i % this.w) * this.T, Math.floor(i / this.w) * this.T];
   }
 
   center(i: number): [number, number] {
@@ -112,18 +131,18 @@ export class BoardView {
     const T = this.T;
     const c = Math.floor((px - this.bx) / T);
     const r = Math.floor((py - this.by) / T);
-    if (c < 0 || r < 0 || c >= W || r >= H) return -1;
-    return r * W + c;
+    if (c < 0 || r < 0 || c >= this.w || r >= this.h) return -1;
+    return r * this.w + c;
   }
 
   /** Neighbour of cell i one step along (dc, dr), or -1 at an edge (unless the ring joins it). */
   neighbour(i: number, dc: number, dr: number): number {
-    let c = (i % W) + dc;
-    const r = Math.floor(i / W) + dr;
+    let c = (i % this.w) + dc;
+    const r = Math.floor(i / this.w) + dr;
     // The ring joins the left and right edges only.
-    if (this.wrap) c = (c + W) % W;
-    if (c < 0 || r < 0 || c >= W || r >= H) return -1;
-    return r * W + c;
+    if (this.wrap) c = (c + this.w) % this.w;
+    if (c < 0 || r < 0 || c >= this.w || r >= this.h) return -1;
+    return r * this.w + c;
   }
 
   /** Snap every tile to the snapshot; keeps existing tiles' visual state. */
@@ -201,12 +220,12 @@ export class BoardView {
   /** Tile id per cell at rest (ignores in-flight tiles). */
   gridIds(): (number | null)[] {
     const { T } = this;
-    const grid: (number | null)[] = Array(W * H).fill(null);
+    const grid: (number | null)[] = Array(this.w * this.h).fill(null);
     for (const v of this.tiles.values()) {
       if (v.popping || v.dur > 0) continue;
       const c = Math.round(v.x / T);
       const r = Math.round(v.y / T);
-      if (c >= 0 && r >= 0 && c < W && r < H) grid[r * W + c] = v.tile.id;
+      if (c >= 0 && r >= 0 && c < this.w && r < this.h) grid[r * this.w + c] = v.tile.id;
     }
     return grid;
   }
@@ -217,7 +236,10 @@ export class BoardView {
     this.drag = { cell, sx: x, sy: y, dx: 0, dy: 0, moved: false };
   }
 
-  /** Pointer moved: the held tile follows along the dominant axis, at most one cell. */
+  /**
+   * Pointer moved: the held tile follows along the dominant axis — one cell, or to the edge of
+   * its line with slides; with diagonals a pull on both axes aims at the diagonal neighbour.
+   */
   dragTo(x: number, y: number) {
     const { T } = this;
     const d = this.drag;
@@ -226,57 +248,114 @@ export class BoardView {
     const ry = y - d.sy;
     if (!d.moved && Math.hypot(rx, ry) > 3) d.moved = true;
     if (!d.moved) return;
-    const horizontal = Math.abs(rx) >= Math.abs(ry);
-    d.dx = horizontal ? Math.max(-T, Math.min(T, rx)) : 0;
-    d.dy = horizontal ? 0 : Math.max(-T, Math.min(T, ry));
-    const partner = this.dragPartner();
-    if (partner < 0) {
+    const c = d.cell % this.w;
+    const r = Math.floor(d.cell / this.w);
+    if (this.diagonal && !this.vertical && Math.abs(rx) > T * 0.35 && Math.abs(ry) > T * 0.35) {
+      d.dx = Math.max(-T, Math.min(T, rx));
+      d.dy = Math.max(-T, Math.min(T, ry));
+    } else if (!this.vertical && Math.abs(rx) >= Math.abs(ry)) {
+      // Towards the edge of the row: one cell (the ring lets it cross), or the whole row with slides.
+      const room = rx < 0 ? c : this.w - 1 - c;
+      const lim = this.slide ? Math.max(room, this.wrap ? 1 : 0) * T : T;
+      d.dx = Math.max(-lim, Math.min(lim, rx));
+      d.dy = 0;
+    } else {
+      const room = ry < 0 ? r : this.h - 1 - r;
+      const lim = this.slide ? room * T : T;
+      d.dx = 0;
+      d.dy = Math.max(-lim, Math.min(lim, ry));
+    }
+    if (this.dragTarget() < 0) {
       d.dx = Math.max(-4, Math.min(4, d.dx));
       d.dy = Math.max(-4, Math.min(4, d.dy));
     }
   }
 
-  /** The neighbour the held tile is being pushed into (-1 while the drag has no direction). */
-  dragPartner(): number {
+  /** The cell the held tile is being pushed into (-1 while the drag has no direction or no room). */
+  dragTarget(): number {
     const d = this.drag;
     if (!d || (!d.dx && !d.dy)) return -1;
-    return this.neighbour(d.cell, Math.sign(d.dx), Math.sign(d.dy));
+    const c = d.cell % this.w;
+    const r = Math.floor(d.cell / this.w);
+    if (d.dx && d.dy) {
+      const tc = c + Math.sign(d.dx);
+      const tr = r + Math.sign(d.dy);
+      return tc < 0 || tr < 0 || tc >= this.w || tr >= this.h ? -1 : tr * this.w + tc;
+    }
+    const steps = this.slide ? Math.max(1, Math.round(Math.abs(d.dx || d.dy) / this.T)) : 1;
+    if (steps === 1) return this.neighbour(d.cell, Math.sign(d.dx), Math.sign(d.dy));
+    const tc = c + Math.sign(d.dx) * steps;
+    const tr = r + Math.sign(d.dy) * steps;
+    return tc < 0 || tr < 0 || tc >= this.w || tr >= this.h ? -1 : tr * this.w + tc;
   }
 
-  /** The swap the current drag would make if released now. */
+  /** Old name kept for callers: the cell the drag aims at. */
+  dragPartner(): number {
+    return this.dragTarget();
+  }
+
+  /** The move the current drag would make if released now. */
   dragMove(): Move | null {
     const COMMIT = Math.round(this.T * 0.4);
     const d = this.drag;
     if (!d || Math.max(Math.abs(d.dx), Math.abs(d.dy)) < COMMIT) return null;
-    const to = this.dragPartner();
+    const to = this.dragTarget();
     return to >= 0 ? { from: d.cell, to } : null;
   }
 
-  /** Visual start for a swap: where the held pair is drawn right now. */
+  /** Cells between a move's ends along its line (the ones a slide shifts back), nearest first. */
+  private between(from: number, to: number): number[] {
+    const [fc, fr] = [from % this.w, Math.floor(from / this.w)];
+    const [tc, tr] = [to % this.w, Math.floor(to / this.w)];
+    if (fr !== tr && fc !== tc) return [to];
+    const n = Math.max(Math.abs(tc - fc), Math.abs(tr - fr));
+    // One step across the ring's edge is a plain swap with the far end.
+    if (n > 1 && fr === tr && !this.slide) return [to];
+    const sc = Math.sign(tc - fc);
+    const sr = Math.sign(tr - fr);
+    return Array.from({ length: n }, (_, k) => (fr + sr * (k + 1)) * this.w + fc + sc * (k + 1));
+  }
+
+  /** Visual offset of a cell while dragging: the held tile follows the pointer, the pushed ones give way. */
   private heldOffset(cell: number): [number, number] {
     const d = this.drag;
     if (!d) return [0, 0];
     if (cell === d.cell) return [d.dx, d.dy];
-    if (cell === this.dragPartner()) return [-d.dx, -d.dy];
-    return [0, 0];
+    const to = this.dragTarget();
+    if (to < 0) return [0, 0];
+    if (d.dx && d.dy) return cell === to ? [-d.dx, -d.dy] : [0, 0];
+    const k = this.between(d.cell, to).indexOf(cell);
+    if (k < 0) return [0, 0];
+    const pull = Math.abs(d.dx || d.dy);
+    const shift = Math.max(0, Math.min(this.T, pull - k * this.T));
+    return [-Math.sign(d.dx) * shift, -Math.sign(d.dy) * shift];
   }
 
-  /** Accepted swap: both tiles slide into each other's cells from where they are drawn. */
-  animateSwap(m: Move) {
+  /**
+   * Accepted move from where the tiles are drawn: a swap exchanges the pair, a slide carries the
+   * held tile to the end and every tile between steps back by one.
+   */
+  animateSwap(m: Move, slide = false) {
     const grid = this.gridIds();
-    const a = grid[m.from];
-    const b = grid[m.to];
-    const [ax, ay] = this.cellXY(m.from);
-    const [bx, by] = this.cellXY(m.to);
-    const [oax, oay] = this.heldOffset(m.from);
-    const [obx, oby] = this.heldOffset(m.to);
+    const start = (i: number): [number, number] => {
+      const [x, y] = this.cellXY(i);
+      const [ox, oy] = this.heldOffset(i);
+      return [x + ox, y + oy];
+    };
+    const moves: [number | null, number, [number, number]][] = [];
+    if (slide) {
+      const span = [m.from, ...this.between(m.from, m.to)];
+      moves.push([grid[m.from], m.to, start(m.from)]);
+      for (let k = 1; k < span.length; k++) moves.push([grid[span[k]], span[k - 1], start(span[k])]);
+    } else {
+      moves.push([grid[m.from], m.to, start(m.from)], [grid[m.to], m.from, start(m.to)]);
+    }
     this.drag = null;
     this.selected = -1;
-    if (a !== null) this.moveTo(a, m.to, 0.12, easeOut, [ax + oax, ay + oay]);
-    if (b !== null) this.moveTo(b, m.from, 0.12, easeOut, [bx + obx, by + oby]);
+    for (const [id, to, from] of moves) if (id !== null) this.moveTo(id, to, slide ? 0.16 : 0.12, easeOut, from);
   }
 
-  /** Refused swap: the pair springs back (from the drag) or nudges and returns (click/keys). */
+  /** Refused move: the tiles spring back (from the drag) or the pair nudges and returns (click/keys). */
   refuse(m: Move) {
     const grid = this.gridIds();
     const a = grid[m.from];
@@ -285,34 +364,36 @@ export class BoardView {
     const [bx, by] = this.cellXY(m.to);
     const held = this.drag && this.drag.moved;
     const [oax, oay] = this.heldOffset(m.from);
-    const [obx, oby] = this.heldOffset(m.to);
-    this.drag = null;
     const va = a !== null ? this.tiles.get(a) : undefined;
     const vb = b !== null ? this.tiles.get(b) : undefined;
     if (held && (oax || oay)) {
-      if (va) this.moveTo(va.tile.id, m.from, 0.2, easeOutBack, [ax + oax, ay + oay]);
-      if (vb) this.moveTo(vb.tile.id, m.to, 0.2, easeOutBack, [bx + obx, by + oby]);
+      for (const i of [m.from, ...this.between(m.from, m.to)]) {
+        const id = grid[i];
+        const [x, y] = this.cellXY(i);
+        const [ox, oy] = this.heldOffset(i);
+        if (id !== null && (ox || oy)) this.moveTo(id, i, 0.2, easeOutBack, [x + ox, y + oy]);
+      }
+      this.drag = null;
       return;
     }
+    this.drag = null;
     const sx = Math.sign(bx - ax) * 7;
     const sy = Math.sign(by - ay) * 7;
     if (va) va.wobble = { dx: sx, dy: sy, t: 0 };
     if (vb) vb.wobble = { dx: -sx, dy: -sy, t: 0 };
   }
 
-  /** Drag released without a swap: the tile settles back. */
+  /** Drag released without a move: the tiles settle back. */
   dropBack() {
     const d = this.drag;
     if (!d) return;
     const grid = this.gridIds();
-    const [x, y] = this.cellXY(d.cell);
-    const id = grid[d.cell];
-    const partner = this.dragPartner();
-    const pid = partner >= 0 ? grid[partner] : null;
-    if (id !== null && (d.dx || d.dy)) this.moveTo(id, d.cell, 0.14, easeOutBack, [x + d.dx, y + d.dy]);
-    if (pid !== null && partner >= 0) {
-      const [px, py] = this.cellXY(partner);
-      this.moveTo(pid, partner, 0.14, easeOutBack, [px - d.dx, py - d.dy]);
+    const to = this.dragTarget();
+    for (const i of [d.cell, ...(to >= 0 ? this.between(d.cell, to) : [])]) {
+      const id = grid[i];
+      const [x, y] = this.cellXY(i);
+      const [ox, oy] = this.heldOffset(i);
+      if (id !== null && (ox || oy)) this.moveTo(id, i, 0.14, easeOutBack, [x + ox, y + oy]);
     }
     this.drag = null;
   }
@@ -331,9 +412,9 @@ export class BoardView {
     this.drawFrame(ctx, ox, oy);
     // Grid dots.
     ctx.fillStyle = hex('ink2');
-    for (let r = 1; r < H; r++) for (let c = 1; c < W; c++) ctx.fillRect(ox + c * T - 1, oy + r * T - 1, 2, 2);
+    for (let r = 1; r < this.h; r++) for (let c = 1; c < this.w; c++) ctx.fillRect(ox + c * T - 1, oy + r * T - 1, 2, 2);
     // Anchored columns: shaded, with the anchor above.
-    for (let c = 0; c < W; c++)
+    for (let c = 0; c < this.w; c++)
       if (this.colLock[c] > 0) {
         ctx.fillStyle = 'rgba(40,120,120,0.22)';
         ctx.fillRect(ox + c * T, oy, T, BH);
@@ -345,21 +426,19 @@ export class BoardView {
     ctx.rect(ox, oy, BW, BH);
     ctx.clip();
     const d = this.drag;
-    const partner = this.dragPartner();
     const held: VTile[] = [];
     for (const v of this.tiles.values()) {
       let x = v.x;
       let y = v.y;
       if (d && !v.popping && v.dur === 0) {
-        const cell = Math.round(v.y / T) * W + Math.round(v.x / T);
+        const cell = Math.round(v.y / T) * this.w + Math.round(v.x / T);
         if (cell === d.cell) {
           held.push(v);
           continue;
         }
-        if (cell === partner) {
-          x -= d.dx;
-          y -= d.dy;
-        }
+        const [ox, oy] = this.heldOffset(cell);
+        x += ox;
+        y += oy;
       }
       if (v.wobble) {
         const k = Math.sin(v.wobble.t * Math.PI);
@@ -412,7 +491,7 @@ export class BoardView {
     }
     ctx.restore();
 
-    for (let c = 0; c < W; c++) if (this.colLock[c] > 0 && a >= 1) draw(ctx, getFrame('tile_anchor'), ox + c * T + T / 2, oy - 3);
+    for (let c = 0; c < this.w; c++) if (this.colLock[c] > 0 && a >= 1) draw(ctx, getFrame('tile_anchor'), ox + c * T + T / 2, oy - 3);
 
     // Aim overlay (active / bomb targeting).
     if (this.aimCells.length) {
@@ -507,7 +586,7 @@ export class BoardView {
     bracket(L + 1, Tp + H2 - 2, 1, -1);
     bracket(L + W2 - 2, Tp + H2 - 2, -1, -1);
     // Rivets between the cells along the long edges.
-    for (let c = 2; c < W; c += 2) {
+    for (let c = 2; c < this.w; c += 2) {
       const x = ox + c * T;
       fill('gold3', x - 1, Tp + 2, 2, 2);
       fill('gold4', x - 1, Tp + 2, 1, 1);
@@ -553,7 +632,7 @@ export class BoardView {
 
   private drawQueue(ctx: Ctx2D, ox: number, oy: number) {
     const { T } = this;
-    for (let c = 0; c < W; c++) {
+    for (let c = 0; c < this.w; c++) {
       if (this.colLock[c] > 0) continue;
       const q = this.queue[c] ?? [];
       for (let k = 0; k < Math.min(this.preview, q.length); k++) {

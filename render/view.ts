@@ -39,9 +39,12 @@ export interface Layout {
   stage: Rect;
   /** Rows of the stage buffer cut from its top on short screens. */
   stageCrop: number;
-  /** Board tiles: size and the top-left corner of the 6×6 grid. */
+  /** Board tiles: size and the top-left corner of the grid (6×6 unless items or enemies change it). */
   tile: number;
   board: Rect;
+  /** Columns and rows of the board the layout was made for. */
+  cols: number;
+  rows: number;
   /** The move's tally (damage × mult). */
   tally: Rect;
   /** Skill, pockets, relics. */
@@ -63,6 +66,8 @@ export const L: Layout = {
   stageCrop: 0,
   tile: 26,
   board: { x: 242, y: 190, w: 156, h: 156 },
+  cols: 6,
+  rows: 6,
   tally: { x: 8, y: 200, w: 220, h: 60 },
   side: { x: 412, y: 200, w: 220, h: 150 },
   side2: { x: 8, y: 270, w: 220, h: 80 },
@@ -85,8 +90,19 @@ export function pickResolution(devW: number, devH: number): { w: number; h: numb
   return { mode: 'tall', scale, w: clamp(Math.floor(devW / scale), 216, 520), h: clamp(Math.floor(devH / scale), 400, 760) };
 }
 
+let last: [number, number, number, Mode, boolean] = [640, 360, 1, 'wide', false];
+
+/** The fight's board size: the layout is made again when it changes. */
+export function setBoardSize(cols: number, rows: number) {
+  if (cols === L.cols && rows === L.rows) return;
+  L.cols = cols;
+  L.rows = rows;
+  applyLayout(...last);
+}
+
 /** Recomputes the layout for an internal size. */
 export function applyLayout(w: number, h: number, scale: number, mode: Mode, touch: boolean) {
+  last = [w, h, scale, mode, touch];
   VW = w;
   VH = h;
   L.w = w;
@@ -103,12 +119,13 @@ function wide(w: number, h: number) {
   // The board sits under the stage, overlapping its floor strip like a desk in front of the room.
   const boardTop = 188;
   const frame = 7;
-  const tile = clamp(Math.floor((h - boardTop - frame * 2 - 12) / 6), 22, 32);
-  const bw = tile * 6;
+  const tile = clamp(Math.floor((h - boardTop - frame * 2 - 12) / L.rows), 22, 32);
+  const bw = tile * L.cols;
+  const bh = tile * L.rows;
   const bx = Math.round((w - bw) / 2);
-  const by = h - frame - bw - 4;
+  const by = h - frame - bh - 4;
   L.tile = tile;
-  L.board = { x: bx, y: by, w: bw, h: bw };
+  L.board = { x: bx, y: by, w: bw, h: bh };
   L.stageCrop = 0;
   L.stage = { x: 0, y: 0, w, h: STAGE_H };
   const sideW = bx - frame - 12;
@@ -124,14 +141,15 @@ function tall(w: number, h: number) {
   const bottomH = clamp(Math.round(h * 0.1), 44, 64);
   const queue = 11;
   const frame = 7;
-  let tile = clamp(Math.floor((w - frame * 2 - 4) / 6), 26, 52);
+  let tile = clamp(Math.floor((w - frame * 2 - 4) / L.cols), 22, 52);
   // Keep at least 140 px of stage (the hero is 96 px tall): shrink the tiles if the screen is short.
   const stageMin = 140;
-  const fits = (t: number) => h - (topH + tallyH + queue + t * 6 + frame * 2 + bottomH) >= stageMin;
+  const fits = (t: number) => h - (topH + tallyH + queue + t * L.rows + frame * 2 + bottomH) >= stageMin;
   while (tile > 22 && !fits(tile)) tile--;
-  const bw = tile * 6;
-  const stageH = clamp(h - (topH + tallyH + queue + bw + frame * 2 + bottomH), stageMin, STAGE_H);
-  const spare = h - (topH + stageH + tallyH + queue + bw + frame * 2 + bottomH);
+  const bw = tile * L.cols;
+  const bh = tile * L.rows;
+  const stageH = clamp(h - (topH + tallyH + queue + bh + frame * 2 + bottomH), stageMin, STAGE_H);
+  const spare = h - (topH + stageH + tallyH + queue + bh + frame * 2 + bottomH);
   L.top = { x: 0, y: 0, w, h: topH };
   L.stageCrop = STAGE_H - stageH;
   L.stage = { x: 0, y: topH, w, h: stageH };
@@ -139,8 +157,8 @@ function tall(w: number, h: number) {
   L.tally = { x: 4, y: tallyY, w: w - 8, h: tallyH };
   const by = tallyY + tallyH + queue + frame;
   L.tile = tile;
-  L.board = { x: Math.round((w - bw) / 2), y: by, w: bw, h: bw };
-  const bottomY = by + bw + frame + Math.floor(spare / 3);
+  L.board = { x: Math.round((w - bw) / 2), y: by, w: bw, h: bh };
+  const bottomY = by + bh + frame + Math.floor(spare / 3);
   L.bottom = { x: 0, y: bottomY, w, h: h - bottomY };
   L.side = L.bottom;
   L.side2 = { x: 0, y: h, w: 0, h: 0 };

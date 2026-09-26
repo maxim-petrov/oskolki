@@ -4,7 +4,7 @@
  * offers. They never inspect hidden refills or RNG state.
  */
 import { colOf, findGroups, idx, rowOf, validMoves } from './board.ts';
-import { activeCost, alive, currentIntent, intentDamage, previewMove } from './combat.ts';
+import { activeCost, alive, currentIntent, intentDamage, moveRules, previewMove } from './combat.ts';
 import { CARDS } from './content/cards.ts';
 import { EVENT_BY_ID } from './content/events.ts';
 import { ITEMS } from './content/items.ts';
@@ -122,15 +122,16 @@ function eraseTarget(run: RunState): { cell: number; value: number } | null {
   const wrap = modsOf(run).wrap;
   const cells = c.board.cells;
   let best: { cell: number; value: number } | null = null;
+  const b = c.board;
   for (let i = 0; i < cells.length; i++) {
-    const col = colOf(i);
-    const head = c.board.queue[col][0];
+    const col = colOf(b, i);
+    const head = b.queue[col][0];
     if (!head) continue;
     const next = cells.slice();
-    for (let r = rowOf(i); r > 0; r--) next[idx(r, col)] = cells[idx(r - 1, col)];
-    next[idx(0, col)] = head;
+    for (let r = rowOf(b, i); r > 0; r--) next[idx(b, r, col)] = cells[idx(b, r - 1, col)];
+    next[idx(b, 0, col)] = head;
     let value = cells[i].kind === 'junk' || cells[i].pin ? 1 : 0;
-    for (const g of findGroups(next, wrap)) value += g.size * (FAM_WEIGHT[g.fam] ?? 1) + (g.make ? 4 : 0);
+    for (const g of findGroups(b, next, wrap)) value += g.size * (FAM_WEIGHT[g.fam] ?? 1) + (g.make ? 4 : 0);
     if (!best || value > best.value) best = { cell: i, value };
   }
   return best && best.value > 0 ? best : null;
@@ -153,7 +154,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
   const c = run.combat!;
   const mods = modsOf(run);
   const hero = run.hero;
-  const moves = validMoves(c.board, mods.wrap);
+  const moves = validMoves(c.board, moveRules(run, mods));
   if (policy === 'random') return moves.length ? { type: 'move', move: moves[int(r, moves.length)] } : null;
   const t = pickTarget(run);
   if (t !== null && t !== c.target) return { type: 'target', uid: t };
@@ -192,7 +193,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
         break;
       }
       case 'shredder': {
-        const reds = Array.from({ length: 6 }, (_, col) => cells.filter((x, i) => colOf(i) === col && x.kind === 'blade').length);
+        const reds = Array.from({ length: c.board.w }, (_, col) => cells.filter((x, i) => colOf(c.board, i) === col && x.kind === 'blade').length);
         return { type: 'active', col: reds.indexOf(Math.max(...reds)) };
       }
       case 'coffeeToGo':

@@ -77,6 +77,19 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
     blurb: 'Прибивает фишки скобами: их нельзя сдвинуть с места.',
   },
+  turnstile: {
+    id: 'turnstile',
+    name: 'Турникет',
+    hp: 110,
+    size: 'M',
+    material: 'metal',
+    traits: ['turnstile'],
+    intents: [
+      { kind: 'attack', value: 14, timer: 3 },
+      { kind: 'heavy', value: 22, timer: 4 },
+    ],
+    blurb: 'Пропускает по одному: пока он в бою, фишки ходят только вверх и вниз.',
+  },
   eraser: {
     id: 'eraser',
     name: 'Ластик-вышибала',
@@ -186,6 +199,19 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { kind: 'ink', value: 2, timer: 3 },
     ],
     blurb: 'Пишет размокшими чернилами прямо по полю.',
+  },
+  storekeeper: {
+    id: 'storekeeper',
+    name: 'Кладовщица',
+    hp: 60,
+    size: 'M',
+    material: 'paper',
+    traits: ['cramped'],
+    intents: [
+      { kind: 'block', value: 10, timer: 3 },
+      { kind: 'attack', value: 19, timer: 3 },
+    ],
+    blurb: 'Стопка коробок на ногах. Заставила полстола: пока она в бою, поле на столбец уже. Упадёт — место вернётся.',
   },
   crab: {
     id: 'crab',

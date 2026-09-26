@@ -63,6 +63,23 @@ export interface Mods {
   coinMultPer: number;
   /** Share of the armour that survives the enemies' action. */
   armorKeep: number;
+  /** Columns and rows added to the board (negative: taken away). */
+  boardW: number;
+  boardH: number;
+  /** A tile may be dragged along its row or column any distance. */
+  slide: boolean;
+  /** Diagonal neighbours swap too. */
+  diagonal: boolean;
+  /** Staples, anchors and water do not hold tiles. */
+  unpinned: boolean;
+  /** Rockets placed on the board when a fight starts. */
+  startRockets: number;
+  /** +mult for every gold group of the move. */
+  goldGroupMult: number;
+  /** +mult for every group of 5 or more tiles. */
+  bigGroupMult: number;
+  /** +1 max health after each won fight, up to this much in a run. */
+  growHp: number;
 }
 
 export function baseMods(): Mods {
@@ -112,6 +129,15 @@ export function baseMods(): Mods {
     sealStart: 0,
     coinMultPer: 0,
     armorKeep: 0,
+    boardW: 0,
+    boardH: 0,
+    slide: false,
+    diagonal: false,
+    unpinned: false,
+    startRockets: 0,
+    goldGroupMult: 0,
+    bigGroupMult: 0,
+    growHp: 0,
   };
 }
 
@@ -157,6 +183,9 @@ export const ITEMS: Record<string, ItemDef> = {
   ledger: i({ id: 'ledger', name: 'Бухгалтерская книга', desc: 'В начале боя +1 монета за каждые 10 в кошельке.', kind: 'passive', icon: 'item_ledger', pool: 'common', apply: (m) => (m.interest = true) }),
   loupe: i({ id: 'loupe', name: 'Лупа', desc: 'Очередь над полем показывает 3 следующие фишки.', kind: 'passive', icon: 'item_loupe', pool: 'common', apply: (m) => (m.preview = 3) }),
   gloves: i({ id: 'gloves', name: 'Резиновые перчатки', desc: 'Угольки не ранят.', kind: 'passive', icon: 'item_gloves', pool: 'common', apply: (m) => (m.emberImmune = true) }),
+  clipholder: i({ id: 'clipholder', name: 'Скрепочница', desc: 'В начале боя две фишки поля становятся ракетами.', kind: 'passive', icon: 'item_clipholder', pool: 'common', apply: (m) => (m.startRockets += 2) }),
+  destapler: i({ id: 'destapler', name: 'Антистеплер', desc: 'Скобы, якоря и вода не держат фишки: они ходят как обычно.', kind: 'passive', icon: 'item_destapler', pool: 'common', apply: (m) => (m.unpinned = true) }),
+  calendar: i({ id: 'calendar', name: 'Настольный календарь', desc: 'После каждого выигранного боя +1 к максимуму здоровья (до +8 за смену).', kind: 'passive', icon: 'item_calendar', pool: 'common', apply: (m) => (m.growHp = 8) }),
 
   // ── Uncommon ──────────────────────────────────────────────────────
   battery: i({ id: 'battery', name: 'Батарейка', desc: '+1 заряд навыка после каждого хода.', kind: 'passive', icon: 'item_battery', pool: 'uncommon', apply: (m) => (m.battery += 1) }),
@@ -173,6 +202,10 @@ export const ITEMS: Record<string, ItemDef> = {
   dynamite: i({ id: 'dynamite', name: 'Праздничный динамит', desc: 'Бомбы взрывают квадрат 5×5.', kind: 'passive', icon: 'item_dynamite', pool: 'uncommon', apply: (m) => (m.bombRadius = 2) }),
   garland: i({ id: 'garland', name: 'Гирлянда', desc: 'Каждый 5-й ход случайная фишка становится бомбой.', kind: 'passive', icon: 'item_garland', pool: 'uncommon', apply: (m) => (m.garlandEvery = 5) }),
   timesheet: i({ id: 'timesheet', name: 'Табель', desc: 'Первый удар по каждому врагу ×2.', kind: 'passive', icon: 'item_timesheet', pool: 'uncommon', apply: (m) => (m.firstHitDouble = true) }),
+  tapemeasure: i({ id: 'tapemeasure', name: 'Рулетка', desc: 'Фишку можно протащить по строке или столбцу на любое расстояние: фишки между сдвигаются на клетку.', kind: 'passive', icon: 'item_tapemeasure', pool: 'uncommon', apply: (m) => (m.slide = true) }),
+  setsquare: i({ id: 'setsquare', name: 'Угольник', desc: 'Фишки меняются местами и по диагонали.', kind: 'passive', icon: 'item_setsquare', pool: 'uncommon', apply: (m) => (m.diagonal = true) }),
+  abacus: i({ id: 'abacus', name: 'Счёты', desc: 'Каждая золотая группа хода: +1 множ.', kind: 'passive', icon: 'item_abacus', pool: 'uncommon', apply: (m) => (m.goldGroupMult += 1) }),
+  binding: i({ id: 'binding', name: 'Брошюровщик', desc: 'Группа из 5 и больше фишек: +2 множ.', kind: 'passive', icon: 'item_binding', pool: 'uncommon', apply: (m) => (m.bigGroupMult += 2) }),
   calc2: i({ id: 'calc2', name: 'Кривой калькулятор', desc: 'Множ хода умножается на случайное число от 0,5 до 2,5.', kind: 'passive', icon: 'item_calculator', pool: 'uncommon', apply: (m) => (m.chaos = true) }),
   lamp: i({
     id: 'lamp',
@@ -195,6 +228,7 @@ export const ITEMS: Record<string, ItemDef> = {
   poster: i({ id: 'poster', name: 'Мотивационный плакат', desc: 'Каждая волна каскада даёт ещё +1 множ.', kind: 'passive', icon: 'item_poster', pool: 'rare', apply: (m) => (m.cascadeMult += 1) }),
   coffeemachine: i({ id: 'coffeemachine', name: 'Кофемашина', desc: 'Первый ход каждого боя — множ ×2.', kind: 'passive', icon: 'item_coffeemachine', pool: 'rare', apply: (m) => (m.firstMoveX = true) }),
   carbonpack: i({ id: 'carbonpack', unlock: 'bundle_relics', name: 'Пачка копирки', desc: 'Первая группа каждого хода срабатывает дважды.', kind: 'passive', icon: 'item_carbon', pool: 'rare', apply: (m) => (m.echo = true) }),
+  extension: i({ id: 'extension', name: 'Удлинитель', desc: 'Поле шире на столбец: больше фишек, больше совпадений.', kind: 'passive', icon: 'item_extension', pool: 'rare', apply: (m) => (m.boardW += 1) }),
   flash: i({ id: 'flash', name: 'Флешка', desc: 'Раз за отдел смертельный удар оставляет тебе 1 здоровье.', kind: 'passive', icon: 'item_flash', pool: 'rare', apply: (m) => (m.flash = true) }),
 
   // ── Boss ──────────────────────────────────────────────────────────
@@ -206,6 +240,8 @@ export const ITEMS: Record<string, ItemDef> = {
   vault: i({ id: 'vault', name: 'Сейф директора', desc: '+1 множ за каждые 100 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinMultPer = 100) }),
   hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3 }),
   steeldoor: i({ id: 'steeldoor', name: 'Бронедверь', desc: 'После действия врагов половина брони остаётся.', kind: 'passive', icon: 'item_steeldoor', pool: 'boss', apply: (m) => (m.armorKeep = 0.5) }),
+  foldtable: i({ id: 'foldtable', name: 'Раскладной стол', desc: 'Поле больше на строку и столбец.', kind: 'passive', icon: 'item_foldtable', pool: 'boss', apply: (m) => ((m.boardW += 1), (m.boardH += 1)) }),
+  closet: i({ id: 'closet', name: 'Тесная каморка', desc: 'Поле меньше на строку и столбец, зато каждый удар +3 множ.', kind: 'passive', icon: 'item_closet', pool: 'boss', apply: (m) => ((m.boardW -= 1), (m.boardH -= 1), (m.multFlat += 3)) }),
   prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Первая группа из 4 за ход создаёт призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
 
   // ── Active skills (charged by ink) ────────────────────────────────

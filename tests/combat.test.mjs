@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dispatch } from '../game/run.ts';
-import { idx } from '../game/board.ts';
 import { BLAST_MULT_CAP } from '../game/combat.ts';
-import { combatRun, setCard } from './helpers.mjs';
+import { combatRun, idx, setCard } from './helpers.mjs';
 import { foe, line, play, ready, scene } from './scene.mjs';
 
 /** Swapping (0,2) down into (1,2) completes the blade line in row 1 on this board. */

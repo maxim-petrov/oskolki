@@ -1,15 +1,17 @@
 // Fight scenes for the mechanic tests: a board of junk (it never matches), so only the tiles a test
 // places can score, and refills that stay junk (no surprise cascades) unless the test asks.
 import { dispatch, newRun } from '../game/run.ts';
-import { idx, validMoves } from '../game/board.ts';
-import { intentsOf, makeEnemy, startCombat } from '../game/combat.ts';
+import { idx as cellIdx, validMoves } from '../game/board.ts';
+import { boardDims, deckTokens, intentsOf, makeEnemy, startCombat } from '../game/combat.ts';
+import { createBoard } from '../game/board.ts';
 import { CARDS } from '../game/content/cards.ts';
 import { ACTS } from '../game/content/acts.ts';
 import { ENEMIES } from '../game/content/enemies.ts';
 import { computeMods } from '../game/content/items.ts';
-import { CELLS, W } from '../game/types.ts';
+import { W } from '../game/types.ts';
 
-export { idx };
+/** Cell of the scene's board (6×6 unless the scene changes it). */
+export const idx = (r, c, dims = { w: W, h: W }) => cellIdx(dims, r, c);
 
 let nextTile = 100000;
 const junk = () => ({ id: nextTile++, kind: 'junk' });
@@ -52,6 +54,10 @@ export function scene({
   (pockets ?? []).forEach((p, k) => (run.hero.pockets[k] = p));
   const events = [];
   run.combat = startCombat(run, kind, [], mods, events);
+  // Enemies that cramp the board shrink it from the start (startCombat was given none).
+  const dims = boardDims(run, mods, enemies);
+  if (dims.w !== run.combat.board.w || dims.h !== run.combat.board.h)
+    run.combat.board = createBoard(run.rng.board, deckTokens(run), mods.wrap, 6, run.nextId, dims);
   run.phase = 'combat';
   run.hero.charge = charge;
   const c = run.combat;
@@ -64,10 +70,11 @@ export function scene({
   }
   c.target = c.enemies[0].uid;
   if (!real) {
-    c.board.cells = Array.from({ length: CELLS }, junk);
+    const n = c.board.w * c.board.h;
+    c.board.cells = Array.from({ length: n }, junk);
     // A bomb in the far corner keeps a legal swap on the board: the engine never has to reshuffle
     // (and scatter) the tiles a test placed.
-    c.board.cells[CELLS - 1] = {
+    c.board.cells[n - 1] = {
       id: nextTile++,
       kind: 'shield',
       special: 'bomb',
@@ -84,12 +91,12 @@ export function scene({
 export function put(run, r, c, card, extra = {}) {
   const fam = CARDS[card]?.fam;
   const kind = extra.kind ?? (fam === 'status' ? 'junk' : fam);
-  run.combat.board.cells[idx(r, c)] = { id: nextTile++, kind, card, ...extra };
+  run.combat.board.cells[idx(r, c, run.combat.board)] = { id: nextTile++, kind, card, ...extra };
 }
 
 /** Puts a bare tile of a kind (prism, junk, a family without a card). */
 export function tile(run, r, c, kind, extra = {}) {
-  run.combat.board.cells[idx(r, c)] = { id: nextTile++, kind, ...extra };
+  run.combat.board.cells[idx(r, c, run.combat.board)] = { id: nextTile++, kind, ...extra };
 }
 
 /**
@@ -103,7 +110,8 @@ export function line(run, cards, { row = 2, col = 0, extra = {} } = {}) {
     if (typeof card === 'string') put(run, r, c, card, extra);
     else put(run, r, c, card.card, { ...extra, ...card });
   });
-  return { from: idx(row - 1, col + n - 1), to: idx(row, col + n - 1) };
+  const d = run.combat.board;
+  return { from: idx(row - 1, col + n - 1, d), to: idx(row, col + n - 1, d) };
 }
 
 /** Sets the upcoming tiles of a column (the head falls first). */

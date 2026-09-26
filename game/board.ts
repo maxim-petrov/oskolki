@@ -1,11 +1,11 @@
 import {
-  CELLS,
   FAMS,
   H,
   QUEUE_LEN,
   W,
   type BagToken,
   type BoardState,
+  type Dims,
   type Group,
   type Line,
   type LineShift,
@@ -16,9 +16,17 @@ import {
 import { int, pick, shuffle, type Rng } from './rng.ts';
 import { CARDS } from './content/cards.ts';
 
-export const idx = (r: number, c: number) => r * W + c;
-export const rowOf = (i: number) => Math.floor(i / W);
-export const colOf = (i: number) => i % W;
+/** The usual board: 6×6. */
+export const BASE_DIMS: Dims = { w: W, h: H };
+/** Smallest and largest boards items and enemies may make. */
+export const MIN_SIDE = 5;
+export const MAX_SIDE = 8;
+
+export const idx = (d: Dims, r: number, c: number) => r * d.w + c;
+export const rowOf = (d: Dims, i: number) => Math.floor(i / d.w);
+export const colOf = (d: Dims, i: number) => i % d.w;
+export const cellCount = (d: Dims) => d.w * d.h;
+export const dimsOf = (b: Dims): Dims => ({ w: b.w, h: b.h });
 
 /** Family a bag token turns into on the board; status cards are junk. */
 export function tokenKind(t: BagToken): TileKind {
@@ -52,6 +60,8 @@ export const cloneCells = (cells: Tile[]) => cells.map(cloneTile);
 
 export function cloneBoard(b: BoardState): BoardState {
   return {
+    w: b.w,
+    h: b.h,
     cells: cloneCells(b.cells),
     queue: b.queue.map((q) => q.map(cloneTile)),
     nextId: b.nextId,
@@ -63,28 +73,29 @@ export function cloneBoard(b: BoardState): BoardState {
   };
 }
 
-export const lineCells = (line: Line, index: number) =>
+export const lineCells = (d: Dims, line: Line, index: number) =>
   line === 'row'
-    ? Array.from({ length: W }, (_, c) => idx(index, c))
-    : Array.from({ length: H }, (_, r) => idx(r, index));
+    ? Array.from({ length: d.w }, (_, c) => idx(d, index, c))
+    : Array.from({ length: d.h }, (_, r) => idx(d, r, index));
 
 /** Rows and columns an enemy may grab and drag (the crab): not flooded, not locked, no staples. */
 export function lineFree(b: BoardState, line: Line, index: number): boolean {
   if (line === 'row') {
-    if (index >= H - b.flood) return false;
+    if (index >= b.h - b.flood) return false;
     if (b.rowLock[index] > 0) return false;
   } else if (b.colLock[index] > 0) return false;
-  return !lineCells(line, index).some((i) => b.cells[i]?.pin);
+  return !lineCells(b, line, index).some((i) => b.cells[i]?.pin);
 }
 
-export function shiftCells(cells: Tile[], m: LineShift): Tile[] {
+export function shiftCells(dims: Dims, cells: Tile[], m: LineShift): Tile[] {
   const out = cells.slice();
+  const { w, h } = dims;
   if (m.line === 'row') {
-    const d = ((m.delta % W) + W) % W;
-    for (let c = 0; c < W; c++) out[idx(m.index, (c + d) % W)] = cells[idx(m.index, c)];
+    const d = ((m.delta % w) + w) % w;
+    for (let c = 0; c < w; c++) out[idx(dims, m.index, (c + d) % w)] = cells[idx(dims, m.index, c)];
   } else {
-    const d = ((m.delta % H) + H) % H;
-    for (let r = 0; r < H; r++) out[idx((r + d) % H, m.index)] = cells[idx(r, m.index)];
+    const d = ((m.delta % h) + h) % h;
+    for (let r = 0; r < h; r++) out[idx(dims, (r + d) % h, m.index)] = cells[idx(dims, r, m.index)];
   }
   return out;
 }
@@ -96,33 +107,98 @@ export const isSpecialTile = (t: Tile | undefined) => !!t && (!!t.special || t.k
  * Orthogonal neighbours; with `wrap` (the ring binder) the left and right edges touch too. The ring
  * joins rows only: rows and columns both joined made every line endless and every cascade run away.
  */
-export function adjacent(a: number, b: number, wrap: boolean): boolean {
-  if (a === b || a < 0 || b < 0 || a >= CELLS || b >= CELLS) return false;
-  const ra = rowOf(a);
-  const ca = colOf(a);
-  const rb = rowOf(b);
-  const cb = colOf(b);
+export function adjacent(d: Dims, a: number, b: number, wrap: boolean): boolean {
+  const n = cellCount(d);
+  if (a === b || a < 0 || b < 0 || a >= n || b >= n) return false;
+  const ra = rowOf(d, a);
+  const ca = colOf(d, a);
+  const rb = rowOf(d, b);
+  const cb = colOf(d, b);
   if (ra === rb) {
-    const d = Math.abs(ca - cb);
-    return d === 1 || (wrap && d === W - 1);
+    const k = Math.abs(ca - cb);
+    return k === 1 || (wrap && k === d.w - 1);
   }
-  if (ca === cb) {
-    const d = Math.abs(ra - rb);
-    return d === 1;
-  }
+  if (ca === cb) return Math.abs(ra - rb) === 1;
   return false;
 }
 
-/** Why this pair cannot be swapped, or null when the swap is physically possible. */
-export function swapBlock(b: BoardState, m: Move, wrap: boolean): string | null {
-  if (!Number.isInteger(m.from) || !Number.isInteger(m.to) || !adjacent(m.from, m.to, wrap)) return 'Только с соседней фишкой';
-  for (const i of [m.from, m.to]) {
-    if (b.cells[i]?.pin) return 'Фишка прибита скобой';
-    if (b.colLock[colOf(i)] > 0) return 'Столбец на якоре';
-    if (b.rowLock[rowOf(i)] > 0) return 'Строка закреплена';
-  }
-  if (rowOf(m.from) === rowOf(m.to) && rowOf(m.from) >= H - b.flood) return 'Под водой фишки не ходят вбок';
+/**
+ * How tiles may move. The ring joins the edges of rows; items add slides and diagonals, an enemy
+ * may allow only up-and-down moves.
+ */
+export interface MoveRules {
+  wrap: boolean;
+  /** A tile may be dragged along its row or column any distance: the tiles between shift by one. */
+  slide?: boolean;
+  /** Diagonal neighbours swap too. */
+  diagonal?: boolean;
+  /** Only up and down (sideways swaps and slides are closed). */
+  vertical?: boolean;
+  /** Staples, anchors and water do not hold tiles. */
+  unpinned?: boolean;
+}
+
+export const PLAIN_RULES: MoveRules = { wrap: false };
+
+/** A swap of two tiles, or a slide of one tile along its line; null when the rules do not allow it. */
+export function moveKind(d: Dims, m: Move, rules: MoveRules): 'swap' | 'slide' | null {
+  const n = cellCount(d);
+  if (!Number.isInteger(m.from) || !Number.isInteger(m.to) || m.from === m.to || m.from < 0 || m.to < 0 || m.from >= n || m.to >= n) return null;
+  const [ra, ca, rb, cb] = [rowOf(d, m.from), colOf(d, m.from), rowOf(d, m.to), colOf(d, m.to)];
+  const sideways = ra === rb;
+  if (rules.vertical && sideways) return null;
+  if (adjacent(d, m.from, m.to, rules.wrap)) return 'swap';
+  if (rules.diagonal && !rules.vertical && Math.abs(ra - rb) === 1 && Math.abs(ca - cb) === 1) return 'swap';
+  if (rules.slide && (sideways || ca === cb)) return 'slide';
   return null;
+}
+
+/** Cells a move touches: both ends of a swap, the whole stretch of a slide. */
+export function moveSpan(d: Dims, m: Move, kind: 'swap' | 'slide'): number[] {
+  if (kind === 'swap') return [m.from, m.to];
+  const step = rowOf(d, m.from) === rowOf(d, m.to) ? Math.sign(m.to - m.from) : Math.sign(m.to - m.from) * d.w;
+  const out: number[] = [];
+  for (let i = m.from; ; i += step) {
+    out.push(i);
+    if (i === m.to) break;
+  }
+  return out;
+}
+
+/** The board after a move: a swap exchanges two tiles; a slide carries one and shifts the rest back. */
+export function applyMove(d: Dims, cells: Tile[], m: Move, kind: 'swap' | 'slide'): Tile[] {
+  if (kind === 'swap') return swapCells(cells, m);
+  const span = moveSpan(d, m, kind);
+  const out = cells.slice();
+  out[m.to] = cells[m.from];
+  for (let k = 0; k < span.length - 1; k++) out[span[k]] = cells[span[k + 1]];
+  return out;
+}
+
+/** Why this move cannot be made, or null when it is physically possible. */
+export function moveBlock(b: BoardState, m: Move, rules: MoveRules): string | null {
+  const kind = moveKind(b, m, rules);
+  if (!kind) {
+    if (rules.vertical && Number.isInteger(m.from) && Number.isInteger(m.to) && rowOf(b, m.from) === rowOf(b, m.to)) return 'Турникет: только вверх и вниз';
+    return rules.slide ? 'Только по строке или столбцу' : 'Только с соседней фишкой';
+  }
+  if (rules.unpinned) return null;
+  for (const i of moveSpan(b, m, kind)) {
+    if (b.cells[i]?.pin) return 'Фишка прибита скобой';
+    if (b.colLock[colOf(b, i)] > 0) return 'Столбец на якоре';
+    if (b.rowLock[rowOf(b, i)] > 0) return 'Строка закреплена';
+  }
+  // Under water tiles do not move sideways (they still float up out of it).
+  const low = b.h - b.flood;
+  if (rowOf(b, m.from) !== rowOf(b, m.to) && colOf(b, m.from) !== colOf(b, m.to)) {
+    if (rowOf(b, m.from) >= low || rowOf(b, m.to) >= low) return 'Под водой фишки не ходят вбок';
+  } else if (rowOf(b, m.from) === rowOf(b, m.to) && rowOf(b, m.from) >= low) return 'Под водой фишки не ходят вбок';
+  return null;
+}
+
+/** Old name: why this pair cannot be swapped under the plain rules (plus the ring). */
+export function swapBlock(b: BoardState, m: Move, wrap: boolean): string | null {
+  return moveBlock(b, m, { wrap });
 }
 
 export function swapCells(cells: Tile[], m: Move): Tile[] {
@@ -169,15 +245,28 @@ function runsInLine(
   return out;
 }
 
-const ROWS = Array.from({ length: H }, (_, r) => lineCells('row', r));
-const COLS = Array.from({ length: W }, (_, c) => lineCells('col', c));
+/** Rows and columns of a board size, built once per size. */
+const LINES = new Map<string, { rows: number[][]; cols: number[][] }>();
+function linesOf(d: Dims) {
+  const key = `${d.w}x${d.h}`;
+  let l = LINES.get(key);
+  if (!l) {
+    l = {
+      rows: Array.from({ length: d.h }, (_, r) => lineCells(d, 'row', r)),
+      cols: Array.from({ length: d.w }, (_, c) => lineCells(d, 'col', c)),
+    };
+    LINES.set(key, l);
+  }
+  return l;
+}
 
 /**
  * All match groups on the board. Prisms are wild and may join several families.
  * `prefer` biases where a created special appears (the cells of the moved line).
  */
-export function findGroups(cells: Tile[], wrap: boolean, prefer: readonly number[] = []): Group[] {
+export function findGroups(d: Dims, cells: Tile[], wrap: boolean, prefer: readonly number[] = []): Group[] {
   const groups: Group[] = [];
+  const { rows, cols } = linesOf(d);
   for (const fam of FAMS) {
     const ok = (i: number) => {
       const t = cells[i];
@@ -185,8 +274,8 @@ export function findGroups(cells: Tile[], wrap: boolean, prefer: readonly number
     };
     const real = (i: number) => cells[i]?.kind === fam;
     const runs: { cells: number[]; h: boolean }[] = [];
-    for (const line of ROWS) for (const cs of runsInLine(line, ok, real, wrap)) runs.push({ cells: cs, h: true });
-    for (const line of COLS) for (const cs of runsInLine(line, ok, real, false)) runs.push({ cells: cs, h: false });
+    for (const line of rows) for (const cs of runsInLine(line, ok, real, wrap)) runs.push({ cells: cs, h: true });
+    for (const line of cols) for (const cs of runsInLine(line, ok, real, false)) runs.push({ cells: cs, h: false });
     if (!runs.length) continue;
     const parent = runs.map((_, k) => k);
     const find = (k: number): number => (parent[k] === k ? k : (parent[k] = find(parent[k])));
@@ -241,32 +330,66 @@ export function findGroups(cells: Tile[], wrap: boolean, prefer: readonly number
   return groups;
 }
 
-export function hasMatch(cells: Tile[], wrap: boolean): boolean {
-  return findGroups(cells, wrap).length > 0;
+export function hasMatch(d: Dims, cells: Tile[], wrap: boolean): boolean {
+  return anyMatch(d, cells, wrap);
 }
 
-const PAIRS: Move[] = [];
-for (let r = 0; r < H; r++)
-  for (let c = 0; c < W; c++) {
-    if (c + 1 < W) PAIRS.push({ from: idx(r, c), to: idx(r, c + 1) });
-    if (r + 1 < H) PAIRS.push({ from: idx(r, c), to: idx(r + 1, c) });
+/** Moves the rules allow on a board size (swaps once as from < to; slides both ways), built once. */
+const MOVES = new Map<string, Move[]>();
+
+export function allMoves(d: Dims, rules: MoveRules): readonly Move[] {
+  const key = `${d.w}x${d.h}:${+rules.wrap}${+!!rules.slide}${+!!rules.diagonal}${+!!rules.vertical}`;
+  let list = MOVES.get(key);
+  if (!list) {
+    list = [];
+    for (let r = 0; r < d.h; r++)
+      for (let c = 0; c < d.w; c++) {
+        const from = idx(d, r, c);
+        if (c + 1 < d.w) list.push({ from, to: idx(d, r, c + 1) });
+        if (r + 1 < d.h) list.push({ from, to: idx(d, r + 1, c) });
+        if (rules.diagonal && r + 1 < d.h) {
+          if (c + 1 < d.w) list.push({ from, to: idx(d, r + 1, c + 1) });
+          if (c > 0) list.push({ from, to: idx(d, r + 1, c - 1) });
+        }
+      }
+    if (rules.wrap) for (let r = 0; r < d.h; r++) list.push({ from: idx(d, r, d.w - 1), to: idx(d, r, 0) });
+    if (rules.slide)
+      for (let a = 0; a < cellCount(d); a++)
+        for (let b = 0; b < cellCount(d); b++) {
+          const far = (rowOf(d, a) === rowOf(d, b) && Math.abs(colOf(d, a) - colOf(d, b)) >= 2) || (colOf(d, a) === colOf(d, b) && Math.abs(rowOf(d, a) - rowOf(d, b)) >= 2);
+          if (far) list.push({ from: a, to: b });
+        }
+    list = list.filter((m) => moveKind(d, m, rules) !== null);
+    MOVES.set(key, list);
   }
-const WRAP_PAIRS: Move[] = [...PAIRS, ...Array.from({ length: H }, (_, r) => ({ from: idx(r, W - 1), to: idx(r, 0) }))];
-
-/** Every neighbouring pair once (from < to, except the wrap pairs). */
-export function allMoves(wrap: boolean): readonly Move[] {
-  return wrap ? WRAP_PAIRS : PAIRS;
+  return list;
 }
 
-/** A swap is a move when it builds a match or sets off a special tile. */
-export function isValidMove(b: BoardState, m: Move, wrap: boolean): boolean {
-  if (swapBlock(b, m, wrap)) return false;
-  if (isSpecialTile(b.cells[m.from]) || isSpecialTile(b.cells[m.to])) return true;
-  return hasMatch(swapCells(b.cells, m), wrap);
+/** Is there a line of three or more of one family anywhere (prisms are wild)? Faster than findGroups. */
+function anyMatch(d: Dims, cells: Tile[], wrap: boolean): boolean {
+  const { rows, cols } = linesOf(d);
+  for (const fam of FAMS) {
+    const ok = (i: number) => {
+      const t = cells[i];
+      return !!t && (t.kind === fam || t.kind === 'prism');
+    };
+    const real = (i: number) => cells[i]?.kind === fam;
+    for (const line of rows) if (runsInLine(line, ok, real, wrap).length) return true;
+    for (const line of cols) if (runsInLine(line, ok, real, false).length) return true;
+  }
+  return false;
 }
 
-export function validMoves(b: BoardState, wrap: boolean): Move[] {
-  return allMoves(wrap).filter((m) => isValidMove(b, m, wrap));
+/** A move is valid when it builds a match or sets off a special tile it carries. */
+export function isValidMove(b: BoardState, m: Move, rules: MoveRules): boolean {
+  if (moveBlock(b, m, rules)) return false;
+  const kind = moveKind(b, m, rules)!;
+  if (isSpecialTile(b.cells[m.from]) || (kind === 'swap' && isSpecialTile(b.cells[m.to]))) return true;
+  return anyMatch(b, applyMove(b, b.cells, m, kind), rules.wrap);
+}
+
+export function validMoves(b: BoardState, rules: MoveRules): Move[] {
+  return allMoves(b, rules).filter((m) => isValidMove(b, m, rules));
 }
 
 /** Where a created special prefers to appear: the dropped tile first, then its partner. */
@@ -276,10 +399,10 @@ export const moveCells = (m: Move) => [m.to, m.from];
  * Would `kind` at `i` complete a line of three with the tiles already dealt? Counts both ways along
  * the row and the column; with `wrap` (the ring relic) rows run on across the edge.
  */
-function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind, wrap = false): boolean {
+function wouldMatchAt(d: Dims, cells: (Tile | undefined)[], i: number, kind: TileKind, wrap = false): boolean {
   if (kind === 'junk') return false;
-  const r = rowOf(i);
-  const c = colOf(i);
+  const r = rowOf(d, i);
+  const c = colOf(d, i);
   const run = (len: number, pos: number, get: (k: number) => TileKind | undefined, wrap: boolean) => {
     let n = 1;
     for (let d = 1; d < len; d++) {
@@ -302,7 +425,7 @@ function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind, wr
     }
     return n;
   };
-  return run(W, c, (cc) => cells[idx(r, cc)]?.kind, wrap) >= 3 || run(H, r, (rr) => cells[idx(rr, c)]?.kind, false) >= 3;
+  return run(d.w, c, (cc) => cells[idx(d, r, cc)]?.kind, wrap) >= 3 || run(d.h, r, (rr) => cells[idx(d, rr, c)]?.kind, false) >= 3;
 }
 
 /**
@@ -312,40 +435,42 @@ function wouldMatchAt(cells: (Tile | undefined)[], i: number, kind: TileKind, wr
  */
 function dealToken(b: BoardState, r: Rng, cells: Tile[], i: number, wrap: boolean): BagToken {
   const tok = drawToken(b, r);
-  if (!wouldMatchAt(cells, i, tokenKind(tok), wrap)) return tok;
+  if (!wouldMatchAt(b, cells, i, tokenKind(tok), wrap)) return tok;
   for (let k = b.bag.length - 1; k >= 0; k--) {
-    if (wouldMatchAt(cells, i, tokenKind(b.bag[k]), wrap)) continue;
+    if (wouldMatchAt(b, cells, i, tokenKind(b.bag[k]), wrap)) continue;
     const [fit] = b.bag.splice(k, 1);
     b.bag.unshift(tok);
     return fit;
   }
-  const spare = b.source.filter((t) => !wouldMatchAt(cells, i, tokenKind(t), wrap));
+  const spare = b.source.filter((t) => !wouldMatchAt(b, cells, i, tokenKind(t), wrap));
   if (!spare.length) return tok;
   b.bag.unshift(tok);
   return { ...pick(r, spare) };
 }
 
 /** How many cells stand in ready lines. */
-function matchedCells(cells: Tile[], wrap: boolean): number {
+function matchedCells(d: Dims, cells: Tile[], wrap: boolean): number {
   const seen = new Set<number>();
-  for (const g of findGroups(cells, wrap)) for (const k of g.cells) seen.add(k);
+  for (const g of findGroups(d, cells, wrap)) for (const k of g.cells) seen.add(k);
   return seen.size;
 }
 
 export function fillQueue(b: BoardState, r: Rng) {
-  for (let c = 0; c < W; c++) {
+  for (let c = 0; c < b.w; c++) {
     while (b.queue[c].length < QUEUE_LEN) b.queue[c].push(drawTile(b, r));
   }
 }
 
-export function emptyBoard(source: BagToken[], firstId = 1): BoardState {
+export function emptyBoard(source: BagToken[], firstId = 1, dims: Dims = BASE_DIMS): BoardState {
   return {
+    w: dims.w,
+    h: dims.h,
     cells: [],
-    queue: Array.from({ length: W }, () => []),
+    queue: Array.from({ length: dims.w }, () => []),
     nextId: firstId,
     flood: 0,
-    colLock: Array(W).fill(0),
-    rowLock: Array(H).fill(0),
+    colLock: Array(dims.w).fill(0),
+    rowLock: Array(dims.h).fill(0),
     bag: [],
     source: source.map((t) => ({ ...t })),
   };
@@ -355,15 +480,15 @@ export function emptyBoard(source: BagToken[], firstId = 1): BoardState {
  * Board for a fight, dealt from the deck's bag: no ready matches where the deck allows it,
  * and enough legal swaps. A one-family deck may leave matches in place — its payoff.
  */
-export function createBoard(r: Rng, source: BagToken[], wrap = false, minMoves = 6, firstId = 1): BoardState {
+export function createBoard(r: Rng, source: BagToken[], wrap = false, minMoves = 6, firstId = 1, dims: Dims = BASE_DIMS): BoardState {
   let best: { b: BoardState; score: number } | null = null;
   for (let attempt = 0; attempt < 60; attempt++) {
-    const b = emptyBoard(source, firstId);
+    const b = emptyBoard(source, firstId, dims);
     const cells: Tile[] = [];
-    for (let i = 0; i < CELLS; i++) cells.push(tokenTile(b, dealToken(b, r, cells, i, wrap)));
+    for (let i = 0; i < cellCount(dims); i++) cells.push(tokenTile(b, dealToken(b, r, cells, i, wrap)));
     b.cells = cells;
-    const matched = matchedCells(cells, wrap);
-    const moves = validMoves(b, wrap).length;
+    const matched = matchedCells(b, cells, wrap);
+    const moves = validMoves(b, { wrap }).length;
     if (!matched && moves >= minMoves) {
       fillQueue(b, r);
       return b;
@@ -377,29 +502,54 @@ export function createBoard(r: Rng, source: BagToken[], wrap = false, minMoves =
 }
 
 /**
+ * A bigger board mid-fight (a cramped enemy fell): tiles keep their column and their row counted
+ * from the bottom, new rows come in on top and new columns on the right, dealt from the bag
+ * without ready lines.
+ */
+export function growBoard(b: BoardState, dims: Dims, r: Rng, wrap: boolean) {
+  const w = Math.max(dims.w, b.w);
+  const h = Math.max(dims.h, b.h);
+  if (w === b.w && h === b.h) return;
+  const next: BoardState = { ...b, w, h };
+  const dy = h - b.h;
+  const cells: Tile[] = [];
+  for (let row = 0; row < b.h; row++) for (let c = 0; c < b.w; c++) cells[idx(next, row + dy, c)] = b.cells[idx(b, row, c)];
+  for (let i = 0; i < w * h; i++) if (!cells[i]) cells[i] = tokenTile(next, dealToken(next, r, cells, i, wrap));
+  b.w = w;
+  b.h = h;
+  b.cells = cells;
+  b.nextId = next.nextId;
+  b.bag = next.bag;
+  while (b.queue.length < w) b.queue.push([]);
+  b.colLock = [...b.colLock, ...Array(w - b.colLock.length).fill(0)];
+  b.rowLock = [...Array(h - b.rowLock.length).fill(0), ...b.rowLock];
+  fillQueue(b, r);
+}
+
+/**
  * Compact every column downwards and refill from its queue.
  * Returns falls (moved tiles) and spawns (tiles entering from above, rank = order from the bottom).
  */
 export function gravity(b: BoardState, r: Rng, cells: (Tile | null)[]) {
   const falls: { id: number; from: number; to: number }[] = [];
   const spawns: { id: number; to: number; rank: number }[] = [];
-  for (let c = 0; c < W; c++) {
+  for (let c = 0; c < b.w; c++) {
     const stack: { tile: Tile; from: number }[] = [];
-    for (let row = H - 1; row >= 0; row--) {
-      const t = cells[idx(row, c)];
+    for (let row = b.h - 1; row >= 0; row--) {
+      const t = cells[idx(b, row, c)];
       if (t) stack.push({ tile: t, from: row });
     }
-    let row = H - 1;
+    let row = b.h - 1;
     for (const { tile, from } of stack) {
-      if (from !== row) falls.push({ id: tile.id, from: idx(from, c), to: idx(row, c) });
-      cells[idx(row, c)] = tile;
+      if (from !== row) falls.push({ id: tile.id, from: idx(b, from, c), to: idx(b, row, c) });
+      cells[idx(b, row, c)] = tile;
       row--;
     }
     let rank = 0;
     while (row >= 0) {
       const tile = b.queue[c].shift() ?? drawTile(b, r);
-      cells[idx(row, c)] = tile;
-      spawns.push({ id: tile.id, to: idx(row, c), rank: rank++ });
+      cells[idx(b, row, c)] = tile;
+      spawns.push({ id: tile.id, to: idx(b, row, c), rank: rank++ });
       row--;
     }
   }
@@ -409,12 +559,13 @@ export function gravity(b: BoardState, r: Rng, cells: (Tile | null)[]) {
 }
 
 /** Free reshuffle when no legal move exists. Keeps specials, pins and fuses on their tiles. */
-export function reshuffle(b: BoardState, r: Rng, wrap: boolean) {
+export function reshuffle(b: BoardState, r: Rng, rules: MoveRules) {
+  const wrap = rules.wrap;
   for (let attempt = 0; attempt < 300; attempt++) {
     const cells = shuffle(r, b.cells.slice());
-    if (hasMatch(cells, wrap)) continue;
+    if (hasMatch(b, cells, wrap)) continue;
     const test = { ...b, cells };
-    if (validMoves(test, wrap).length >= 3) {
+    if (validMoves(test, rules).length >= 3) {
       b.cells = cells;
       return;
     }
@@ -423,34 +574,34 @@ export function reshuffle(b: BoardState, r: Rng, wrap: boolean) {
   for (let attempt = 0; attempt < 60; attempt++) {
     const cells = b.cells.map((t) => (t.special || t.kind === 'prism' || t.pin ? t : drawTile(b, r)));
     const test = { ...b, cells };
-    if (validMoves(test, wrap).length >= 3) {
+    if (validMoves(test, rules).length >= 3) {
       b.cells = cells;
       return;
     }
   }
-  const fresh = createBoard(r, b.source, wrap, 3, b.nextId);
+  const fresh = createBoard(r, b.source, wrap, 3, b.nextId, b);
   b.cells = fresh.cells;
   b.nextId = fresh.nextId;
 }
 
-export function neighbors(i: number): number[] {
-  const r = rowOf(i);
-  const c = colOf(i);
+export function neighbors(d: Dims, i: number): number[] {
+  const r = rowOf(d, i);
+  const c = colOf(d, i);
   const out: number[] = [];
-  if (r > 0) out.push(idx(r - 1, c));
-  if (r < H - 1) out.push(idx(r + 1, c));
-  if (c > 0) out.push(idx(r, c - 1));
-  if (c < W - 1) out.push(idx(r, c + 1));
+  if (r > 0) out.push(idx(d, r - 1, c));
+  if (r < d.h - 1) out.push(idx(d, r + 1, c));
+  if (c > 0) out.push(idx(d, r, c - 1));
+  if (c < d.w - 1) out.push(idx(d, r, c + 1));
   return out;
 }
 
-export function area(i: number, radius: number): number[] {
-  const r0 = rowOf(i);
-  const c0 = colOf(i);
+export function area(d: Dims, i: number, radius: number): number[] {
+  const r0 = rowOf(d, i);
+  const c0 = colOf(d, i);
   const out: number[] = [];
   for (let r = r0 - radius; r <= r0 + radius; r++)
     for (let c = c0 - radius; c <= c0 + radius; c++)
-      if (r >= 0 && r < H && c >= 0 && c < W) out.push(idx(r, c));
+      if (r >= 0 && r < d.h && c >= 0 && c < d.w) out.push(idx(d, r, c));
   return out;
 }
 
