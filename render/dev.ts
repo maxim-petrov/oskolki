@@ -1,6 +1,6 @@
 import { ACTS, CHARACTERS } from '../game/content/acts.ts';
-import { CARDS, STARTER_DECKS, cardText } from '../game/content/cards.ts';
-import { ENEMIES } from '../game/content/enemies.ts';
+import { CARDS, FINISH_TEXT, STARTER_DECKS, cardText } from '../game/content/cards.ts';
+import { ENEMIES, INTENT_TEXT, MATERIAL_NAME } from '../game/content/enemies.ts';
 import { EVENTS } from '../game/content/events.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import { activeCost } from '../game/combat.ts';
@@ -134,10 +134,21 @@ export class DevApi {
   catalog() {
     const actsOf = (id: string) =>
       ACTS.map((a, k) => ([...a.weak, ...a.strong, ...a.elites].some((g) => g.includes(id)) || a.boss === id ? k : -1)).filter((k) => k >= 0);
+    const itemName = (id: string | null) => (id ? (ITEMS[id]?.name ?? id) : 'нет');
     return {
-      chars: Object.values(CHARACTERS).map((c) => ({ id: c.id, name: c.name, desc: c.desc, maxHp: c.maxHp, coins: c.coins })),
+      chars: Object.values(CHARACTERS).map((c) => ({
+        id: c.id,
+        name: c.name,
+        desc: c.desc,
+        maxHp: c.maxHp,
+        coins: c.coins,
+        relic: itemName(c.relic),
+        active: itemName(c.active),
+        pockets: c.pockets.map((p) => POCKETS[p]?.name ?? p),
+      })),
       acts: ACTS.map((a, k) => ({ index: k, name: a.name, boss: a.boss, weak: a.weak, strong: a.strong, elites: a.elites, room: roomFor(k, 0, 'fight').id })),
-      cards: Object.values(CARDS).map((c) => ({ id: c.id, name: c.name, fam: c.fam, rarity: c.rarity, text: cardText(c.id, false) })),
+      cards: Object.values(CARDS).map((c) => ({ id: c.id, name: c.name, fam: c.fam, rarity: c.rarity, text: cardText(c.id, false), textUp: cardText(c.id, true) })),
+      finishText: FINISH_TEXT,
       relics: Object.values(ITEMS)
         .filter((i) => i.kind === 'passive')
         .map((i) => ({ id: i.id, name: i.name, pool: i.pool, desc: i.desc, icon: i.icon })),
@@ -145,8 +156,21 @@ export class DevApi {
         .filter((i) => i.kind === 'active')
         .map((i) => ({ id: i.id, name: i.name, desc: i.desc, charge: i.charge ?? 0, icon: i.icon })),
       pockets: Object.values(POCKETS).map((p) => ({ id: p.id, name: p.name, desc: p.desc, icon: p.icon })),
-      enemies: Object.values(ENEMIES).map((e) => ({ id: e.id, name: e.name, size: e.size, hp: e.hp, acts: actsOf(e.id) })),
-      events: EVENTS.map((e) => ({ id: e.id, title: e.title, art: e.art })),
+      enemies: Object.values(ENEMIES).map((e) => ({
+        id: e.id,
+        name: e.name,
+        size: e.size,
+        hp: e.hp,
+        acts: actsOf(e.id),
+        /** Health as it spawns in each act it lives in. */
+        hpIn: actsOf(e.id).map((k) => ({ act: k, hp: Math.max(1, Math.round(e.hp * ACTS[k].hpMul)) })),
+        armor: e.armor ?? 0,
+        material: MATERIAL_NAME[e.material] ?? e.material,
+        traits: (e.traits ?? []).map((t) => ({ splits: 'распадается при смерти', light: 'светится', diver: 'ныряет' })[t] ?? t),
+        intents: e.intents.map((i) => `${INTENT_TEXT[i.kind] ?? i.kind}${i.value ? ` ${i.value}` : ''} · раз в ${i.timer} хода`),
+        blurb: e.blurb,
+      })),
+      events: EVENTS.map((e) => ({ id: e.id, title: e.title, art: e.art, text: e.text, options: e.options.map((o) => `${o.label} — ${o.hint}`) })),
       rooms: DEV_ROOMS,
       places: DEV_PLACES,
       roomNames: ROOM_NAME,

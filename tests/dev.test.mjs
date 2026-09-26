@@ -61,3 +61,37 @@ test('god mode: enemies hit for nothing', () => {
   }
   assert.equal(run.hero.hp, hp);
 });
+
+test('every ready-made dev test uses real content and starts', async () => {
+  const { DEV_SUITES } = await import('../render/dev-presets.ts');
+  const { CARDS } = await import('../game/content/cards.ts');
+  const { ITEMS, POCKETS } = await import('../game/content/items.ts');
+  const { ENEMIES } = await import('../game/content/enemies.ts');
+  let n = 0;
+  for (const suite of DEV_SUITES)
+    for (const item of suite.items) {
+      const c = item.cfg;
+      for (const e of c.enemies ?? []) assert.ok(ENEMIES[e], `${item.id}: enemy ${e}`);
+      if (c.build) {
+        for (const card of c.build.deck) assert.ok(CARDS[card.id], `${item.id}: card ${card.id}`);
+        for (const r of c.build.relics) assert.equal(ITEMS[r]?.kind, 'passive', `${item.id}: relic ${r}`);
+        if (c.build.active) assert.equal(ITEMS[c.build.active]?.kind, 'active', `${item.id}: active ${c.build.active}`);
+        for (const p of c.build.pockets) if (p) assert.ok(POCKETS[p], `${item.id}: pocket ${p}`);
+      }
+      // The same steps as DevApi.start.
+      let { run } = newRun({ seed: 3, char: c.char, lastAct: 3, customSeed: true });
+      const step = (op) => {
+        const r = dev(run, op);
+        assert.ok(!r.events.some((e) => e.t === 'invalid'), `${item.id}: ${op.op}`);
+        run = r.run;
+      };
+      step({ op: 'set', dev: { ...c.cheats } });
+      if (c.act > 0) step({ op: 'act', act: c.act });
+      if (c.build) step({ op: 'build', ...c.build });
+      if (c.hero) step({ op: 'hero', ...c.hero });
+      if (c.place !== 'map') step({ op: 'enter', kind: c.place, enemies: c.enemies, event: c.event });
+      if (c.enemies?.length) assert.deepEqual(run.combat.enemies.map((e) => e.def).slice(0, c.enemies.length), c.enemies, item.id);
+      n++;
+    }
+  assert.ok(n >= 40, `${n} tests`);
+});

@@ -108,7 +108,7 @@ body {
   right: 0;
   bottom: 0;
   z-index: 20;
-  width: 580px;
+  width: 620px;
   max-width: 100vw;
   display: flex;
   flex-direction: column;
@@ -210,7 +210,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 6px 5px 4px;
+  padding: 6px 4px 4px;
   background: var(--ink1);
   border: 2px solid var(--ink0);
   box-shadow: var(--bevel);
@@ -722,4 +722,80 @@ textarea.dp-input {
     border-left: none;
     box-shadow: inset 0 2px 0 var(--cold1);
   }
+}
+
+/* Dev panel tooltips: the game's tooltip — an ink sheet with a coloured rule, the title in colour. */
+.dp-tip {
+  position: fixed;
+  z-index: 30;
+  max-width: 320px;
+  padding: 8px 10px 6px;
+  background: var(--ink0);
+  border: 2px solid var(--ink0);
+  box-shadow: inset 2px 2px 0 var(--gold2), inset -2px -2px 0 var(--ink2), 4px 4px 0 rgba(7, 7, 15, 0.6);
+  color: var(--cold5);
+  pointer-events: none;
+}
+.dp-tip-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  color: var(--gold4);
+  text-shadow: 2px 2px 0 var(--ink0);
+}
+.dp-tip-line {
+  color: var(--cold4);
+  margin: 2px 0;
+}
+.dp-tip-body {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 2px dashed var(--ink3);
+  color: var(--cold6);
+}
+.dp-tip.red {
+  box-shadow: inset 2px 2px 0 #a8263a, inset -2px -2px 0 var(--ink2), 4px 4px 0 rgba(7, 7, 15, 0.6);
+}
+.dp-tip.red .dp-tip-title {
+  color: #ffb099;
+}
+.dp-tip.vio {
+  box-shadow: inset 2px 2px 0 #753cbf, inset -2px -2px 0 var(--ink2), 4px 4px 0 rgba(7, 7, 15, 0.6);
+}
+.dp-tip.vio .dp-tip-title {
+  color: #d6b8ff;
+}
+.dp-tip.cold {
+  box-shadow: inset 2px 2px 0 var(--cold3), inset -2px -2px 0 var(--ink2), 4px 4px 0 rgba(7, 7, 15, 0.6);
+}
+.dp-tip.cold .dp-tip-title {
+  color: var(--cold6);
+}
+
+/* Ready-made tests */
+.dp-suite {
+  position: relative;
+  display: flex;
+}
+.dp-suite > .dp-tile {
+  flex: 1;
+}
+.dp-pic.suite {
+  height: 56px;
+  align-items: center;
+}
+.dp-icons {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+.dev-panel .dp-edit {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  opacity: 0;
+}
+.dp-suite:hover .dp-edit {
+  opacity: 1;
 }

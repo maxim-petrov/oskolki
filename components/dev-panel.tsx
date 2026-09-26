@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react';
 import { CardBadge, RoomThumb, Sprite } from '@/components/dev-previews';
 import type { CharId, DevOp, DevState, Finish } from '@/game/types';
 import type { DevApi, DevBuild, DevCard, DevPlace, DevStart } from '@/render/dev';
+import { DEV_SUITES, type DevSuiteItem } from '@/render/dev-presets';
 
 /**
  * The dev panel («Отдел тестов»), drawn in the game's own look: ink panels with pixel bevels, the
@@ -13,15 +14,16 @@ import type { DevApi, DevBuild, DevCard, DevPlace, DevStart } from '@/render/dev
 
 type Catalog = ReturnType<DevApi['catalog']>;
 type Snapshot = ReturnType<DevApi['snapshot']>;
-type Tab = 'start' | 'build' | 'fight' | 'world' | 'office' | 'settings';
+type Tab = 'tests' | 'start' | 'build' | 'fight' | 'world' | 'office' | 'settings';
 
 const TABS: [Tab, string, string][] = [
+  ['tests', 'Тесты', 'map_treasure'],
   ['start', 'Старт', 'map_fight'],
   ['build', 'Сборка', 'ui_deck'],
   ['fight', 'Бой', 'ui_hp'],
   ['world', 'Мир', 'ui_map'],
   ['office', 'Офис', 'ui_shard'],
-  ['settings', 'Настройки', 'ui_pause'],
+  ['settings', 'Опции', 'ui_pause'],
 ];
 
 const FAMS: [string, string, string][] = [
@@ -71,13 +73,151 @@ const BOSSES: [string, string][] = [
 
 const num = (v: string): number | undefined => (v.trim() === '' || Number.isNaN(Number(v)) ? undefined : Number(v));
 
+// ── Game-style tooltips ──────────────────────────────────────────────
+
+/** What a tooltip shows: the title (with an icon), stat lines and the description. */
+export interface TipData {
+  title: string;
+  icon?: string;
+  lines?: string[];
+  body?: string;
+  accent?: 'gold' | 'red' | 'vio' | 'cold';
+}
+
+interface TipState {
+  data: TipData;
+  x: number;
+  y: number;
+}
+
+/** A tiny store outside React state: moving the mouse redraws only the tooltip, not the grids. */
+let tipNow: TipState | null = null;
+const tipSubs = new Set<() => void>();
+function setTip(t: TipState | null) {
+  tipNow = t;
+  for (const f of tipSubs) f();
+}
+const tipSubscribe = (f: () => void) => {
+  tipSubs.add(f);
+  return () => {
+    tipSubs.delete(f);
+  };
+};
+
+function tipHandlers(data?: TipData) {
+  if (!data) return {};
+  const show = (e: MouseEvent) => setTip({ data, x: e.clientX, y: e.clientY });
+  return { onMouseEnter: show, onMouseMove: show, onMouseLeave: () => setTip(null) };
+}
+
+/** The tooltip, drawn like the game's: an ink sheet with a gold rule, the title in gold. */
+function TipLayer() {
+  const t = useSyncExternalStore(
+    tipSubscribe,
+    () => tipNow,
+    () => null,
+  );
+  if (!t) return null;
+  const vw = typeof window === 'undefined' ? 1200 : window.innerWidth;
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight;
+  const left = t.x > 340 ? { right: vw - t.x + 18 } : { left: t.x + 18 };
+  const top = t.y > vh * 0.55 ? { bottom: vh - t.y + 10 } : { top: t.y + 10 };
+  const d = t.data;
+  return (
+    <div className={`dp-tip ${d.accent ?? 'gold'}`} style={{ ...left, ...top }}>
+      <div className="dp-tip-title">
+        {d.icon && <Sprite id={d.icon} scale={2} />}
+        <span>{d.title}</span>
+      </div>
+      {d.lines?.map((l, k) => (
+        <div key={k} className="dp-tip-line">
+          {l}
+        </div>
+      ))}
+      {d.body && <div className="dp-tip-body">{d.body}</div>}
+    </div>
+  );
+}
+
+const POOL_NAME: Record<string, string> = { starter: 'стартовый', common: 'обычный', uncommon: 'необычный', rare: 'редкий', boss: 'от босса', shop: 'из кассы' };
+const SIZE_NAME: Record<string, string> = { S: 'мелкий', M: 'средний', L: 'крупный', boss: 'босс' };
+const FAM_TITLE: Record<string, string> = { blade: 'удар', shield: 'защита', ink: 'чернила', coin: 'деньги', status: 'волокита' };
+const RARITY_NAME: Record<string, string> = { starter: 'стартовая', common: 'обычная', uncommon: 'необычная', rare: 'редкая', status: 'статус' };
+
+const PLACE_TEXT: Record<string, string> = {
+  map: 'План эвакуации отдела: путь выбираешь сам.',
+  fight: 'Обычный бой: встреча отдела или выбранные враги.',
+  elite: 'Бой с начальством: сильнее обычного, в награде предмет.',
+  boss: 'Босс отдела: две фазы, после победы — награда босса.',
+  event: 'Служебная записка с выбором.',
+  shop: 'Касса: фишки, предметы, расходники, отделка и удаление фишки.',
+  rest: 'Кулер: вылечиться или улучшить фишку.',
+  treasure: 'Сейф: предмет и монеты.',
+  bossReward: 'Выбор одного из трёх предметов босса.',
+};
+const NODE_NAME: Record<string, string> = { fight: 'Бой', elite: 'Начальство', event: 'Событие', shop: 'Касса', rest: 'Кулер', treasure: 'Сейф', boss: 'Босс' };
+
+function tipAct(catalog: Catalog, k: number): TipData {
+  const a = catalog.acts[k];
+  const name = (id: string) => catalog.enemies.find((e) => e.id === id)?.name ?? id;
+  const foes = [...new Set([...a.weak, ...a.strong].flat())].map(name);
+  return {
+    title: `${k + 1}. ${a.name}`,
+    lines: [`босс: ${name(a.boss)}`, `начальство: ${a.elites.map((g) => g.map(name).join(' + ')).join(' · ')}`],
+    body: `Враги: ${foes.join(', ')}.`,
+  };
+}
+
+function tipCard(catalog: Catalog, id: string, finish?: Finish): TipData | undefined {
+  const c = catalog.cards.find((x) => x.id === id);
+  if (!c) return undefined;
+  const lines = [`${FAM_TITLE[c.fam] ?? c.fam} · ${RARITY_NAME[c.rarity] ?? c.rarity}`, `Улучшенная: ${c.textUp}`];
+  if (finish) lines.push(`${catalog.finishText[finish].name}: ${catalog.finishText[finish].text}`);
+  return { title: c.name, icon: `card_${c.id}`, lines, body: c.text, accent: c.fam === 'blade' ? 'red' : c.fam === 'ink' ? 'vio' : c.fam === 'shield' ? 'cold' : 'gold' };
+}
+
+function tipItem(catalog: Catalog, id: string): TipData | undefined {
+  const r = catalog.relics.find((x) => x.id === id);
+  if (r) return { title: r.name, icon: r.icon, lines: [`предмет · ${POOL_NAME[r.pool] ?? r.pool}`], body: r.desc };
+  const a = catalog.actives.find((x) => x.id === id);
+  if (a) return { title: a.name, icon: a.icon, lines: [`навык · заряд ${a.charge} чернил`], body: a.desc, accent: 'vio' };
+  const p = catalog.pockets.find((x) => x.id === id);
+  if (p) return { title: p.name, icon: p.icon, lines: ['расходник для кармана'], body: p.desc };
+  return undefined;
+}
+
+function tipEnemy(catalog: Catalog, id: string): TipData | undefined {
+  const e = catalog.enemies.find((x) => x.id === id);
+  if (!e) return undefined;
+  const hp = e.hpIn.length ? e.hpIn.map((h) => `в отделе ${h.act + 1}: ${h.hp}`).join(' · ') : `${e.hp}`;
+  const lines = [`${SIZE_NAME[e.size] ?? e.size} · ${e.material}${e.armor ? ` · броня ${e.armor}` : ''}`, `здоровье ${hp}`, ...e.intents];
+  if (e.traits.length) lines.push(e.traits.join(', '));
+  return { title: e.name, lines, body: e.blurb, accent: 'red' };
+}
+
+function tipHero(catalog: Catalog, id: string): TipData | undefined {
+  const c = catalog.chars.find((x) => x.id === id);
+  if (!c) return undefined;
+  return {
+    title: c.name,
+    lines: [`♥ ${c.maxHp} · ¤ ${c.coins}`, `предмет: ${c.relic}`, `навык: ${c.active}`, ...(c.pockets.length ? [`в кармане: ${c.pockets.join(', ')}`] : [])],
+    body: c.desc,
+  };
+}
+
+function tipEvent(catalog: Catalog, id: string): TipData | undefined {
+  const e = catalog.events.find((x) => x.id === id);
+  if (!e) return undefined;
+  return { title: e.title, lines: e.options, body: e.text };
+}
+
 function defaultStart(char: CharId = 'intern'): DevStart {
   return { char, act: 0, place: 'fight', enemies: [], cheats: {} };
 }
 
 export function DevPanel({ dev, onClose }: { dev: DevApi; onClose: () => void }) {
   const catalog = useMemo<Catalog>(() => dev.catalog(), [dev]);
-  const [tab, setTab] = useState<Tab>(() => (localStorage.getItem('oskolki.dev.tab') as Tab) || 'start');
+  const [tab, setTab] = useState<Tab>(() => (localStorage.getItem('oskolki.dev.tab') as Tab) || 'tests');
   const [snap, setSnap] = useState<Snapshot>(() => dev.snapshot());
   const [cfg, setCfg] = useState<DevStart>(() => dev.last() ?? defaultStart());
   const [useBuild, setUseBuild] = useState<boolean>(() => !!dev.last()?.build);
@@ -131,20 +271,34 @@ export function DevPanel({ dev, onClose }: { dev: DevApi; onClose: () => void })
       </header>
       <nav className="dp-tabs">
         {TABS.map(([id, name, icon]) => (
-          <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>
+          <button
+            key={id}
+            className={tab === id ? 'on' : ''}
+            onClick={() => {
+              setTip(null);
+              setTab(id);
+            }}
+          >
             <Sprite id={icon} scale={2} />
             {name}
           </button>
         ))}
       </nav>
       <div className="dp-body">
+        {tab === 'tests' && <TestsTab dev={dev} catalog={catalog} fullCfg={fullCfg} say={say} toForm={(p) => {
+          setCfg(p);
+          setUseBuild(!!p.build);
+          if (p.build) setBuild(p.build);
+          setTab('start');
+          say('Тест в форме «Старт»');
+        }} />}
         {tab === 'start' && (
           <StartTab dev={dev} catalog={catalog} cfg={cfg} setCfg={setCfg} useBuild={useBuild} setUseBuild={setUseBuild} build={build} setBuild={setBuild} fullCfg={fullCfg} say={say} goBuild={() => setTab('build')} />
         )}
         {tab === 'build' && <BuildTab dev={dev} catalog={catalog} build={build} setBuild={setBuild} char={cfg.char} say={say} apply={apply} setUseBuild={setUseBuild} />}
         {tab === 'fight' && <FightTab catalog={catalog} snap={snap} apply={apply} />}
         {tab === 'world' && <WorldTab catalog={catalog} snap={snap} apply={apply} />}
-        {tab === 'office' && <OfficeTab dev={dev} snap={snap} say={say} />}
+        {tab === 'office' && <OfficeTab dev={dev} catalog={catalog} snap={snap} say={say} />}
         {tab === 'settings' && <SettingsTab dev={dev} snap={snap} />}
       </div>
       <footer className="dp-foot">
@@ -156,6 +310,7 @@ export function DevPanel({ dev, onClose }: { dev: DevApi; onClose: () => void })
         </button>
       </footer>
       {note && <div className="dp-note">{note}</div>}
+      <TipLayer />
     </aside>
   );
 }
@@ -174,17 +329,17 @@ function Section({ title, right, children }: { title: string; right?: ReactNode;
   );
 }
 
-function Tile({ on, onClick, title, children, className = '' }: { on?: boolean; onClick?: () => void; title?: string; children: ReactNode; className?: string }) {
+function Tile({ on, onClick, title, tip, children, className = '' }: { on?: boolean; onClick?: () => void; title?: string; tip?: TipData; children: ReactNode; className?: string }) {
   return (
-    <button className={`dp-tile ${on ? 'on' : ''} ${className}`} onClick={onClick} title={title}>
+    <button className={`dp-tile ${on ? 'on' : ''} ${className}`} onClick={onClick} title={tip ? undefined : title} {...tipHandlers(tip)}>
       {children}
     </button>
   );
 }
 
-function Chip({ on, onClick, icon, children, title }: { on?: boolean; onClick: () => void; icon?: string; children: ReactNode; title?: string }) {
+function Chip({ on, onClick, icon, children, title, tip }: { on?: boolean; onClick: () => void; icon?: string; children: ReactNode; title?: string; tip?: TipData }) {
   return (
-    <button className={`dp-chip ${on ? 'on' : ''}`} onClick={onClick} title={title}>
+    <button className={`dp-chip ${on ? 'on' : ''}`} onClick={onClick} title={tip ? undefined : title} {...tipHandlers(tip)}>
       {icon && <Sprite id={icon} scale={2} />}
       {children}
     </button>
@@ -213,13 +368,13 @@ function Cheats({ value, onChange }: { value: DevState; onChange: (patch: Partia
   return (
     <>
       <div className="dp-row wrap">
-        <Chip on={!!value.god} onClick={() => onChange({ god: !value.god })} icon="ui_hp" title="Герой не получает урона">
+        <Chip on={!!value.god} onClick={() => onChange({ god: !value.god })} icon="ui_hp" tip={{ title: 'Бессмертие', body: 'Герой не получает урона: удары врагов проходят в ноль.' }}>
           бессмертие
         </Chip>
-        <Chip on={!!value.ink} onClick={() => onChange({ ink: !value.ink })} icon="ui_charge" title="Навык всегда заряжен">
+        <Chip on={!!value.ink} onClick={() => onChange({ ink: !value.ink })} icon="ui_charge" tip={{ title: 'Навык заряжен', body: 'Чернила навыка всегда полные: навык можно жать каждый ход.', accent: 'vio' }}>
           навык заряжен
         </Chip>
-        <Chip on={!!value.freeze} onClick={() => onChange({ freeze: !value.freeze })} icon="ui_pause" title="Таймеры врагов стоят">
+        <Chip on={!!value.freeze} onClick={() => onChange({ freeze: !value.freeze })} icon="ui_pause" tip={{ title: 'Враги стоят', body: 'Таймеры врагов не тикают: они никогда не ходят.' }}>
           враги стоят
         </Chip>
       </div>
@@ -235,7 +390,7 @@ function Cheats({ value, onChange }: { value: DevState; onChange: (patch: Partia
 function EnemyTile({ catalog, id, on, onClick }: { catalog: Catalog; id: string; on?: boolean; onClick: () => void }) {
   const e = catalog.enemies.find((x) => x.id === id);
   return (
-    <Tile on={on} onClick={onClick} title={e ? `${e.name} · ${e.hp} ♥ · ${e.size}` : id} className="enemy">
+    <Tile on={on} onClick={onClick} tip={tipEnemy(catalog, id)} className="enemy">
       <span className="dp-pic box64">
         <Sprite id={id} box={{ w: 64, h: 64 }} max={2} />
       </span>
@@ -253,7 +408,7 @@ function EnemyPicker({ catalog, act, kind, value, onChange }: { catalog: Catalog
     <>
       <div className="dp-row">
         {[0, 1, 2].map((k) => (
-          <Tile key={k} className="slot" onClick={() => onChange(value.filter((_, i) => i !== k))} title={value[k] ? 'Убрать' : 'Пусто — выбери ниже'}>
+          <Tile key={k} className="slot" onClick={() => onChange(value.filter((_, i) => i !== k))} tip={value[k] ? tipEnemy(catalog, value[k]) : { title: `Враг ${k + 1}`, body: 'Пусто — выбери врага ниже. Клик по занятому слоту убирает врага.' }}>
             <span className="dp-pic box64">{value[k] ? <Sprite id={value[k]} box={{ w: 64, h: 64 }} max={2} /> : <span className="dp-empty">+</span>}</span>
             <span className="dp-name">{value[k] ? (catalog.enemies.find((e) => e.id === value[k])?.name ?? value[k]) : `враг ${k + 1}`}</span>
           </Tile>
@@ -313,7 +468,7 @@ function RoomPicker({ catalog, value, dark, onPick, onDark }: { catalog: Catalog
           <div className="dp-sub">{g.biome}</div>
           <div className="dp-grid three">
             {g.rooms.map((r) => (
-              <Tile key={r} on={value === r} onClick={() => onPick(r)} className="room" title={r}>
+              <Tile key={r} on={value === r} onClick={() => onPick(r)} className="room" tip={{ title: catalog.roomNames[r] ?? r, lines: [g.biome, dark ? 'тёмная (как в смене)' : 'со светом'] }}>
                 <RoomThumb room={r} dark={dark} width={150} />
                 <span className="dp-name">{catalog.roomNames[r] ?? r}</span>
               </Tile>
@@ -335,7 +490,7 @@ function EventPicker({ catalog, value, onPick }: { catalog: Catalog; value: stri
         <span className="dp-name">Случайное</span>
       </Tile>
       {catalog.events.map((ev) => (
-        <Tile key={ev.id} on={value === ev.id} onClick={() => onPick(ev.id)} className="event" title={ev.title}>
+        <Tile key={ev.id} on={value === ev.id} onClick={() => onPick(ev.id)} className="event" tip={tipEvent(catalog, ev.id)}>
           <span className="dp-pic ev">
             <Sprite id={ev.art} scale={2} />
           </span>
@@ -363,6 +518,168 @@ function BuildStrip({ catalog, build }: { catalog: Catalog; build: DevBuild }) {
   );
 }
 
+// ── Tests: ready-made suites and own presets ─────────────────────────
+
+const MOD_KEY = 'oskolki.dev.mods';
+
+function suiteTip(catalog: Catalog, item: DevSuiteItem): TipData {
+  const c = item.cfg;
+  const place = catalog.places.find((p) => p.id === c.place)?.name ?? c.place;
+  const hero = catalog.chars.find((h) => h.id === c.char)?.name ?? c.char;
+  const lines = [`${hero} · отдел ${c.act + 1} · ${place}`];
+  if (c.enemies?.length) lines.push(`враги: ${c.enemies.map((id) => catalog.enemies.find((e) => e.id === id)?.name ?? id).join(', ')}`);
+  if (c.build) {
+    const relics = c.build.relics.map((id) => catalog.relics.find((r) => r.id === id)?.name ?? id);
+    lines.push(`колода ${c.build.deck.length} · предметы: ${relics.slice(0, 6).join(', ')}${relics.length > 6 ? ` и ещё ${relics.length - 6}` : ''}`);
+  } else lines.push('стартовая сборка');
+  const cheats = c.cheats ?? {};
+  const knobs = [cheats.god && 'бессмертие', cheats.enemyHp && `♥ врагов ×${cheats.enemyHp}`, cheats.heroDmg && `урон ×${cheats.heroDmg}`].filter(Boolean);
+  if (knobs.length) lines.push(knobs.join(' · '));
+  return { title: item.name, lines, body: item.desc };
+}
+
+function SuitePreview({ catalog, group, item }: { catalog: Catalog; group: string; item: DevSuiteItem }) {
+  const c = item.cfg;
+  if (group === 'Герои') return <Sprite id={`hero_${c.char}`} frame="idle0" scale={1} crop={40} />;
+  if (group === 'Связки предметов' && c.build)
+    return (
+      <span className="dp-icons">
+        {c.build.relics.slice(0, 5).map((id) => (
+          <Sprite key={id} id={catalog.relics.find((r) => r.id === id)?.icon ?? ''} scale={2} />
+        ))}
+      </span>
+    );
+  if (c.enemies?.length)
+    return (
+      <span className="dp-icons">
+        {c.enemies.slice(0, 3).map((id, k) => (
+          <Sprite key={k} id={id} box={{ w: c.enemies!.length > 1 ? 40 : 56, h: 48 }} max={1} />
+        ))}
+      </span>
+    );
+  return <Sprite id={catalog.places.find((p) => p.id === c.place)?.icon ?? 'map_fight'} scale={3} />;
+}
+
+function TestsTab({ dev, catalog, fullCfg, say, toForm }: { dev: DevApi; catalog: Catalog; fullCfg: () => DevStart; say: (s: string) => void; toForm: (cfg: DevStart) => void }) {
+  const [mods, setMods] = useState<DevState>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(MOD_KEY) ?? '{}') as DevState;
+    } catch {
+      return {};
+    }
+  });
+  const [presetName, setPresetName] = useState('');
+  const [presets, setPresets] = useState(() => dev.presets());
+  const setMod = (patch: Partial<DevState>) => {
+    const next = { ...mods, ...patch };
+    setMods(next);
+    try {
+      localStorage.setItem(MOD_KEY, JSON.stringify(next));
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  const extra = (): DevState => ({
+    ...(mods.god ? { god: true } : {}),
+    ...(mods.ink ? { ink: true } : {}),
+    ...(mods.freeze ? { freeze: true } : {}),
+    ...(mods.heroDmg ? { heroDmg: mods.heroDmg } : {}),
+  });
+  const launch = (name: string, cfg: DevStart) => {
+    setTip(null);
+    say(`«${name}» · сид ${dev.start({ ...cfg, cheats: { ...cfg.cheats, ...extra() } })}`);
+  };
+  const placeIcon = (p: DevPlace) => catalog.places.find((x) => x.id === p)?.icon ?? 'map_fight';
+
+  return (
+    <>
+      <Section title="Поверх любого теста">
+        <div className="dp-row wrap">
+          <Chip on={!!mods.god} onClick={() => setMod({ god: !mods.god })} icon="ui_hp">
+            бессмертие
+          </Chip>
+          <Chip on={!!mods.ink} onClick={() => setMod({ ink: !mods.ink })} icon="ui_charge">
+            навык заряжен
+          </Chip>
+          <Chip on={!!mods.freeze} onClick={() => setMod({ freeze: !mods.freeze })} icon="ui_pause">
+            враги стоят
+          </Chip>
+          {[2, 10].map((k) => (
+            <Chip key={k} on={mods.heroDmg === k} onClick={() => setMod({ heroDmg: mods.heroDmg === k ? undefined : k })} icon="int_attack">
+              урон ×{k}
+            </Chip>
+          ))}
+        </div>
+      </Section>
+      {DEV_SUITES.map((suite) => (
+        <Section key={suite.group} title={suite.group} right={<span className="dp-hint">клик — запустить</span>}>
+          <div className="dp-grid three">
+            {suite.items.map((item) => (
+              <div key={item.id} className="dp-suite">
+                <Tile onClick={() => launch(item.name, item.cfg)} tip={suiteTip(catalog, item)} className="suite">
+                  <span className="dp-pic suite">
+                    <SuitePreview catalog={catalog} group={suite.group} item={item} />
+                  </span>
+                  <span className="dp-name">{item.name}</span>
+                </Tile>
+                <button className="dp-mini dp-edit" onClick={() => toForm(item.cfg)} title="В форму «Старт»">
+                  ✎
+                </button>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ))}
+      <Section title="Мои пресеты" right={<span className="dp-hint">сохраняет форму «Старт»</span>}>
+        <div className="dp-row">
+          <input className="dp-input grow" value={presetName} placeholder="название, например «босс-2 с бомбами»" aria-label="Название пресета" onChange={(e) => setPresetName(e.target.value)} />
+          <button
+            className="dp-btn gold"
+            disabled={!presetName.trim()}
+            onClick={() => {
+              dev.savePreset(presetName.trim(), fullCfg());
+              setPresets(dev.presets());
+              say('Пресет сохранён');
+            }}
+          >
+            сохранить
+          </button>
+        </div>
+        {Object.keys(presets).length === 0 && <div className="dp-hint">Своих пресетов пока нет: настрой тест на вкладке «Старт» и сохрани здесь.</div>}
+        <div className="dp-grid two">
+          {Object.entries(presets).map(([name, p]) => (
+            <div key={name} className="dp-card">
+              <span className="dp-pic mini">
+                <Sprite id={`hero_${p.char}`} frame="idle0" scale={1} crop={40} />
+                <Sprite id={placeIcon(p.place)} scale={2} />
+              </span>
+              <span className="dp-name grow">{name}</span>
+              <span className="dp-row tight">
+                <button className="dp-btn gold" onClick={() => launch(name, p)} title="Запустить">
+                  ▶
+                </button>
+                <button className="dp-btn" title="В форму" onClick={() => toForm(p)}>
+                  ✎
+                </button>
+                <button
+                  className="dp-btn"
+                  title="Удалить"
+                  onClick={() => {
+                    dev.deletePreset(name);
+                    setPresets(dev.presets());
+                  }}
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
+  );
+}
+
 // ── Start ────────────────────────────────────────────────────────────
 
 function StartTab(props: {
@@ -379,18 +696,15 @@ function StartTab(props: {
   goBuild: () => void;
 }) {
   const { dev, catalog, cfg, setCfg, useBuild, setUseBuild, build, fullCfg, say, goBuild } = props;
-  const [presetName, setPresetName] = useState('');
-  const [presets, setPresets] = useState(() => dev.presets());
   const set = (patch: Partial<DevStart>) => setCfg({ ...cfg, ...patch });
   const fightish = cfg.place === 'fight' || cfg.place === 'elite' || cfg.place === 'boss';
-  const placeIcon = (p: DevPlace) => catalog.places.find((x) => x.id === p)?.icon ?? 'map_fight';
 
   return (
     <>
       <Section title="Кто идёт в смену">
         <div className="dp-grid three">
           {catalog.chars.map((c) => (
-            <Tile key={c.id} on={cfg.char === c.id} onClick={() => set({ char: c.id as CharId })} className="hero" title={c.desc}>
+            <Tile key={c.id} on={cfg.char === c.id} onClick={() => set({ char: c.id as CharId })} className="hero" tip={tipHero(catalog, c.id)}>
               <span className="dp-pic hero">
                 <Sprite id={`hero_${c.id}`} frame="idle0" scale={2} crop={46} />
               </span>
@@ -405,7 +719,7 @@ function StartTab(props: {
       <Section title="Отдел">
         <div className="dp-grid two">
           {catalog.acts.map((a) => (
-            <Tile key={a.index} on={cfg.act === a.index} onClick={() => set({ act: a.index, enemies: [] })} className="act">
+            <Tile key={a.index} on={cfg.act === a.index} onClick={() => set({ act: a.index, enemies: [] })} className="act" tip={tipAct(catalog, a.index)}>
               <RoomThumb room={a.room} width={236} />
               <span className="dp-name">
                 {a.index + 1} · {a.name}
@@ -417,7 +731,7 @@ function StartTab(props: {
       <Section title="Куда">
         <div className="dp-grid three">
           {catalog.places.map((p) => (
-            <Tile key={p.id} on={cfg.place === p.id} onClick={() => set({ place: p.id })} className="place">
+            <Tile key={p.id} on={cfg.place === p.id} onClick={() => set({ place: p.id })} className="place" tip={{ title: p.name, icon: p.icon, body: PLACE_TEXT[p.id] }}>
               <Sprite id={p.icon} scale={3} />
               <span className="dp-name">{p.name}</span>
             </Tile>
@@ -491,61 +805,6 @@ function StartTab(props: {
           </button>
         </div>
       </Section>
-      <Section title="Пресеты">
-        <div className="dp-row">
-          <input className="dp-input grow" value={presetName} placeholder="название, например «босс-2 с бомбами»" aria-label="Название пресета" onChange={(e) => setPresetName(e.target.value)} />
-          <button
-            className="dp-btn gold"
-            disabled={!presetName.trim()}
-            onClick={() => {
-              dev.savePreset(presetName.trim(), fullCfg());
-              setPresets(dev.presets());
-              say('Пресет сохранён');
-            }}
-          >
-            сохранить
-          </button>
-        </div>
-        {Object.keys(presets).length === 0 && <div className="dp-hint">Пресетов пока нет.</div>}
-        <div className="dp-grid two">
-          {Object.entries(presets).map(([name, p]) => (
-            <div key={name} className="dp-card">
-              <span className="dp-pic mini">
-                <Sprite id={`hero_${p.char}`} frame="idle0" scale={1} crop={40} />
-                <Sprite id={placeIcon(p.place)} scale={2} />
-              </span>
-              <span className="dp-name grow">{name}</span>
-              <span className="dp-row tight">
-                <button className="dp-btn gold" onClick={() => dev.start(p)} title="Запустить">
-                  ▶
-                </button>
-                <button
-                  className="dp-btn"
-                  title="В форму"
-                  onClick={() => {
-                    props.setCfg(p);
-                    setUseBuild(!!p.build);
-                    if (p.build) props.setBuild(p.build);
-                    say('Пресет в форме');
-                  }}
-                >
-                  ✎
-                </button>
-                <button
-                  className="dp-btn"
-                  title="Удалить"
-                  onClick={() => {
-                    dev.deletePreset(name);
-                    setPresets(dev.presets());
-                  }}
-                >
-                  ✕
-                </button>
-              </span>
-            </div>
-          ))}
-        </div>
-      </Section>
     </>
   );
 }
@@ -606,7 +865,7 @@ function BuildTab(props: {
       <Section title={`Колода · ${build.deck.length}`} right={<span className="dp-hint">▲ улучшить · ✦ отделка · ✕ убрать</span>}>
         <div className="dp-grid five cards">
           {build.deck.map((c, k) => (
-            <div key={k} className="dp-cardcell">
+            <div key={k} className="dp-cardcell" {...tipHandlers(tipCard(catalog, c.id, c.finish))}>
               <CardBadge card={c} scale={2} />
               <span className="dp-row tight">
                 <button className={`dp-mini ${c.up ? 'on' : ''}`} onClick={() => setCard(k, { up: !c.up })} title="Улучшить">
@@ -635,7 +894,7 @@ function BuildTab(props: {
           {catalog.cards
             .filter((c) => c.fam === fam)
             .map((c) => (
-              <Tile key={c.id} onClick={() => edit({ deck: [...build.deck, { id: c.id }] })} title={`${c.name} (${c.rarity}): ${c.text}`} className="card">
+              <Tile key={c.id} onClick={() => edit({ deck: [...build.deck, { id: c.id }] })} tip={tipCard(catalog, c.id)} className="card">
                 <Sprite id={`card_${c.id}`} scale={2} />
                 <span className="dp-name">{c.name}</span>
               </Tile>
@@ -649,7 +908,7 @@ function BuildTab(props: {
             <span className="dp-name">нет</span>
           </Tile>
           {catalog.actives.map((a) => (
-            <Tile key={a.id} on={build.active === a.id} onClick={() => edit({ active: a.id })} title={`${a.name}: ${a.desc}`} className="item">
+            <Tile key={a.id} on={build.active === a.id} onClick={() => edit({ active: a.id })} tip={tipItem(catalog, a.id)} className="item">
               <Sprite id={a.icon} scale={2} />
               <span className="dp-name">{a.name}</span>
               <span className="dp-cap">{a.charge} чернил</span>
@@ -660,7 +919,7 @@ function BuildTab(props: {
       <Section title="Карманы" right={<span className="dp-hint">выбери карман, потом вещь</span>}>
         <div className="dp-row">
           {pockets.map((p, k) => (
-            <Tile key={k} on={slot === k} onClick={() => setSlot(k)} className="slot" title={`Карман ${k + 1}`}>
+            <Tile key={k} on={slot === k} onClick={() => setSlot(k)} className="slot" tip={p ? tipItem(catalog, p) : { title: `Карман ${k + 1}`, body: 'Пусто. Выбери карман, потом вещь ниже.' }}>
               <span className="dp-pic box48">{p ? <Sprite id={catalog.pockets.find((x) => x.id === p)?.icon ?? ''} scale={2} /> : <span className="dp-empty">{k + 1}</span>}</span>
               <span className="dp-name">{p ? (catalog.pockets.find((x) => x.id === p)?.name ?? p) : 'пусто'}</span>
             </Tile>
@@ -686,7 +945,7 @@ function BuildTab(props: {
                 next[slot] = p.id;
                 edit({ pockets: next });
               }}
-              title={p.desc}
+              tip={tipItem(catalog, p.id)}
               className="item"
             >
               <Sprite id={p.icon} scale={2} />
@@ -717,7 +976,7 @@ function BuildTab(props: {
           {relics.map((r) => {
             const on = build.relics.includes(r.id);
             return (
-              <Tile key={r.id} on={on} onClick={() => edit({ relics: on ? build.relics.filter((x) => x !== r.id) : [...build.relics, r.id] })} title={`${r.name}: ${r.desc}`} className="item">
+              <Tile key={r.id} on={on} onClick={() => edit({ relics: on ? build.relics.filter((x) => x !== r.id) : [...build.relics, r.id] })} tip={tipItem(catalog, r.id)} className="item">
                 <Sprite id={r.icon} scale={2} />
                 <span className="dp-name">{r.name}</span>
               </Tile>
@@ -773,7 +1032,7 @@ function FightTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
     <>
       {!run.custom && <div className="dp-warn">Это обычная смена: любая правка сделает её тестовой, в статистику она не пойдёт.</div>}
       <Section title="Герой">
-        <div className="dp-herocard">
+        <div className="dp-herocard" {...tipHandlers(tipHero(catalog, run.char))}>
           <span className="dp-pic hero">
             <Sprite id={`hero_${run.char}`} frame="idle0" scale={2} crop={46} />
           </span>
@@ -825,7 +1084,7 @@ function FightTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
         {run.enemies.length > 0 ? (
           <div className="dp-row wrap">
             {run.enemies.map((e, k) => (
-              <div key={k} className="dp-foe">
+              <div key={k} className="dp-foe" {...tipHandlers(tipEnemy(catalog, e.def))}>
                 <span className="dp-pic box64">
                   <Sprite id={e.def} box={{ w: 64, h: 64 }} max={2} dim={e.hp <= 0} />
                 </span>
@@ -876,7 +1135,7 @@ function FightTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
               ['map', 'Карта', 'ui_map'],
             ] as const
           ).map(([k, label, icon]) => (
-            <Tile key={k} onClick={() => apply({ op: 'enter', kind: k }, label)} className="place">
+            <Tile key={k} onClick={() => apply({ op: 'enter', kind: k }, label)} className="place" tip={{ title: label, icon, body: PLACE_TEXT[k] }}>
               <Sprite id={icon} scale={3} />
               <span className="dp-name">{label}</span>
             </Tile>
@@ -909,7 +1168,7 @@ function WorldTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
       <Section title="Отдел · клик — перейти">
         <div className="dp-grid two">
           {catalog.acts.map((a) => (
-            <Tile key={a.index} on={run.act === a.index} onClick={() => apply({ op: 'act', act: a.index }, `Отдел ${a.index + 1}`)} className="act">
+            <Tile key={a.index} on={run.act === a.index} onClick={() => apply({ op: 'act', act: a.index }, `Отдел ${a.index + 1}`)} className="act" tip={tipAct(catalog, a.index)}>
               <RoomThumb room={a.room} width={236} />
               <span className="dp-name">
                 {a.index + 1} · {a.name}
@@ -935,7 +1194,7 @@ function WorldTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
                 {nodes
                   .sort((a, b) => a.col - b.col)
                   .map((n) => (
-                    <button key={n.id} className={`dp-node ${run.node === n.id ? 'here' : ''}`} onClick={() => apply({ op: 'travel', node: n.id })} title={`${n.kind} · узел ${n.id}`}>
+                    <button key={n.id} className={`dp-node ${run.node === n.id ? 'here' : ''}`} onClick={() => apply({ op: 'travel', node: n.id })} {...tipHandlers({ title: NODE_NAME[n.kind] ?? n.kind, icon: KIND_ICON[n.kind], lines: [`этаж ${n.row + 1}${n.visited ? ' · пройден' : ''}${run.node === n.id ? ' · ты здесь' : ''}`], body: 'Клик — войти в этот узел.' })}>
                       <Sprite id={KIND_ICON[n.kind] ?? 'map_fight'} frame={n.visited && run.node !== n.id ? 'done' : 'idle0'} scale={2} />
                     </button>
                   ))}
@@ -958,7 +1217,7 @@ function WorldTab({ catalog, snap, apply }: { catalog: Catalog; snap: Snapshot; 
 
 // ── Office and profile ───────────────────────────────────────────────
 
-function OfficeTab({ dev, snap, say }: { dev: DevApi; snap: Snapshot; say: (s: string) => void }) {
+function OfficeTab({ dev, catalog, snap, say }: { dev: DevApi; catalog: Catalog; snap: Snapshot; say: (s: string) => void }) {
   const p = snap.profile;
   return (
     <>
@@ -1033,7 +1292,7 @@ function OfficeTab({ dev, snap, say }: { dev: DevApi; snap: Snapshot; say: (s: s
       <Section title="Побеждённые боссы · меняют офис">
         <div className="dp-grid three">
           {BOSSES.map(([id, what]) => (
-            <Tile key={id} on={p.bosses.includes(id)} onClick={() => dev.profile({ boss: { id, on: !p.bosses.includes(id) } })} className="enemy">
+            <Tile key={id} on={p.bosses.includes(id)} onClick={() => dev.profile({ boss: { id, on: !p.bosses.includes(id) } })} className="enemy" tip={{ ...(tipEnemy(catalog, id) ?? { title: id }), lines: [`в офисе: ${what}`, p.bosses.includes(id) ? 'отмечен побеждённым' : 'не побеждён'] }}>
               <span className="dp-pic box64">
                 <Sprite id={id} box={{ w: 64, h: 64 }} max={2} />
               </span>
