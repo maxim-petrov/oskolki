@@ -9,7 +9,7 @@ import type { CharId, DevOp, DevState, Finish, GameEvent, RunState } from '../ga
 import type { App } from './app.ts';
 import { REQUESTS, blankProfile, saveProfile } from './profile.ts';
 import { RunView } from './runview.ts';
-import type { RoomId } from './stage.ts';
+import { roomFor, type RoomId } from './stage.ts';
 
 /**
  * Dev mode: start a test run with any hero, build, act, place, enemies and room; edit the live
@@ -60,17 +60,45 @@ export const DEV_ROOMS: { biome: string; rooms: RoomId[] }[] = [
   { biome: 'Офис', rooms: ['hub'] },
 ];
 
-export const DEV_PLACES: { id: DevPlace; name: string }[] = [
-  { id: 'map', name: 'Карта отдела' },
-  { id: 'fight', name: 'Бой' },
-  { id: 'elite', name: 'Бой с начальством' },
-  { id: 'boss', name: 'Босс' },
-  { id: 'event', name: 'Событие' },
-  { id: 'shop', name: 'Касса (магазин)' },
-  { id: 'rest', name: 'Кулер (отдых)' },
-  { id: 'treasure', name: 'Сейф (сокровище)' },
-  { id: 'bossReward', name: 'Награда за босса' },
+/** Places a test can start in, with the map's own icons. */
+export const DEV_PLACES: { id: DevPlace; name: string; icon: string }[] = [
+  { id: 'fight', name: 'Бой', icon: 'map_fight' },
+  { id: 'elite', name: 'Начальство', icon: 'map_elite' },
+  { id: 'boss', name: 'Босс', icon: 'map_boss' },
+  { id: 'event', name: 'Событие', icon: 'map_event' },
+  { id: 'shop', name: 'Касса', icon: 'map_shop' },
+  { id: 'rest', name: 'Кулер', icon: 'map_rest' },
+  { id: 'treasure', name: 'Сейф', icon: 'map_treasure' },
+  { id: 'bossReward', name: 'Награда босса', icon: 'ui_mult' },
+  { id: 'map', name: 'Карта отдела', icon: 'ui_map' },
 ];
+
+/** Readable room names for the pickers. */
+export const ROOM_NAME: Record<string, string> = {
+  openspace: 'Кабинки',
+  copyroom: 'Копировальная',
+  storage: 'Склад',
+  breakroom: 'Комната отдыха',
+  corridor: 'Коридор',
+  glass: 'Стеклянный кабинет',
+  archive: 'Архив (вступление)',
+  hub: 'Офис',
+  flooded: 'Затопленный (старый)',
+  boiler: 'Котельная (старая)',
+  directorate: 'Дирекция (старая)',
+  ar_hall: 'Стеллажи',
+  ar_reading: 'Читальный зал',
+  ar_pump: 'Насосная',
+  ar_vault: 'Хранилище',
+  di_reception: 'Приёмная',
+  di_meeting: 'Переговорная',
+  di_library: 'Библиотека',
+  di_boss: 'Кабинет цензора',
+  bo_furnace: 'Топочная',
+  bo_lockers: 'Раздевалка',
+  bo_valves: 'Щитовая',
+  bo_mirrors: 'Комната зеркал',
+};
 
 const PRESETS_KEY = 'oskolki.dev.presets';
 const LAST_KEY = 'oskolki.dev.last';
@@ -107,20 +135,21 @@ export class DevApi {
     const actsOf = (id: string) =>
       ACTS.map((a, k) => ([...a.weak, ...a.strong, ...a.elites].some((g) => g.includes(id)) || a.boss === id ? k : -1)).filter((k) => k >= 0);
     return {
-      chars: Object.values(CHARACTERS).map((c) => ({ id: c.id, name: c.name, maxHp: c.maxHp, coins: c.coins })),
-      acts: ACTS.map((a, k) => ({ index: k, name: a.name, boss: a.boss, weak: a.weak, strong: a.strong, elites: a.elites })),
+      chars: Object.values(CHARACTERS).map((c) => ({ id: c.id, name: c.name, desc: c.desc, maxHp: c.maxHp, coins: c.coins })),
+      acts: ACTS.map((a, k) => ({ index: k, name: a.name, boss: a.boss, weak: a.weak, strong: a.strong, elites: a.elites, room: roomFor(k, 0, 'fight').id })),
       cards: Object.values(CARDS).map((c) => ({ id: c.id, name: c.name, fam: c.fam, rarity: c.rarity, text: cardText(c.id, false) })),
       relics: Object.values(ITEMS)
         .filter((i) => i.kind === 'passive')
-        .map((i) => ({ id: i.id, name: i.name, pool: i.pool, desc: i.desc })),
+        .map((i) => ({ id: i.id, name: i.name, pool: i.pool, desc: i.desc, icon: i.icon })),
       actives: Object.values(ITEMS)
         .filter((i) => i.kind === 'active')
-        .map((i) => ({ id: i.id, name: i.name, desc: i.desc, charge: i.charge ?? 0 })),
-      pockets: Object.values(POCKETS).map((p) => ({ id: p.id, name: p.name, desc: p.desc })),
+        .map((i) => ({ id: i.id, name: i.name, desc: i.desc, charge: i.charge ?? 0, icon: i.icon })),
+      pockets: Object.values(POCKETS).map((p) => ({ id: p.id, name: p.name, desc: p.desc, icon: p.icon })),
       enemies: Object.values(ENEMIES).map((e) => ({ id: e.id, name: e.name, size: e.size, hp: e.hp, acts: actsOf(e.id) })),
-      events: EVENTS.map((e) => ({ id: e.id, title: e.title })),
+      events: EVENTS.map((e) => ({ id: e.id, title: e.title, art: e.art })),
       rooms: DEV_ROOMS,
       places: DEV_PLACES,
+      roomNames: ROOM_NAME,
       finishes: ['sharp', 'gild', 'seal', 'copy', 'laminate'] as Finish[],
       requests: REQUESTS.map((r) => ({ id: r.id, title: r.title })),
     };

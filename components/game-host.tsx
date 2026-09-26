@@ -29,8 +29,10 @@ export function GameHost() {
       if (disposed || !host.current) return;
       const a = new App(host.current);
       app = a;
-      setDev(a.dev);
-      void a.start();
+      // The panel's previews need the sprites, which start() registers.
+      void a.start().then(() => {
+        if (!disposed) setDev(a.dev);
+      });
     });
     return () => {
       disposed = true;
