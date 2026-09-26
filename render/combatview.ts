@@ -1093,6 +1093,7 @@ export class CombatView {
     this.hero.update(dt);
     for (const v of this.enemies.values()) v.update(dt);
     for (const [uid, v] of this.enemies) if (v.dying > 0.8) this.enemies.delete(uid);
+    this.tally.pending = (this.run.combat?.bank ?? 0) + (this.run.combat?.skillMult ?? 0);
     this.tally.update(dt);
     if (!frozen) this.tally.burn(this.h.ps);
     this.heartPulse = Math.max(0, this.heartPulse - dt);

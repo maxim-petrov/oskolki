@@ -13,6 +13,8 @@ export class TallyView {
   dmg = 0;
   mult = 1;
   armor = 0;
+  /** Mult waiting for the next strike (the abacus's savings, the hot key): shown in the МНОЖ box. */
+  pending = 0;
   coins = 0;
   charge = 0;
   /** Bump timers per field (pop scale and colour). */
@@ -151,6 +153,7 @@ export class TallyView {
     ctx.globalAlpha = a;
     bigText(ctx, this.num(this.mult), mx + bw - 4 - sx, by + 12 - Math.round(this.bumpM * 3), this.mult >= 5 ? 'gold4' : 'cream', { align: 'right' });
     ctx.globalAlpha = 1;
+    if (this.pending > 0) text(ctx, `+${this.pending} ждёт`, mx + 3 - sx, by + 15, 'gold4', { outline: 'ink0' });
     // Small resources of the move.
     let cx = x + 5;
     const cy = by + 30;
@@ -202,6 +205,7 @@ export class TallyView {
     ctx.globalAlpha = a;
     bigText(ctx, this.num(this.mult), cx + 6 + bw - sx, y + 8 - Math.round(this.bumpM * 3), this.mult >= 5 ? 'gold4' : 'cream', { align: 'right' });
     ctx.globalAlpha = 1;
+    if (this.pending > 0) text(ctx, `+${this.pending}`, cx + 13 - sx, y + h - 11, 'gold4', { outline: 'ink0' });
     // Side notes: armor on the left, the result on the right.
     if (this.armor) {
       draw(ctx, getFrame('ui_armor'), x + 8, y + h / 2);
