@@ -166,7 +166,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   supervisor: {
     id: 'supervisor',
     name: 'Надзирательница',
-    hp: 1100,
+    hp: 335,
     size: 'boss',
     material: 'flesh',
     intents: [
@@ -267,7 +267,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   tide: {
     id: 'tide',
     name: 'Хранитель прилива',
-    hp: 600,
+    hp: 300,
     size: 'boss',
     material: 'water',
     intents: [
@@ -365,7 +365,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   mirror: {
     id: 'mirror',
     name: 'Кривое зеркало',
-    hp: 560,
+    hp: 380,
     size: 'boss',
     material: 'glass',
     intents: [
@@ -415,7 +415,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   censor: {
     id: 'censor',
     name: 'Главный цензор',
-    hp: 640,
+    hp: 320,
     size: 'boss',
     material: 'flesh',
     intents: [

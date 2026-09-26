@@ -70,8 +70,9 @@ const N = QUICK
 
 const FAMS = ['blade', 'shield', 'ink', 'coin'];
 const PLAIN = { blade: 'fist', shield: 'folder', ink: 'ink', coin: 'clip' };
+// Items the lab tries: passive ones and weapons (the starting knife is in every hand already).
 const PASSIVES = Object.values(ITEMS)
-  .filter((d) => d.kind === 'passive')
+  .filter((d) => d.kind === 'passive' || (d.kind === 'weapon' && d.pool !== 'starter'))
   .map((d) => d.id);
 const ACTIVES = Object.values(ITEMS)
   .filter((d) => d.kind === 'active')
@@ -705,11 +706,12 @@ const dpsOf = (key) => {
  * the archetype (in this order, round and round) and adds its key items. Same budget, other plan.
  */
 const ARCHETYPES = [
-  { id: 'paper', title: '«Бумажный резак» (красные против бумаги)', cards: ['cutter', 'sharpener', 'punch', 'cutter', 'scissors', 'awl', 'ruler', 'alarm'], relics: ['coffee'] },
-  { id: 'accountant', title: '«Бухгалтер» (золото ради множителя)', cards: ['bonus', 'goldclip', 'report', 'card', 'bonus', 'receipt', 'goldclip', 'coin'], relics: ['calculator', 'wallet'] },
+  { id: 'paper', title: '«Бумажный резак» (резак и нож против бумаги)', cards: ['pins', 'redpen', 'pins', 'alarm', 'pins', 'redpen', 'fist', 'pins'], relics: ['knife', 'cutter', 'timesheet'] },
+  { id: 'bleed', title: '«Кровопускатель» (ножницы и ржавое лезвие)', cards: ['pins', 'redpen', 'pins', 'alarm', 'fist', 'pins', 'redpen', 'pins'], relics: ['scissors', 'rustyblade'] },
+  { id: 'accountant', title: '«Бухгалтер» (золото в урон)', cards: ['bonus', 'goldclip', 'report', 'card', 'bonus', 'receipt', 'goldclip', 'coin'], relics: ['calculator', 'wallet', 'abacus'] },
   { id: 'fortress', title: '«Крепость» (синие с отражением)', cards: ['vest', 'clipboard', 'laminator', 'archivebox', 'binder', 'clipboard', 'umbrella', 'drawer'], relics: ['tape', 'binderclip'] },
   { id: 'ink', title: '«Чернильная магия» (фиолетовые)', cards: ['copystamp', 'blotcurse', 'carbon', 'quill', 'blotcurse', 'weight', 'copystamp', 'urgent'], relics: ['inkwell', 'lamp'], active: 'giftbox' },
-  { id: 'mono', title: '«Моно-масть» (только красные)', cards: ['scissors', 'ruler', 'stapler', 'sharpener', 'punch', 'alarm', 'redpen', 'pins'], relics: [], mono: 'blade' },
+  { id: 'mono', title: '«Моно-масть» (только красные)', cards: ['pins', 'redpen', 'alarm', 'pins', 'fist', 'pins', 'redpen', 'fist'], relics: [], mono: 'blade' },
 ];
 const STARTERS = new Set(['fist', 'folder', 'ink', 'clip']);
 
@@ -997,7 +999,7 @@ const confRows = Object.entries(RUN_CONFIGS).map(([k, c]) => {
   ];
 });
 L.push(
-  table(['Конфигурация', 'Забегов', 'Победы', 'Прошли отделы', 'Этажей', 'Колода', 'Предметов', 'Макс. множ (медиана)', 'Макс. удар (медиана)'], confRows),
+  table(['Конфигурация', 'Забегов', 'Победы', 'Прошли отделы', 'Этажей', 'Колода', 'Предметов', 'Макс. сила удара, × (медиана)', 'Макс. удар (медиана)'], confRows),
 );
 L.push('');
 const FO = runSummary.focus;

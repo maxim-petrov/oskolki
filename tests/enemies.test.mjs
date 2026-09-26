@@ -32,10 +32,11 @@ const INTENT_CHECKS = {
     assert.equal(foe(run).block, 10);
   },
   heal() {
-    const run = scene({ real: true, enemies: ['candle', 'drop'] });
+    // A move of coins: nobody is hit, the drop stays the most wounded.
+    const run = scene({ enemies: ['candle', 'drop'] });
     foe(run, 1).hp = 10;
     ready(run, 'heal');
-    const a = moves(run, 1)[0].acts.find((x) => x.intent.kind === 'heal');
+    const a = play(run, line(run, CLIPS)).acts.find((x) => x.intent.kind === 'heal');
     assert.deepEqual(a.healed, { uid: foe(run, 1).uid, amount: 6 }, 'лечит самого раненого');
   },
   summon() {
@@ -286,10 +287,10 @@ test('enemy armour, shields and heals grow with enemy health from act to act', (
   const safe = scene({ act: 2, real: true, enemies: ['safe'], enemyHp: 99999 });
   ready(safe, 'block');
   assert.equal(foe(moves(safe, 1)[0].run).block, 10 * HP, 'щит');
-  const heal = scene({ act: 2, real: true, enemies: ['candle', 'drop'] });
+  const heal = scene({ act: 2, enemies: ['candle', 'drop'] });
   foe(heal, 1).hp = 10;
   ready(heal, 'heal');
-  const a = moves(heal, 1)[0].acts.find((x) => x.intent.kind === 'heal');
+  const a = play(heal, line(heal, CLIPS)).acts.find((x) => x.intent.kind === 'heal');
   assert.equal(a.healed.amount, Math.min(6 * HP, foe(heal, 1).maxHp - 10), 'лечение');
 });
 

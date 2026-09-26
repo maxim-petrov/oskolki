@@ -166,12 +166,16 @@ export interface WeaponEffect {
   selfDmg?: number;
   /** Damage of every red tile in cascade waves (2+), instead of the weapon's own. */
   cascadeTile?: number;
+  /** Share of the target's maximum health it loses at once (through armour: it grows with the act). */
+  hpPct?: number;
 }
 
 /** A weapon: red tiles show it and strike with it. A group of 4+ is its super strike. */
 export interface WeaponDef {
   /** Damage of every red tile of a group. */
   tile: number;
+  /** Added to the tile damage in every act after the first (a weapon that grows with the shift). */
+  tileAct?: number;
   strike: WeaponEffect;
   super: WeaponEffect;
   /** Texts for the tooltip: the strike (any red group) and the super strike (a red group of 4+). */
@@ -229,7 +233,7 @@ export const ITEMS: Record<string, ItemDef> = {
   binderclip: i({ id: 'binderclip', name: 'Зажим для бумаг', desc: 'Синие группы дают на ½ сердца брони больше.', kind: 'passive', icon: 'item_binderclip', pool: 'common', apply: (m) => (m.bluePlus += 1) }),
   inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к энергии.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
   wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Золотые фишки +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
-  vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Первый удар врага в каждом бою не проходит.', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.firstBlowGuard = true) }),
+  vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Первый удар врага в каждом бою вдвое слабее.', kind: 'passive', icon: 'item_vest', pool: 'uncommon', apply: (m) => (m.firstBlowGuard = true) }),
   sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+1 сердце к максимуму (и к потолку брони). Лечит 1 сердце.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 2, heal: 2 }),
   bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит ½ сердца.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 1) }),
   gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 1 сердце.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 2) }),
@@ -329,32 +333,33 @@ export const ITEMS: Record<string, ItemDef> = {
     superText: 'Сквозная дыра: цель пропускает действие.',
   }),
   ruler: w('ruler', 'Линейка', 'uncommon', 'card_ruler', {
-    tile: 1,
-    strike: { allPerTile: 1 },
-    super: { allPerTile: 2 },
-    strikeText: 'Бьёт всех: 1 урона за фишку цели и каждому врагу.',
-    superText: 'Плашмя по всем: ещё 2 за фишку каждому врагу.',
+    tile: 2,
+    strike: { allPerTile: 3 },
+    super: { allPerTile: 3 },
+    strikeText: 'Бьёт всех: 2 урона за фишку цели и ещё 3 — каждому врагу.',
+    superText: 'Плашмя по всем: ещё 3 за фишку каждому врагу.',
   }),
   sharpener: w('sharpener', 'Точилка', 'uncommon', 'card_sharpener', {
-    tile: 1,
-    strike: { cascadeTile: 4 },
-    super: { perTile: 1 },
-    strikeText: '1 урона за фишку, а в каскаде — 4.',
-    superText: 'Стружка: ещё 1 за фишку.',
+    tile: 2,
+    strike: { cascadeTile: 6 },
+    super: { perTile: 3 },
+    strikeText: '2 урона за фишку, а в каскаде — 6.',
+    superText: 'Стружка: ещё 3 за фишку.',
   }),
   awl: w('awl', 'Шило', 'rare', 'card_awl', {
-    tile: 3,
-    strike: {},
-    super: { perTile: 3, selfDmg: 1 },
-    strikeText: '3 урона за фишку.',
-    superText: 'Прокол: ещё 3 за фишку, но ты теряешь ½ сердца.',
+    tile: 4,
+    tileAct: 2,
+    strike: { pierce: true },
+    super: { perTile: 4 },
+    strikeText: '4 урона за фишку (+2 с каждым отделом), насквозь через броню и щит.',
+    superText: 'Прокол: ещё 4 за фишку.',
   }, 'bundle_paper'),
   cutter: w('cutter', 'Резак', 'rare', 'card_cutter', {
-    tile: 1,
+    tile: 2,
     strike: { paper: 2 },
-    super: { perTile: 4 },
-    strikeText: '1 урона за фишку. По бумажным врагам +200%.',
-    superText: 'Гильотина: ещё 4 за фишку.',
+    super: { hpPct: 0.1 },
+    strikeText: '2 урона за фишку. По бумажным врагам +200%.',
+    superText: 'Гильотина: цель теряет 10% максимума здоровья.',
   }, 'bundle_paper'),
 
   // ── Active skills (charged by energy from violet tiles) ────────────────────────────────
@@ -390,7 +395,7 @@ export function computeMods(relics: readonly string[]): Mods {
   return m;
 }
 
-export const RELIC_PRICE: Record<Pool, number> = { starter: 0, common: 120, uncommon: 160, rare: 230, boss: 300, shop: 140 };
+export const RELIC_PRICE: Record<Pool, number> = { starter: 0, common: 100, uncommon: 135, rare: 190, boss: 250, shop: 110 };
 
 /** Passive relics that can drop (actives come from their own pools). */
 export function relicPool(unlocked: readonly string[], exclude: readonly string[]): string[] {

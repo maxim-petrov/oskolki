@@ -562,7 +562,10 @@ export class RunView implements CombatHost {
       const w = Math.min(L.w - 16, 240);
       ctx.globalAlpha = a;
       panel(ctx, L.w / 2 - w / 2, y, w, 34, { border: b.color, fill: 'ink0', glow: b.color });
-      if (b.icon) draw(ctx, getFrame(b.icon), Math.round(L.w / 2 - w / 2 + 16), y + 26);
+      if (b.icon) {
+        const f = getFrame(b.icon);
+        draw(ctx, f, Math.round(L.w / 2 - w / 2 + 16) - Math.floor(f.w / 2) + f.ox, y + 18 - Math.floor(f.h / 2) + f.oy);
+      }
       text(ctx, b.title, L.w / 2 + (b.icon ? 10 : 0), y + 6, b.color, { align: 'center', outline: 'ink0', alpha: a });
       const sub = b.sub.length > 46 ? b.sub.slice(0, 44) + '…' : b.sub;
       text(ctx, sub, L.w / 2 + (b.icon ? 10 : 0), y + 19, 'cold5', { align: 'center', outline: 'ink0', alpha: a });

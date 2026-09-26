@@ -31,7 +31,7 @@ import {
 import { chance, next, pick, shuffle } from './rng.ts';
 import { ENEMIES } from './content/enemies.ts';
 import { ACTS } from './content/acts.ts';
-import { CARDS, cardValue } from './content/cards.ts';
+import { CARDS, cardValue, heartText, heartsText } from './content/cards.ts';
 import { ITEMS, POCKETS, WEAPON_SWAP_COST, computeMods, type Mods, type WeaponDef } from './content/items.ts';
 import {
   BAG_COPIES,
@@ -58,6 +58,8 @@ import {
 } from './types.ts';
 
 export const MAX_ENEMIES = 3;
+/** Bosses hit harder than the act's regular enemies (their blows must break through two hearts of armour). */
+export const BOSS_DMG = 1.3;
 /** After this many moves in a fight, enemies hit harder every 5 moves. */
 export const OVERTIME_AFTER = 20;
 const isDead = (run: RunState) => run.phase === 'dead';
@@ -103,6 +105,8 @@ export interface MoveState {
   blueBlasted: number;
   /** The red group being scored strikes with the weapon's super strike. */
   superGroup: boolean;
+  /** Share of the target's maximum health the strike takes at once (the cutter's guillotine). */
+  hpPct: number;
   bonusCoins: number;
   notes: string[];
 }
@@ -142,6 +146,7 @@ function newMoveState(): MoveState {
     junkCleared: 0,
     blueBlasted: 0,
     superGroup: false,
+    hpPct: 0,
     bonusCoins: 0,
     notes: [],
   };
@@ -240,10 +245,11 @@ export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): 
     submerged: false,
     shining: false,
     hitOnce: false,
-    dmgMul: act.dmgMul * (c.kind === 'elite' ? (act.eliteDmg ?? 1) : 1) * (run.dev?.enemyDmg ?? 1),
+    dmgMul: act.dmgMul * (c.kind === 'elite' ? (act.eliteDmg ?? 1) : c.kind === 'boss' ? BOSS_DMG : 1) * (run.dev?.enemyDmg ?? 1),
     stolen: 0,
   };
-  e.countdown = currentIntent(e).timer + mods.timerBonus;
+  // The first action comes a tick early: a fight is short, and a blow that never lands is no threat.
+  e.countdown = Math.max(1, currentIntent(e).timer - 1 + mods.timerBonus);
   return e;
 }
 
@@ -255,11 +261,23 @@ function snapQueue(c: Combat): Tile[][] {
   return c.board.queue.map((q) => q.map((t) => ({ ...t })));
 }
 
-/** The fight's bag: every deck card puts BAG_COPIES tiles in. */
+/** Cards' worth of tiles every family keeps in the bag, and the plain card that fills in. */
+export const FAMILY_FLOOR = 2;
+const PLAIN: Record<Fam, string> = { blade: 'fist', shield: 'folder', ink: 'ink', coin: 'clip' };
+
+/**
+ * The fight's bag: every deck card puts BAG_COPIES tiles in. A family with fewer than FAMILY_FLOOR
+ * cards is topped up with its plain card: a board of three colours cascaded without end (every
+ * move cleared half the board, with armour to the cap).
+ */
 export function deckTokens(run: RunState): BagToken[] {
   const out: BagToken[] = [];
   for (const card of run.hero.deck)
     for (let k = 0; k < BAG_COPIES; k++) out.push({ card: card.id, up: card.up, ...(card.finish ? { finish: card.finish } : {}) });
+  for (const fam of FAMS) {
+    const n = run.hero.deck.filter((c) => CARDS[c.id]?.fam === fam).length;
+    for (let k = n; k < FAMILY_FLOOR; k++) for (let j = 0; j < BAG_COPIES; j++) out.push({ card: PLAIN[fam], up: false });
+  }
   return out;
 }
 
@@ -310,7 +328,7 @@ export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: strin
   };
   for (const id of enemyIds) c.enemies.push(makeEnemy(run, c, id, mods));
   c.target = c.enemies[0]?.uid ?? -1;
-  run.hero.armor = Math.min(run.hero.maxHp, Math.round(mods.startArmor * actScale(run).dmg));
+  run.hero.armor = Math.min(armorCap(run), Math.round(mods.startArmor * actScale(run).dmg));
   run.hero.ward = 0;
   run.hero.reflect = 0;
   if (mods.sealStart > 0)
@@ -380,12 +398,19 @@ function modsOfRelics(run: RunState): Mods {
   return computeMods(run.hero.relics);
 }
 
+/** Most armour the hero holds at once, in half-hearts: two hearts. */
+export const ARMOR_CAP = 4;
+
 /**
- * Armour never outgrows the hero: at most the maximum health. Blows up to that can be blocked in
- * full, heavier ones always wound (a wall of blue tiles no longer makes the hero untouchable).
+ * Armour holds at most two hearts (and never more than the hero's health): blows up to that can be
+ * blocked in full, heavier ones always wound — stun them, delay them or take them.
  */
+export function armorCap(run: RunState): number {
+  return Math.min(run.hero.maxHp, ARMOR_CAP);
+}
+
 export function armorRoom(run: RunState): number {
-  return Math.max(0, run.hero.maxHp - run.hero.armor);
+  return Math.max(0, armorCap(run) - run.hero.armor);
 }
 
 /** The mop: half a heart of armour for every two junk tiles cleared (grows with the act). */
@@ -506,6 +531,11 @@ export const SCORED_WAVES = 6;
 export const BANK_MAX = 0.5;
 
 
+/** Damage of a red tile with this weapon in this act. */
+export function weaponTile(w: WeaponDef, run: RunState): number {
+  return w.tile + (w.tileAct ?? 0) * run.act;
+}
+
 /** The weapon in hand (the knife if the save knows nothing better). */
 export function weaponOf(run: RunState): WeaponDef {
   return ITEMS[run.hero.weapon]?.weapon ?? ITEMS.knife.weapon!;
@@ -524,7 +554,8 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
   const up = !!tile.up;
   // Red tiles strike with the weapon in hand: its damage per tile, the card only adds its upgrade.
   const weapon = fam === 'blade' ? weaponOf(ctx.run) : null;
-  let v = weapon ? weapon.tile + (card ? cardValue(card, up) : 0) : card ? cardValue(card, up) : 2;
+  const wTile = weapon ? weaponTile(weapon, ctx.run) : 0;
+  let v = weapon ? wTile + (card ? cardValue(card, up) : 0) : card ? cardValue(card, up) : 2;
   if (tile.finish === 'sharp') v += 1;
   v += fam === 'blade' ? mods.redPlus : fam === 'shield' ? mods.bluePlus : fam === 'ink' ? mods.inkPlus : mods.coinPlus;
   const size = g?.size ?? 1;
@@ -559,7 +590,7 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
     // a red pen in it).
     const st = weapon.strike;
     const su = ms.superGroup ? weapon.super : null;
-    add('dmg', wave >= 2 && st.cascadeTile ? st.cascadeTile + (v - weapon.tile) : v);
+    add('dmg', wave >= 2 && st.cascadeTile ? st.cascadeTile + (v - wTile) : v);
     if (st.allPerTile) add('aoe', st.allPerTile);
     if (su?.perTile) add('dmg', su.perTile);
     if (su?.allPerTile) add('aoe', su.allPerTile);
@@ -569,6 +600,8 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
       if (st.paper) ms.paperBonus = Math.max(ms.paperBonus, st.paper);
       if (st.delay && once('weaponDelay', true)) ms.delay += st.delay;
       if (su?.bleed) ms.bleed += su.bleed;
+      if (su?.hpPct) ms.hpPct = Math.max(ms.hpPct, su.hpPct);
+      if (su?.pierce) ms.pierce = true;
       if (su?.stun) ms.stun = true;
       if (su?.selfDmg) ms.selfDmg += su.selfDmg;
       if (su) s.note = 'супер-удар';
@@ -661,9 +694,9 @@ function blueValue(t: Tile): number {
 }
 
 /**
- * A blue group blocks once: its best card's value in half-hearts, half a heart more for every
- * tile past three (the laminator doubles a group of 4+), plus the binder clip. Health is counted in
- * half-hearts, so per-tile armour was a wall: one match of folders blocked any blow.
+ * A blue group blocks once: its best card's value in half-hearts, half a heart more for a group of
+ * 4+ (the laminator doubles it), plus the binder clip. Health is counted in half-hearts, so per-tile
+ * armour was a wall: one match of folders blocked any blow.
  */
 export function groupArmor(ctx: Ctx, g: Group, cells: Tile[], scores: TileScore[]) {
   let best = 0;
@@ -675,7 +708,7 @@ export function groupArmor(ctx: Ctx, g: Group, cells: Tile[], scores: TileScore[
       at = i;
     }
   }
-  let n = best + Math.max(0, g.size - 3) + ctx.mods.bluePlus;
+  let n = best + (g.size >= 4 ? 1 : 0) + ctx.mods.bluePlus;
   if (cells[at]?.card === 'laminator' && g.size >= 4) n *= 2;
   ctx.ms.tally.armor += n;
   const s = [...scores].reverse().find((x) => x.i === at);
@@ -1074,7 +1107,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   // The double-sided tape: armour counts in half-hearts, damage in points.
   if (mods.armorToDamage && raw > 0) damage += raw * REFLECT_PER_HALF;
   const armor = Math.min(raw, armorRoom(run));
-  if (armor < raw) notes.push(`Броня: потолок ${run.hero.maxHp}`);
+  if (armor < raw) notes.push(`Броня: не больше ${heartsText(armorCap(run))}`);
   const scale = actScale(run);
   let aoe = Math.max(0, Math.round(t.aoe * Math.max(0, 1 + bonus))) * crit + Math.round(ms.plane * scale.hp);
   const tune = run.dev?.heroDmg;
@@ -1102,7 +1135,12 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     }
     if (aoe > 0) for (const e of alive(c)) hitEnemy(ctx, e.uid, aoe, { source: 'aoe', pierce: true });
     const tgt = targetEnemy(c);
-    if (tgt) {
+    // The guillotine: a share of the target's maximum health, through armour and shields.
+    if (tgt && ms.hpPct && !tgt.submerged) {
+      const cut = Math.max(1, Math.round(tgt.maxHp * ms.hpPct));
+      hitEnemy(ctx, tgt.uid, cut, { source: 'guillotine', pierce: true });
+    }
+    if (tgt && tgt.hp > 0) {
       if (ms.bleed) {
         tgt.bleed += ms.bleed;
         ctx.fx.push({ kind: 'status', amount: tgt.bleed, uid: tgt.uid, status: 'bleed' });
@@ -1264,12 +1302,16 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     const prev = ctx.fx;
     const list: Effect[] = [];
     ctx.fx = list;
-    // The guard's vest: the first blow of the fight does not get through.
+    // The guard's vest: the first blow of the fight lands at half strength (a whole blow blocked was
+    // worth a heart or two every fight).
+    let blowDmg = dmg;
     if (ctx.mods.firstBlowGuard && !c.guarded && dmg > 0) {
       c.guarded = true;
-      act.hurt = { amount: dmg, armor: 0, red: 0 };
-      ctx.fx.push({ kind: 'proc', amount: 0, source: 'vest', text: 'Жилет: удар не прошёл' });
-    } else act.hurt = hurtHero(ctx, dmg, ENEMIES[e.def].name, true, e);
+      const cut = Math.ceil(dmg / 2);
+      blowDmg = dmg - cut;
+      ctx.fx.push({ kind: 'proc', amount: cut, source: 'vest', text: `Жилет: −${heartText(cut)}` });
+    }
+    act.hurt = hurtHero(ctx, blowDmg, ENEMIES[e.def].name, true, e);
     ctx.fx = prev;
     ctx.ev.push(act);
     if (list.length) ctx.ev.push({ t: 'effects', effects: list });
@@ -1775,13 +1817,22 @@ export interface MovePreview {
   charge: number;
   coins: number;
   specials: number;
-  /** Mult the move's gold groups put aside (the abacus). */
+  /** Damage bonus the move's gold tiles put aside (the abacus). */
   bank: number;
+  /** Damage to every enemy (the ruler, a knife's super strike, ink blots). */
+  aoe: number;
+  /** What the strike leaves on the target: bleed, a stun, a timer pushed back, armour pierced. */
+  bleed: number;
+  stun: boolean;
+  delay: number;
+  pierce: boolean;
+  /** Share of the target's maximum health the strike takes at once (the guillotine). */
+  hpPct: number;
 }
 
 export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview {
   const c = run.combat;
-  const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0, bank: 0 };
+  const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0, bank: 0, aoe: 0, bleed: 0, stun: false, delay: 0, pierce: false, hpPct: 0 };
   const rules = c ? moveRules(run, mods) : null;
   if (!c || !rules || !isValidMove(c.board, move, rules)) return empty;
   const kind = moveKind(c.board, move, rules)!;
@@ -1801,17 +1852,24 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
   const paper = target && ENEMIES[target.def].material === 'paper' ? ctx.ms.paperBonus : 0;
   const bonus = t.bonus + mods.dmgBonus + (base > 0 ? (c.bank ?? 0) : 0) + (c.skillBonus ?? 0) + c.nextBonus + paper;
   const damage = Math.round(base * Math.max(0, 1 + bonus));
+  const ms = ctx.ms;
   return {
     valid: true,
     groups,
     blast: set?.blast ?? null,
     tally: t,
     damage,
-    armor: Math.round(t.armor * ctx.ms.armorX),
+    armor: Math.round(t.armor * ms.armorX),
     charge: Math.round(t.charge),
     coins: Math.round(t.coins),
     specials: groups.filter((g) => g.make).length,
-    bank: ctx.ms.bank,
+    bank: ms.bank,
+    aoe: Math.round(t.aoe * Math.max(0, 1 + t.bonus + mods.dmgBonus)),
+    bleed: ms.bleed + (groups.some((g) => g.fam === 'blade') ? mods.bleedOnRed : 0),
+    stun: ms.stun,
+    delay: ms.delay,
+    pierce: ms.pierce || mods.pierce,
+    hpPct: ms.hpPct,
   };
 }
 

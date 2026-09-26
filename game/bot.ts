@@ -4,10 +4,10 @@
  * offers. They never inspect hidden refills or RNG state.
  */
 import { colOf, findGroups, idx, rowOf, validMoves } from './board.ts';
-import { BANK_MAX, activeCost, alive, currentIntent, intentDamage, moveRules, previewMove, type MovePreview } from './combat.ts';
+import { BANK_MAX, actScale, activeCost, alive, currentIntent, energyCap, intentDamage, moveRules, previewMove, swapCost, weaponTile, type MovePreview } from './combat.ts';
 import { CARDS } from './content/cards.ts';
 import { EVENT_BY_ID } from './content/events.ts';
-import { ITEMS } from './content/items.ts';
+import { ITEMS, MAX_WEAPONS, type Mods } from './content/items.ts';
 import { reachable } from './actmap.ts';
 import { int, next, type Rng } from './rng.ts';
 import { clone, dispatch, modsOf, pickable, rerollPrice } from './run.ts';
@@ -45,14 +45,14 @@ export const CARD_SCORE: Record<string, number> = {
   folder: 1.5,
   ink: 1,
   clip: 0.5,
-  binder: 7.6,
-  sleeve: 6.3,
-  umbrella: 8.2,
-  drawer: 8,
-  laminator: 6.3,
-  archivebox: 9.5,
-  vest: 8.2,
-  clipboard: 7.2,
+  binder: 5,
+  sleeve: 4.5,
+  umbrella: 5,
+  drawer: 6,
+  laminator: 4,
+  archivebox: 6,
+  vest: 4.5,
+  clipboard: 5,
   corrector: 3.3,
   urgent: 4.9,
   blotcurse: 4.7,
@@ -79,17 +79,21 @@ function threat(run: RunState): number {
   return t;
 }
 
-/**
- * What +1 mult put aside by the abacus is worth: most of the base damage of the best attack on the
- * board now (the next strike will be about as good).
- */
-function bankWorth(previews: MovePreview[]): number {
-  let best = 0;
-  for (const p of previews) if (p.valid) best = Math.max(best, p.tally.dmg);
-  return best * 0.6;
+/** What the bot's move scores are measured against, read once per decision from the board. */
+interface Worth {
+  /** A damage bonus put aside by the abacus: +100% is worth most of the best attack now. */
+  bank: number;
+  /** Half a heart kept (health is counted in half-hearts): a good part of a move's damage. */
+  half: number;
 }
 
-function scoreMove(run: RunState, p: MovePreview, worth: number): number {
+function worthOf(previews: MovePreview[]): Worth {
+  let best = 0;
+  for (const p of previews) if (p.valid) best = Math.max(best, p.tally.dmg);
+  return { bank: best * 0.6, half: Math.max(10, best * 0.6) };
+}
+
+function scoreMove(run: RunState, p: MovePreview, w: Worth): number {
   if (!p.valid) return -1;
   const c = run.combat!;
   // A dived enemy cannot be hit: the strike goes to one above water, or nowhere.
@@ -97,19 +101,86 @@ function scoreMove(run: RunState, p: MovePreview, worth: number): number {
   const target = aimed?.submerged ? alive(c).find((e) => !e.submerged) : aimed;
   const need = Math.max(0, threat(run) - run.hero.armor);
   const low = run.hero.hp < run.hero.maxHp * 0.35 ? 1.5 : 1;
-  const dmg = target ? Math.min(p.damage, target.hp + target.block + 4) : 0;
-  const kill = target && p.damage >= target.hp + target.block ? 8 : 0;
-  const armor = Math.min(p.armor, need) * 1.4 * low + Math.max(0, p.armor - need) * 0.1;
-  const cost = run.hero.active ? activeCost(run) : 0;
-  const charge = run.hero.charge < cost ? p.charge * 1.1 : p.charge * 0.1;
-  // A shining mirror sends a quarter of the blow back: never hit it for a lethal reflection.
+  // Armour and shields of the target eat the strike, unless it pierces.
+  const soak = target && !p.pierce ? target.armor + target.block : 0;
+  const landed = Math.max(0, p.damage - soak);
+  const dmg = target ? Math.min(landed, target.hp + 4) : 0;
+  const kill = target && landed >= target.hp ? 8 : 0;
+  const armor = Math.min(p.armor, need) * w.half * low + Math.max(0, p.armor - need) * 0.5;
+  const cap = energyCap(run);
+  const charge = run.hero.charge < cap ? p.charge * 1.1 : p.charge * 0.1;
+  // Damage to all: every enemy but the target counts (the target's share is in its own hp).
+  let aoe = 0;
+  for (const e of alive(c)) aoe += Math.min(p.aoe, e.hp) * (e === target ? 0.3 : 0.8);
+  // What the strike leaves behind: bleed ticks (b + (b−1) + …), a skipped or delayed blow.
+  let after = 0;
+  if (target) {
+    const b = p.bleed + target.bleed;
+    after += ((b * (b + 1)) / 2 - (target.bleed * (target.bleed + 1)) / 2) * actScale(run).hp * 0.8;
+    if (p.hpPct) after += Math.min(target.hp, target.maxHp * p.hpPct);
+    const blow = intentDamage(c, target);
+    if (p.stun && !target.stunned && !target.stunImmune) after += blow > 0 && target.countdown <= 2 ? blow * w.half : 2;
+    if (p.delay) after += blow > 0 && target.countdown <= 1 ? blow * w.half * 0.5 : 1;
+  }
+  // A shining mirror costs half a heart (more in later acts) per blow: never hit it for a lethal one.
   let shine = 0;
   if (target?.shining && p.damage > 0) {
-    const back = Math.max(1, Math.min(Math.round(p.damage * 0.25), Math.round(18 * target.dmgMul)));
-    shine = back >= run.hero.hp + run.hero.armor ? 1e6 : back * 1.4 * low;
+    const back = Math.max(1, Math.round(target.dmgMul));
+    shine = back >= run.hero.hp + run.hero.armor ? 1e6 : back * w.half * low;
   }
-  const saved = p.bank ? Math.min(p.bank, Math.max(0, BANK_MAX - (c.bank ?? 0))) * worth : 0;
-  return dmg + kill + armor + charge + saved + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
+  const saved = p.bank ? Math.min(p.bank, Math.max(0, BANK_MAX - (c.bank ?? 0))) * w.bank : 0;
+  return dmg + kill + armor + charge + aoe + after + saved + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
+}
+
+/** The best move's score with the weapon in hand (moves and previews for this weapon). */
+function bestScore(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, w: Worth): number {
+  let best = 0;
+  for (const m of moves) best = Math.max(best, scoreMove(run, previewMove(run, mods, m), w));
+  return best;
+}
+
+/**
+ * Another weapon for this board: the bot tries each in its hands on the same moves and swaps when
+ * one strikes clearly better, worth the energy. Returns the weapon to swap to, or null.
+ */
+function weaponSwap(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, previews: MovePreview[], current: number, w: Worth): string | null {
+  const hero = run.hero;
+  const cost = swapCost(run);
+  if (hero.weapons.length < 2 || hero.charge < cost) return null;
+  // Only moves with a red group change with the weapon.
+  const red = moves.filter((_, k) => previews[k].groups.some((g) => g.fam === 'blade'));
+  if (!red.length) return null;
+  let best: { id: string; s: number } | null = null;
+  for (const id of hero.weapons) {
+    if (id === hero.weapon) continue;
+    const trial = { ...run, hero: { ...hero, weapon: id } };
+    const s = bestScore(trial, mods, red, w);
+    if (s > current * 1.25 + cost * 4 && (!best || s > best.s)) best = { id, s };
+  }
+  return best?.id ?? null;
+}
+
+/** Between fights the bot holds the weapon that strikes best on an average board. */
+function mainWeapon(run: RunState): string {
+  // A group of three: its tiles, damage to all (about 1,3 enemies), bleed, paper half the time,
+  // cascades a third of the time; the super strike about a third of the red groups.
+  const rate = (id: string) => {
+    const w = ITEMS[id]?.weapon;
+    if (!w) return 0;
+    const s = w.strike;
+    const u = w.super;
+    const strike =
+      weaponTile(w, run) * 3 +
+      (s.allPerTile ?? 0) * 3 * 1.3 +
+      (s.bleed ?? 0) * 3 +
+      (s.paper ?? 0) * w.tile * 3 * 0.5 +
+      (s.cascadeTile ? (s.cascadeTile - w.tile) * 3 * 0.35 : 0) +
+      (s.pierce ? 2 : 0) +
+      (s.delay ? 3 : 0);
+    const sup = (u.perTile ?? 0) * 4 + (u.allPerTile ?? 0) * 4 * 1.3 + (u.bleed ?? 0) * 3 + (u.stun ? 6 : 0) + (u.pierce ? 2 : 0);
+    return strike + sup * 0.3;
+  };
+  return [...run.hero.weapons].sort((a, b) => rate(b) - rate(a))[0] ?? run.hero.weapon;
 }
 
 const FAM_WEIGHT: Record<string, number> = { blade: 2, shield: 1.5, ink: 1, coin: 1 };
@@ -212,17 +283,20 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
   if (!moves.length) return null;
   if (policy === 'greedy' || policy === 'focus' || policy === 'randomCards' || policy === 'noCards') {
     let best = moves[0];
-    let bestScore = -Infinity;
+    let top = -Infinity;
     const previews = moves.map((m) => previewMove(run, mods, m));
-    const worth = mods.bankPer ? bankWorth(previews) : 0;
+    const w = worthOf(previews);
+    if (!mods.bankPer) w.bank = 0;
     for (let k = 0; k < moves.length; k++) {
       const m = moves[k];
-      const s = scoreMove(run, previews[k], worth) + next(r) * 0.01;
-      if (s > bestScore) {
-        bestScore = s;
+      const s = scoreMove(run, previews[k], w) + next(r) * 0.01;
+      if (s > top) {
+        top = s;
         best = m;
       }
     }
+    const swap = weaponSwap(run, mods, moves, previews, top, w);
+    if (swap) return { type: 'weapon', id: swap };
     return { type: 'move', move: best };
   }
   return { type: 'move', move: moves[int(r, moves.length)] };
@@ -261,7 +335,8 @@ function mapAction(run: RunState, r: Rng): Action {
 function worth(run: RunState): number {
   const h = run.hero;
   const deck = h.deck.reduce((s, c) => s + cardScore(c), 0);
-  let v = h.hp + h.maxHp * 1.5 + h.coins * 0.25 + h.relics.length * 25 + deck + run.stats.shards * 4;
+  // Health in half-hearts: half a heart is dear (about 8 hp of the old 60).
+  let v = h.hp * 8 + h.maxHp * 12 + h.coins * 0.25 + (h.relics.length + h.weapons.length) * 25 + deck + run.stats.shards * 4;
   if (run.phase === 'pick' && run.pick) v += { remove: 8, upgrade: 6, finish: 5, transform: 3, copy: 6 }[run.pick.purpose] * run.pick.count;
   if (run.phase === 'combat') v += h.hp / h.maxHp > 0.7 ? 10 : -40;
   return v;
@@ -301,6 +376,11 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
     case 'combat':
       return combatAction(run, policy, r, opts.erase);
     case 'map':
+      // Between fights a swap is free: the bot takes its best weapon into the next fight.
+      if (policy !== 'random' && run.hero.weapons.length > 1) {
+        const main = mainWeapon(run);
+        if (main !== run.hero.weapon) return { type: 'weapon', id: main };
+      }
       if (policy === 'random') {
         const opts2 = reachable(run.map, run.node);
         return { type: 'travel', node: opts2[int(r, opts2.length)] };
@@ -333,7 +413,9 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
         const offFocus = policy === 'focus' && run.hero.deck.some((c) => !inFocus(c.id));
         if (!s.removed && coins >= s.removePrice && worst && (offFocus || (cardScore(worst) < 2 && run.hero.deck.length > 8)) && run.hero.deck.length > 5)
           return { type: 'remove' };
-        const relic = s.relics.findIndex((x) => !x.sold && x.price <= coins && ITEMS[x.id].kind === 'passive');
+        const relic = s.relics.findIndex(
+          (x) => !x.sold && x.price <= coins && (ITEMS[x.id].kind === 'passive' || (ITEMS[x.id].kind === 'weapon' && run.hero.weapons.length < MAX_WEAPONS)),
+        );
         if (relic >= 0) return { type: 'buy', kind: 'relic', index: relic };
         if (policy === 'greedy') {
           const card = s.cards.findIndex((x) => !x.sold && x.price <= coins && wantCard(run, x) && cardScore(x) >= 6);

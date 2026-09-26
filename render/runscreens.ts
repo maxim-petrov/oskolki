@@ -1,4 +1,4 @@
-import { CARDS, FINISH_TEXT, cardValue } from '../game/content/cards.ts';
+import { CARDS, FINISH_TEXT, cardValue, heartsText } from '../game/content/cards.ts';
 import { EVENT_BY_ID } from '../game/content/events.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import { pickable, rerollPrice } from '../game/run.ts';
@@ -82,11 +82,11 @@ export class RewardScreen {
       } else if (row.kind === 'card') {
         icon = 'ui_deck';
         label = 'Выбрать фишку в колоду';
-        sub = 'одна из трёх';
+        sub = (row.cards?.length ?? 3) === 2 ? 'одна из двух' : 'одна из трёх';
       } else if (row.kind === 'relic' && row.relic) {
         icon = ITEMS[row.relic].icon;
         label = ITEMS[row.relic].name;
-        sub = ITEMS[row.relic].desc;
+        sub = `${ITEMS[row.relic].kind === 'weapon' ? 'Оружие. ' : ''}${ITEMS[row.relic].desc}`;
       } else if (row.kind === 'pocket' && row.pocket) {
         icon = POCKETS[row.pocket].icon;
         label = POCKETS[row.pocket].name;
@@ -189,7 +189,7 @@ export class ShopScreen {
     cy += Math.ceil(s.cards.length / cols) * (CARD_H + 22) + 2;
     // Relics and pockets in one row of icons.
     const items: { kind: 'relic' | 'pocket'; k: number; icon: string; name: string; desc: string; price: number; sold: boolean }[] = [
-      ...s.relics.map((it, k) => ({ kind: 'relic' as const, k, icon: ITEMS[it.id].icon, name: ITEMS[it.id].name, desc: `${ITEMS[it.id].kind === 'active' ? 'Навык (заменит нынешний). ' : ''}${ITEMS[it.id].desc}`, price: it.price, sold: it.sold })),
+      ...s.relics.map((it, k) => ({ kind: 'relic' as const, k, icon: ITEMS[it.id].icon, name: ITEMS[it.id].name, desc: `${ITEMS[it.id].kind === 'active' ? 'Навык (заменит нынешний). ' : ITEMS[it.id].kind === 'weapon' ? 'Оружие (в свободную руку). ' : ''}${ITEMS[it.id].desc}`, price: it.price, sold: it.sold })),
       ...s.pockets.map((it, k) => ({ kind: 'pocket' as const, k, icon: POCKETS[it.id].icon, name: POCKETS[it.id].name, desc: POCKETS[it.id].desc, price: it.price, sold: it.sold })),
     ];
     const iw = 36;
@@ -244,7 +244,7 @@ export function drawRest(ctx: Ctx2D, ui: UI, h: ScreenHost) {
   if (ui.button(ctx, 'rest-heal', x + 8, y + 36, bw, 44, '', { accent: 'green3' })) h.act({ type: 'rest', choice: 'heal' });
   draw(ctx, getFrame('map_rest'), x + 8 + bw / 2, y + 50);
   text(ctx, `Выпить воды`, x + 8 + bw / 2, y + 60, 'cream', { align: 'center' });
-  text(ctx, `+${heal} здоровья`, x + 8 + bw / 2, y + 69, 'green4', { align: 'center' });
+  text(ctx, `+${heartsText(heal)}`, x + 8 + bw / 2, y + 69, 'green4', { align: 'center' });
   if (ui.button(ctx, 'rest-up', x + 16 + bw, y + 36, bw, 44, '', { accent: 'gold3', disabled: !canUp })) h.act({ type: 'rest', choice: 'upgrade' });
   draw(ctx, getFrame('ui_deck'), x + 16 + bw + bw / 2, y + 50);
   text(ctx, 'Разобрать бумаги', x + 16 + bw + bw / 2, y + 60, canUp ? 'cream' : 'grey2', { align: 'center' });
@@ -338,7 +338,9 @@ export function drawTreasure(ctx: Ctx2D, ui: UI, h: ScreenHost) {
     if (ui.button(ctx, 'safe-open', x + w / 2 - 50, y + 44, 100, 18, 'Открыть', { accent: 'gold3' })) h.act({ type: 'open' });
   } else {
     const def = ITEMS[tr.relic];
-    draw(ctx, getFrame(def.icon), x + 20, y + 36);
+    // Centred: item icons stand on their bottom, weapon art (a tile face) is anchored in the middle.
+    const f = getFrame(def.icon);
+    draw(ctx, f, x + 20 - Math.floor(f.w / 2) + f.ox, y + 28 - Math.floor(f.h / 2) + f.oy);
     text(ctx, def.name, x + 34, y + 24, 'gold4');
     text(ctx, `+${tr.coins} монет`, x + 34, y + 34, 'cold4');
     if (ui.button(ctx, 'safe-leave', x + w - 86, y + 48, 78, 16, 'Дальше', { accent: 'gold3' })) h.act({ type: 'leave' });

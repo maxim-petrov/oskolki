@@ -202,7 +202,7 @@ function tipHero(catalog: Catalog, id: string): TipData | undefined {
   if (!c) return undefined;
   return {
     title: c.name,
-    lines: [`♥ ${c.maxHp} · ¤ ${c.coins}`, `предмет: ${c.relic}`, `навык: ${c.active}`, ...(c.pockets.length ? [`в кармане: ${c.pockets.join(', ')}`] : [])],
+    lines: [`♥ ${c.maxHp / 2} · ¤ ${c.coins}`, `предмет: ${c.relic}`, `навык: ${c.active}`, ...(c.pockets.length ? [`в кармане: ${c.pockets.join(', ')}`] : [])],
     body: c.desc,
   };
 }
@@ -718,7 +718,7 @@ function StartTab(props: {
               </span>
               <span className="dp-name">{c.name}</span>
               <span className="dp-cap">
-                ♥ {c.maxHp} · ¤ {c.coins}
+                ♥ {c.maxHp / 2} · ¤ {c.coins}
               </span>
             </Tile>
           ))}

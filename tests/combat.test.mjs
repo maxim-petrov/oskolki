@@ -57,17 +57,24 @@ test('a blue group blocks half a heart and the armour is spent after the enemies
   assert.equal(res.run.hero.armor, 0);
 });
 
-test('armor never outgrows the hero: at most the maximum health, heavier blows wound', () => {
+test('armor holds at most two hearts (and no more than the health): heavier blows wound', () => {
+  assert.equal(hit4Armor({}), 4, 'шесть половинок брони, влезло четыре');
   const run = scene({ hp: 3, maxHp: 3, enemies: ['rat'], enemyHp: 999 });
   ready(run, 'attack');
   foe(run).dmgMul = 30; // a rat that hits for 15 hearts
   const res = play(run, line(run, ['vest', 'vest', 'vest']));
-  assert.equal(res.strike.armor, 3, 'четыре половинки брони, влезло три');
-  assert.ok(res.strike.notes.some((n) => n.includes('потолок')));
+  assert.equal(res.strike.armor, 3, 'четыре половинки брони, влезло три — здоровья меньше потолка');
+  assert.ok(res.strike.notes.some((n) => n.startsWith('Броня: не больше')));
   const blow = res.acts[0].hurt;
   assert.equal(blow.armor, 3);
   assert.equal(res.run.phase, 'dead', 'удар сильнее потолка ранит');
 });
+
+/** Armour a move of three upgraded vests leaves the hero (3 half-hearts × 2), under the cap. */
+function hit4Armor(opts) {
+  const run = scene({ enemyHp: 999, ...opts });
+  return play(run, line(run, [{ card: 'vest', up: true }, { card: 'vest', up: true }, { card: 'vest', up: true }])).strike.armor;
+}
 
 test('armor does not carry over a non-attacking enemy action', () => {
   const run = combatRun({ rows: ROWS, enemies: ['kipa'] });
@@ -176,7 +183,7 @@ test('weapons: swapping costs energy in a fight, nothing between fights; three a
   // Red tiles strike with the new weapon at once.
   const cut = scene({ weapons: ['knife', 'awl'], charge: 2, enemyHp: 999 });
   const awl = dispatch(cut, { type: 'weapon', id: 'awl' }).run;
-  assert.equal(play(awl, line(awl, ['fist', 'fist', 'fist'])).strike.tally.dmg, 9, 'шило: 3 за фишку');
+  assert.equal(play(awl, line(awl, ['fist', 'fist', 'fist'])).strike.tally.dmg, 12, 'шило: 4 за фишку');
 });
 
 test('energy holds as much as the skill or a weapon swap needs', () => {

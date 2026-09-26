@@ -34,7 +34,7 @@ export function cardBadge(c: CardLike): { value: string; icon: string; color: st
       return { value: v ? `+${v}` : '', icon: 'int_attack', color: 'red5' };
     case 'shield':
       // Armour in hearts: a group of these blocks this much.
-      return { value: heartText(v), icon: 'ui_armor', color: 'cold6' };
+      return { value: heartText(v), icon: 'ui_heart_blue', color: 'cold6' };
     case 'ink':
       return { value: `${v}`, icon: 'ui_charge', color: 'vio5' };
     default:

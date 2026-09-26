@@ -14,7 +14,7 @@ const CARD_CHECKS = {
   fist() {
     assert.equal(hit({}, three('fist')).strike.tally.dmg, 6, 'нож: 2 за фишку');
     assert.equal(hit({}, three({ card: 'fist', up: true })).strike.tally.dmg, 9, 'улучшенный удар: +1 к оружию');
-    assert.equal(hit({ weapon: 'awl' }, three('fist')).strike.tally.dmg, 9, 'шило: 3 за фишку');
+    assert.equal(hit({ weapon: 'awl' }, three('fist')).strike.tally.dmg, 12, 'шило: 4 за фишку');
   },
   pins: () => assert.equal(hit({}, three('pins')).strike.tally.dmg, 9, 'нож 2 + 1 за фишку'),
   redpen() {
@@ -31,7 +31,8 @@ const CARD_CHECKS = {
   // ── Blue: a group blocks once, by its best card (half-hearts), +½ heart per tile past three ──
   folder() {
     assert.equal(hit({}, FOLDERS).strike.armor, 1, 'половинка сердца');
-    assert.equal(hit({}, four('folder')).strike.armor, 2, 'четвёртая фишка — ещё половинка');
+    assert.equal(hit({}, four('folder')).strike.armor, 2, 'группа из 4 — ещё половинка');
+    assert.equal(hit({}, ['folder', 'folder', 'folder', 'folder', 'folder']).strike.armor, 2, 'и из 5 — тоже одна');
     assert.equal(hit({}, three({ card: 'folder', up: true })).strike.armor, 2);
   },
   binder() {
@@ -96,7 +97,10 @@ const CARD_CHECKS = {
     const cleaned = res.events.find((e) => e.t === 'board' && e.reason === 'active');
     assert.equal(cleaned.board.find((t) => t.id === pinned).pin, undefined, 'скоба снята');
   },
-  urgent: () => assert.equal(foe(hit({}, three('urgent')).run).countdown, 3 + 1 - 1, 'таймер цели +1, но не больше раза за ход'),
+  urgent() {
+    const start = foe(scene({})).countdown;
+    assert.equal(foe(hit({}, three('urgent')).run).countdown, start + 1 - 1, 'таймер цели +1, но не больше раза за ход');
+  },
   blotcurse() {
     const run = scene({ enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, three('blotcurse')));

@@ -31,7 +31,7 @@ export const CARDS: Record<string, CardDef> = {
   redpen: c({ id: 'redpen', name: 'Красная ручка', fam: 'blade', rarity: 'uncommon', v: 0, vUp: 1, text: 'Бьёт оружием в руке{v}. Группа с ручкой — супер-удар уже из 3 фишек.' }),
   alarm: c({ id: 'alarm', name: 'Тревожная кнопка', fam: 'blade', rarity: 'rare', v: 0, vUp: 1, text: 'Бьёт оружием в руке{v}. +3 урона удару за каждую красную группу хода.' }),
 
-  // ── Защита (blue): armor in half-hearts, once per group (its best card; +½ heart per tile past 3) ──
+  // ── Защита (blue): armor in half-hearts, once per group (its best card; +½ heart for a group of 4+) ──
   folder: c({ id: 'folder', name: 'Папка', fam: 'shield', rarity: 'starter', v: 1, vUp: 2, text: 'Группа даёт броню: {h}.' }),
   binder: c({ id: 'binder', name: 'Скоросшиватель', fam: 'shield', rarity: 'common', v: 2, vUp: 3, text: 'Группа даёт броню: {h}.' }),
   sleeve: c({ id: 'sleeve', name: 'Файлик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: 'Броня {h}. Убирает кляксы и волокиту рядом.' }),
@@ -54,7 +54,7 @@ export const CARDS: Record<string, CardDef> = {
 
   // ── Бухгалтерия (gold): coins, rare (money is short) ─────────────
   clip: c({ id: 'clip', name: 'Скрепка', fam: 'coin', rarity: 'starter', v: 1, vUp: 2, text: '{v} монета.' }),
-  coin: c({ id: 'coin', name: 'Монетка', fam: 'coin', rarity: 'common', v: 2, vUp: 3, text: '{v} монеты.' }),
+  coin: c({ id: 'coin', name: 'Монетка', fam: 'coin', rarity: 'rare', v: 2, vUp: 3, text: '{v} монеты.' }),
   receipt: c({ id: 'receipt', name: 'Чек', fam: 'coin', rarity: 'common', v: 1, vUp: 2, text: '{v} монета за каждую фишку своей группы.' }),
   bonus: c({ id: 'bonus', name: 'Премия', fam: 'coin', rarity: 'uncommon', v: 3, vUp: 5, text: '1 монета и +{v} урона удару хода.' }),
   card: c({ id: 'card', name: 'Кредитка', fam: 'coin', rarity: 'uncommon', v: 6, vUp: 9, text: '+{v} урона удару, но стоит 2 монеты (без денег не работает).', unlock: 'bundle_accounting' }),
@@ -81,7 +81,7 @@ export const FINISH_TEXT: Record<Finish, { name: string; text: string }> = {
   laminate: { name: 'Ламинат', text: 'враги не портят' },
 };
 
-export const RARITY_PRICE: Record<Rarity, number> = { starter: 30, common: 45, uncommon: 70, rare: 120, status: 0 };
+export const RARITY_PRICE: Record<Rarity, number> = { starter: 30, common: 40, uncommon: 60, rare: 100, status: 0 };
 
 export function cardValue(id: string, up: boolean): number {
   const def = CARDS[id];
@@ -98,14 +98,18 @@ export function plural(n: number, one: string, few: string, many: string) {
   return many;
 }
 
-/** Health is counted in half-hearts: 7 → «3½», 1 → «½», 8 → «4». */
+/**
+ * Health is counted in half-hearts: 1 → «½», 8 → «4», 7 → «3,5» (the pixel font draws «½» as a small
+ * «1/2», so «3½» would read «31/2»).
+ */
 export function heartText(half: number): string {
-  const whole = Math.floor(Math.abs(half) / 2);
-  const rest = Math.abs(half) % 2 ? '½' : '';
-  return `${half < 0 ? '−' : ''}${whole || !rest ? whole : ''}${rest}`;
+  const n = Math.abs(half);
+  const sign = half < 0 ? '−' : '';
+  if (n === 1) return `${sign}½`;
+  return `${sign}${Math.floor(n / 2)}${n % 2 ? ',5' : ''}`;
 }
 
-/** «3½ сердца», «1 сердце», «½ сердца», «5 сердец». */
+/** «3,5 сердца», «1 сердце», «½ сердца», «5 сердец». */
 export function heartsText(half: number): string {
   const n = heartText(half);
   if (Math.abs(half) % 2) return `${n} сердца`;

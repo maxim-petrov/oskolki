@@ -57,20 +57,30 @@ test('travel goes only to reachable nodes and starts a fight', () => {
   assert.ok(res.run.map.nodes[first].visited);
 });
 
-test('winning a fight gives coins and a choice of three cards', () => {
-  const { run } = newRun({ seed: 4 });
+/** A plain fight of the first act won at once: its rewards. */
+function fightRewards(seed) {
+  const { run } = newRun({ seed });
   const r = dispatch(run, { type: 'travel', node: reachable(run.map, -1)[0] }).run;
-  for (const e of r.combat.enemies) e.hp = 1;
-  r.combat.enemies[0].hp = 1;
-  // Kill with a guaranteed hit: set a blade line ready to swap.
   r.combat.enemies = r.combat.enemies.slice(0, 1);
-  r.combat.board.cells = r.combat.board.cells.map((t) => ({ ...t }));
-  const res = playUntilWon(r);
+  r.combat.enemies[0].hp = 1;
+  return playUntilWon(r);
+}
+
+test('things are short: a plain fight pays coins half the time and offers two tiles most of the time', () => {
+  const all = Array.from({ length: 40 }, (_, k) => fightRewards(100 + k));
+  const coins = all.map((r) => r.rewards.find((x) => x.kind === 'coins')).filter(Boolean);
+  const cards = all.map((r) => r.rewards.find((x) => x.kind === 'card')).filter(Boolean);
+  assert.ok(coins.length >= 10 && coins.length <= 30, `монеты в ${coins.length} боях из 40`);
+  assert.ok(coins.every((x) => x.amount >= 4 && x.amount <= 8), 'по 4–8 монет');
+  assert.ok(cards.length >= 20 && cards.length <= 36, `фишки в ${cards.length} боях из 40`);
+  assert.ok(cards.every((x) => x.cards.length === 2), 'две фишки на выбор');
+});
+
+test('winning a fight: the reward row takes a card into the deck', () => {
+  let res = fightRewards(4);
+  for (let seed = 5; !res.rewards.some((x) => x.kind === 'card'); seed++) res = fightRewards(seed);
   assert.equal(res.phase, 'reward');
-  const coins = res.rewards.find((x) => x.kind === 'coins');
   const card = res.rewards.find((x) => x.kind === 'card');
-  assert.ok(coins.amount >= 7, "монеты за бой");
-  assert.equal(card.cards.length, 3);
   const before = res.hero.deck.length;
   const took = dispatch(res, { type: 'reward', index: res.rewards.indexOf(card), card: 1 }).run;
   assert.equal(took.hero.deck.length, before + 1);
@@ -226,9 +236,22 @@ test('prices at the till grow from act to act', () => {
   };
   const a0 = shopAt(0);
   const a2 = shopAt(2);
-  assert.equal(a0.shop.removePrice, 50);
-  assert.equal(a2.shop.removePrice, Math.round(50 * PRICE_ACT[2]));
+  assert.equal(a0.shop.removePrice, 40);
+  assert.equal(a2.shop.removePrice, Math.round(40 * PRICE_ACT[2]));
   assert.equal(rerollPrice(a2), Math.round(20 * PRICE_ACT[2]));
   const lo = (run) => Math.min(...run.shop.cards.map((c) => c.price));
   assert.ok(lo(a2) >= Math.round(RARITY_PRICE.common * 0.5 * 0.9 * PRICE_ACT[2]) - 1, 'фишки дороже');
+});
+
+test('weapons: a new one goes into the hand; with three in hand the till does not sell a fourth', () => {
+  const { run } = newRun({ seed: 5 });
+  run.hero.coins = 500;
+  run.phase = 'shop';
+  run.shop = { cards: [], relics: [{ id: 'scissors', price: 100, sold: false }, { id: 'awl', price: 100, sold: false }, { id: 'ruler', price: 100, sold: false }], pockets: [], finish: null, removePrice: 40, removed: false, rerolls: 0 };
+  let s = dispatch(run, { type: 'buy', kind: 'relic', index: 0 }).run;
+  assert.deepEqual([s.hero.weapons, s.hero.weapon], [['knife', 'scissors'], 'scissors'], 'новое оружие — сразу в руке');
+  s = dispatch(s, { type: 'buy', kind: 'relic', index: 1 }).run;
+  const full = dispatch(s, { type: 'buy', kind: 'relic', index: 2 });
+  assert.equal(full.events.find((e) => e.t === 'invalid')?.reason, 'Руки заняты: оружия не больше 3');
+  assert.equal(full.run.hero.coins, s.hero.coins, 'монеты не списаны');
 });

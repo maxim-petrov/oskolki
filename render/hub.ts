@@ -1,4 +1,5 @@
 import { CHARACTERS } from '../game/content/acts.ts';
+import { heartsText } from '../game/content/cards.ts';
 import type { CharId } from '../game/types.ts';
 import { HeroView } from './actors.ts';
 import type { App } from './app.ts';
@@ -632,7 +633,7 @@ export class HubView {
     });
     const ch = CHARACTERS[this.hero.char as CharId];
     let y = f.y + 140;
-    y += paragraph(ctx, `${ch.desc} Здоровье ${ch.maxHp}, монет ${ch.coins}.`, f.x + 10, y, f.w - 20, 'cold5') + 6;
+    y += paragraph(ctx, `${ch.desc} Здоровье: ${heartsText(ch.maxHp)}, монет ${ch.coins}.`, f.x + 10, y, f.w - 20, 'cold5') + 6;
     text(ctx, `Смен: ${p.runs} · сдано отчётов: ${p.wins} · осколков собрано: ${p.shardsTotal}`, f.x + 10, y, 'cold4');
     y += 12;
     for (const h of p.history.slice(0, 4)) {

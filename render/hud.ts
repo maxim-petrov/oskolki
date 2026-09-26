@@ -181,10 +181,17 @@ export function drawWeapons(ctx: Ctx2D, ui: UI, x: number, y: number, size: numb
     if (size >= 36) drawScaled(ctx, f, sx + size / 2 - f.w + f.ox * 2, Math.round(y + size / 2) + f.oy * 2 - f.h, 2);
     else draw(ctx, f, Math.round(sx + size / 2 - f.w / 2 + f.ox), Math.round(y + size / 2 - f.h / 2 + f.oy));
     if (!inHand && !compact) text(ctx, `${cost}`, sx + size - 5, y + size - 9, can ? 'vio5' : 'grey2', { outline: 'ink0' });
-    if (compact && hero.weapons.length > 1) text(ctx, '⇆', sx + size - 7, y + 1, can ? 'vio5' : 'grey2', { outline: 'ink0' });
+    // On a phone one slot: a tap takes the next weapon (the arrow and the price say so).
+    if (compact && hero.weapons.length > 1) text(ctx, `→${cost}`, sx + size - 2, y + 1, can ? 'vio5' : 'grey2', { outline: 'ink0', align: 'right' });
     if (hot) {
       const w = def.weapon;
-      const swap = inHand && !compact ? 'В руке.' : `Взять в руку: ${cost} энергии.`;
+      const swap = compact
+        ? hero.weapons.length > 1
+          ? `В руке. Тап — ${ITEMS[next]?.name ?? next} за ${cost} энергии.`
+          : 'В руке.'
+        : inHand
+          ? 'В руке.'
+          : `Взять в руку: ${cost} энергии.`;
       ui.tooltip(def.name, `Удар: ${w.strikeText}\nСупер-удар (группа из 4+): ${w.superText}\n${swap}`, ui.p.x, ui.p.y - 60, 'red4');
     }
   });

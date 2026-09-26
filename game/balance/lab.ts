@@ -7,6 +7,7 @@ import { decide, type BotOptions, type Policy } from '../bot.ts';
 import { addCard, dispatch, gainRelic, newRun } from '../run.ts';
 import type { CharId, DevOp, DevState, Finish, GameEvent, RunState } from '../types.ts';
 import { checkRun } from './invariants.ts';
+import { ITEMS } from '../content/items.ts';
 
 export interface CardSpec {
   id: string;
@@ -19,6 +20,9 @@ export interface Build {
   char: CharId;
   deck: CardSpec[];
   relics: string[];
+  /** Weapons in hand and the one held (absent: the knife). */
+  weapons?: string[];
+  weapon?: string;
   active: string | null;
   pockets: (string | null)[];
   hp: number;
@@ -50,6 +54,8 @@ export function buildOf(run: RunState): Build {
       ...(c.finish ? { finish: c.finish } : {}),
     })),
     relics: [...h.relics],
+    weapons: [...h.weapons],
+    weapon: h.weapon,
     active: h.active,
     pockets: [...h.pockets],
     hp: h.hp,
@@ -112,10 +118,15 @@ export function setupFight(spec: FightSpec): RunState {
   dev({ op: 'act', act: spec.act });
   if (spec.dev) dev({ op: 'set', dev: spec.dev });
   const b = spec.build;
+  // Items and weapons: a weapon listed among the items (a lab test) joins the hands of the build.
+  const extra = b.relics.filter((id) => ITEMS[id]?.kind === 'weapon');
+  const weapons = [...new Set([...(b.weapons ?? ['knife']), ...extra])].slice(-3);
   dev({
     op: 'build',
     deck: b.deck,
-    relics: b.relics,
+    relics: b.relics.filter((id) => ITEMS[id]?.kind !== 'weapon'),
+    weapons,
+    weapon: extra.at(-1) ?? b.weapon,
     active: b.active,
     pockets: b.pockets,
   });

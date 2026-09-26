@@ -333,7 +333,7 @@ export interface DevState {
 /** Dev panel commands (the `dev` action; custom runs only). */
 export type DevOp =
   | { op: 'hero'; hp?: number; maxHp?: number; coins?: number; charge?: number; armor?: number }
-  | { op: 'build'; deck?: { id: string; up?: boolean; finish?: Finish }[]; relics?: string[]; weapons?: string[]; active?: string | null; pockets?: (string | null)[] }
+  | { op: 'build'; deck?: { id: string; up?: boolean; finish?: Finish }[]; relics?: string[]; weapons?: string[]; weapon?: string; active?: string | null; pockets?: (string | null)[] }
   | { op: 'set'; dev: DevState }
   | { op: 'act'; act: number }
   | { op: 'enter'; kind: NodeKind | 'bossReward' | 'map'; enemies?: string[]; event?: string }

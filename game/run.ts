@@ -242,8 +242,12 @@ export function gainRelic(run: RunState, id: string, source: string, ev: GameEve
   const def = ITEMS[id];
   const hero = run.hero;
   if (def.kind === 'weapon') {
-    // A new weapon goes into a free slot (the pools stop offering weapons when the slots are full).
-    if (!hero.weapons.includes(id) && hero.weapons.length < MAX_WEAPONS) hero.weapons.push(id);
+    // A new weapon goes into a free slot and into the hand (the pools stop offering weapons when the
+    // slots are full); outside a fight the old one is a free swap back.
+    if (!hero.weapons.includes(id) && hero.weapons.length < MAX_WEAPONS) {
+      hero.weapons.push(id);
+      if (!run.combat) hero.weapon = id;
+    }
   } else if (def.kind === 'active') {
     hero.active = id;
     hero.charge = Math.min(hero.charge, energyCap(run));
@@ -334,7 +338,7 @@ function enterNode(run: RunState, node: MapNode, ev: GameEvent[]) {
       break;
     case 'treasure': {
       const relic = rollRelic(run) ?? 'sandwich';
-      run.treasure = { relic, coins: range(run.rng.loot, 10, 20), opened: false };
+      run.treasure = { relic, coins: range(run.rng.loot, 5, 12), opened: false };
       run.phase = 'treasure';
       break;
     }
@@ -353,7 +357,7 @@ function enterNode(run: RunState, node: MapNode, ev: GameEvent[]) {
   }
 }
 
-const FINISH_PRICE: Record<Finish, number> = { sharp: 60, gild: 55, seal: 70, copy: 110, laminate: 40 };
+const FINISH_PRICE: Record<Finish, number> = { sharp: 50, gild: 45, seal: 60, copy: 95, laminate: 35 };
 
 /** Prices at the till grow from act to act, so coins keep their weight to the end of a shift. */
 export const PRICE_ACT = [1, 1.3, 1.6, 1.9];
@@ -395,7 +399,7 @@ function stockShop(run: RunState): Pick<ShopState, 'cards' | 'relics' | 'pockets
 }
 
 function openShop(run: RunState) {
-  run.shop = { ...stockShop(run), removePrice: Math.round((50 + 25 * run.removals) * priceScale(run)), removed: false, rerolls: 0 };
+  run.shop = { ...stockShop(run), removePrice: Math.round((40 + 20 * run.removals) * priceScale(run)), removed: false, rerolls: 0 };
 }
 
 // ── Combat end ──────────────────────────────────────────────────────
@@ -438,11 +442,15 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   }
   // Rewards.
   const rewards: RewardOption[] = [];
-  // Coins are meant to be short: the till always has more than you can pay for.
-  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [6, 6], fight: [7, 12], elite: [16, 24], boss: [40, 50] };
+  // Things are short: a plain fight pays coins half the time, and little, and offers two tiles
+  // most of the time; the bosses and the upper management pay in full.
+  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [6, 6], fight: [4, 8], elite: [10, 15], boss: [25, 35] };
   const [lo, hi] = coinRange[kind];
-  rewards.push({ kind: 'coins', amount: range(run.rng.loot, lo, hi) + c.bonusCoins });
-  const cards = rollCards(run, 3, kind === 'intro' ? 'intro' : kind);
+  const paid = kind !== 'fight' || int(run.rng.loot, 100) < 50;
+  const coins = (paid ? range(run.rng.loot, lo, hi) : 0) + c.bonusCoins;
+  if (coins > 0) rewards.push({ kind: 'coins', amount: coins });
+  const offered = kind !== 'fight' || int(run.rng.loot, 100) < 70;
+  const cards = offered ? rollCards(run, kind === 'fight' ? 2 : 3, kind === 'intro' ? 'intro' : kind) : [];
   if (cards.length) rewards.push({ kind: 'card', cards: cards.map((x) => x.id), ups: cards.map((x) => x.up) });
   if (kind === 'elite') {
     const r = rollRelic(run);
@@ -452,7 +460,7 @@ function winCombat(run: RunState, ev: GameEvent[]) {
     rewards.push({ kind: 'relic', relic: run.eventRelic });
     run.eventRelic = null;
   }
-  const pocketChance = kind === 'elite' ? 0.45 : kind === 'fight' ? 0.3 : 0;
+  const pocketChance = kind === 'elite' ? 0.3 : kind === 'fight' ? 0.15 : 0;
   if (pocketChance && int(run.rng.loot, 100) < pocketChance * 100) rewards.push({ kind: 'pocket', pocket: rollPocket(run) });
   run.rewards = rewards;
   run.phase = 'reward';
@@ -476,8 +484,8 @@ function afterReward(run: RunState, ev: GameEvent[]) {
 }
 
 function nextAct(run: RunState, ev: GameEvent[]) {
-  // Between acts the hero recovers most of the missing health.
-  heal(run, Math.round((run.hero.maxHp - run.hero.hp) * 0.75), ev);
+  // Between acts the hero recovers half the missing health (hearts are short).
+  heal(run, Math.round((run.hero.maxHp - run.hero.hp) * 0.5), ev);
   run.bossRelics = [];
   enterAct(run, run.act + 1, ev);
 }
@@ -713,7 +721,11 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
         if (!givePocket(run, slot.id)) return fail(run, ev, 'Карманы полны');
         ev.push({ t: 'pocket', pocket: slot.id });
       } else if (action.kind === 'card') addCard(run, slot.id, false, 'shop', ev);
-      else gainRelic(run, slot.id, 'shop', ev);
+      else {
+        if (ITEMS[slot.id]?.kind === 'weapon' && (hero.weapons.length >= MAX_WEAPONS || hero.weapons.includes(slot.id)))
+          return fail(run, ev, `Руки заняты: оружия не больше ${MAX_WEAPONS}`);
+        gainRelic(run, slot.id, 'shop', ev);
+      }
       hero.coins -= slot.price;
       slot.sold = true;
       break;
@@ -725,7 +737,7 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       if (hero.coins < price) return fail(run, ev, 'Не хватает монет');
       hero.coins -= price;
       // Items not bought go back to the pool: a reprint shows new ones, it does not burn them.
-      for (const r of shop.relics) if (!r.sold && ITEMS[r.id]?.kind === 'passive' && !run.relicPool.includes(r.id)) run.relicPool.push(r.id);
+      for (const r of shop.relics) if (!r.sold && (ITEMS[r.id]?.kind === 'passive' || ITEMS[r.id]?.kind === 'weapon') && !run.relicPool.includes(r.id)) run.relicPool.push(r.id);
       run.shop = { ...shop, ...stockShop(run), rerolls: (shop.rerolls ?? 0) + 1 };
       ev.push({ t: 'coins', amount: -price });
       break;
@@ -867,6 +879,7 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
       if (weapons) {
         const list = weapons.filter((id, k, all) => ITEMS[id]?.kind === 'weapon' && all.indexOf(id) === k).slice(0, MAX_WEAPONS);
         hero.weapons = list.length ? list : ['knife'];
+        if (op.weapon && hero.weapons.includes(op.weapon)) hero.weapon = op.weapon;
         if (!hero.weapons.includes(hero.weapon)) hero.weapon = hero.weapons[0];
       }
       if (op.active !== undefined) hero.active = op.active && ITEMS[op.active]?.kind === 'active' ? op.active : null;
@@ -922,7 +935,7 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
           run.phase = 'shop';
           break;
         case 'treasure':
-          run.treasure = { relic: rollRelic(run) ?? 'sandwich', coins: 20, opened: false };
+          run.treasure = { relic: rollRelic(run) ?? 'sandwich', coins: 10, opened: false };
           run.phase = 'treasure';
           break;
         case 'event': {
