@@ -339,7 +339,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   mirror: {
     id: 'mirror',
     name: 'Кривое зеркало',
-    hp: 750,
+    hp: 560,
     size: 'boss',
     material: 'glass',
     intents: [

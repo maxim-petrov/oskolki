@@ -200,7 +200,7 @@ export function holdBack(e: EnemyState, n: number): number {
 export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): EnemyState {
   const def = ENEMIES[defId];
   const act = ACTS[Math.min(run.act, ACTS.length - 1)];
-  // Elites of the later acts are their regular enemies with more health (the first act has its own).
+  // Elites of the later acts are their regular enemies with more health and harder blows (the first act has its own).
   const elite = c.kind === 'elite' ? (act.eliteHp ?? 1) : 1;
   const hp = Math.max(1, Math.round(def.hp * act.hpMul * elite * (run.dev?.enemyHp ?? 1)));
   const e: EnemyState = {
@@ -221,7 +221,7 @@ export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): 
     submerged: false,
     shining: false,
     hitOnce: false,
-    dmgMul: act.dmgMul * (run.dev?.enemyDmg ?? 1),
+    dmgMul: act.dmgMul * (c.kind === 'elite' ? (act.eliteDmg ?? 1) : 1) * (run.dev?.enemyDmg ?? 1),
     stolen: 0,
   };
   e.countdown = currentIntent(e).timer + mods.timerBonus;
