@@ -12,7 +12,7 @@ test('a new run: starter deck, knife, map of the first act', () => {
   const { run } = newRun({ seed: 1 });
   assert.equal(run.hero.deck.length, 12);
   assert.deepEqual(run.hero.relics, ['knife']);
-  assert.equal(run.hero.hp, 60);
+  assert.equal(run.hero.hp, 8, '4 сердца');
   assert.equal(run.phase, 'map');
   assert.ok(reachable(run.map, -1).length >= 2, 'several ways to start');
   const boss = run.map.nodes[run.map.boss];
@@ -139,8 +139,8 @@ test('the deck never gets thinner than the minimum', () => {
 test('the cooler heals 30% or upgrades a card', () => {
   const { run } = newRun({ seed: 8 });
   run.phase = 'rest';
-  run.hero.hp = 20;
-  assert.equal(dispatch(run, { type: 'rest', choice: 'heal' }).run.hero.hp, 38);
+  run.hero.hp = 2;
+  assert.equal(dispatch(run, { type: 'rest', choice: 'heal' }).run.hero.hp, 4, '30% от 4 сердец — сердце');
   const pick = dispatch(run, { type: 'rest', choice: 'upgrade' }).run;
   assert.equal(pick.phase, 'pick');
   const up = dispatch(pick, { type: 'pick', uid: pick.hero.deck[0].uid }).run;

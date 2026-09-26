@@ -44,7 +44,7 @@ export const CARDS: Record<string, CardDef> = {
   umbrella: c({ id: 'umbrella', name: 'Зонтик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: '{v} брони. Следующий удар врага слабее на 2 за фишку (зонтики разных ходов не складываются).' }),
   drawer: c({ id: 'drawer', name: 'Картотечный ящик', fam: 'shield', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} брони. +1 множ, если в ходу собраны и красные, и синие.' }),
   laminator: c({ id: 'laminator', name: 'Ламинатор', fam: 'shield', rarity: 'uncommon', v: 1, vUp: 2, text: '{v} брони, в группе из 4+ — вдвое больше.' }),
-  archivebox: c({ id: 'archivebox', name: 'Архивная коробка', fam: 'shield', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} брони. Группа из 4+ лечит 4.' }),
+  archivebox: c({ id: 'archivebox', name: 'Архивная коробка', fam: 'shield', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} брони. Группа из 4+ лечит ½ сердца.' }),
   vest: c({ id: 'vest', name: 'Бронежилет из папок', fam: 'shield', rarity: 'rare', v: 2, vUp: 3, text: '{v} брони. Вся броня хода удваивается.' }),
   clipboard: c({ id: 'clipboard', name: 'Планшет', fam: 'shield', rarity: 'rare', v: 1, vUp: 2, text: '{v} брони. Половина следующего удара врага летит обратно в него.' }),
 

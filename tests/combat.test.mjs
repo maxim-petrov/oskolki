@@ -54,14 +54,15 @@ test('armor from blue tiles is not multiplied and is spent after the enemies act
   assert.equal(s.tally.mult, 2);
   assert.equal(s.armor, 3, 'three folders give 1 armor each, whatever the multiplier');
   const act = res.events.find((e) => e.t === 'enemyAct');
-  assert.equal(act.hurt.armor, 3, 'armor soaks the blow');
+  assert.equal(act.hurt.armor, act.hurt.amount, 'armor soaks the blow');
+  assert.equal(act.hurt.red, 0);
   assert.equal(res.run.hero.armor, 0);
 });
 
 test('armor never outgrows the hero: at most the maximum health, heavier blows wound', () => {
   const run = scene({ hp: 10, maxHp: 10, enemies: ['rat'], enemyHp: 999 });
   ready(run, 'attack');
-  foe(run).dmgMul = 3; // a rat that hits for 42
+  foe(run).dmgMul = 30; // a rat that hits for 15 hearts
   const res = play(run, line(run, ['vest', 'vest', 'vest']));
   assert.equal(res.strike.armor, 10, 'двенадцать брони, влезло десять');
   assert.ok(res.strike.notes.some((n) => n.includes('потолок')));

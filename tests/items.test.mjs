@@ -116,14 +116,16 @@ const ITEM_CHECKS = {
     assert.equal(stapled(['destapler']).strike.tally.dmg, 6);
   },
   calendar() {
-    const win = (grown) => {
-      const run = scene({ relics: ['calendar'], enemies: ['rat'], enemyHp: 1, hp: 30, maxHp: 60 });
+    const win = (wins, grown = 0) => {
+      const run = scene({ relics: ['calendar'], enemies: ['rat'], enemyHp: 1, hp: 4, maxHp: 8 });
+      run.hero.wins = wins;
       run.hero.grown = grown;
       return play(run, line(run, FISTS)).run.hero;
     };
-    const hero = win(0);
-    assert.deepEqual([hero.maxHp, hero.grown], [61, 1], 'выигранный бой: +1 к максимуму');
-    assert.equal(win(8).maxHp, 60, 'не больше +8 за смену');
+    assert.equal(win(0).maxHp, 8, 'первый бой — ещё нет');
+    const third = win(2);
+    assert.deepEqual([third.maxHp, third.hp, third.grown], [10, 6, 1], 'третий выигранный бой: +1 сердце');
+    assert.equal(win(2, 3).maxHp, 8, 'не больше трёх сердец за смену');
   },
   abacus() {
     // Gold groups put mult aside; the next strike that deals damage takes it all.
@@ -174,10 +176,10 @@ const ITEM_CHECKS = {
   },
   sandwich() {
     const { run } = newRun({ seed: 1 });
-    run.hero.hp = 30;
+    run.hero.hp = 4;
     gainRelic(run, 'sandwich', 'test', []);
-    assert.equal(run.hero.maxHp, 68);
-    assert.equal(run.hero.hp, 38);
+    assert.equal(run.hero.maxHp, 10, '+1 сердце к максимуму');
+    assert.equal(run.hero.hp, 6);
   },
   bowl() {
     const run = scene({
@@ -188,7 +190,7 @@ const ITEM_CHECKS = {
     });
     const res = play(run, line(run, FISTS));
     assert.equal(res.run.phase, 'reward');
-    assert.equal(res.run.hero.hp, 35);
+    assert.equal(res.run.hero.hp, 31);
   },
   gum() {
     const clean = scene({
@@ -197,7 +199,7 @@ const ITEM_CHECKS = {
       enemies: ['drop'],
       enemyHp: 1,
     });
-    assert.equal(play(clean, line(clean, FISTS)).run.hero.hp, 38, 'бой без урона лечит 8');
+    assert.equal(play(clean, line(clean, FISTS)).run.hero.hp, 32, 'бой без урона лечит сердце');
     const hurt = scene({
       relics: ['gum'],
       hp: 30,
@@ -223,7 +225,7 @@ const ITEM_CHECKS = {
       tile(run, 4, 4, 'shield', { fuse: 1 });
       return play(run, line(run, FISTS)).run.hero.hp;
     };
-    assert.equal(burn([]), 60 - byBlows(4), 'уголёк ранит');
+    assert.equal(burn([]), 60 - byBlows(1), 'уголёк ранит');
     assert.equal(burn(['gloves']), 60);
   },
   battery: () => assert.equal(hit({ relics: ['battery'], active: 'stapler' }, FOLDERS).run.hero.charge, 1),
@@ -355,7 +357,7 @@ const ITEM_CHECKS = {
   },
   carbonpack: () => assert.equal(hit({ relics: ['carbonpack'] }).strike.tally.dmg, 12),
   flash() {
-    const run = scene({ relics: ['flash'], hp: 5, enemies: ['rat'] });
+    const run = scene({ relics: ['flash'], hp: 1, enemies: ['rat'] });
     ready(run, 'attack');
     const saved = play(run, line(run, CLIPS)).run;
     assert.equal(saved.phase, 'combat');
@@ -370,7 +372,7 @@ const ITEM_CHECKS = {
     const { run } = newRun({ seed: 1 });
     gainRelic(run, 'pocketbag', 'test', []);
     assert.equal(run.hero.pockets.length, 5);
-    assert.equal(run.hero.maxHp, 75);
+    assert.equal(run.hero.maxHp, 12, '+2 сердца');
   },
   stamprelic() {
     const run = scene({ relics: ['stamprelic'], real: true });
@@ -493,7 +495,7 @@ const POCKET_CHECKS = {
     assert.equal(res.waves[0].blasts[0].cells.length, 9);
     assert.equal(foe(res.run).countdown, foe(run).countdown);
   },
-  coffee: () => assert.equal(act(scene({ pockets: ['coffee'], hp: 30 }), { type: 'pocket', slot: 0 }).run.hero.hp, 42),
+  coffee: () => assert.equal(act(scene({ pockets: ['coffee'], hp: 30 }), { type: 'pocket', slot: 0 }).run.hero.hp, 32),
   eraser() {
     const run = scene({ pockets: ['eraser'] });
     const res = act(run, { type: 'pocket', slot: 0, cell: idx(3, 3) });

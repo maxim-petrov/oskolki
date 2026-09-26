@@ -46,8 +46,10 @@ export function scene({
       uid: k + 1,
       ...(typeof c === 'string' ? { id: c, up: false } : { up: false, ...c }),
     }));
-  if (maxHp !== undefined) run.hero.maxHp = maxHp;
-  if (hp !== undefined) run.hero.hp = hp;
+  // Mechanics tests use a roomy hero (60 half-hearts) unless they set health: the numbers under
+  // test are not clipped by the armour cap or a death.
+  run.hero.maxHp = maxHp ?? 60;
+  run.hero.hp = hp ?? run.hero.maxHp;
   if (coins !== undefined) run.hero.coins = coins;
   const mods = computeMods(run.hero.relics);
   run.hero.pockets = Array(mods.pockets).fill(null);

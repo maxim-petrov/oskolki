@@ -14,7 +14,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'M',
     material: 'paper',
     intents: [
-      { kind: 'attack', value: 8, timer: 3 },
+      { kind: 'attack', value: 1, timer: 3 },
       { kind: 'tape', value: 2, timer: 3 },
     ],
     blurb: 'Стопка, которую ты нёс в архив. Теперь она несёт тебя.',
@@ -27,7 +27,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     hp: 75,
     size: 'S',
     material: 'paper',
-    intents: [{ kind: 'attack', value: 14, timer: 3 }],
+    intents: [{ kind: 'attack', value: 1, timer: 3 }],
     blurb: 'Кусает часто, но слабо. Убей первой.',
   },
   drop: {
@@ -36,7 +36,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     hp: 24,
     size: 'S',
     material: 'ink',
-    intents: [{ kind: 'attack', value: 10, timer: 3 }],
+    intents: [{ kind: 'attack', value: 1, timer: 3 }],
     blurb: 'Осколок кляксы.',
   },
   blot: {
@@ -49,7 +49,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     splitInto: 'drop',
     intents: [
       { kind: 'ink', value: 2, timer: 3 },
-      { kind: 'attack', value: 14, timer: 3 },
+      { kind: 'attack', value: 1, timer: 3 },
     ],
     blurb: 'Заливает фишки чернилами. Умирая, распадается на капли.',
   },
@@ -60,7 +60,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'S',
     material: 'paper',
     intents: [
-      { kind: 'attack', value: 11, timer: 3 },
+      { kind: 'attack', value: 1, timer: 3 },
       { kind: 'stealCharge', value: 3, timer: 3 },
     ],
     blurb: 'Ест чернила из навыка.',
@@ -73,7 +73,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     intents: [
       { kind: 'pin', value: 1, timer: 3 },
-      { kind: 'attack', value: 18, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Прибивает фишки скобами: их нельзя сдвинуть с места.',
   },
@@ -85,8 +85,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     traits: ['turnstile'],
     intents: [
-      { kind: 'attack', value: 14, timer: 3 },
-      { kind: 'heavy', value: 22, timer: 4 },
+      { kind: 'attack', value: 1, timer: 3 },
+      { kind: 'heavy', value: 2, timer: 4 },
     ],
     blurb: 'Пропускает по одному: пока он в бою, фишки ходят только вверх и вниз.',
   },
@@ -99,7 +99,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'rubber',
     intents: [
       { kind: 'erase', value: 1, timer: 3 },
-      { kind: 'heavy', value: 29, timer: 4 },
+      { kind: 'heavy', value: 2, timer: 4 },
     ],
     blurb: 'Бронирован: каждый удар по нему слабее на 2. Стирает особые фишки.',
   },
@@ -111,7 +111,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     intents: [
       { kind: 'tape', value: 3, timer: 3 },
-      { kind: 'attack', value: 18, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Выплёвывает волокиту: фишки, которые не собираются.',
   },
@@ -123,7 +123,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     intents: [
       { kind: 'hurry', value: 1, timer: 3 },
-      { kind: 'attack', value: 11, timer: 3 },
+      { kind: 'attack', value: 1, timer: 3 },
     ],
     blurb: 'Звонит без конца. От звонка все остальные торопятся.',
   },
@@ -135,8 +135,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'flesh',
     intents: [
       { kind: 'tape', value: 2, timer: 3 },
-      { kind: 'attack', value: 32, timer: 3 },
-      { kind: 'heavy', value: 54, timer: 4 },
+      { kind: 'attack', value: 3, timer: 3 },
+      { kind: 'heavy', value: 4, timer: 4 },
     ],
     blurb: 'Сидел за соседним столом. Кажется, он всё ещё работает.',
   },
@@ -147,7 +147,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'L',
     material: 'metal',
     intents: [
-      { kind: 'attack', value: 34, timer: 3 },
+      { kind: 'attack', value: 3, timer: 3 },
       { kind: 'summon', value: 1, timer: 4, summon: 'rat' },
       { kind: 'ink', value: 3, timer: 3 },
     ],
@@ -155,9 +155,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
       {
         at: 0.5,
         intents: [
-          { kind: 'heavy', value: 54, timer: 4 },
+          { kind: 'heavy', value: 4, timer: 4 },
           { kind: 'summon', value: 1, timer: 3, summon: 'rat' },
-          { kind: 'attack', value: 34, timer: 3 },
+          { kind: 'attack', value: 3, timer: 3 },
         ],
       },
     ],
@@ -170,7 +170,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'boss',
     material: 'flesh',
     intents: [
-      { kind: 'attack', value: 39, timer: 3 },
+      { kind: 'attack', value: 3, timer: 3 },
       { kind: 'tape', value: 3, timer: 3 },
       { kind: 'summon', value: 1, timer: 4, summon: 'phone' },
     ],
@@ -178,9 +178,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
       {
         at: 0.5,
         intents: [
-          { kind: 'heavy', value: 63, timer: 4 },
+          { kind: 'heavy', value: 5, timer: 4 },
           { kind: 'hurry', value: 1, timer: 3 },
-          { kind: 'attack', value: 39, timer: 3 },
+          { kind: 'attack', value: 3, timer: 3 },
         ],
       },
     ],
@@ -195,7 +195,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'M',
     material: 'flesh',
     intents: [
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
       { kind: 'ink', value: 2, timer: 3 },
     ],
     blurb: 'Пишет размокшими чернилами прямо по полю.',
@@ -209,7 +209,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     traits: ['cramped'],
     intents: [
       { kind: 'block', value: 10, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Стопка коробок на ногах. Заставила полстола: пока она в бою, поле на столбец уже. Упадёт — место вернётся.',
   },
@@ -222,7 +222,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'paper',
     intents: [
       { kind: 'pinch', value: 1, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Хватает строку клешнёй и двигает её сам. Бронирован.',
   },
@@ -235,7 +235,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     traits: ['diver'],
     intents: [
       { kind: 'submerge', value: 0, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Ныряет: под водой удары его не достают, а взрывы и урон всем — достают.',
   },
@@ -248,7 +248,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     traits: ['light'],
     intents: [
       { kind: 'stealCoins', value: 8, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Приманивает монеты фонарём. Убьёшь — вернёт украденное.',
   },
@@ -260,7 +260,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'metal',
     intents: [
       { kind: 'anchor', value: 1, timer: 3 },
-      { kind: 'heavy', value: 32, timer: 4 },
+      { kind: 'heavy', value: 3, timer: 4 },
     ],
     blurb: 'Бросает якорь: фишки столбца не двигаются 3 хода. Бьёт тяжело.',
   },
@@ -272,7 +272,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'water',
     intents: [
       { kind: 'tide', value: 1, timer: 4 },
-      { kind: 'attack', value: 24, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
       { kind: 'summon', value: 1, timer: 4, summon: 'eel' },
     ],
     phases: [
@@ -280,8 +280,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
         at: 0.5,
         intents: [
           { kind: 'tide', value: 1, timer: 3 },
-          { kind: 'heavy', value: 42, timer: 3 },
-          { kind: 'attack', value: 24, timer: 3 },
+          { kind: 'heavy', value: 4, timer: 3 },
+          { kind: 'attack', value: 2, timer: 3 },
         ],
       },
     ],
@@ -311,7 +311,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     traits: ['light'],
     intents: [
       { kind: 'ember', value: 2, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Подбрасывает угольки. Собери фишку с фитилём, пока не догорела.',
   },
@@ -322,8 +322,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     size: 'M',
     material: 'metal',
     intents: [
-      { kind: 'attack', value: 19, timer: 3 },
-      { kind: 'heavy', value: 34, timer: 4 },
+      { kind: 'attack', value: 2, timer: 3 },
+      { kind: 'heavy', value: 3, timer: 4 },
     ],
     blurb: 'Долго раскачивает колокол — и бьёт очень больно.',
   },
@@ -337,7 +337,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     coins: 12,
     intents: [
       { kind: 'block', value: 10, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Тяжёлая броня и щит. Внутри — монеты.',
   },
@@ -349,7 +349,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'flesh',
     intents: [
       { kind: 'censor', value: 4, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Закрывает фишки чёрными плашками.',
   },
@@ -359,7 +359,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     hp: 14,
     size: 'S',
     material: 'glass',
-    intents: [{ kind: 'attack', value: 14, timer: 3 }],
+    intents: [{ kind: 'attack', value: 1, timer: 3 }],
     blurb: 'Отколовшийся кусок зеркала.',
   },
   mirror: {
@@ -370,7 +370,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'glass',
     intents: [
       { kind: 'shine', value: 1, timer: 3 },
-      { kind: 'attack', value: 26, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
       { kind: 'ink', value: 4, timer: 3 },
     ],
     phases: [
@@ -378,7 +378,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
         at: 0.5,
         intents: [
           { kind: 'shine', value: 1, timer: 3 },
-          { kind: 'heavy', value: 39, timer: 3 },
+          { kind: 'heavy', value: 3, timer: 3 },
           { kind: 'summon', value: 1, timer: 4, summon: 'shard' },
         ],
       },
@@ -395,7 +395,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'rubber',
     intents: [
       { kind: 'pin', value: 2, timer: 3 },
-      { kind: 'attack', value: 24, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
     ],
     blurb: 'Ставит резолюции прямо на фишки.',
   },
@@ -407,7 +407,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'flesh',
     intents: [
       { kind: 'censor', value: 3, timer: 3 },
-      { kind: 'attack', value: 19, timer: 3 },
+      { kind: 'attack', value: 2, timer: 3 },
       { kind: 'heal', value: 8, timer: 3 },
     ],
     blurb: 'Закрывает бумаги и лечит начальство.',
@@ -420,7 +420,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     material: 'flesh',
     intents: [
       { kind: 'censor', value: 5, timer: 3 },
-      { kind: 'strike', value: 26, timer: 4 },
+      { kind: 'strike', value: 2, timer: 4 },
       { kind: 'summon', value: 1, timer: 5, summon: 'secretary' },
     ],
     phases: [
@@ -428,7 +428,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
         at: 0.6,
         intents: [
           { kind: 'pin', value: 2, timer: 3 },
-          { kind: 'heavy', value: 43, timer: 4 },
+          { kind: 'heavy', value: 4, timer: 4 },
           { kind: 'censor', value: 5, timer: 3 },
         ],
       },
@@ -436,8 +436,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
         at: 0.3,
         intents: [
           { kind: 'ink', value: 6, timer: 4 },
-          { kind: 'heavy', value: 46, timer: 4 },
-          { kind: 'strike', value: 26, timer: 3 },
+          { kind: 'heavy', value: 4, timer: 4 },
+          { kind: 'strike', value: 2, timer: 3 },
         ],
       },
     ],

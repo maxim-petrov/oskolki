@@ -410,11 +410,15 @@ function winCombat(run: RunState, ev: GameEvent[]) {
     run.stats.bossesKilled.push(boss);
     if (c.damageTaken === 0) run.stats.bossesNoHit++;
   }
-  if (mods.growHp && (hero.grown ?? 0) < mods.growHp) {
-    hero.grown = (hero.grown ?? 0) + 1;
-    hero.maxHp += 1;
-    hero.hp += 1;
-    ev.push({ t: 'message', text: 'Календарь: +1 к здоровью' });
+  // The desk calendar: every third won fight adds a heart container (up to growHp of them).
+  if (mods.growHp) {
+    hero.wins = (hero.wins ?? 0) + 1;
+    if (hero.wins % 3 === 0 && (hero.grown ?? 0) < mods.growHp) {
+      hero.grown = (hero.grown ?? 0) + 1;
+      hero.maxHp += 2;
+      hero.hp += 2;
+      ev.push({ t: 'message', text: 'Календарь: +1 сердце' });
+    }
   }
   heal(run, mods.healAfterFight + (c.damageTaken === 0 ? mods.healNoHit : 0), ev);
   if (kind === 'elite') gainShards(run, 1, ev);

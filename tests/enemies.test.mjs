@@ -221,7 +221,7 @@ test('a dive ends on time even when the timer is pushed back (no endless fight u
   assert.ok(foe(run).countdown > 1, 'но ударит позже — задержка таймера работает');
 });
 
-test('long fights get harder: +2 damage every 5 moves after the 20th', () => {
+test('long fights get harder: +½ heart every 5 moves after the 20th', () => {
   const run = scene({ enemies: ['rat'] });
   const c = run.combat;
   const e = foe(run);
@@ -229,9 +229,9 @@ test('long fights get harder: +2 damage every 5 moves after the 20th', () => {
   c.moves = OVERTIME_AFTER;
   assert.equal(intentDamage(c, e), base);
   c.moves = OVERTIME_AFTER + 1;
-  assert.equal(intentDamage(c, e), base + 2);
+  assert.equal(intentDamage(c, e), base + 1);
   c.moves = OVERTIME_AFTER + 6;
-  assert.equal(intentDamage(c, e), base + 4);
+  assert.equal(intentDamage(c, e), base + 2);
 });
 
 test('armor soaks one enemy action and burns out', () => {
@@ -243,29 +243,23 @@ test('armor soaks one enemy action and burns out', () => {
   assert.equal(res.run.hero.armor, 0, 'остаток брони сгорает');
 });
 
-test('the mirror sends back a quarter of a blow, at most a heavy hit of its act', () => {
-  const blow = (heroDmg) => {
-    const run = scene({
-      enemies: ['mirror'],
-      enemyHp: 99999,
-      act: 2,
-      hp: 500,
-      maxHp: 500,
-    });
+test('every blow at a shining mirror costs the hero half a heart, more in later acts', () => {
+  const back = (heroDmg, act = 2) => {
+    const run = scene({ enemies: ['mirror'], enemyHp: 99999, act, hp: 500, maxHp: 500 });
     run.dev = { heroDmg };
     foe(run).shining = true;
-    const res = play(run, line(run, FISTS));
-    return { dealt: res.strike.damage, back: 500 - res.run.hero.hp };
+    return 500 - play(run, line(run, FISTS)).run.hero.hp;
   };
-  const small = blow(10);
-  assert.equal(small.back, Math.round(small.dealt * 0.25));
-  assert.equal(blow(1000).back, byBlows(18, 2), 'потолок — тяжёлый удар 3-го отдела');
+  assert.equal(back(1), back(1000), 'не зависит от силы удара');
+  assert.equal(back(1), Math.max(1, byBlows(1, 2)));
+  assert.equal(back(1, 3), Math.max(1, byBlows(1, 3)));
 });
 
 test('a blow the mirror sends back can kill, and the same move does not heal the dead', () => {
   const run = scene({ enemies: ['mirror'], enemyHp: 99999, act: 2, hp: 1, maxHp: 50 });
   run.dev = { heroDmg: 1000 };
   foe(run).shining = true;
+  foe(run).dmgMul = 20; // a mirror that sends back more than the move's armour
   // One swap: three fists in row 2 and four archive boxes (a group of 4 heals 4) in row 1.
   for (const c of [0, 1]) put(run, 2, c, 'fist');
   put(run, 1, 2, 'fist');

@@ -170,7 +170,7 @@ export function alive(c: Combat): EnemyState[] {
 }
 
 export function overtimeBonus(c: Combat): number {
-  return c.moves > OVERTIME_AFTER ? 2 * (1 + Math.floor((c.moves - OVERTIME_AFTER - 1) / 5)) : 0;
+  return c.moves > OVERTIME_AFTER ? 1 + Math.floor((c.moves - OVERTIME_AFTER - 1) / 5) : 0;
 }
 
 const DAMAGING = new Set(['attack', 'heavy', 'strike']);
@@ -449,8 +449,8 @@ export function hitEnemy(ctx: Ctx, uid: number, raw: number, opts: { source: str
   ctx.run.stats.damageDealt += dealt;
   ctx.fx.push({ kind: 'damage', amount: dmg, uid, blocked, source: opts.source });
   if (e.shining && e.hp > 0 && opts.source === 'strike' && dmg > 0) {
-    // A quarter of the blow comes back, but never more than a heavy hit of this act.
-    const back = Math.max(1, Math.min(Math.round(dmg * 0.25), Math.round(18 * e.dmgMul)));
+    // Every blow at a shining mirror costs the hero half a heart (more in later acts).
+    const back = Math.max(1, Math.round(e.dmgMul));
     const hurt = hurtHero(ctx, back, 'Отражение Кривого зеркала');
     ctx.fx.push({ kind: 'proc', amount: hurt.red, uid, source: 'mirror', text: `Отражение −${hurt.red}` });
   }
@@ -568,7 +568,7 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
       add('armor', v);
       if (size >= 4 && g && !ms.flags.has(`box:${g.cells[0]}`)) {
         ms.flags.add(`box:${g.cells[0]}`);
-        ms.heal += 4;
+        ms.heal += 1;
       }
       break;
     case 'vest':
@@ -1450,7 +1450,7 @@ function boardTimers(ctx: Ctx) {
   if (burnt.length) {
     const prev = ctx.fx;
     ctx.fx = [];
-    const dmg = Math.round(4 * burnt.length * (ACTS[Math.min(ctx.run.act, ACTS.length - 1)].dmgMul));
+    const dmg = Math.round(burnt.length * ACTS[Math.min(ctx.run.act, ACTS.length - 1)].dmgMul);
     const hurt = mods.emberImmune ? { amount: 0, armor: 0, red: 0 } : hurtHero(ctx, dmg, 'Уголёк');
     const list = ctx.fx;
     ctx.fx = prev;
@@ -1595,7 +1595,7 @@ export function playerPocket(run: RunState, mods: Mods, slot: number, cell: numb
   ev.push({ t: 'pocketUsed', pocket: def.id });
   if (id === 'coffee') {
     const before = run.hero.hp;
-    run.hero.hp = Math.min(run.hero.maxHp, run.hero.hp + 12);
+    run.hero.hp = Math.min(run.hero.maxHp, run.hero.hp + 2);
     ev.push({ t: 'heal', amount: run.hero.hp - before });
     return true;
   }

@@ -93,7 +93,7 @@ const CARD_CHECKS = {
   },
   archivebox() {
     assert.equal(hit({ hp: 30 }, three('archivebox')).run.hero.hp, 30);
-    assert.equal(hit({ hp: 30 }, four('archivebox')).run.hero.hp, 34, 'группа из 4 лечит 4');
+    assert.equal(hit({ hp: 30 }, four('archivebox')).run.hero.hp, 31, 'группа из 4 лечит ½ сердца');
   },
   vest: () => assert.equal(hit({}, three('vest')).strike.armor, 12),
   clipboard() {

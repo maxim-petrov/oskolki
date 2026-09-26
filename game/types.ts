@@ -186,8 +186,9 @@ export interface Hero {
   pockets: (string | null)[];
   deck: DeckCard[];
   flashUsed: boolean;
-  /** Max health the desk calendar has added this run. */
+  /** Heart containers the desk calendar has added this run, and fights won since it came. */
   grown?: number;
+  wins?: number;
 }
 
 export interface Combat {

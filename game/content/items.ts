@@ -186,15 +186,15 @@ export const ITEMS: Record<string, ItemDef> = {
   inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к заряду.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
   wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Золотые фишки +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
   vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Первый удар врага в каждом бою не проходит.', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.firstBlowGuard = true) }),
-  sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+8 к максимуму здоровья (и к потолку брони). Лечит 8.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 8, heal: 8 }),
-  bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит 5.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 5) }),
-  gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 8.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 8) }),
+  sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+1 сердце к максимуму (и к потолку брони). Лечит 1 сердце.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 2, heal: 2 }),
+  bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит ½ сердца.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 1) }),
+  gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 1 сердце.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 2) }),
   ledger: i({ id: 'ledger', name: 'Бухгалтерская книга', desc: 'В начале боя +1 монета за каждые 10 в кошельке.', kind: 'passive', icon: 'item_ledger', pool: 'common', apply: (m) => (m.interest = true) }),
   loupe: i({ id: 'loupe', name: 'Лупа', desc: 'Очередь над полем показывает 3 следующие фишки.', kind: 'passive', icon: 'item_loupe', pool: 'common', apply: (m) => (m.preview = 3) }),
   gloves: i({ id: 'gloves', name: 'Резиновые перчатки', desc: 'Угольки не ранят.', kind: 'passive', icon: 'item_gloves', pool: 'common', apply: (m) => (m.emberImmune = true) }),
   clipholder: i({ id: 'clipholder', name: 'Скрепочница', desc: 'В начале боя две фишки поля становятся ракетами.', kind: 'passive', icon: 'item_clipholder', pool: 'common', apply: (m) => (m.startRockets += 2) }),
   destapler: i({ id: 'destapler', name: 'Антистеплер', desc: 'Скобы, якоря и вода не держат фишки: они ходят как обычно.', kind: 'passive', icon: 'item_destapler', pool: 'common', apply: (m) => (m.unpinned = true) }),
-  calendar: i({ id: 'calendar', name: 'Настольный календарь', desc: 'После каждого выигранного боя +1 к максимуму здоровья (до +8 за смену).', kind: 'passive', icon: 'item_calendar', pool: 'common', apply: (m) => (m.growHp = 8) }),
+  calendar: i({ id: 'calendar', name: 'Настольный календарь', desc: 'Каждый третий выигранный бой: +1 сердце к максимуму (до +3 за смену).', kind: 'passive', icon: 'item_calendar', pool: 'common', apply: (m) => (m.growHp = 3) }),
 
   // ── Uncommon ──────────────────────────────────────────────────────
   battery: i({ id: 'battery', name: 'Батарейка', desc: '+1 заряд навыка после каждого хода.', kind: 'passive', icon: 'item_battery', pool: 'uncommon', apply: (m) => (m.battery += 1) }),
@@ -244,7 +244,7 @@ export const ITEMS: Record<string, ItemDef> = {
   award: i({ id: 'award', name: 'Грамота «Сотрудник месяца»', desc: '+1 множ каждый ход.', kind: 'passive', icon: 'item_award', pool: 'boss', apply: (m) => (m.multFlat += 1) }),
   nightshift: i({ id: 'nightshift', name: 'Ночная смена', desc: 'Таймеры всех врагов +1.', kind: 'passive', icon: 'item_nightshift', pool: 'boss', apply: (m) => (m.timerBonus += 1) }),
   espresso: i({ id: 'espresso', name: 'Двойной эспрессо', desc: 'Красные фишки +2 к урону.', kind: 'passive', icon: 'item_espresso', pool: 'boss', apply: (m) => (m.redPlus += 2) }),
-  pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +15 к максимуму здоровья (и к потолку брони).', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 15, heal: 15, apply: (m) => (m.pockets += 2) }),
+  pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +2 сердца к максимуму (и к потолку брони).', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 4, heal: 4, apply: (m) => (m.pockets += 2) }),
   stamprelic: i({ id: 'stamprelic', name: 'Печать отдела', desc: 'В начале боя 3 фишки поля получают печать: +1 множ при сборе.', kind: 'passive', icon: 'item_stamprelic', pool: 'boss', apply: (m) => (m.sealStart += 3) }),
   vault: i({ id: 'vault', name: 'Сейф директора', desc: '+1 множ за каждые 100 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinMultPer = 100) }),
   hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда; после навыка удар следующего хода +4 множ.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3, apply: (m) => (m.skillMult = 4) }),
@@ -276,7 +276,7 @@ export interface PocketDef {
 
 export const POCKETS: Record<string, PocketDef> = {
   bomb: { id: 'bomb', name: 'Бомба', desc: 'Взрыв 3×3 в выбранном месте. Время не тратит.', icon: 'pocket_bomb', price: 30, aim: 'cell' },
-  coffee: { id: 'coffee', name: 'Кофе', desc: 'Лечит 12 здоровья.', icon: 'pocket_coffee', price: 30 },
+  coffee: { id: 'coffee', name: 'Кофе', desc: 'Лечит 1 сердце.', icon: 'pocket_coffee', price: 30 },
   eraser: { id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку. Время не тратит; сложившиеся ряды сгорают впустую.', icon: 'pocket_eraser', price: 25, aim: 'cell' },
   sticker: { id: 'sticker', name: 'Стикер «Срочно»', desc: 'Таймеры всех врагов +2.', icon: 'pocket_sticker', price: 35 },
   energy: { id: 'energy', name: 'Энергетик', desc: '+2 множ к следующему ходу.', icon: 'pocket_energy', price: 30 },
