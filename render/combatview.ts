@@ -1470,6 +1470,18 @@ export class CombatView {
       } else text(ctx, 'Потяни фишку к соседней: 3 в ряд — ход', r.x + r.w / 2, r.y + r.h / 2 - 4, 'gold4', { align: 'center', alpha: a });
     }
     if (this.targeting) text(ctx, L.touch ? 'Коснись цели · вне поля — отмена' : 'Выбери цель · Esc — отмена', L.w / 2, b.by - 20, 'orange4', { align: 'center', outline: 'ink0' });
+    else if (c && this.canPlay()) {
+      // Moves that do not follow the usual rule: a turnstile holds all fight, items remind at the start.
+      const rules = this.rules();
+      const tip = rules.vertical
+        ? 'Турникет: фишки ходят только вверх и вниз'
+        : c.moves === 0 && rules.slide
+          ? 'Рулетка: фишку можно тянуть вдоль всего ряда'
+          : c.moves === 0 && rules.diagonal
+            ? 'Угольник: меняться можно и по диагонали'
+            : '';
+      if (tip) text(ctx, tip, L.w / 2, b.by - 20, rules.vertical ? 'red4' : 'gold4', { align: 'center', outline: 'ink0' });
+    }
     this.tileTip(ctx, ui);
   }
 }
