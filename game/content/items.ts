@@ -135,14 +135,14 @@ export const ITEMS: Record<string, ItemDef> = {
   // ── Starting items ────────────────────────────────────────────────
   knife: i({ id: 'knife', name: 'Канцелярский нож', desc: 'Итоговый удар по бумажным врагам ×2.', kind: 'passive', icon: 'item_knife', pool: 'starter', apply: (m) => (m.paperX *= 2) }),
   calculator: i({ id: 'calculator', name: 'Калькулятор', desc: '+1 множ, если в ходу собраны золотые фишки.', kind: 'passive', icon: 'item_calculator', pool: 'starter', apply: (m) => (m.calcGoldMult = true) }),
-  mop: i({ id: 'mop', name: 'Швабра', desc: 'Каждая убранная клякса или волокита даёт 2 брони.', kind: 'passive', icon: 'item_mop', pool: 'starter', apply: (m) => (m.mopJunk += 2) }),
+  mop: i({ id: 'mop', name: 'Швабра', desc: 'Каждая убранная клякса или волокита даёт 2 брони (растёт с отделом).', kind: 'passive', icon: 'item_mop', pool: 'starter', apply: (m) => (m.mopJunk += 2) }),
 
   // ── Common ────────────────────────────────────────────────────────
   coffee: i({ id: 'coffee', name: 'Крепкий кофе', desc: 'Красные фишки +1 к урону.', kind: 'passive', icon: 'item_coffee', pool: 'common', apply: (m) => (m.redPlus += 1) }),
   binderclip: i({ id: 'binderclip', name: 'Зажим для бумаг', desc: 'Синие фишки +1 к броне.', kind: 'passive', icon: 'item_binderclip', pool: 'common', apply: (m) => (m.bluePlus += 1) }),
   inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к заряду.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
   wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Золотые фишки +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
-  vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Каждый бой начинается с 6 брони.', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.startArmor += 6) }),
+  vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Каждый бой начинается с 6 брони (растёт с отделом).', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.startArmor += 6) }),
   sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+8 к максимуму здоровья. Лечит 8.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 8, heal: 8 }),
   bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит 5.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 5) }),
   gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 8.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 8) }),
@@ -152,15 +152,15 @@ export const ITEMS: Record<string, ItemDef> = {
 
   // ── Uncommon ──────────────────────────────────────────────────────
   battery: i({ id: 'battery', name: 'Батарейка', desc: '+1 заряд навыка после каждого хода.', kind: 'passive', icon: 'item_battery', pool: 'uncommon', apply: (m) => (m.battery += 1) }),
-  spider: i({ id: 'spider', name: 'Скрепка-паук', desc: 'После каждого хода кусает самого слабого врага на 3.', kind: 'passive', icon: 'item_spider', pool: 'uncommon', apply: (m) => (m.spider += 3) }),
-  cactus: i({ id: 'cactus', name: 'Кактус на столе', desc: 'Враг, ударивший тебя, получает 5 урона.', kind: 'passive', icon: 'item_cactus', pool: 'uncommon', apply: (m) => (m.cactus += 5) }),
+  spider: i({ id: 'spider', name: 'Скрепка-паук', desc: 'После каждого хода кусает самого слабого врага на 3 (растёт с отделом).', kind: 'passive', icon: 'item_spider', pool: 'uncommon', apply: (m) => (m.spider += 3) }),
+  cactus: i({ id: 'cactus', name: 'Кактус на столе', desc: 'Враг, ударивший тебя, получает 5 урона (растёт с отделом).', kind: 'passive', icon: 'item_cactus', pool: 'uncommon', apply: (m) => (m.cactus += 5) }),
   inkwell: i({ id: 'inkwell', name: 'Чернильница', desc: 'Каждая фиолетовая фишка наносит цели 2 урона.', kind: 'passive', icon: 'item_inkwell', pool: 'uncommon', apply: (m) => (m.inkDamage += 2) }),
   register: i({ id: 'register', name: 'Кассовый аппарат', desc: 'Каждая золотая фишка наносит цели 2 урона.', kind: 'passive', icon: 'item_register', pool: 'uncommon', apply: (m) => (m.coinDamage += 2) }),
   tape: i({ id: 'tape', name: 'Двусторонний скотч', desc: 'Броня, полученная за ход, ещё и бьёт цель.', kind: 'passive', icon: 'item_tape', pool: 'uncommon', apply: (m) => (m.armorToDamage = true) }),
-  rustyblade: i({ id: 'rustyblade', name: 'Ржавое лезвие', desc: 'Каждая красная группа даёт цели 2 кровотечения.', kind: 'passive', icon: 'item_scissors', pool: 'uncommon', apply: (m) => (m.bleedOnRed += 2) }),
-  match: i({ id: 'match', name: 'Тлеющая спичка', desc: 'Группа из 4+ фишек или взрыв поджигает цель: 4 урона три хода.', kind: 'passive', icon: 'item_match', pool: 'uncommon', apply: (m) => (m.igniteOn4 = true) }),
+  rustyblade: i({ id: 'rustyblade', name: 'Ржавое лезвие', desc: 'Каждая красная группа даёт цели 2 кровотечения (урон растёт с отделом).', kind: 'passive', icon: 'item_scissors', pool: 'uncommon', apply: (m) => (m.bleedOnRed += 2) }),
+  match: i({ id: 'match', name: 'Тлеющая спичка', desc: 'Группа из 4+ фишек или взрыв поджигает цель: 4 урона три хода (растёт с отделом).', kind: 'passive', icon: 'item_match', pool: 'uncommon', apply: (m) => (m.igniteOn4 = true) }),
   ice: i({ id: 'ice', name: 'Ведро льда', desc: 'Синяя группа из 4+ замораживает врагов: таймеры +1.', kind: 'passive', icon: 'item_ice', pool: 'uncommon', apply: (m) => (m.freezeOn4Shields = true) }),
-  plane: i({ id: 'plane', name: 'Бумажный самолётик', desc: 'Красная группа из 4+ — 6 урона каждому врагу.', kind: 'passive', icon: 'item_plane', pool: 'uncommon', apply: (m) => (m.planeOn4 += 6) }),
+  plane: i({ id: 'plane', name: 'Бумажный самолётик', desc: 'Красная группа из 4+ — 6 урона каждому врагу (растёт с отделом).', kind: 'passive', icon: 'item_plane', pool: 'uncommon', apply: (m) => (m.planeOn4 += 6) }),
   lucky: i({ id: 'lucky', name: 'Счастливая монетка', desc: 'С шансом 20% множ хода удваивается.', kind: 'passive', icon: 'item_lucky', pool: 'uncommon', apply: (m) => (m.luck += 0.2) }),
   dynamite: i({ id: 'dynamite', name: 'Праздничный динамит', desc: 'Бомбы взрывают квадрат 5×5.', kind: 'passive', icon: 'item_dynamite', pool: 'uncommon', apply: (m) => (m.bombRadius = 2) }),
   garland: i({ id: 'garland', name: 'Гирлянда', desc: 'Каждый 5-й ход случайная фишка становится бомбой.', kind: 'passive', icon: 'item_garland', pool: 'uncommon', apply: (m) => (m.garlandEvery = 5) }),

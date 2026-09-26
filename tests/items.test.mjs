@@ -7,6 +7,7 @@ import { validMoves } from '../game/board.ts';
 import { ITEMS, POCKETS, computeMods } from '../game/content/items.ts';
 import { FINISH_TEXT } from '../game/content/cards.ts';
 import { QUEUE_LEN } from '../game/types.ts';
+import { ACTS } from '../game/content/acts.ts';
 import { CLIPS, FISTS, FOLDERS, INKS, act, cascade, foe, hit, idx, line, moves, play, put, ready, scene, tile } from './scene.mjs';
 
 /**
@@ -383,3 +384,31 @@ test('every item, pocket and finish has a check', () => {
 for (const [id, check] of Object.entries(ITEM_CHECKS)) test(`${ITEMS[id]?.name ?? id}: ${ITEMS[id]?.desc ?? ''}`, check);
 for (const [id, check] of Object.entries(POCKET_CHECKS)) test(`карман «${POCKETS[id].name}»: ${POCKETS[id].desc}`, check);
 for (const [id, check] of Object.entries(FINISH_CHECKS)) test(`отделка «${FINISH_TEXT[id].name}»: ${FINISH_TEXT[id].text}`, check);
+
+test('effects outside the strike grow with the act: damage with enemy health, armour with enemy blows', () => {
+  const act = 2;
+  const HP = ACTS[act].hpMul;
+  const DMG = ACTS[act].dmgMul;
+  const hurt = (relics, cards, k = 1) => {
+    const run = scene({ act, relics, enemies: ['anchor', 'drop'] });
+    const before = foe(run, k).hp;
+    return before - foe(play(run, line(run, cards)).run, k).hp;
+  };
+  assert.equal(hurt(['spider'], FOLDERS), Math.round(3 * HP), 'паук');
+  assert.equal(hurt(['plane'], [...FISTS, 'fist']), Math.round(6 * HP), 'самолётик');
+  // Burn and bleed tick on the target at the end of the move (the strike itself lands on armour 0).
+  const run = scene({ act, relics: ['match', 'rustyblade'], enemies: ['anchor'], enemyHp: 99999 });
+  const res = play(run, line(run, [...FISTS, 'fist']));
+  const ticks = res.effects.filter((f) => f.source === 'burn' || f.source === 'bleed').map((f) => [f.source, f.amount]);
+  assert.deepEqual(ticks.sort(), [
+    ['bleed', 2 * HP],
+    ['burn', Math.round(4 * HP)],
+  ]);
+  const cactus = scene({ act, relics: ['cactus'], enemies: ['rat'], enemyHp: 99999 });
+  ready(cactus, 'attack');
+  assert.equal(99999 - foe(play(cactus, line(cactus, CLIPS)).run).hp, 5 * HP, 'кактус');
+  assert.equal(scene({ act, relics: ['vestrelic'] }).hero.armor, Math.round(6 * DMG), 'жилет');
+  const mop = hit({ act, relics: ['mop'] });
+  const junk = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
+  assert.equal(mop.run.hero.armor, Math.round(junk * 2 * DMG), 'швабра');
+});

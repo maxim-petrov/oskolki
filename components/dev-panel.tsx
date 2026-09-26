@@ -190,8 +190,8 @@ function tipItem(catalog: Catalog, id: string): TipData | undefined {
 function tipEnemy(catalog: Catalog, id: string): TipData | undefined {
   const e = catalog.enemies.find((x) => x.id === id);
   if (!e) return undefined;
-  const hp = e.hpIn.length ? e.hpIn.map((h) => `в отделе ${h.act + 1}: ${h.hp}`).join(' · ') : `${e.hp}`;
-  const lines = [`${SIZE_NAME[e.size] ?? e.size} · ${e.material}${e.armor ? ` · броня ${e.armor}` : ''}`, `здоровье ${hp}`, ...e.intents];
+  const hp = e.hpIn.length ? e.hpIn.map((h) => `в отделе ${h.act + 1}: ${h.hp}${h.armor ? `, броня ${h.armor}` : ''}`).join(' · ') : `${e.hp}`;
+  const lines = [`${SIZE_NAME[e.size] ?? e.size} · ${e.material}`, `здоровье ${hp}`, ...e.intents];
   if (e.traits.length) lines.push(e.traits.join(', '));
   return { title: e.name, lines, body: e.blurb, accent: 'red' };
 }

@@ -130,6 +130,8 @@ export class EnemyView {
   hp: number;
   maxHp: number;
   block = 0;
+  /** Armour against every blow (grows with the act). */
+  armor: number;
   offX = 0;
   offY = 0;
   flash = 0;
@@ -171,6 +173,7 @@ export class EnemyView {
     this.tx = x;
     this.hp = e.hp;
     this.maxHp = e.maxHp;
+    this.armor = e.armor;
     this.intent = currentIntent(e);
     this.countdown = e.countdown;
     this.sync(e);
@@ -363,7 +366,7 @@ export class EnemyView {
     const mat = def ? MATERIAL_NAME[def.material] : '';
     return {
       title: def?.name ?? this.def,
-      body: `${def?.blurb ?? ''}\nДальше: ${detail}, через ${this.countdown} ход(а).${def?.armor ? `\nБроня ${def.armor}.` : ''}${mat ? `\nМатериал: ${mat}.` : ''}`,
+      body: `${def?.blurb ?? ''}\nДальше: ${detail}, через ${this.countdown} ход(а).${this.armor ? `\nБроня ${this.armor}: каждый удар слабее на столько.` : ''}${mat ? `\nМатериал: ${mat}.` : ''}`,
     };
   }
 }

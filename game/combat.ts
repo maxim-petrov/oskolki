@@ -173,6 +173,16 @@ export function intentDamage(c: Combat, e: EnemyState): number {
   return DAMAGING.has(i.kind) ? Math.round(i.value * e.dmgMul) + overtimeBonus(c) : 0;
 }
 
+/**
+ * The act's scale for effects outside the strike: damage to enemies (bleed, burn, bites, thorns)
+ * and their shields, armour and heals grow with enemy health; the hero's flat armour grows with
+ * enemy blows. A flat 3 means the same in the last act as in the first.
+ */
+export function actScale(run: RunState): { hp: number; dmg: number } {
+  const act = ACTS[Math.min(run.act, ACTS.length - 1)];
+  return { hp: act.hpMul, dmg: act.dmgMul };
+}
+
 export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): EnemyState {
   const def = ENEMIES[defId];
   const act = ACTS[Math.min(run.act, ACTS.length - 1)];
@@ -183,7 +193,7 @@ export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): 
     hp,
     maxHp: hp,
     block: 0,
-    armor: def.armor ?? 0,
+    armor: Math.round((def.armor ?? 0) * act.hpMul),
     cycle: 0,
     countdown: 0,
     phase: 0,
@@ -236,7 +246,7 @@ export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: strin
   };
   for (const id of enemyIds) c.enemies.push(makeEnemy(run, c, id, mods));
   c.target = c.enemies[0]?.uid ?? -1;
-  run.hero.armor = mods.startArmor;
+  run.hero.armor = Math.round(mods.startArmor * actScale(run).dmg);
   run.hero.ward = 0;
   run.hero.reflect = 0;
   if (mods.sealStart > 0)
@@ -879,7 +889,8 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   }
   const armor = Math.max(0, Math.round(t.armor * mult * ms.armorX));
   if (mods.armorToDamage && armor > 0) damage += armor;
-  let aoe = Math.max(0, Math.round(t.aoe * mult)) + ms.plane;
+  const scale = actScale(run);
+  let aoe = Math.max(0, Math.round(t.aoe * mult)) + Math.round(ms.plane * scale.hp);
   const tune = run.dev?.heroDmg;
   if (tune && tune !== 1) {
     damage = Math.round(damage * tune);
@@ -893,7 +904,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   run.stats.maxMult = Math.max(run.stats.maxMult, mult);
   batch(ctx, () => {
     hero.armor += armor;
-    if (ms.junkCleared && mods.mopJunk) hero.armor += ms.junkCleared * mods.mopJunk;
+    if (ms.junkCleared && mods.mopJunk) hero.armor += Math.round(ms.junkCleared * mods.mopJunk * scale.dmg);
     const coins = Math.round(t.coins);
     hero.coins = Math.max(0, Math.min(999, hero.coins + coins));
     if (coins > 0) run.stats.coinsEarned += coins;
@@ -911,7 +922,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
         ctx.fx.push({ kind: 'status', amount: tgt.bleed, uid: tgt.uid, status: 'bleed' });
       }
       if (ms.burn) {
-        tgt.burn = Math.max(tgt.burn, 4);
+        tgt.burn = Math.max(tgt.burn, Math.round(4 * scale.hp));
         tgt.burnTurns = Math.max(tgt.burnTurns, 3);
         ctx.fx.push({ kind: 'status', amount: 3, uid: tgt.uid, status: 'burn' });
       }
@@ -935,7 +946,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
       if (hero.hp > before) ctx.fx.push({ kind: 'heal', amount: hero.hp - before });
     }
     if (ms.selfDmg) hurtHero(ctx, ms.selfDmg, 'Шило');
-    hero.ward += ms.ward;
+    hero.ward += Math.round(ms.ward * scale.dmg);
     if (ms.reflect) hero.reflect = Math.max(hero.reflect, ms.reflect);
   });
   // Board after-effects.
@@ -948,7 +959,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
         if (!u) continue;
         if (u.kind === 'junk') {
           cells[n] = drawTile(c.board, run.rng.board);
-          if (mods.mopJunk) hero.armor += mods.mopJunk;
+          if (mods.mopJunk) hero.armor += Math.round(mods.mopJunk * actScale(run).dmg);
           boardChanged = true;
         } else if (ms.cleansePins && (u.pin || u.fuse)) {
           delete u.pin;
@@ -1002,7 +1013,7 @@ function moveEnd(ctx: Ctx) {
   batch(ctx, () => {
     for (const e of alive(c)) {
       if (e.bleed > 0) {
-        hitEnemy(ctx, e.uid, e.bleed, { source: 'bleed', pierce: true });
+        hitEnemy(ctx, e.uid, e.bleed * actScale(run).hp, { source: 'bleed', pierce: true });
         e.bleed = Math.max(0, e.bleed - 1);
       }
       if (e.hp > 0 && e.burnTurns > 0) {
@@ -1012,7 +1023,7 @@ function moveEnd(ctx: Ctx) {
     }
     if (mods.spider > 0) {
       const weakest = alive(c).sort((a, b) => a.hp - b.hp)[0];
-      if (weakest) hitEnemy(ctx, weakest.uid, mods.spider, { source: 'spider', pierce: true });
+      if (weakest) hitEnemy(ctx, weakest.uid, mods.spider * actScale(run).hp, { source: 'spider', pierce: true });
     }
     if (mods.battery > 0) {
       const before = run.hero.charge;
@@ -1067,7 +1078,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     ctx.ev.push(act);
     if (list.length) ctx.ev.push({ t: 'effects', effects: list });
     flushDeaths(ctx);
-    if (mods.cactus > 0 && !isDead(run) && e.hp > 0) batch(ctx, () => hitEnemy(ctx, e.uid, mods.cactus, { source: 'cactus', pierce: true }));
+    if (mods.cactus > 0 && !isDead(run) && e.hp > 0) batch(ctx, () => hitEnemy(ctx, e.uid, mods.cactus * actScale(run).hp, { source: 'cactus', pierce: true }));
   };
   const blow = (v: number) => Math.round(v * e.dmgMul) + overtimeBonus(c);
   switch (intent.kind) {
@@ -1084,7 +1095,9 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'block':
-      e.block = Math.round(intent.value * e.dmgMul);
+      // Shields and heals are about enemy health: they grow with it.
+      e.block = Math.round(intent.value * actScale(run).hp);
+      act.block = e.block;
       ctx.ev.push(act);
       break;
     case 'heal': {
@@ -1092,7 +1105,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
         .filter((x) => x.hp < x.maxHp)
         .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
       if (hurt) {
-        const amount = Math.min(Math.round(intent.value * e.dmgMul), hurt.maxHp - hurt.hp);
+        const amount = Math.min(Math.round(intent.value * actScale(run).hp), hurt.maxHp - hurt.hp);
         hurt.hp += amount;
         act.healed = { uid: hurt.uid, amount };
       }
@@ -1484,7 +1497,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
         const t = cells[i];
         if (t.kind === 'junk') {
           cells[i] = drawTile(c.board, run.rng.board);
-          if (mods.mopJunk) hero.armor += mods.mopJunk;
+          if (mods.mopJunk) hero.armor += Math.round(mods.mopJunk * actScale(run).dmg);
         } else {
           delete t.pin;
           delete t.fuse;

@@ -980,9 +980,9 @@ export class CombatView {
           const [x, y] = this.enemyPos(e.uid);
           switch (kind) {
             case 'block':
-              juice.float(`+${e.intent.value} щит`, x, y - 20, 'cold5');
+              juice.float(`+${e.block ?? e.intent.value} щит`, x, y - 20, 'cold5');
               if (v) {
-                v.block = e.intent.value;
+                v.block = e.block ?? e.intent.value;
                 v.flash = 0.8;
                 v.flashColor = 'cold5';
               }

@@ -165,7 +165,7 @@ export class DevApi {
         hp: e.hp,
         acts: actsOf(e.id),
         /** Health as it spawns in each act it lives in. */
-        hpIn: actsOf(e.id).map((k) => ({ act: k, hp: Math.max(1, Math.round(e.hp * ACTS[k].hpMul)) })),
+        hpIn: actsOf(e.id).map((k) => ({ act: k, hp: Math.max(1, Math.round(e.hp * ACTS[k].hpMul)), armor: Math.round((e.armor ?? 0) * ACTS[k].hpMul) })),
         armor: e.armor ?? 0,
         material: MATERIAL_NAME[e.material] ?? e.material,
         traits: (e.traits ?? []).map((t) => ({ splits: 'распадается при смерти', light: 'светится', diver: 'ныряет' })[t] ?? t),

@@ -466,6 +466,8 @@ export type GameEvent =
       healed?: { uid: number; amount: number };
       board?: BoardSnap;
       stolen?: number;
+      /** The shield raised by a block action. */
+      block?: number;
       skipped?: boolean;
       added?: number;
     }

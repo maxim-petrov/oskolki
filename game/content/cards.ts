@@ -27,7 +27,7 @@ export const CARDS: Record<string, CardDef> = {
   // ── Удар (red): damage ────────────────────────────────────────────
   fist: c({ id: 'fist', name: 'Кулак', fam: 'blade', rarity: 'starter', v: 2, vUp: 3, text: '{v} урона.' }),
   punch: c({ id: 'punch', name: 'Дырокол', fam: 'blade', rarity: 'common', v: 2, vUp: 3, text: '{v} урона. Удар хода пробивает броню и щит врага.' }),
-  redpen: c({ id: 'redpen', name: 'Красная ручка', fam: 'blade', rarity: 'common', v: 1, vUp: 2, text: '{v} урона. Цель получает 2 кровотечения.' }),
+  redpen: c({ id: 'redpen', name: 'Красная ручка', fam: 'blade', rarity: 'common', v: 1, vUp: 2, text: '{v} урона. Цель получает 2 кровотечения (урон растёт с отделом).' }),
   sharpener: c({ id: 'sharpener', name: 'Точилка', fam: 'blade', rarity: 'common', v: 1, vUp: 2, text: '{v} урона, в каскаде — впятеро больше.' }),
   pins: c({ id: 'pins', name: 'Кнопки', fam: 'blade', rarity: 'common', v: 1, vUp: 2, text: '{v} урона цели и столько же каждому врагу.' }),
   scissors: c({ id: 'scissors', name: 'Ножницы', fam: 'blade', rarity: 'uncommon', v: 3, vUp: 4, text: '{v} урона. Группа из 4+ фишек — ещё +1 множ.' }),
@@ -41,7 +41,7 @@ export const CARDS: Record<string, CardDef> = {
   folder: c({ id: 'folder', name: 'Папка', fam: 'shield', rarity: 'starter', v: 1, vUp: 2, text: '{v} брони.' }),
   binder: c({ id: 'binder', name: 'Скоросшиватель', fam: 'shield', rarity: 'common', v: 2, vUp: 3, text: '{v} брони.' }),
   sleeve: c({ id: 'sleeve', name: 'Файлик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: '{v} брони. Убирает кляксы и волокиту рядом.' }),
-  umbrella: c({ id: 'umbrella', name: 'Зонтик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: '{v} брони. Следующий удар врага слабее на 4.' }),
+  umbrella: c({ id: 'umbrella', name: 'Зонтик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: '{v} брони. Следующий удар врага слабее на 4 (растёт с отделом).' }),
   drawer: c({ id: 'drawer', name: 'Картотечный ящик', fam: 'shield', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} брони. +1 множ, если в ходу собраны и красные, и синие.' }),
   laminator: c({ id: 'laminator', name: 'Ламинатор', fam: 'shield', rarity: 'uncommon', v: 1, vUp: 2, text: '{v} брони, в группе из 4+ — вдвое больше.' }),
   archivebox: c({ id: 'archivebox', name: 'Архивная коробка', fam: 'shield', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} брони. Группа из 4+ лечит 4.' }),

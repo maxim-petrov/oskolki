@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ENEMIES } from '../game/content/enemies.ts';
+import { ACTS } from '../game/content/acts.ts';
 import { OVERTIME_AFTER, intentDamage } from '../game/combat.ts';
 import { playFight } from '../game/balance/lab.ts';
 import { CLIPS, FISTS, foe, idx, line, moves, play, put, ready, scene } from './scene.mjs';
@@ -226,4 +227,17 @@ test('every enemy of the game can be fought to the end with a starter deck (no s
     assert.equal(res.stuck, false, `${id}: бой завис`);
     assert.ok(res.won || res.dead, `${ENEMIES[id].name}: бой закончился (${res.moves} ходов)`);
   }
+});
+
+test('enemy armour, shields and heals grow with enemy health from act to act', () => {
+  const HP = ACTS[2].hpMul;
+  assert.equal(foe(scene({ act: 2, enemies: ['eraser'] })).armor, 2 * HP, 'броня');
+  const safe = scene({ act: 2, real: true, enemies: ['safe'], enemyHp: 99999 });
+  ready(safe, 'block');
+  assert.equal(foe(moves(safe, 1)[0].run).block, 10 * HP, 'щит');
+  const heal = scene({ act: 2, real: true, enemies: ['candle', 'drop'] });
+  foe(heal, 1).hp = 10;
+  ready(heal, 'heal');
+  const a = moves(heal, 1)[0].acts.find((x) => x.intent.kind === 'heal');
+  assert.equal(a.healed.amount, Math.min(6 * HP, foe(heal, 1).maxHp - 10), 'лечение');
 });
