@@ -13,6 +13,8 @@ export interface ActDef {
   fx: 'openspace' | 'archive' | 'boiler' | 'directorate';
   hpMul: number;
   dmgMul: number;
+  /** Elites of the act have this much more health (the first act has elites of their own). */
+  eliteHp?: number;
   weak: string[][];
   strong: string[][];
   elites: string[][];
@@ -28,7 +30,7 @@ export const ACTS: ActDef[] = [
     subtitle: 'Отдел 1',
     fx: 'openspace',
     hpMul: 1,
-    dmgMul: 1,
+    dmgMul: 0.7,
     weak: [['rat'], ['drop', 'drop'], ['blot'], ['moth'], ['phone']],
     strong: [['rat', 'rat'], ['stapler', 'drop'], ['eraser'], ['copier'], ['moth', 'blot'], ['phone', 'rat'], ['stapler', 'moth'], ['copier', 'drop']],
     elites: [['neighbor'], ['cabinet']],
@@ -40,8 +42,9 @@ export const ACTS: ActDef[] = [
     name: 'Затопленный архив',
     subtitle: 'Отдел 2',
     fx: 'archive',
-    hpMul: 15,
-    dmgMul: 2,
+    hpMul: 18,
+    dmgMul: 2.2,
+    eliteHp: 2,
     weak: [['scribe'], ['eel'], ['angler']],
     strong: [['crab', 'eel'], ['scribe', 'blot'], ['angler', 'drop', 'drop'], ['anchor'], ['eel', 'eel'], ['crab', 'scribe']],
     elites: [['anchor', 'scribe'], ['crab', 'crab']],
@@ -53,8 +56,9 @@ export const ACTS: ActDef[] = [
     name: 'Котельная',
     subtitle: 'Отдел 3',
     fx: 'boiler',
-    hpMul: 46,
-    dmgMul: 3,
+    hpMul: 130,
+    dmgMul: 3.4,
+    eliteHp: 2,
     weak: [['candle'], ['stoker'], ['bell']],
     strong: [['safe'], ['candle', 'stoker'], ['bell', 'candle'], ['archivist', 'candle'], ['stoker', 'stoker'], ['safe', 'candle']],
     elites: [['safe', 'candle'], ['archivist', 'bell']],
@@ -66,8 +70,9 @@ export const ACTS: ActDef[] = [
     name: 'Дирекция',
     subtitle: 'Отдел 4',
     fx: 'directorate',
-    hpMul: 68,
-    dmgMul: 3.6,
+    hpMul: 2500,
+    dmgMul: 3.8,
+    eliteHp: 2,
     weak: [['stamp'], ['secretary']],
     strong: [['stamp', 'secretary'], ['safe', 'secretary'], ['bell', 'archivist'], ['stoker', 'stamp'], ['stamp', 'archivist']],
     elites: [['stamp', 'stamp'], ['secretary', 'secretary', 'archivist']],
@@ -105,7 +110,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     id: 'accountant',
     name: 'Бухгалтер',
     desc: 'Считает каждую монету. Золото даёт ему множитель.',
-    maxHp: 52,
+    maxHp: 64,
     coins: 40,
     relic: 'calculator',
     active: null,
@@ -116,11 +121,11 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     id: 'janitor',
     name: 'Уборщик',
     desc: 'Видел всё. Молчит. Швабра превращает грязь на поле в броню.',
-    maxHp: 72,
+    maxHp: 54,
     coins: 10,
     relic: 'mop',
     active: 'corrector',
-    pockets: ['bomb'],
+    pockets: [],
     unlock: 'char_janitor',
   },
 };

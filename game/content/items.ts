@@ -143,7 +143,7 @@ export const ITEMS: Record<string, ItemDef> = {
   // ── Starting items ────────────────────────────────────────────────
   knife: i({ id: 'knife', name: 'Канцелярский нож', desc: 'Итоговый удар по бумажным врагам ×2.', kind: 'passive', icon: 'item_knife', pool: 'starter', apply: (m) => (m.paperX *= 2) }),
   calculator: i({ id: 'calculator', name: 'Калькулятор', desc: '+1 множ, если в ходу собраны золотые фишки.', kind: 'passive', icon: 'item_calculator', pool: 'starter', apply: (m) => (m.calcGoldMult = true) }),
-  mop: i({ id: 'mop', name: 'Швабра', desc: 'Каждая убранная клякса или волокита даёт 2 брони (растёт с отделом).', kind: 'passive', icon: 'item_mop', pool: 'starter', apply: (m) => (m.mopJunk += 2) }),
+  mop: i({ id: 'mop', name: 'Швабра', desc: 'Каждая убранная клякса или волокита даёт 1 броню (растёт с отделом).', kind: 'passive', icon: 'item_mop', pool: 'starter', apply: (m) => (m.mopJunk += 1) }),
 
   // ── Common ────────────────────────────────────────────────────────
   coffee: i({ id: 'coffee', name: 'Крепкий кофе', desc: 'Красные фишки +1 к урону.', kind: 'passive', icon: 'item_coffee', pool: 'common', apply: (m) => (m.redPlus += 1) }),
@@ -151,7 +151,7 @@ export const ITEMS: Record<string, ItemDef> = {
   inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к заряду.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
   wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Золотые фишки +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
   vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Каждый бой начинается с 6 брони (растёт с отделом).', kind: 'passive', icon: 'item_vest', pool: 'common', apply: (m) => (m.startArmor += 6) }),
-  sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+8 к максимуму здоровья. Лечит 8.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 8, heal: 8 }),
+  sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+8 к максимуму здоровья (и к потолку брони). Лечит 8.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 8, heal: 8 }),
   bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит 5.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 5) }),
   gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 8.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 8) }),
   ledger: i({ id: 'ledger', name: 'Бухгалтерская книга', desc: 'В начале боя +1 монета за каждые 10 в кошельке.', kind: 'passive', icon: 'item_ledger', pool: 'common', apply: (m) => (m.interest = true) }),
@@ -201,7 +201,7 @@ export const ITEMS: Record<string, ItemDef> = {
   award: i({ id: 'award', name: 'Грамота «Сотрудник месяца»', desc: '+1 множ каждый ход.', kind: 'passive', icon: 'item_award', pool: 'boss', apply: (m) => (m.multFlat += 1) }),
   nightshift: i({ id: 'nightshift', name: 'Ночная смена', desc: 'Таймеры всех врагов +1.', kind: 'passive', icon: 'item_nightshift', pool: 'boss', apply: (m) => (m.timerBonus += 1) }),
   espresso: i({ id: 'espresso', name: 'Двойной эспрессо', desc: 'Красные фишки +2 к урону.', kind: 'passive', icon: 'item_espresso', pool: 'boss', apply: (m) => (m.redPlus += 2) }),
-  pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +15 к максимуму здоровья.', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 15, heal: 15, apply: (m) => (m.pockets += 2) }),
+  pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +15 к максимуму здоровья (и к потолку брони).', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 15, heal: 15, apply: (m) => (m.pockets += 2) }),
   stamprelic: i({ id: 'stamprelic', name: 'Печать отдела', desc: 'В начале боя 3 фишки поля получают печать: +1 множ при сборе.', kind: 'passive', icon: 'item_stamprelic', pool: 'boss', apply: (m) => (m.sealStart += 3) }),
   vault: i({ id: 'vault', name: 'Сейф директора', desc: '+1 множ за каждые 100 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinMultPer = 100) }),
   hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше заряда.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3 }),

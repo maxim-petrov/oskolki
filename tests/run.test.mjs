@@ -68,7 +68,7 @@ test('winning a fight gives coins and a choice of three cards', () => {
   assert.equal(res.phase, 'reward');
   const coins = res.rewards.find((x) => x.kind === 'coins');
   const card = res.rewards.find((x) => x.kind === 'card');
-  assert.ok(coins.amount >= 10);
+  assert.ok(coins.amount >= 7, "монеты за бой");
   assert.equal(card.cards.length, 3);
   const before = res.hero.deck.length;
   const took = dispatch(res, { type: 'reward', index: res.rewards.indexOf(card), card: 1 }).run;

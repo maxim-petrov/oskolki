@@ -284,6 +284,8 @@ function summarize(results, lastAct = 2) {
         acts: mean(f.map((x) => x.enemyActs)),
         hurt: mean(f.map(hurt)),
         loss: f.length ? f.filter((x) => !x.won).length / f.length : 0,
+        // Won, but it cost health: the fight threatened without killing (not all-or-nothing).
+        wound: f.length ? f.filter((x) => x.won && x.hpAfter < x.hpBefore).length / f.length : 0,
         fast: f.length ? f.filter((x) => x.won && x.moves <= 5).length / f.length : 0,
         zeroActs: f.length ? f.filter((x) => x.won && x.enemyActs === 0).length / f.length : 0,
         maxHitRatio: quantile(
@@ -893,6 +895,9 @@ for (const a of [0, 1, 2]) {
   metrics[`greedy.boss.hurt.${a}`] = G.kinds[`${a}.boss`].hurt;
   metrics[`greedy.elite.hurt.${a}`] = G.kinds[`${a}.elite`].hurt;
   metrics[`greedy.boss.fast.${a}`] = G.kinds[`${a}.boss`].fast;
+  const big = [G.kinds[`${a}.elite`], G.kinds[`${a}.boss`]];
+  const n = big.reduce((s, k) => s + k.n, 0);
+  metrics[`greedy.big.wound.${a}`] = n ? big.reduce((s, k) => s + k.wound * k.n, 0) / n : 0;
 }
 if (want('encounters')) {
   metrics['encounters.spikes'] = encounters.filter((e) => e.spike).length;
@@ -1061,6 +1066,7 @@ for (const [key, s, acts] of [
         num(k.acts),
         pctx(k.zeroActs),
         pctx(k.hurt, 1),
+        pctx(k.wound),
         pctx(k.loss, 1),
         pctx(k.fast),
         num(k.maxHitRatio, 1),
@@ -1076,6 +1082,7 @@ L.push(
       'Действий врагов',
       'Враг не успел сходить',
       'Потеря здоровья',
+      'Ранен, но победил',
       'Поражений',
       'За ≤5 ходов',
       'Макс. удар / здоровье врагов (p90)',
@@ -1188,6 +1195,11 @@ const pocketRows = POCKET_IDS.map((id) => {
   const s = labStat(`pocket:${id}`);
   return [`${itemName(id)} (карман, ${POCKETS[id].price} мон.)`, `${signed(s.hp * 100, 1, '%')} ± ${num(s.hpSe * 100, 1)}`, signed(-s.moves, 1), '—'];
 });
+/** The greedy bot's price of a card from the lab: fight value of taking it plus one copy in a whole run. */
+function suggestedScore(r) {
+  if (!r.run || !Number.isFinite(r.take?.hp)) return null;
+  return Math.round(Math.max(1, Math.min(9.5, 4 + 0.35 * r.take.hp * 100 + 0.12 * r.run.win * 100)) * 10) / 10;
+}
 const FINISH_NAME = {
   sharp: 'Заточка',
   gild: 'Позолота',
@@ -1205,12 +1217,12 @@ L.push('');
 L.push('## Фишки');
 L.push('');
 L.push(
-  '**Правило** — две копии фишки против двух простых фишек того же семейства (сколько даёт само правило). **Взять** — две копии против пропуска награды. **Повышение** — улучшенная против обычной. **Забег** — одна копия со старта против обычной стартовой колоды. Плюс — лучше.',
+  '**Правило** — две копии фишки против двух простых фишек того же семейства (сколько даёт само правило). **Взять** — две копии против пропуска награды. **Повышение** — улучшенная против обычной. **Забег** — одна копия со старта против обычной стартовой колоды. Плюс — лучше. **По замеру** — цена фишки для жадного бота из этих чисел (4 + 0,35 × «Взять» в % + 0,12 × «Забег» в п.п., от 1 до 9,5): её переносят в `CARD_SCORE` (game/bot.ts), когда «Бот ценит» заметно расходится с замером.',
 );
 L.push('');
 L.push(
   table(
-    ['Фишка', 'Семейство', 'Редкость', 'Правило', 'Взять', 'Повышение', 'Забег', 'Урон ×', 'Бот ценит', ''],
+    ['Фишка', 'Семейство', 'Редкость', 'Правило', 'Взять', 'Повышение', 'Забег', 'Урон ×', 'Бот ценит', 'По замеру', ''],
     [...cardRows]
       .sort((x, y) => y.rule.hp - x.rule.hp)
       .map((r) => [
@@ -1223,6 +1235,7 @@ L.push(
         r.run ? `${pp(r.run.win)} ± ${num(r.run.winSe * 100, 1)}` : '—',
         num(r.dps, 2),
         num(CARD_SCORE[r.id] ?? 3, 1),
+        suggestedScore(r) === null ? '—' : num(suggestedScore(r), 1),
         r.verdict === 'op' ? '🔥 имба' : r.verdict === 'worse' ? '⬇️ хуже простой' : '',
       ]),
   ),
@@ -1436,15 +1449,15 @@ if (ONLY) {
   const SECTION = {
     '## Урон за ход против здоровья врагов': 'bench',
     '## Встречи': 'encounters',
-    '## Предметы': 'lab',
-    '## Фишки': 'lab',
+    '## Предметы': ['lab', 'runab'],
+    '## Фишки': ['lab', 'runab'],
     '## Связки предметов (урон)': 'bench',
     '## Архетипы сборок (GDD §6)': 'archetypes',
     '## События': 'events',
   };
   let keep = true;
   const kept = L.filter((line) => {
-    if (line.startsWith('## ')) keep = !SECTION[line] || want(SECTION[line]);
+    if (line.startsWith('## ')) keep = !SECTION[line] || [SECTION[line]].flat().some(want);
     return keep;
   });
   L.length = 0;
@@ -1458,6 +1471,11 @@ if (WRITE) {
 }
 
 console.log('');
+// Card prices of the greedy bot that drifted from the lab: the bot builds decks by them.
+const drift = cardRows
+  .map((r) => ({ id: r.id, now: CARD_SCORE[r.id] ?? 3, want: suggestedScore(r) }))
+  .filter((x) => x.want !== null && Math.abs(x.want - x.now) >= 1.5);
+if (drift.length) console.log(`Цены фишек для бота расходятся с замером (CARD_SCORE в game/bot.ts): ${drift.map((x) => `${x.id} ${x.now} → ${x.want}`).join(', ')}\n`);
 for (const v of verdicts.filter((x) => !x.skipped)) console.log(`${v.ok ? 'ok  ' : v.hard ? 'FAIL' : 'warn'} ${v.title}: ${show(v, v.value)} (норма ${range(v)})`);
 console.log(`\n${((Date.now() - T0) / 1000).toFixed(0)} с${WRITE ? ' · docs/balance/REPORT.md' : ''}`);
 process.exit(failedHard.length ? 1 : 0);

@@ -327,7 +327,7 @@ function enterNode(run: RunState, node: MapNode, ev: GameEvent[]) {
       break;
     case 'treasure': {
       const relic = rollRelic(run) ?? 'sandwich';
-      run.treasure = { relic, coins: range(run.rng.loot, 15, 30), opened: false };
+      run.treasure = { relic, coins: range(run.rng.loot, 10, 20), opened: false };
       run.phase = 'treasure';
       break;
     }
@@ -421,7 +421,8 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   }
   // Rewards.
   const rewards: RewardOption[] = [];
-  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [8, 8], fight: [10, 18], elite: [25, 35], boss: [60, 75] };
+  // Coins are meant to be short: the till always has more than you can pay for.
+  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [6, 6], fight: [7, 12], elite: [16, 24], boss: [40, 50] };
   const [lo, hi] = coinRange[kind];
   rewards.push({ kind: 'coins', amount: range(run.rng.loot, lo, hi) + c.bonusCoins });
   const cards = rollCards(run, 3, kind === 'intro' ? 'intro' : kind);
@@ -814,9 +815,10 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
       if (op.maxHp !== undefined) hero.maxHp = Math.max(1, Math.round(op.maxHp));
       if (op.hp !== undefined) hero.hp = Math.max(1, Math.min(hero.maxHp, Math.round(op.hp)));
       hero.hp = Math.min(hero.hp, hero.maxHp);
+      hero.armor = Math.min(hero.armor, hero.maxHp);
       if (op.coins !== undefined) hero.coins = Math.max(0, Math.min(999, Math.round(op.coins)));
       if (op.charge !== undefined) hero.charge = Math.max(0, Math.min(activeCost(run), Math.round(op.charge)));
-      if (op.armor !== undefined) hero.armor = Math.max(0, Math.round(op.armor));
+      if (op.armor !== undefined) hero.armor = Math.max(0, Math.min(hero.maxHp, Math.round(op.armor)));
       break;
     case 'build': {
       if (op.deck) {

@@ -41,7 +41,7 @@ export const CARDS: Record<string, CardDef> = {
   folder: c({ id: 'folder', name: 'Папка', fam: 'shield', rarity: 'starter', v: 1, vUp: 2, text: '{v} брони.' }),
   binder: c({ id: 'binder', name: 'Скоросшиватель', fam: 'shield', rarity: 'common', v: 2, vUp: 3, text: '{v} брони.' }),
   sleeve: c({ id: 'sleeve', name: 'Файлик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: '{v} брони. Убирает кляксы и волокиту рядом.' }),
-  umbrella: c({ id: 'umbrella', name: 'Зонтик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: '{v} брони. Следующий удар врага слабее на 4 (растёт с отделом).' }),
+  umbrella: c({ id: 'umbrella', name: 'Зонтик', fam: 'shield', rarity: 'common', v: 1, vUp: 2, text: '{v} брони. Следующий удар врага слабее на 2 за фишку (зонтики разных ходов не складываются).' }),
   drawer: c({ id: 'drawer', name: 'Картотечный ящик', fam: 'shield', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} брони. +1 множ, если в ходу собраны и красные, и синие.' }),
   laminator: c({ id: 'laminator', name: 'Ламинатор', fam: 'shield', rarity: 'uncommon', v: 1, vUp: 2, text: '{v} брони, в группе из 4+ — вдвое больше.' }),
   archivebox: c({ id: 'archivebox', name: 'Архивная коробка', fam: 'shield', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} брони. Группа из 4+ лечит 4.' }),
@@ -51,7 +51,7 @@ export const CARDS: Record<string, CardDef> = {
   // ── Чернила (violet): charge and control ─────────────────────────
   ink: c({ id: 'ink', name: 'Чернила', fam: 'ink', rarity: 'starter', v: 1, vUp: 2, text: '{v} заряда навыка.' }),
   corrector: c({ id: 'corrector', name: 'Корректор', fam: 'ink', rarity: 'common', v: 1, vUp: 2, text: '{v} заряда. Снимает скобы и кляксы с соседних фишек.' }),
-  urgent: c({ id: 'urgent', name: 'Печать «Срочно»', fam: 'ink', rarity: 'common', v: 1, vUp: 2, text: '{v} заряда. Таймер цели +1.' }),
+  urgent: c({ id: 'urgent', name: 'Печать «Срочно»', fam: 'ink', rarity: 'common', v: 1, vUp: 2, text: '{v} заряда. Таймер цели +1 (раз за ход).' }),
   blotcurse: c({ id: 'blotcurse', name: 'Клякса', fam: 'ink', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} урона каждому врагу (умножается).' }),
   quill: c({ id: 'quill', name: 'Перо', fam: 'ink', rarity: 'uncommon', v: 2, vUp: 3, text: '{v} заряда. Группа с пером даёт +1 множ, если навык заряжен.' }),
   copystamp: c({ id: 'copystamp', name: 'Штамп «Копия»', fam: 'ink', rarity: 'rare', v: 1, vUp: 2, text: '{v} заряда. 2 случайные фишки поля становятся копией лучшей карты колоды.', unlock: 'bundle_ink' }),
@@ -74,8 +74,8 @@ export const CARDS: Record<string, CardDef> = {
 
 export const STARTER_DECKS: Record<string, string[]> = {
   intern: ['fist', 'fist', 'fist', 'folder', 'folder', 'folder', 'ink', 'ink', 'ink', 'clip', 'clip', 'clip'],
-  accountant: ['fist', 'fist', 'fist', 'folder', 'folder', 'ink', 'ink', 'clip', 'clip', 'clip', 'coin', 'bonus'],
-  janitor: ['fist', 'fist', 'folder', 'folder', 'folder', 'folder', 'ink', 'ink', 'ink', 'clip', 'clip', 'sleeve'],
+  accountant: ['fist', 'fist', 'fist', 'folder', 'folder', 'folder', 'ink', 'ink', 'clip', 'clip', 'coin', 'bonus'],
+  janitor: ['fist', 'fist', 'folder', 'folder', 'folder', 'ink', 'ink', 'ink', 'clip', 'clip', 'clip', 'sleeve'],
 };
 
 export const FINISH_TEXT: Record<Finish, { name: string; text: string }> = {

@@ -9,7 +9,7 @@ import { activeCost } from '../game/combat.ts';
 import { FINISH_TEXT } from '../game/content/cards.ts';
 import { QUEUE_LEN } from '../game/types.ts';
 import { ACTS } from '../game/content/acts.ts';
-import { CLIPS, FISTS, FOLDERS, INKS, act, cascade, foe, hit, idx, line, moves, play, put, queue, ready, scene, tile } from './scene.mjs';
+import { CLIPS, FISTS, FOLDERS, INKS, act, blowOf, byBlows, cascade, foe, hit, idx, line, moves, play, put, queue, ready, scene, tile } from './scene.mjs';
 
 /**
  * Removes the tile under a lifted fist: the fist drops into a ready pair and completes a line.
@@ -21,6 +21,11 @@ function erasedLine(opts, action) {
   put(run, 4, 1, 'fist');
   put(run, 3, 2, 'fist');
   return act(run, action(run, idx(4, 2)));
+}
+
+/** The armour a move left the hero with: it burns out at the end of the tick (the expiry says how much). */
+function armorOfMove(res) {
+  return -(res.effects.find((f) => f.kind === 'armor' && f.source === 'expire')?.amount ?? 0) || res.run.hero.armor;
 }
 
 /** How often a note shows up on the strike over many seeds. */
@@ -51,13 +56,13 @@ const ITEM_CHECKS = {
     const res = hit({ relics: ['mop'] });
     const junk = res.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
     assert.ok(junk > 0);
-    assert.equal(res.run.hero.armor, 2 * junk, '2 брони за каждую убранную кляксу');
+    assert.equal(armorOfMove(res), byBlows(junk), '1 броня за каждую убранную кляксу');
   },
   coffee: () => assert.equal(hit({ relics: ['coffee'] }).strike.tally.dmg, 9),
   binderclip: () => assert.equal(hit({ relics: ['binderclip'] }, FOLDERS).strike.armor, 6),
   inkpot: () => assert.equal(hit({ relics: ['inkpot'] }, INKS).strike.tally.charge, 6),
   wallet: () => assert.equal(hit({ relics: ['wallet'] }, CLIPS).strike.tally.coins, 6),
-  vestrelic: () => assert.equal(scene({ relics: ['vestrelic'] }).hero.armor, 6),
+  vestrelic: () => assert.equal(scene({ relics: ['vestrelic'] }).hero.armor, byBlows(6)),
   sandwich() {
     const { run } = newRun({ seed: 1 });
     run.hero.hp = 30;
@@ -109,7 +114,7 @@ const ITEM_CHECKS = {
       tile(run, 4, 4, 'shield', { fuse: 1 });
       return play(run, line(run, FISTS)).run.hero.hp;
     };
-    assert.equal(burn([]), 56, 'уголёк ранит на 4');
+    assert.equal(burn([]), 60 - byBlows(4), 'уголёк ранит');
     assert.equal(burn(['gloves']), 60);
   },
   battery: () => assert.equal(hit({ relics: ['battery'], active: 'stapler' }, FOLDERS).run.hero.charge, 1),
@@ -120,11 +125,11 @@ const ITEM_CHECKS = {
     assert.equal(foe(res.run, 0).hp, 64);
   },
   cactus() {
-    const run = scene({ relics: ['cactus'], enemies: ['rat'] });
+    const run = scene({ relics: ['cactus'], enemies: ['rat'], enemyHp: 999 });
     ready(run, 'attack');
     const res = play(run, line(run, CLIPS));
     assert.equal(res.acts[0].intent.kind, 'attack');
-    assert.equal(foe(res.run).hp, 45);
+    assert.equal(foe(res.run).hp, 999 - 5, 'кактус колет ударившего на 5');
   },
   // A big skill takes the whole charge: no ink turns into multiplier here.
   inkwell: () => assert.equal(hit({ relics: ['inkwell'], active: 'giftbox' }, INKS).strike.damage, 6),
@@ -283,7 +288,7 @@ const ITEM_CHECKS = {
       return play(run, line(run, CLIPS)).run.hero.armor;
     };
     assert.equal(left([]), 0, 'обычно остаток брони сгорает');
-    assert.equal(left(['steeldoor']), 3, 'удар 14 из 20, половина остатка 6 остаётся');
+    assert.equal(left(['steeldoor']), Math.floor((20 - blowOf('rat', 'attack')) / 2), 'удар гасится бронёй, половина остатка остаётся');
   },
   prismpact() {
     const made = (relics) => hit({ relics }, [...FISTS, 'fist']).waves[0].created[0].tile;
@@ -444,13 +449,14 @@ test('effects outside the strike grow with the act: damage with enemy health, ar
     ['bleed', 2 * HP],
     ['burn', Math.round(4 * HP)],
   ]);
-  const cactus = scene({ act, relics: ['cactus'], enemies: ['rat'], enemyHp: 99999 });
+  // A tough hero: a rat of the boiler room hits hard, and thorns only answer a blow that was survived.
+  const cactus = scene({ act, relics: ['cactus'], enemies: ['rat'], enemyHp: 99999, hp: 9999, maxHp: 9999 });
   ready(cactus, 'attack');
   assert.equal(99999 - foe(play(cactus, line(cactus, CLIPS)).run).hp, 5 * HP, 'кактус');
   assert.equal(scene({ act, relics: ['vestrelic'] }).hero.armor, Math.round(6 * DMG), 'жилет');
   const mop = hit({ act, relics: ['mop'] });
   const junk = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
-  assert.equal(mop.run.hero.armor, Math.round(junk * 2 * DMG), 'швабра');
+  assert.equal(armorOfMove(mop), Math.round(junk * DMG), 'швабра');
 });
 
 test('ink beyond a full skill burns: 1 damage per extra charge', () => {

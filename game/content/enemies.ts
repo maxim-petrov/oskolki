@@ -24,7 +24,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   rat: {
     id: 'rat',
     name: 'Бумажная крыса',
-    hp: 50,
+    hp: 75,
     size: 'S',
     material: 'paper',
     intents: [{ kind: 'attack', value: 14, timer: 3 }],
@@ -56,7 +56,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   moth: {
     id: 'moth',
     name: 'Книжная моль',
-    hp: 46,
+    hp: 69,
     size: 'S',
     material: 'paper',
     intents: [
@@ -68,7 +68,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   stapler: {
     id: 'stapler',
     name: 'Скобогрыз',
-    hp: 72,
+    hp: 108,
     size: 'M',
     material: 'metal',
     intents: [
@@ -80,7 +80,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   eraser: {
     id: 'eraser',
     name: 'Ластик-вышибала',
-    hp: 96,
+    hp: 144,
     armor: 2,
     size: 'M',
     material: 'rubber',
@@ -93,7 +93,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   copier: {
     id: 'copier',
     name: 'Копир',
-    hp: 100,
+    hp: 150,
     size: 'M',
     material: 'metal',
     intents: [
@@ -105,7 +105,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   phone: {
     id: 'phone',
     name: 'Телефон',
-    hp: 50,
+    hp: 75,
     size: 'S',
     material: 'metal',
     intents: [
@@ -241,7 +241,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   tide: {
     id: 'tide',
     name: 'Хранитель прилива',
-    hp: 300,
+    hp: 600,
     size: 'boss',
     material: 'water',
     intents: [
@@ -254,7 +254,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
         at: 0.5,
         intents: [
           { kind: 'tide', value: 1, timer: 3 },
-          { kind: 'heavy', value: 34, timer: 3 },
+          { kind: 'heavy', value: 42, timer: 3 },
           { kind: 'attack', value: 24, timer: 3 },
         ],
       },
@@ -339,7 +339,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   mirror: {
     id: 'mirror',
     name: 'Кривое зеркало',
-    hp: 300,
+    hp: 750,
     size: 'boss',
     material: 'glass',
     intents: [
@@ -389,7 +389,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   censor: {
     id: 'censor',
     name: 'Главный цензор',
-    hp: 320,
+    hp: 640,
     size: 'boss',
     material: 'flesh',
     intents: [

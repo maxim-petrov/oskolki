@@ -4,9 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ENEMIES } from '../game/content/enemies.ts';
 import { ACTS } from '../game/content/acts.ts';
-import { OVERTIME_AFTER, intentDamage } from '../game/combat.ts';
+import { MAX_HOLD, OVERTIME_AFTER, intentDamage } from '../game/combat.ts';
 import { playFight } from '../game/balance/lab.ts';
-import { CLIPS, FISTS, foe, idx, line, moves, play, put, ready, scene } from './scene.mjs';
+import { CLIPS, FISTS, act, blowOf, byBlows, foe, idx, line, moves, play, put, ready, scene } from './scene.mjs';
 
 /** The enemy (first in `enemies`) does `kind` on the next tick; returns the move's result. */
 function doing(kind, opts = {}) {
@@ -21,10 +21,10 @@ function doing(kind, opts = {}) {
 const INTENT_CHECKS = {
   attack() {
     const { a } = doing('attack', { enemies: ['rat'] });
-    assert.equal(a.hurt.amount, 14);
-    assert.equal(doing('attack', { enemies: ['rat'], act: 1 }).a.hurt.amount, 28, 'во 2-м отделе урон ×2');
+    assert.equal(a.hurt.amount, blowOf('rat', 'attack'));
+    assert.equal(doing('attack', { enemies: ['rat'], act: 1 }).a.hurt.amount, blowOf('rat', 'attack', 1), 'во 2-м отделе удар сильнее');
   },
-  heavy: () => assert.equal(doing('heavy', { enemies: ['eraser'] }).a.hurt.amount, 29),
+  heavy: () => assert.equal(doing('heavy', { enemies: ['eraser'] }).a.hurt.amount, blowOf('eraser', 'heavy')),
   block() {
     const { run } = doing('block', { enemies: ['safe'] });
     assert.equal(foe(run).block, 10);
@@ -63,18 +63,18 @@ const INTENT_CHECKS = {
   stealCharge: () => assert.equal(doing('stealCharge', { enemies: ['moth'], active: 'stapler', charge: 5 }).a.stolen, 3),
   stealCoins() {
     const { run, a } = doing('stealCoins', { enemies: ['angler'], coins: 50 });
-    assert.equal(a.stolen, 8);
-    assert.equal(foe(run).stolen, 8);
+    assert.equal(a.stolen, byBlows(8));
+    assert.equal(foe(run).stolen, byBlows(8));
     // Killing the thief returns the coins.
     foe(run).hp = 1;
     const coins = run.hero.coins;
     const back = play(run, line(run, FISTS)).run;
-    assert.equal(back.hero.coins - coins >= 8, true);
+    assert.equal(back.hero.coins - coins >= byBlows(8), true);
   },
   pinch() {
     const { a } = doing('pinch', { enemies: ['crab'] });
     if (a.cells) assert.equal(a.cells.length, 6, 'сдвинут целый ряд');
-    else assert.equal(a.hurt.amount, 4, 'сдвигать нечего — щиплет на 4');
+    else assert.equal(a.hurt.amount, byBlows(4), 'сдвигать нечего — щиплет');
   },
   tide: () => assert.equal(doing('tide', { enemies: ['tide'] }).run.combat.board.flood, 1),
   submerge() {
@@ -97,7 +97,7 @@ const INTENT_CHECKS = {
   },
   strike() {
     const { a } = doing('strike', { enemies: ['censor'] });
-    assert.equal(a.hurt.amount, 26);
+    assert.equal(a.hurt.amount, blowOf('censor', 'strike'));
     assert.equal(a.cells.length, 1);
     assert.equal(a.board[a.cells[0]].pin, true);
   },
@@ -111,7 +111,7 @@ const INTENT_CHECKS = {
     const bare = scene({ enemies: ['eraser'], enemyHp: 999 });
     put(bare, 5, 5, 'redtape');
     ready(bare, 'erase');
-    assert.equal(play(bare, line(bare, FISTS)).acts[0].hurt.amount, 4, 'особых нет — бьёт на 4');
+    assert.equal(play(bare, line(bare, FISTS)).acts[0].hurt.amount, byBlows(4), 'особых нет — бьёт');
   },
   tape() {
     const { a, run } = doing('tape', { enemies: ['kipa'] });
@@ -196,7 +196,7 @@ test('armor soaks one enemy action and burns out', () => {
   run.hero.armor = 20;
   ready(run, 'attack');
   const res = play(run, line(run, CLIPS));
-  assert.equal(res.acts[0].hurt.armor, 14);
+  assert.equal(res.acts[0].hurt.armor, blowOf('rat', 'attack'));
   assert.equal(res.run.hero.armor, 0, 'остаток брони сгорает');
 });
 
@@ -216,7 +216,21 @@ test('the mirror sends back a quarter of a blow, at most a heavy hit of its act'
   };
   const small = blow(10);
   assert.equal(small.back, Math.round(small.dealt * 0.25));
-  assert.equal(blow(1000).back, Math.round(18 * 3), 'потолок — тяжёлый удар 3-го отдела');
+  assert.equal(blow(1000).back, byBlows(18, 2), 'потолок — тяжёлый удар 3-го отдела');
+});
+
+test('a blow the mirror sends back can kill, and the same move does not heal the dead', () => {
+  const run = scene({ enemies: ['mirror'], enemyHp: 99999, act: 2, hp: 1, maxHp: 50 });
+  run.dev = { heroDmg: 1000 };
+  foe(run).shining = true;
+  // One swap: three fists in row 2 and four archive boxes (a group of 4 heals 4) in row 1.
+  for (const c of [0, 1]) put(run, 2, c, 'fist');
+  put(run, 1, 2, 'fist');
+  put(run, 2, 2, 'archivebox');
+  for (const c of [0, 1, 3]) put(run, 1, c, 'archivebox');
+  const res = play(run, { from: idx(1, 2), to: idx(2, 2) });
+  assert.equal(res.run.phase, 'dead');
+  assert.equal(res.run.hero.hp, 0);
 });
 
 test('every enemy of the game can be fought to the end with a starter deck (no stalls, no broken states)', () => {
@@ -240,4 +254,23 @@ test('enemy armour, shields and heals grow with enemy health from act to act', (
   ready(heal, 'heal');
   const a = moves(heal, 1)[0].acts.find((x) => x.intent.kind === 'heal');
   assert.equal(a.healed.amount, Math.min(6 * HP, foe(heal, 1).maxHp - 10), 'лечение');
+});
+
+test('armour holds for one tick: it burns out even when no enemy acts', () => {
+  const run = scene({ enemies: ['anchor'], enemyHp: 999 });
+  const res = play(run, line(run, ['folder', 'folder', 'folder']));
+  assert.equal(res.strike.armor, 3);
+  assert.equal(res.acts.length, 0, 'враг в этот тик не действует');
+  assert.equal(res.run.hero.armor, 0, 'а броня всё равно сгорела');
+});
+
+test(`an enemy can be held back at most ${MAX_HOLD} ticks between its actions`, () => {
+  const run = scene({ enemies: ['rat'], enemyHp: 999, pockets: ['sticker'], active: 'megaphone', charge: 8 });
+  const start = foe(run).countdown;
+  const held = act(act(run, { type: 'pocket', slot: 0 }).run, { type: 'active' }).run;
+  assert.equal(foe(held).countdown, start + MAX_HOLD, 'стикер +2 и мегафон +2 — но не больше предела');
+  // After it acts, it can be held again.
+  foe(held).countdown = 1;
+  const after = play(held, line(held, CLIPS)).run;
+  assert.equal(foe(after).held, 0);
 });

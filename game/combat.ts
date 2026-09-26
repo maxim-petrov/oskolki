@@ -183,10 +183,26 @@ export function actScale(run: RunState): { hp: number; dmg: number } {
   return { hp: act.hpMul, dmg: act.dmgMul };
 }
 
+/** Ticks an enemy can be held back between two of its actions: then it acts whatever you stamp. */
+export const MAX_HOLD = 2;
+
+/**
+ * Pushes an enemy's timer back by up to n ticks, no more than MAX_HOLD since its last action
+ * (stacked delays held enemies for good). Returns the ticks actually added.
+ */
+export function holdBack(e: EnemyState, n: number): number {
+  const k = Math.max(0, Math.min(n, MAX_HOLD - (e.held ?? 0)));
+  e.countdown += k;
+  e.held = (e.held ?? 0) + k;
+  return k;
+}
+
 export function makeEnemy(run: RunState, c: Combat, defId: string, mods: Mods): EnemyState {
   const def = ENEMIES[defId];
   const act = ACTS[Math.min(run.act, ACTS.length - 1)];
-  const hp = Math.max(1, Math.round(def.hp * act.hpMul * (run.dev?.enemyHp ?? 1)));
+  // Elites of the later acts are their regular enemies with more health (the first act has its own).
+  const elite = c.kind === 'elite' ? (act.eliteHp ?? 1) : 1;
+  const hp = Math.max(1, Math.round(def.hp * act.hpMul * elite * (run.dev?.enemyHp ?? 1)));
   const e: EnemyState = {
     uid: c.nextUid++,
     def: defId,
@@ -246,7 +262,7 @@ export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: strin
   };
   for (const id of enemyIds) c.enemies.push(makeEnemy(run, c, id, mods));
   c.target = c.enemies[0]?.uid ?? -1;
-  run.hero.armor = Math.round(mods.startArmor * actScale(run).dmg);
+  run.hero.armor = Math.min(run.hero.maxHp, Math.round(mods.startArmor * actScale(run).dmg));
   run.hero.ward = 0;
   run.hero.reflect = 0;
   if (mods.sealStart > 0)
@@ -286,6 +302,21 @@ export function activeCost(run: RunState): number {
 export function inkOverflow(run: RunState, charge: number): number {
   const room = run.hero.active ? Math.max(0, activeCost(run) - run.hero.charge) : 0;
   return Math.max(0, Math.round(charge) - room);
+}
+
+/**
+ * Armour never outgrows the hero: at most the maximum health. Blows up to that can be blocked in
+ * full, heavier ones always wound (a wall of blue tiles no longer makes the hero untouchable).
+ */
+export function armorRoom(run: RunState): number {
+  return Math.max(0, run.hero.maxHp - run.hero.armor);
+}
+
+/** Adds armour up to the cap; returns what fit. */
+export function gainArmor(run: RunState, n: number): number {
+  const k = Math.min(armorRoom(run), Math.max(0, Math.round(n)));
+  run.hero.armor += k;
+  return k;
 }
 
 // ── Damage ───────────────────────────────────────────────────────────
@@ -384,6 +415,9 @@ export function hitEnemy(ctx: Ctx, uid: number, raw: number, opts: { source: str
 
 // ── Scoring ──────────────────────────────────────────────────────────
 
+/** Cascade waves that score: later waves still clear the board, but for nothing (endless chains ran away). */
+export const SCORED_WAVES = 6;
+
 /** Most multiplier blasts can add in one move. */
 export const BLAST_MULT_CAP = 6;
 const WAVE_MULT: Partial<Record<Blast['kind'], number>> = { rocketH: 1, rocketV: 1, bomb: 1, prism: 2, cross: 2, bigCross: 2, bigBomb: 2, nova: 3 };
@@ -472,7 +506,7 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
       break;
     case 'umbrella':
       add('armor', v);
-      ms.ward += 4;
+      ms.ward += 2;
       break;
     case 'drawer':
       add('armor', v);
@@ -503,7 +537,8 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
       break;
     case 'urgent':
       add('charge', v);
-      ms.delay += 1;
+      // Once a move: stacked stamps held the target's timer for good (it never acted again).
+      if (once('urgent', true)) ms.delay += 1;
       break;
     case 'blotcurse':
       add('aoe', v);
@@ -692,6 +727,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     const groups: Group[] = findGroups(cells, mods.wrap, first ? prefer : []);
     if (!groups.length && !forced) break;
     ctx.wave = wave;
+    const scoring = score && wave <= SCORED_WAVES;
     const waveFx: Effect[] = [];
     ctx.fx = waveFx;
     const scores: TileScore[] = [];
@@ -730,14 +766,14 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
       }
     }
     // Multiplier: specials add to it; cascade waves only with the poster (more waves already mean more tiles).
-    if (score && wave >= 2 && mods.cascadeMult) {
+    if (scoring && wave >= 2 && mods.cascadeMult) {
       const n = mods.cascadeMult;
       ms.tally.mult += n;
       scores.push({ i: -1, id: -1, fam: 'prism', mult: n, note: `каскад ×${wave}` });
     }
     for (const b of blasts) {
       // Blasts add to the multiplier up to BLAST_MULT_CAP per move: long chains still pay in tiles.
-      const n = score ? Math.min(WAVE_MULT[b.kind] ?? 0, BLAST_MULT_CAP - ms.blastMult) : 0;
+      const n = scoring ? Math.min(WAVE_MULT[b.kind] ?? 0, BLAST_MULT_CAP - ms.blastMult) : 0;
       if (b.kind === 'rocketH' || b.kind === 'rocketV') ctx.rocketsThisMove++;
       if (b.kind === 'cross') ctx.rocketsThisMove += 2;
       if (n > 0) {
@@ -746,10 +782,10 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
         scores.push({ i: b.at, id: -1, fam: 'prism', mult: n, note: 'взрыв' });
       }
     }
-    if (score && blasts.length && mods.igniteOn4) ms.burn = true;
+    if (scoring && blasts.length && mods.igniteOn4) ms.burn = true;
 
     // Score: groups first, then blasted tiles one by one.
-    if (score) {
+    if (scoring) {
       for (const g of scoringOrder(groups, cells)) scoreGroup(ctx, g, cells, wave, scores);
       for (const i of blasted) scoreTile(ctx, cells[i], i, null, wave, scores);
     }
@@ -800,7 +836,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     ctx.ev.push({
       t: 'wave',
       n: wave,
-      ...(score ? {} : { idle: true }),
+      ...(scoring ? {} : { idle: true }),
       groups,
       blasts,
       cleared,
@@ -914,8 +950,12 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     damage *= 2;
     notes.push('Табель ×2');
   }
-  const armor = Math.max(0, Math.round(t.armor * mult * ms.armorX));
-  if (mods.armorToDamage && armor > 0) damage += armor;
+  // The multiplier drives the blow only: armour stays on the scale of enemy blows and the hero's
+  // health (multiplied armour outgrew every blow, and fights became all-or-nothing).
+  const raw = Math.max(0, Math.round(t.armor * ms.armorX));
+  if (mods.armorToDamage && raw > 0) damage += raw;
+  const armor = Math.min(raw, armorRoom(run));
+  if (armor < raw) notes.push(`Броня: потолок ${run.hero.maxHp}`);
   const scale = actScale(run);
   let aoe = Math.max(0, Math.round(t.aoe * mult)) + Math.round(ms.plane * scale.hp);
   const tune = run.dev?.heroDmg;
@@ -931,7 +971,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   run.stats.maxMult = Math.max(run.stats.maxMult, mult);
   batch(ctx, () => {
     hero.armor += armor;
-    if (ms.junkCleared && mods.mopJunk) hero.armor += Math.round(ms.junkCleared * mods.mopJunk * scale.dmg);
+    if (ms.junkCleared && mods.mopJunk) gainArmor(run, ms.junkCleared * mods.mopJunk * scale.dmg);
     const coins = Math.round(t.coins);
     hero.coins = Math.max(0, Math.min(999, hero.coins + coins));
     if (coins > 0) run.stats.coinsEarned += coins;
@@ -958,22 +998,24 @@ export function strike(ctx: Ctx, fromMove: boolean) {
         ctx.fx.push({ kind: 'status', amount: 1, uid: tgt.uid, status: 'stun' });
       }
       if (ms.delay) {
-        tgt.countdown += ms.delay;
-        ctx.fx.push({ kind: 'status', amount: ms.delay, uid: tgt.uid, status: 'freeze' });
+        const k = holdBack(tgt, ms.delay);
+        if (k) ctx.fx.push({ kind: 'status', amount: k, uid: tgt.uid, status: 'freeze' });
       }
     }
     if (ms.freeze)
       for (const e of alive(c)) {
-        e.countdown += 1;
-        ctx.fx.push({ kind: 'status', amount: 1, uid: e.uid, status: 'freeze' });
+        const k = holdBack(e, 1);
+        if (k) ctx.fx.push({ kind: 'status', amount: k, uid: e.uid, status: 'freeze' });
       }
-    if (ms.heal) {
+    // A reflected blow may have killed the hero already: the dead are not healed.
+    if (ms.heal && !isDead(run)) {
       const before = hero.hp;
       hero.hp = Math.min(hero.maxHp, hero.hp + ms.heal);
       if (hero.hp > before) ctx.fx.push({ kind: 'heal', amount: hero.hp - before });
     }
-    if (ms.selfDmg) hurtHero(ctx, ms.selfDmg, 'Шило');
-    hero.ward += Math.round(ms.ward * scale.dmg);
+    if (ms.selfDmg && !isDead(run)) hurtHero(ctx, ms.selfDmg, 'Шило');
+    // The umbrella softens the next blow; umbrellas of several moves do not stack into a wall.
+    hero.ward = Math.max(hero.ward, ms.ward);
     if (ms.reflect) hero.reflect = Math.max(hero.reflect, ms.reflect);
   });
   // Board after-effects.
@@ -986,7 +1028,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
         if (!u) continue;
         if (u.kind === 'junk') {
           cells[n] = drawTile(c.board, run.rng.board);
-          if (mods.mopJunk) hero.armor += Math.round(mods.mopJunk * actScale(run).dmg);
+          if (mods.mopJunk) gainArmor(run, mods.mopJunk * actScale(run).dmg);
           boardChanged = true;
         } else if (ms.cleansePins && (u.pin || u.fuse)) {
           delete u.pin;
@@ -1075,6 +1117,7 @@ function moveEnd(ctx: Ctx) {
 function advanceCycle(ctx: Ctx, e: EnemyState) {
   e.cycle++;
   e.countdown = currentIntent(e).timer + ctx.mods.timerBonus;
+  e.held = 0;
 }
 
 /** Tiles an enemy may spoil: plain, not laminated. */
@@ -1348,16 +1391,15 @@ function advanceTime(ctx: Ctx) {
   ctx.ev.push({ t: 'tick', timers: alive(c).map((e) => ({ uid: e.uid, countdown: e.countdown })) });
   boardTimers(ctx);
   if (isDead(ctx.run)) return;
-  let acted = false;
   for (const e of c.enemies) {
     if (e.hp <= 0 || e.countdown > 0) continue;
-    acted = true;
     enemyAct(ctx, e);
     flushDeaths(ctx);
     if (isDead(ctx.run)) return;
   }
-  // Armor is for the enemies' next action: whatever they did, it is spent (the steel door keeps some).
-  if (acted && ctx.run.hero.armor > 0) {
+  // Armour holds for one tick: it meets this tick's blows and burns out, so you defend right before
+  // a blow, not in advance (the steel door keeps half).
+  if (ctx.run.hero.armor > 0) {
     const kept = Math.floor(ctx.run.hero.armor * mods.armorKeep);
     const lost = ctx.run.hero.armor - kept;
     ctx.run.hero.armor = kept;
@@ -1470,8 +1512,12 @@ export function playerPocket(run: RunState, mods: Mods, slot: number, cell: numb
       resolve(ctx, [], undefined, [], false);
       break;
     case 'sticker':
-      for (const e of alive(c!)) e.countdown += 2;
-      ev.push({ t: 'effects', effects: alive(c!).map((e) => ({ kind: 'status' as const, amount: 2, uid: e.uid, status: 'freeze' as const })) });
+      ev.push({
+        t: 'effects',
+        effects: alive(c!)
+          .map((e) => ({ kind: 'status' as const, amount: holdBack(e, 2), uid: e.uid, status: 'freeze' as const }))
+          .filter((f) => f.amount > 0),
+      });
       break;
     case 'energy':
       c!.nextMult += 2;
@@ -1526,7 +1572,7 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
         const t = cells[i];
         if (t.kind === 'junk') {
           cells[i] = drawTile(c.board, run.rng.board);
-          if (mods.mopJunk) hero.armor += Math.round(mods.mopJunk * actScale(run).dmg);
+          if (mods.mopJunk) gainArmor(run, mods.mopJunk * actScale(run).dmg);
         } else {
           delete t.pin;
           delete t.fuse;
@@ -1546,8 +1592,12 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
       break;
     }
     case 'megaphone':
-      for (const e of alive(c)) e.countdown += 2;
-      ev.push({ t: 'effects', effects: alive(c).map((e) => ({ kind: 'status' as const, amount: 2, uid: e.uid, status: 'freeze' as const })) });
+      ev.push({
+        t: 'effects',
+        effects: alive(c)
+          .map((e) => ({ kind: 'status' as const, amount: holdBack(e, 2), uid: e.uid, status: 'freeze' as const }))
+          .filter((f) => f.amount > 0),
+      });
       break;
     case 'giftbox': {
       const chosen = randomCells(run.rng.fx, cells, 3, (t) => !t.special && t.kind !== 'prism' && t.kind !== 'junk' && !t.pin);
@@ -1616,7 +1666,7 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
     blast: set?.blast ?? null,
     tally: t,
     damage,
-    armor: Math.round(t.armor * mult * ctx.ms.armorX),
+    armor: Math.round(t.armor * ctx.ms.armorX),
     charge: Math.round(t.charge),
     coins: Math.round(t.coins),
     specials: groups.filter((g) => g.make).length,

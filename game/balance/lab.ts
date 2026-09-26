@@ -244,6 +244,8 @@ export interface RunSpec {
   without?: string[];
   pockets?: string[];
   coins?: number;
+  /** Cards left out of rewards and the till: what the game would be without them. */
+  ban?: string[];
   check?: boolean;
   /** Keep the build before every fight (for the fight lab). */
   snapshots?: boolean;
@@ -319,6 +321,7 @@ export function startRun(spec: RunSpec): RunState {
     coins: spec.coins,
   });
   const ev: GameEvent[] = [];
+  if (spec.ban?.length) run.cardPool = run.cardPool.filter((id) => !spec.ban!.includes(id));
   for (const id of spec.without ?? []) {
     const k = run.hero.deck.findIndex((c) => c.id === id);
     if (k >= 0) run.hero.deck.splice(k, 1);

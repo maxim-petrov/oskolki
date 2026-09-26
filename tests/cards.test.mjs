@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CARDS, cardText } from '../game/content/cards.ts';
-import { CLIPS, FISTS, FOLDERS, cascade, double, foe, hit, idx, line, play, put, ready, scene } from './scene.mjs';
+import { CLIPS, FISTS, FOLDERS, blowOf, cascade, double, foe, hit, idx, line, play, put, ready, scene } from './scene.mjs';
 
 const three = (card) => [card, card, card];
 const four = (card) => [card, card, card, card];
@@ -74,12 +74,13 @@ const CARD_CHECKS = {
   },
   umbrella() {
     const res = hit({ enemies: ['rat'] }, three('umbrella'));
-    assert.equal(res.run.hero.ward, 12);
+    assert.equal(res.run.hero.ward, 6);
     const next = res.run;
     ready(next, 'attack');
     const blow = play(next, line(next, CLIPS, { row: 4 })).acts[0].hurt;
-    assert.equal(blow.amount, 14);
-    assert.equal(blow.armor + blow.red, 14 - 12, 'зонтик гасит 12 из удара (остаток — броне и здоровью)');
+    const full = blowOf('rat', 'attack');
+    assert.equal(blow.amount, full);
+    assert.equal(blow.armor + blow.red, Math.max(0, full - 6), 'зонтик гасит 2 за фишку (остаток — броне и здоровью)');
   },
   drawer() {
     assert.equal(hit({}, three('drawer')).strike.tally.mult, 1);
@@ -102,7 +103,7 @@ const CARD_CHECKS = {
     ready(next, 'attack');
     const hp = foe(next).hp;
     const after = play(next, line(next, CLIPS, { row: 4 })).run;
-    assert.equal(hp - foe(after).hp, 7, 'половина удара 14 летит обратно');
+    assert.equal(hp - foe(after).hp, Math.round(blowOf('rat', 'attack') * 0.5), 'половина удара летит обратно');
   },
 
   // ── Violet ─────────────────────────────────────────────────────────
@@ -116,7 +117,7 @@ const CARD_CHECKS = {
     const cleaned = res.events.find((e) => e.t === 'board' && e.reason === 'active');
     assert.equal(cleaned.board.find((t) => t.id === pinned).pin, undefined, 'скоба снята');
   },
-  urgent: () => assert.equal(foe(hit({}, three('urgent')).run).countdown, 3 + 3 - 1, 'таймер цели +1 за фишку'),
+  urgent: () => assert.equal(foe(hit({}, three('urgent')).run).countdown, 3 + 1 - 1, 'таймер цели +1, но не больше раза за ход'),
   blotcurse() {
     const run = scene({ enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, three('blotcurse')));

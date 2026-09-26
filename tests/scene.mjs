@@ -4,6 +4,8 @@ import { dispatch, newRun } from '../game/run.ts';
 import { idx, validMoves } from '../game/board.ts';
 import { intentsOf, makeEnemy, startCombat } from '../game/combat.ts';
 import { CARDS } from '../game/content/cards.ts';
+import { ACTS } from '../game/content/acts.ts';
+import { ENEMIES } from '../game/content/enemies.ts';
 import { computeMods } from '../game/content/items.ts';
 import { CELLS, W } from '../game/types.ts';
 
@@ -196,3 +198,12 @@ export function moves(run, n) {
   }
   return out;
 }
+
+/** An enemy's blow of this kind in an act, as the engine rolls it (value × the act's damage scale). */
+export function blowOf(enemy, kind, act = 0) {
+  const i = [...ENEMIES[enemy].intents, ...(ENEMIES[enemy].phases ?? []).flatMap((p) => p.intents)].find((x) => x.kind === kind);
+  return Math.round(i.value * ACTS[act].dmgMul);
+}
+
+/** A flat number of the first act scaled like enemy blows (armour effects, fallback pinches). */
+export const byBlows = (n, act = 0) => Math.round(n * ACTS[act].dmgMul);

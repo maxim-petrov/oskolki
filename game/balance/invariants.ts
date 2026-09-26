@@ -58,7 +58,7 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
   if (!Number.isInteger(h.hp) || h.hp < 0 || h.hp > h.maxHp) bad(`здоровье ${h.hp}/${h.maxHp}`);
   if (run.phase === 'dead' ? h.hp !== 0 : h.hp <= 0) bad(`здоровье ${h.hp} в фазе ${run.phase}`);
   if (!Number.isInteger(h.coins) || h.coins < 0 || h.coins > 999) bad(`монеты ${h.coins}`);
-  if (!Number.isInteger(h.armor) || h.armor < 0) bad(`броня ${h.armor}`);
+  if (!Number.isInteger(h.armor) || h.armor < 0 || h.armor > h.maxHp) bad(`броня ${h.armor}/${h.maxHp}`);
   if (h.ward < 0) bad(`зонтик ${h.ward}`);
   if (h.reflect < 0 || h.reflect > 1) bad(`отражение ${h.reflect}`);
   if (!Number.isInteger(h.charge) || h.charge < 0 || h.charge > activeCost(run)) bad(`заряд ${h.charge}/${activeCost(run)}`);

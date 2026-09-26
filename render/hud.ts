@@ -62,8 +62,12 @@ export function drawTopBar(ctx: Ctx2D, ui: UI, run: RunState, d: Disp, t: number
   text(ctx, `${d.hp}/${d.maxHp}`, 15 + hbw / 2, y + 2 - (pulse > 0 ? 1 : 0), 'cream', { align: 'center', outline: 'ink0' });
   let x = 15 + hbw + 6;
   if (d.armor > 0) {
+    const ax = x;
     draw(ctx, getFrame('ui_armor'), x + 4, y + 6);
     x += 10 + text(ctx, `${d.armor}`, x + 10, y + 2, 'cold5', { outline: 'ink0' }) + 4;
+    ui.area('armor', ax, y, x - ax, 10);
+    if (ui.hovered === 'armor')
+      ui.tooltip('Броня', `Гасит удары до конца хода врагов и сгорает. Не больше максимума здоровья (${d.maxHp}): удар тяжелее ранит всегда.`, ui.p.x, ui.p.y + 24, 'cold5');
   }
   draw(ctx, getFrame('ui_coin'), x + 4, y + 6);
   x += 10 + text(ctx, `${d.coins}`, x + 10, y + 2, 'gold4', { outline: 'ink0' }) + 6;

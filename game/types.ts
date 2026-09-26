@@ -152,6 +152,8 @@ export interface EnemyState {
   submerged: boolean;
   /** Ticks left under water: a dive ends on time even when the enemy's timer is pushed back. */
   dive?: number;
+  /** Ticks this enemy has been held back since its last action (see MAX_HOLD). */
+  held?: number;
   shining: boolean;
   hitOnce: boolean;
   /** Act damage multiplier baked in at spawn. */

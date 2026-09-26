@@ -4,6 +4,7 @@ import { dispatch } from '../game/run.ts';
 import { idx } from '../game/board.ts';
 import { BLAST_MULT_CAP } from '../game/combat.ts';
 import { combatRun, setCard } from './helpers.mjs';
+import { foe, line, play, ready, scene } from './scene.mjs';
 
 /** Swapping (0,2) down into (1,2) completes the blade line in row 1 on this board. */
 const ROWS = ['sibcsi', 'bbiccs', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'];
@@ -44,17 +45,30 @@ test('blast multipliers are capped per move', () => {
   assert.equal(BLAST_MULT_CAP, 6);
 });
 
-test('armor from blue tiles is multiplied and spent after the enemies act', () => {
+test('armor from blue tiles is not multiplied and is spent after the enemies act', () => {
   const run = combatRun({ rows: ['sicbsi', 'issbcb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'], enemies: ['rat'] });
-  // Drop a shield from (0,3) into (1,3): s s s in row 1.
-  run.combat.board.cells[idx(0, 3)] = { id: 9100, kind: 'shield', card: 'folder' };
+  // Drop a sealed shield (+1 mult) from (0,3) into (1,3): s s s in row 1.
+  run.combat.board.cells[idx(0, 3)] = { id: 9100, kind: 'shield', card: 'folder', finish: 'seal' };
   run.combat.enemies[0].countdown = 1;
   const res = dispatch(run, { type: 'move', move: { from: idx(0, 3), to: idx(1, 3) } });
   const s = strikeOf(res.events);
-  assert.equal(s.armor, 3, 'three folders give 1 armor each');
+  assert.equal(s.tally.mult, 2);
+  assert.equal(s.armor, 3, 'three folders give 1 armor each, whatever the multiplier');
   const act = res.events.find((e) => e.t === 'enemyAct');
   assert.equal(act.hurt.armor, 3, 'armor soaks the blow');
   assert.equal(res.run.hero.armor, 0);
+});
+
+test('armor never outgrows the hero: at most the maximum health, heavier blows wound', () => {
+  const run = scene({ hp: 10, maxHp: 10, enemies: ['rat'], enemyHp: 999 });
+  ready(run, 'attack');
+  foe(run).dmgMul = 3; // a rat that hits for 42
+  const res = play(run, line(run, ['vest', 'vest', 'vest']));
+  assert.equal(res.strike.armor, 10, 'двенадцать брони, влезло десять');
+  assert.ok(res.strike.notes.some((n) => n.includes('потолок')));
+  const blow = res.acts[0].hurt;
+  assert.equal(blow.armor, 10);
+  assert.equal(res.run.phase, 'dead', 'удар сильнее потолка ранит');
 });
 
 test('armor does not carry over a non-attacking enemy action', () => {
