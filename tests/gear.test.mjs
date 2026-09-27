@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dispatch } from '../game/run.ts';
 import { GEAR } from '../game/content/gear.ts';
-import { REFLECT_PER_HALF, energyCap } from '../game/combat.ts';
+import { REFLECT_PER_HALF } from '../game/combat.ts';
 import { BLUE3, GOLD3, RED3, VIOLET3, blowOf, cascade, double, foe, hit, idx, line, play, put, ready, scene } from './scene.mjs';
 
 const three = (t) => [t, t, t];
@@ -150,9 +150,9 @@ const GEAR_CHECKS = {
     assert.equal(foe(res.run, 1).hp, 18);
   },
   quill() {
-    assert.equal(hit({ active: 'stapler' }, three('quill')).strike.tally.dmg, 3, 'навык зарядился — +3 урона');
-    assert.equal(hit({ active: 'giftbox' }, three('quill')).strike.tally.dmg, 0, 'не хватило энергии');
-    assert.equal(hit({ active: 'giftbox' }, three('quill')).strike.tally.charge, 6, '2 энергии за фишку');
+    assert.equal(hit({ charge: 4 }, three('quill')).strike.tally.dmg, 3, 'шкала заполнилась — +3 урона');
+    assert.equal(hit({}, three('quill')).strike.tally.dmg, 0, 'не хватило энергии');
+    assert.equal(hit({}, three('quill')).strike.tally.charge, 6, '2 энергии за фишку');
   },
   copystamp() {
     const run = scene({ enemyHp: 999 });
@@ -265,9 +265,3 @@ test('putting gear down: only between fights, never the last of a colour', () =>
   assert.equal(dispatch(scene({ gear: ['knife', 'scissors'] }), { type: 'dropGear', id: 'knife' }).events.find((e) => e.t === 'invalid')?.reason, 'Не в бою');
 });
 
-test('energy holds as much as the skill or a gear swap needs', () => {
-  assert.equal(energyCap(scene({})), 0, 'ни навыка, ни запасной вещи — энергия не копится');
-  assert.equal(energyCap(scene({ gear: ['knife', 'scissors'] })), 2);
-  assert.equal(energyCap(scene({ gear: ['battery', 'quill'] })), 2, 'запасная вещь любого цвета');
-  assert.equal(energyCap(scene({ active: 'stapler', gear: ['knife', 'scissors'] })), 6);
-});

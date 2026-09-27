@@ -509,6 +509,25 @@ export const ITEM_ICONS: Record<string, SpriteDef> = {
     '...kqqqqqqqqqqk.',
     '...kkkkkkkkkkkk.',
   ]),
+  // Двойная запись — a sheet over its copy, the entry underlined twice in red.
+  item_doubleentry: icon([
+    '................',
+    '................',
+    '......kkkkkkkkk.',
+    '......kqqqqqqqk.',
+    '......kqddddqqk.',
+    '..kkkkkkkkkkqqk.',
+    '..kwwwwwwwwkqqk.',
+    '..kwddddddwkddk.',
+    '..kwwwwwwwwkqqk.',
+    '..kwddddwwwkqqk.',
+    '..kwwwwwwwwkkkk.',
+    '..kwRRRRRRwk....',
+    '..kwwwwwwwwk....',
+    '..kwRRRRRRwk....',
+    '..kwwwwwwwwk....',
+    '..kkkkkkkkkk....',
+  ]),
   // Толстый кошелёк — bulging leather wallet, cash and a coin.
   item_wallet: icon([
     '................',

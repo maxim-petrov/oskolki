@@ -1,5 +1,5 @@
 import { derive, int, pick, range, rng, shuffle, weighted } from './rng.ts';
-import { MAX_ENEMIES, alive, armorCap, bagTokens, energyCap, playerActive, playerMove, playerPocket, setTarget, startCombat, swapCost } from './combat.ts';
+import { MAX_ENEMIES, alive, armMove, armorCap, bagTokens, energyCap, playerActive, playerMove, playerPocket, setTarget, startCombat, swapCost, unarm } from './combat.ts';
 import { ACTS, CHARACTERS } from './content/acts.ts';
 import { BASE_GEAR, GEAR, GEAR_PRICE, MAX_GEAR, gearPoolOf } from './content/gear.ts';
 import { ENEMIES } from './content/enemies.ts';
@@ -429,6 +429,7 @@ function openShop(run: RunState) {
 
 function winCombat(run: RunState, ev: GameEvent[]) {
   const c = run.combat!;
+  unarm(run);
   const mods = modsOf(run);
   const hero = run.hero;
   ev.push({ t: 'combatWon', kind: c.kind });
@@ -680,6 +681,10 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
     case 'active':
       if (!inCombat) return fail(run, ev, 'Только в бою');
       playerActive(run, mods, action, ev);
+      break;
+    case 'arm':
+      if (!inCombat) return fail(run, ev, 'Только в бою');
+      if (!armMove(run, action.what, ev)) return { run, events: ev };
       break;
     case 'gear': {
       // Another carried item of its colour in hand: free between fights, energy in a fight; it spends no time.

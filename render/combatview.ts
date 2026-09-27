@@ -1,5 +1,5 @@
 import { area, isValidMove, lineCells, moveBlock, moveKind } from '../game/board.ts';
-import { activeCost, alive, intentDamage, moveRules, previewMove, swapCost } from '../game/combat.ts';
+import { activeCost, alive, armBlock, intentDamage, moveRules, previewMove, swapCost } from '../game/combat.ts';
 import { BAG_COPIES } from '../game/types.ts';
 import { heartText, heartsText } from '../game/text.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
@@ -9,7 +9,7 @@ import { EnemyView, HeroView, enemySlots, heroX } from './actors.ts';
 import { gearRules, gearTitle } from './gearview.ts';
 import { BoardView } from './boardview.ts';
 import { paragraph, text } from './font.ts';
-import { drawGear, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
+import { drawArm, drawGear, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
 import type { Juice } from './juice.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
@@ -403,6 +403,21 @@ export class CombatView {
           },
         });
         return true;
+      case 'armed':
+        S.push({
+          dur: 0.15,
+          begin: () => {
+            const name = e.what === 'charge' ? 'Заряд' : e.what === 'rush' ? 'Вне очереди' : 'Двойная запись';
+            if (e.on) {
+              const r = e.what === 'double' ? this.skillRect() : this.armRect(e.what);
+              juice.float(name, r.x + r.w / 2, r.y - 4, 'gold4');
+              burst(this.h.ps, r.x + r.w / 2, r.y + r.h / 2, 14, { ramp: ['gold4', 'vio5', 'vio3'], add: true, layer: 'ui', speed: [20, 60], max: 0.45 });
+              au.play('ink', 1.1);
+            } else au.play('select');
+            this.h.disp.charge = this.run.hero.charge;
+          },
+        });
+        return true;
       case 'activeUsed':
         S.push({
           dur: 0.2,
@@ -443,23 +458,48 @@ export class CombatView {
     }
   }
 
+  /** Height of a row of the bottom panel on tall screens (two rows: energy, then gear and pockets). */
+  private rowH() {
+    return Math.min(40, Math.floor((L.bottom.h - 9) / 2));
+  }
+
+  private armW() {
+    return L.mode === 'wide' ? 46 : Math.min(52, Math.floor(L.bottom.w / 6));
+  }
+
+  /** The skill, with «Заряд» and «Вне очереди» to its right. */
   private skillRect() {
-    if (L.mode === 'wide') return { x: L.side.x, y: L.side.y, w: L.side.w, h: 34 };
+    const aw = this.armW() * 2 + 6;
+    if (L.mode === 'wide') return { x: L.side.x, y: L.side.y, w: L.side.w - aw, h: 34 };
     const b = L.bottom;
-    // Pockets on the right and the gear slots next to them.
-    const pw = this.pocketSize() * 4 + 21;
-    return { x: b.x + 4, y: b.y + 4, w: b.w - pw - 12, h: Math.min(44, b.h - 8) };
+    return { x: b.x + 4, y: b.y + 3, w: b.w - 8 - aw, h: this.rowH() };
+  }
+
+  private armRect(what: 'charge' | 'rush') {
+    const s = this.skillRect();
+    const w = this.armW();
+    return { x: s.x + s.w + 3 + (what === 'rush' ? w + 3 : 0), y: s.y, w, h: s.h };
   }
 
   private pocketSize() {
-    return L.mode === 'wide' ? 22 : Math.min(40, L.bottom.h - 8);
+    return L.mode === 'wide' ? 22 : this.rowH();
   }
 
   private pocketXY(): [number, number] {
     if (L.mode === 'wide') return [L.side.x, L.side.y + 40];
     const s = this.pocketSize();
     const n = Math.max(3, this.run.hero.pockets.length);
-    return [L.bottom.x + L.bottom.w - 4 - n * (s + 3) + 3, L.bottom.y + 4];
+    return [L.bottom.x + L.bottom.w - 4 - n * (s + 3) + 3, L.bottom.y + 6 + this.rowH()];
+  }
+
+  arm(what: 'charge' | 'rush') {
+    if (!this.canPlay()) return;
+    const block = armBlock(this.run, what);
+    if (block) {
+      this.h.fail(block);
+      return;
+    }
+    this.h.act({ type: 'arm', what });
   }
 
   /** One tile's contribution flies from the board into the counter. */
@@ -1327,6 +1367,14 @@ export class CombatView {
       this.useActive();
       return true;
     }
+    if (k === 'e' || k === 'E' || k === 'у' || k === 'У') {
+      this.arm('charge');
+      return true;
+    }
+    if (k === 'r' || k === 'R' || k === 'к' || k === 'К') {
+      this.arm('rush');
+      return true;
+    }
     if (['1', '2', '3', '4', '5'].includes(k)) {
       this.usePocket(Number(k) - 1);
       return true;
@@ -1450,13 +1498,14 @@ export class CombatView {
     // Skill, pockets, relics, bag.
     const r = this.skillRect();
     if (drawSkill(ctx, ui, r, this.run, this.h.disp, t)) this.useActive();
+    for (const what of ['charge', 'rush'] as const) if (drawArm(ctx, ui, this.armRect(what), this.run, what, t)) this.arm(what);
     const [px, py] = this.pocketXY();
     const slot = drawPockets(ctx, ui, px, py, this.pocketSize(), this.run, this.targeting?.kind === 'pocket' ? (this.targeting.slot ?? -1) : -1);
     if (slot >= 0) this.usePocket(slot);
-    // Gear: a slot per colour next to the pockets on wide screens, packed 2×2 into one slot on phones.
+    // Gear: a slot per colour next to the pockets on wide screens, at the left of the second row on phones.
     const size = this.pocketSize();
-    const wx = L.mode === 'wide' ? px + this.run.hero.pockets.length * (size + 3) + 6 : px - size - 6;
-    const gear = drawGear(ctx, ui, wx, py, size, this.run, this.h.disp, swapCost(this.run), L.mode !== 'wide');
+    const wx = L.mode === 'wide' ? px + this.run.hero.pockets.length * (size + 3) + 6 : L.bottom.x + 4;
+    const gear = drawGear(ctx, ui, wx, py, size, this.run, this.h.disp, swapCost(this.run));
     if (gear && this.canPlay()) this.h.act({ type: 'gear', id: gear });
     if (L.mode === 'wide') {
       drawRelics(ctx, ui, { ...L.side2, h: L.side2.h - 12 }, this.run);
@@ -1503,14 +1552,19 @@ export class CombatView {
     else if (c && this.canPlay()) {
       // Moves that do not follow the usual rule: a turnstile holds all fight, items remind at the start.
       const rules = this.rules();
-      const tip = rules.vertical
-        ? 'Турникет: фишки ходят только вверх и вниз'
-        : c.moves === 0 && rules.slide
-          ? 'Рулетка: фишку можно тянуть вдоль всего ряда'
-          : c.moves === 0 && rules.diagonal
-            ? 'Угольник: меняться можно и по диагонали'
-            : '';
-      if (tip) text(ctx, tip, L.w / 2, b.by - 20, rules.vertical ? 'red4' : 'gold4', { align: 'center', outline: 'ink0' });
+      // What energy readied for this move comes first: it changes what the move does.
+      const armed = c.armed ?? {};
+      const ready = [armed.charge ? 'Заряд: все группы — супер' : '', armed.double ? 'Двойная запись' : '', armed.rush ? 'Вне очереди: враги ждут' : ''].filter(Boolean).join(' · ');
+      const tip = ready
+        ? ready
+        : rules.vertical
+          ? 'Турникет: фишки ходят только вверх и вниз'
+          : c.moves === 0 && rules.slide
+            ? 'Рулетка: фишку можно тянуть вдоль всего ряда'
+            : c.moves === 0 && rules.diagonal
+              ? 'Угольник: меняться можно и по диагонали'
+              : '';
+      if (tip) text(ctx, tip, L.w / 2, b.by - 20, ready ? 'vio5' : rules.vertical ? 'red4' : 'gold4', { align: 'center', outline: 'ink0' });
     }
     this.tileTip(ctx, ui);
   }

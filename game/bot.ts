@@ -4,7 +4,7 @@
  * offers. They never inspect hidden refills or RNG state.
  */
 import { colOf, findGroups, idx, rowOf, validMoves } from './board.ts';
-import { BANK_MAX, actScale, activeCost, alive, currentIntent, energyCap, intentDamage, mirrorBack, moveRules, previewMove, swapCost, type MovePreview } from './combat.ts';
+import { BANK_MAX, RUSH_COST, actScale, activeCost, alive, armBlock, currentIntent, energyCap, intentDamage, mirrorBack, moveRules, previewMove, swapCost, type MovePreview } from './combat.ts';
 import { EVENT_BY_ID } from './content/events.ts';
 import { MAX_GEAR } from './content/gear.ts';
 import { ITEMS, type Mods } from './content/items.ts';
@@ -120,8 +120,9 @@ function scoreMove(run: RunState, p: MovePreview, w: Worth): number {
   const dmg = target ? Math.min(landed, target.hp + 4) : 0;
   const kill = target && landed >= target.hp ? 8 : 0;
   const armor = Math.min(p.armor, need) * w.half * low + Math.max(0, p.armor - need) * 0.5;
+  // Energy is worth most while the meter has room (it pays for the skill, «Заряд», «Вне очереди»).
   const cap = energyCap(run);
-  const charge = run.hero.charge < cap ? p.charge * 1.1 : p.charge * 0.1;
+  const charge = run.hero.charge < cap ? p.charge * 1.3 : p.charge * 0.1;
   // Damage to all: every enemy but the target counts (the target's share is in its own hp).
   let aoe = 0;
   for (const e of alive(c)) aoe += Math.min(p.aoe, e.hp) * (e === target ? 0.3 : 0.8);
@@ -179,6 +180,28 @@ function gearSwap(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves
 const FAM_WEIGHT: Record<string, number> = { blade: 2, shield: 1.5, ink: 1, coin: 1 };
 
 /**
+ * The intern's eraser wipes a whole colour and fires it: the colour worth most on this board (red
+ * strikes, blue blocks when a blow is coming, violet refills the meter). A cell of that colour, or null.
+ */
+function wipeTarget(run: RunState, danger: number): number | null {
+  const cells = run.combat!.board.cells;
+  const worth: Record<string, number> = { blade: 3, shield: danger > 0 ? 2.5 : 0.3, ink: 0.8, coin: 0.5 };
+  const count: Record<string, number> = {};
+  for (const t of cells) if (t.kind in worth && !t.hidden) count[t.kind] = (count[t.kind] ?? 0) + 1;
+  const best = Object.keys(count).sort((a, b) => count[b] * worth[b] - count[a] * worth[a])[0];
+  if (!best || count[best] * worth[best] < 12) return null;
+  return cells.findIndex((t) => t.kind === best && !t.hidden);
+}
+
+/** The best move's score with energy readied (a sample of the best plain moves: the charged ones differ little). */
+function armedBest(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, previews: MovePreview[], w: Worth, armed: { charge?: boolean; double?: boolean }): number {
+  const order = moves.map((_, k) => k).sort((a, b) => scoreMove(run, previews[b], w) - scoreMove(run, previews[a], w));
+  let best = 0;
+  for (const k of order.slice(0, 6)) best = Math.max(best, scoreMove(run, previewMove(run, mods, moves[k], armed), w));
+  return best;
+}
+
+/**
  * The eraser's cell, as a player sees it: removing a tile drops its column by one and lets the
  * visible queue head in at the top; whatever lines up is resolved for free (no time passes).
  * Returns the best cell and the value of what falls into place (junk and staples are worth a bit).
@@ -225,6 +248,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
   const t = pickTarget(run);
   if (t !== null && t !== c.target) return { type: 'target', uid: t };
   const danger = threat(run) - hero.armor;
+  const armed = c.armed ?? {};
   // Pockets.
   for (let slot = 0; slot < hero.pockets.length; slot++) {
     const p = hero.pockets[slot];
@@ -238,23 +262,28 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
       if (t && (t.value >= 8 || (danger >= hero.hp * 0.5 && t.value >= 3))) return { type: 'pocket', slot, cell: t.cell };
     }
   }
+  // «Вне очереди» before a heavy blow the move cannot block: the enemies wait one move.
+  if (!armed.rush && !armBlock(run, 'rush') && hero.charge >= RUSH_COST) {
+    const heavy = danger >= Math.max(3, Math.ceil(hero.hp / 2)) || danger >= hero.hp;
+    if (heavy) return { type: 'arm', what: 'rush' };
+  }
   // Active skill.
   const id = hero.active;
   if (id && hero.charge >= activeCost(run)) {
     const cells = c.board.cells;
-    const junk = cells.findIndex((x) => x.kind === 'junk' || x.pin);
     // The hot key pays for every skill used: then the board tools are worth pressing anyway.
     const eager = mods.skillBonus > 0 && !(c.skillBonus ?? 0);
     switch (id) {
       case 'eraser': {
-        const t = erase === 'match' || eager ? eraseTarget(run) : null;
-        if (t) return { type: 'active', cell: t.cell };
-        if (erase === 'junk' && junk >= 0) return { type: 'active', cell: junk };
-        if (eager) return { type: 'active', cell: cells.findIndex((x) => x.kind !== 'junk' && !x.special && x.kind !== 'prism') };
+        const cell = wipeTarget(run, danger);
+        if (cell !== null && cell >= 0) return { type: 'active', cell };
         break;
       }
+      case 'doubleentry':
+        if (!armed.double) return { type: 'active' };
+        break;
       case 'corrector':
-        if (eager || cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
+        if (eager || c.board.flood > 0 || cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
         break;
       case 'stapler': {
         // Only an enemy that can be stunned now (not stunned, not just out of a stun).
@@ -283,6 +312,11 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
     const previews = moves.map((m) => previewMove(run, mods, m));
     const w = worthOf(previews);
     if (!mods.bankPer) w.bank = 0;
+    // «Заряд»: every group of the move a super, when that is clearly worth 4 energy.
+    if (policy === 'greedy' && !armed.charge && !armBlock(run, 'charge')) {
+      const plain = Math.max(...previews.map((p) => scoreMove(run, p, w)));
+      if (armedBest(run, mods, moves, previews, w, { charge: true }) - plain >= 10) return { type: 'arm', what: 'charge' };
+    }
     for (let k = 0; k < moves.length; k++) {
       const m = moves[k];
       const s = scoreMove(run, previews[k], w) + next(r) * 0.01;

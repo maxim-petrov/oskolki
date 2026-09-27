@@ -219,6 +219,14 @@ export interface Combat {
   bank?: number;
   /** Damage bonus the hot key gives the move after a skill. */
   skillBonus?: number;
+  /**
+   * What energy has readied for the next move: «Заряд» (every group of its first wave is a super),
+   * «Вне очереди» (the enemies do not tick after it), the accountant's double entry (the groups of its
+   * first wave score twice).
+   */
+  armed?: { charge?: boolean; rush?: boolean; double?: boolean };
+  /** The move number of the last move made out of turn (never two in a row). */
+  lastRush?: number;
 }
 
 export type NodeKind = 'fight' | 'elite' | 'event' | 'shop' | 'rest' | 'treasure' | 'boss';
@@ -394,6 +402,8 @@ export type Action =
   | { type: 'move'; move: Move }
   | { type: 'target'; uid: number }
   | { type: 'active'; cell?: number; col?: number; uid?: number }
+  /** Spend energy on the next move: «Заряд» or «Вне очереди» (again: cancel, the energy comes back). */
+  | { type: 'arm'; what: 'charge' | 'rush' }
   /** Hold another carried item of its colour (costs energy in a fight). */
   | { type: 'gear'; id: string }
   /** Put a carried item down (between fights; never the last of its colour). */
@@ -518,6 +528,7 @@ export type GameEvent =
   | { t: 'resize'; w: number; h: number; board: BoardSnap; queue: Tile[][] }
   /** Another item held: every tile of its colour is it now. */
   | { t: 'gear'; id: string; fam: Fam }
+  | { t: 'armed'; what: 'charge' | 'rush' | 'double'; on: boolean }
   | { t: 'enemyDie'; uid: number; split?: EnemyState[] }
   | { t: 'combatStart'; kind: Combat['kind'] }
   | { t: 'combatWon'; kind: Combat['kind'] }

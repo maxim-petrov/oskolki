@@ -110,6 +110,12 @@ export interface MoveState {
   coinBlasted: number;
   /** The group being scored works as its colour's super. */
   superGroup: boolean;
+  /** «Заряд»: every group of the first wave is a super. */
+  charged: boolean;
+  /** The accountant's double entry: the groups of the first wave score twice. */
+  double: boolean;
+  /** «Вне очереди»: the enemies do not tick after this move. */
+  rush: boolean;
   /** Share of the target's maximum health the strike takes at once (the cutter's guillotine). */
   hpPct: number;
   bonusCoins: number;
@@ -153,6 +159,9 @@ function newMoveState(): MoveState {
     blueBlasted: 0,
     coinBlasted: 0,
     superGroup: false,
+    charged: false,
+    double: false,
+    rush: false,
     hpPct: 0,
     bonusCoins: 0,
     notes: [],
@@ -409,15 +418,70 @@ export function swapCost(run: RunState): number {
   return Math.max(0, GEAR_SWAP_COST - modsOfRelics(run).swapDiscount);
 }
 
-/**
- * How much energy the hero can hold: enough for the skill, and for a gear swap when some colour
- * has a spare item. Nothing to spend it on — nothing is held.
- */
+/** The energy meter: it holds this much (items add room) and keeps its charge between fights. */
+export const ENERGY_MAX = 10;
+/** «Заряд»: every group of the next move's first wave works as its colour's super. */
+export const CHARGE_COST = 4;
+/** «Вне очереди»: the enemies do not tick after the next move (never two such moves in a row). */
+export const RUSH_COST = 7;
+
 export function energyCap(run: RunState): number {
-  const skill = run.hero.active ? activeCost(run) : 0;
-  const spare = FAMS.some((f) => (run.hero.gear?.[f]?.length ?? 1) > 1);
-  const swap = spare ? swapCost(run) : 0;
-  return Math.max(skill, swap);
+  return ENERGY_MAX + modsOfRelics(run).energyMax;
+}
+
+export function armCost(what: 'charge' | 'rush'): number {
+  return what === 'charge' ? CHARGE_COST : RUSH_COST;
+}
+
+/**
+ * Why energy cannot ready this for the next move, or null. `on` is what is readied already: it can
+ * always be cancelled.
+ */
+export function armBlock(run: RunState, what: 'charge' | 'rush'): string | null {
+  const c = run.combat;
+  if (!c) return 'Только в бою';
+  if (c.armed?.[what]) return null;
+  if (what === 'rush') {
+    if (c.lastRush !== undefined && c.lastRush === c.moves) return 'Вне очереди — не два хода подряд';
+    if (c.freeTicks > 0) return 'Враги и так ждут';
+  }
+  const cost = armCost(what);
+  if (!run.dev?.ink && run.hero.charge < cost) return `Нужно ${cost} энергии`;
+  return null;
+}
+
+/** Readies (or cancels, with the energy back) «Заряд» or «Вне очереди» for the next move; spends no time. */
+export function armMove(run: RunState, what: 'charge' | 'rush', ev: GameEvent[]): boolean {
+  const c = run.combat!;
+  const hero = run.hero;
+  const armed = (c.armed ??= {});
+  const cost = armCost(what);
+  if (armed[what]) {
+    armed[what] = false;
+    if (!run.dev?.ink) hero.charge = Math.min(energyCap(run), hero.charge + cost);
+    ev.push({ t: 'armed', what, on: false });
+    return true;
+  }
+  const block = armBlock(run, what);
+  if (block) {
+    ev.push({ t: 'invalid', reason: block });
+    return false;
+  }
+  if (!run.dev?.ink) hero.charge -= cost;
+  armed[what] = true;
+  ev.push({ t: 'armed', what, on: true });
+  return true;
+}
+
+/** Energy readied for a move that never came (the fight ended first) goes back to the meter. */
+export function unarm(run: RunState) {
+  const c = run.combat;
+  if (!c?.armed) return;
+  let back = 0;
+  if (c.armed.charge) back += CHARGE_COST;
+  if (c.armed.rush) back += RUSH_COST;
+  if (back && !run.dev?.ink) run.hero.charge = Math.min(energyCap(run), run.hero.charge + back);
+  c.armed = undefined;
 }
 
 /** Damage from a move's energy that does not fit the meter: 1 per point (no meter: every point). */
@@ -717,8 +781,9 @@ export function groupArmor(ctx: Ctx, g: Group, cells: Tile[], scores: TileScore[
  * A group works as its colour's super: 4+ tiles, a stamped tile in it, or the red pen's first red
  * group of the move.
  */
-function isSuper(ctx: Ctx, g: Group, cells: Tile[]): boolean {
+function isSuper(ctx: Ctx, g: Group, cells: Tile[], wave: number): boolean {
   if (g.size >= 4 || g.cells.some((i) => cells[i]?.seal)) return true;
+  if (ctx.ms.charged && wave === 1) return true;
   if (g.fam === 'blade' && ctx.mods.redPenFirst && !ctx.ms.flags.has('redpen')) {
     ctx.ms.flags.add('redpen');
     return true;
@@ -729,13 +794,14 @@ function isSuper(ctx: Ctx, g: Group, cells: Tile[]): boolean {
 function scoreGroup(ctx: Ctx, g: Group, cells: Tile[], wave: number, scores: TileScore[]) {
   const { ms, mods, c } = ctx;
   if (g.fam === 'blade') ms.redGroups++;
-  ms.superGroup = isSuper(ctx, g, cells);
+  ms.superGroup = isSuper(ctx, g, cells, wave);
   // The alarm button: damage for every red group of the move.
   if (g.fam === 'blade' && mods.redGroupDmg) {
     ms.tally.dmg += mods.redGroupDmg;
     scores.push({ i: g.cells[0], id: -1, fam: 'blade', dmg: mods.redGroupDmg, note: 'Тревожная кнопка' });
   }
   let reps = 1;
+  if (ms.double && wave === 1) reps++;
   if (ms.copyNext > 0) {
     reps++;
     ms.copyNext--;
@@ -875,7 +941,7 @@ export function scoringOrder(groups: Group[], gear: Record<Fam, GearDef>): Group
  * the first wave; `spent` are specials that blast already used up. With `score` off (board tools:
  * the eraser, the corrector) lines that fall into place clear without scoring: tools are not moves.
  */
-export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: number[] = [], score = true) {
+export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: number[] = [], score: boolean | 'first' = true) {
   const { c, mods, ms } = ctx;
   let first = true;
   for (let wave = 1; wave <= 30; wave++) {
@@ -883,7 +949,8 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     const groups: Group[] = findGroups(c.board, cells, mods.wrap, first ? prefer : []);
     if (!groups.length && !forced) break;
     ctx.wave = wave;
-    const scoring = score && wave <= SCORED_WAVES;
+    // 'first': only the forced blast scores, what falls into place after it clears for nothing.
+    const scoring = score === 'first' ? wave === 1 : score && wave <= SCORED_WAVES;
     const waveFx: Effect[] = [];
     ctx.fx = waveFx;
     const scores: TileScore[] = [];
@@ -1554,7 +1621,8 @@ function advanceTime(ctx: Ctx) {
   const { c, mods } = ctx;
   if (!alive(c).length) return;
   let skip: string | null = null;
-  if (c.freeTicks > 0) {
+  if (ctx.ms.rush) skip = 'Вне очереди: враги ждут';
+  else if (c.freeTicks > 0) {
     c.freeTicks--;
     skip = 'Кофе: враги ждут';
   } else if (mods.clockEvery > 0 && c.moves % mods.clockEvery === 0) skip = 'Часы остановились';
@@ -1618,6 +1686,15 @@ export function playerMove(run: RunState, mods: Mods, move: Move, ev: GameEvent[
   c.board.cells = applyMove(c.board, c.board.cells, m, kind);
   c.moves++;
   run.stats.moves++;
+  // What energy readied goes into this move.
+  const armed = c.armed ?? {};
+  ctx.ms.charged = !!armed.charge;
+  ctx.ms.double = !!armed.double;
+  ctx.ms.rush = !!armed.rush;
+  if (armed.charge) ctx.ms.notes.push('Заряд: все группы — супер');
+  if (armed.double) ctx.ms.notes.push('Двойная запись');
+  if (armed.rush) c.lastRush = c.moves;
+  c.armed = undefined;
   ev.push({ t: 'swap', move: m, board: snap(c.board.cells), ...(kind === 'slide' ? { slide: true } : {}) });
   const set = swapBlast(c.board, c.board.cells, m, mods, kind);
   resolve(ctx, moveCells(m), set?.blast, set?.spent);
@@ -1755,14 +1832,30 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     ev.push({ t: 'invalid', reason: 'Недавно оглушён' });
     return false;
   }
+  if (def.id === 'eraser' && (cells[arg.cell!].kind === 'junk' || cells[arg.cell!].kind === 'prism')) {
+    ev.push({ t: 'invalid', reason: 'Выбери цветную фишку' });
+    return false;
+  }
+  if (def.id === 'doubleentry' && c.armed?.double) {
+    ev.push({ t: 'invalid', reason: 'Уже готово' });
+    return false;
+  }
   hero.charge = run.dev?.ink ? hero.charge : hero.charge - cost;
   if (mods.skillBonus) c.skillBonus = mods.skillBonus;
   ev.push({ t: 'activeUsed', item: def.id });
   switch (def.id) {
-    case 'eraser':
-      removeCell(ctx, arg.cell!);
-      resolve(ctx, [], undefined, [], false);
-      toolArmor(ctx);
+    case 'eraser': {
+      // Every tile of the chosen colour goes at once and fires, like a prism; what falls into place
+      // after it clears for nothing (a skill is not a move).
+      const fam = cells[arg.cell!].kind;
+      const wiped = cells.map((t, k) => (t.kind === fam ? k : -1)).filter((k) => k >= 0);
+      resolve(ctx, [], { kind: 'prism', at: arg.cell!, cells: wiped }, [], 'first');
+      strike(ctx, false);
+      break;
+    }
+    case 'doubleentry':
+      c.armed = { ...c.armed, double: true };
+      ev.push({ t: 'armed', what: 'double', on: true });
       break;
     case 'coffeeToGo':
       // Two ticks of quiet; uses do not stack into a frozen fight.
@@ -1790,7 +1883,15 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
       if (washed && mods.mopJunk) gainArmor(run, mopArmor(washed, mods, actScale(run).dmg));
       c.board.colLock.fill(0);
       c.board.rowLock.fill(0);
+      c.board.flood = 0;
       ev.push({ t: 'board', reason: 'active', board: snap(cells) });
+      // Every blot washed away hurts every enemy (grows with the act like every effect outside the strike).
+      if (washed) {
+        const per = Math.round(3 * actScale(run).hp);
+        batch(ctx, () => {
+          for (const e of alive(c)) hitEnemy(ctx, e.uid, washed * per, { source: 'cleanup', pierce: true });
+        });
+      }
       resolve(ctx, [], undefined, [], false);
       break;
     }
@@ -1862,7 +1963,11 @@ export interface MovePreview {
   hpPct: number;
 }
 
-export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview {
+/**
+ * What a move would do, first wave only. `armed` asks «as if readied» (a bot weighing «Заряд» or the
+ * double entry); by default the move takes what is readied now.
+ */
+export function previewMove(run: RunState, mods: Mods, move: Move, armed?: { charge?: boolean; double?: boolean }): MovePreview {
   const c = run.combat;
   const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0, bank: 0, aoe: 0, bleed: 0, stun: false, delay: 0, pierce: false, hpPct: 0 };
   const rules = c ? moveRules(run, mods) : null;
@@ -1872,6 +1977,8 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
   const groups = findGroups(c.board, cells, mods.wrap, moveCells(move));
   const set = swapBlast(c.board, cells, move, mods, kind);
   const ctx: Ctx = { run, c, mods, gear: heldGear(run), ev: [], fx: [], wave: 1, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
+  ctx.ms.charged = armed?.charge ?? !!c.armed?.charge;
+  ctx.ms.double = armed?.double ?? !!c.armed?.double;
   const scores: TileScore[] = [];
   const matched = new Set(groups.flatMap((g) => g.cells));
   for (const g of scoringOrder(groups, ctx.gear)) scoreGroup(ctx, g, cells, 1, scores);

@@ -405,7 +405,8 @@ export class RunView implements CombatHost {
       return;
     }
     if (this.paused) return;
-    if (k === 'd' || k === 'в') this.deckOpen = !this.deckOpen;
+    // D moves the cursor in a fight: there the gear viewer opens from the top bar.
+    if ((k === 'd' || k === 'в') && !this.run.combat) this.deckOpen = !this.deckOpen;
     if ((k === 'm' || k === 'ь') && this.run.phase !== 'map') this.mapOpen = !this.mapOpen;
     if (this.busy()) {
       this.app.fastForward = true;

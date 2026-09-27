@@ -138,7 +138,8 @@ function wide(w: number, h: number) {
 function tall(w: number, h: number) {
   const topH = 18;
   const tallyH = 26;
-  const bottomH = clamp(Math.round(h * 0.1), 44, 64);
+  // Two rows: the skill with «Заряд» and «Вне очереди», then the gear and the pockets.
+  const bottomH = clamp(Math.round(h * 0.12), 72, 88);
   const queue = 11;
   const frame = 7;
   let tile = clamp(Math.floor((w - frame * 2 - 4) / L.cols), 22, 52);

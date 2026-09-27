@@ -1,4 +1,5 @@
 import { ACTS } from '../game/content/acts.ts';
+import { CHARGE_COST, RUSH_COST, armBlock } from '../game/combat.ts';
 import { heartText, heartsText } from '../game/text.ts';
 import { FAM_ROLE } from '../game/content/gear.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
@@ -14,7 +15,7 @@ export interface Disp {
   hp: number;
   maxHp: number;
   armor: number;
-  /** Energy now, the skill's cost and how much energy the meter holds (skill and gear swaps). */
+  /** Energy now, the skill's cost and how much energy the meter holds (it keeps its charge between fights). */
   charge: number;
   cost: number;
   cap: number;
@@ -131,10 +132,10 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
   if (!def) {
     text(ctx, 'нет навыка', r.x + r.w / 2, r.y + r.h / 2 - 4, 'grey2', { align: 'center' });
     if (d.cap > 0) {
-      bar(ctx, r.x + 6, r.y + r.h - 9, r.w - 12, 4, d.charge / d.cap, ['vio5', 'vio4', 'vio2'], 'ink1');
+      meter(ctx, r.x + 6, r.y + r.h - 9, r.w - 12, d.charge, d.cap, 0);
       text(ctx, `${d.charge}/${d.cap}`, r.x + r.w - 5, r.y + 4, 'cold3', { align: 'right' });
     }
-    if (hot) ui.tooltip('Нет навыка', 'Энергия фиолетовых фишек идёт на смену вещей, а лишняя бьёт сама: 1 урона за деление.', ui.p.x, ui.p.y - 50, 'vio5');
+    if (hot) ui.tooltip('Нет навыка', 'Энергия фиолетовых фишек идёт на «Заряд», «Вне очереди» и смену вещей; лишняя сверх шкалы бьёт сама: 1 урона за деление.', ui.p.x, ui.p.y - 50, 'vio5');
     return false;
   }
   const icon = getFrame(def.icon);
@@ -144,14 +145,69 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
   const tx = r.x + (big ? 40 : 24);
   text(ctx, def.name, tx, r.y + 4, ready ? 'cream' : 'cold4', { outline: 'ink0' });
   const mw = r.x + r.w - 6 - tx;
-  bar(ctx, tx, r.y + r.h - 9, mw, 4, d.charge / Math.max(1, d.cap), ['vio5', 'vio4', 'vio2'], 'ink1');
+  meter(ctx, tx, r.y + r.h - 9, mw, d.charge, d.cap, d.cost);
   text(ctx, `${d.charge}/${d.cost}`, r.x + r.w - 5, r.y + 4, ready ? 'vio5' : 'cold3', { align: 'right' });
   if (ready && Math.floor(t * 3) % 2 === 0) {
     ctx.fillStyle = hex('vio5');
     ctx.fillRect(r.x, r.y, r.w, 1);
     ctx.fillRect(r.x, r.y + r.h - 1, r.w, 1);
   }
-  if (hot) ui.tooltip(def.name, `${def.desc}\nНавык: ${d.cost} энергии. Лишняя энергия бьёт: 1 урона за деление.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
+  if (hot) ui.tooltip(def.name, `${def.desc}\nНавык: ${d.cost} энергии из ${d.cap}. Энергия сверх шкалы бьёт: 1 урона за деление.${L.touch ? '' : ' Клавиша Q.'}`, ui.p.x, ui.p.y - 50, 'vio5');
+  return clicked;
+}
+
+/** The energy meter in whole segments, with a mark at what the skill costs. */
+function meter(ctx: Ctx2D, x: number, y: number, w: number, charge: number, cap: number, mark: number) {
+  bar(ctx, x, y, w, 4, charge / Math.max(1, cap), ['vio5', 'vio4', 'vio2'], 'ink1');
+  ctx.fillStyle = hex('ink0');
+  for (let k = 1; k < cap; k++) ctx.fillRect(x + Math.round((w * k) / cap), y, 1, 4);
+  if (mark > 0 && mark <= cap) {
+    ctx.fillStyle = hex('gold4');
+    ctx.fillRect(x + Math.round((w * mark) / cap) - 1, y - 2, 1, 8);
+  }
+}
+
+const ARM: Record<'charge' | 'rush', { name: string; short: string; cost: number; key: string; tip: string }> = {
+  charge: {
+    name: 'Заряд',
+    short: 'Заряд',
+    cost: CHARGE_COST,
+    key: 'E',
+    tip: 'Все группы следующего хода срабатывают как супер (как группа из 4+), каждого цвета. Только первая волна: предпросмотр точен.',
+  },
+  rush: {
+    name: 'Вне очереди',
+    short: 'Вне оч.',
+    cost: RUSH_COST,
+    key: 'R',
+    tip: 'После следующего хода враги не тикают: их таймеры стоят. Кровотечение и огонь идут. Не два хода подряд.',
+  },
+};
+
+/** «Заряд» or «Вне очереди»: readied (gold), available (violet), not now (grey). Returns true on click. */
+export function drawArm(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, what: 'charge' | 'rush', t: number): boolean {
+  const a = ARM[what];
+  const on = !!run.combat?.armed?.[what];
+  const block = armBlock(run, what);
+  const key = `arm-${what}`;
+  const clicked = ui.area(key, r.x, r.y, r.w, r.h);
+  const hot = ui.hovered === key;
+  const can = on || !block;
+  ctx.fillStyle = hex(on ? 'gold4' : 'ink0');
+  ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.fillStyle = hex(on ? (Math.floor(t * 3) % 2 ? 'vio3' : 'vio2') : can ? (hot ? 'vio3' : 'vio1') : 'ink2');
+  ctx.fillRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
+  ctx.fillStyle = hex(can ? 'vio4' : 'ink3');
+  ctx.fillRect(r.x + 1, r.y + 1, r.w - 2, 1);
+  const label = r.w >= 52 ? a.name : a.short;
+  text(ctx, label, r.x + r.w / 2, r.y + Math.max(2, Math.round(r.h / 2) - 9), on ? 'gold4' : can ? 'cream' : 'grey2', { align: 'center' });
+  const cost = `${a.cost}`;
+  draw(ctx, getFrame('ui_charge'), Math.round(r.x + r.w / 2 - 6), r.y + Math.round(r.h / 2) + 5);
+  text(ctx, cost, Math.round(r.x + r.w / 2 + 2), r.y + Math.round(r.h / 2), can ? 'vio5' : 'grey2');
+  if (hot) {
+    const state = on ? 'Готово к ходу. Ещё раз — отмена, энергия вернётся.' : block ? `${block}.` : `${a.cost} энергии.`;
+    ui.tooltip(`${a.name} · ${a.cost} энергии`, `${a.tip}\n${state}${L.touch ? '' : ` Клавиша ${a.key}.`}`, ui.p.x, ui.p.y - 60, 'vio5');
+  }
   return clicked;
 }
 

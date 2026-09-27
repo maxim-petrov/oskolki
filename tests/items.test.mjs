@@ -389,15 +389,12 @@ const ITEM_CHECKS = {
   },
   hotkey() {
     // After a skill, the next move strikes +50%.
-    const after = act(scene({ active: 'eraser', relics: ['hotkey'], charge: 2, enemyHp: 999 }), { type: 'active', cell: idx(5, 5) }).run;
-    assert.equal(play(after, line(after, RED3)).strike.damage, 9);
-    assert.equal(activeCost(scene({ active: 'eraser' })), 3);
-    assert.equal(activeCost(scene({ active: 'eraser', relics: ['hotkey'] })), 2);
+    const after = act(scene({ active: 'stapler', relics: ['hotkey'], charge: 4, enemies: ['rat'], enemyHp: 999 }), { type: 'active', uid: 1 }).run;
+    assert.equal(after.hero.charge, 0, 'степлер за 4 вместо 6');
+    assert.equal(play(after, line(after, RED3)).strike.damage, 15, '6 урона: +50% после навыка и +100% ножом по бумажной крысе');
+    assert.equal(activeCost(scene({ active: 'eraser' })), 8);
+    assert.equal(activeCost(scene({ active: 'eraser', relics: ['hotkey'] })), 6);
     assert.equal(activeCost(scene({ active: 'stapler', relics: ['hotkey'] })), 4);
-    const { run } = newRun({ seed: 1 });
-    run.hero.charge = 3;
-    gainRelic(run, 'hotkey', 'test', []);
-    assert.equal(run.hero.charge, 2, 'заряд не больше новой цены');
   },
   steeldoor() {
     const left = (relics) => {
@@ -444,21 +441,35 @@ const ITEM_CHECKS = {
 
   // ── Skills ─────────────────────────────────────────────────────────
   eraser() {
-    const run = scene({ active: 'eraser', charge: 3 });
+    const run = scene({ active: 'eraser', charge: 8, enemyHp: 999 });
+    for (const [r, c] of [
+      [0, 0],
+      [2, 3],
+      [4, 1],
+    ])
+      put(run, r, c, 'blade');
     const before = foe(run).countdown;
-    const res = act(run, { type: 'active', cell: idx(0, 0) });
-    assert.equal(res.waves[0].cleared[0].i, idx(0, 0));
+    const res = act(run, { type: 'active', cell: idx(2, 3) });
+    assert.equal(res.waves[0].blasts[0].kind, 'prism');
+    assert.equal(res.waves[0].cleared.filter((x) => x.kind === 'blade').length, 3, 'все красные стёрты');
+    assert.equal(res.strike.tally.dmg, 6, 'и сработали: по 2 за фишку');
     assert.equal(res.run.hero.charge, 0);
     assert.equal(foe(res.run).countdown, before, 'время не тратит');
-    const drop = erasedLine({ active: 'eraser', charge: 3 }, (run, cell) => ({ type: 'active', cell }));
-    assert.ok(drop.waves.some((w) => w.idle && w.groups.length), 'ряд сложился');
-    // The mop pays for junk a board tool washed away.
-    const mop = erasedLine({ active: 'eraser', charge: 3, relics: ['mop'] }, (run, cell) => ({ type: 'active', cell }));
-    const washed = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
-    assert.ok(washed >= 2);
-    assert.equal(mop.run.hero.armor, Math.min(ARMOR_CAP, Math.floor(washed / 2)), 'швабра платит и за ластик');
-    assert.equal(drop.strike, undefined, 'и сгорел впустую: ластик — не ход');
-    assert.equal(foe(drop.run).hp, 999);
+    assert.ok(res.waves.slice(1).every((w) => w.idle), 'сложившееся следом сгорает впустую');
+    const junk = act(scene({ active: 'eraser', charge: 8 }), { type: 'active', cell: idx(0, 0) });
+    assert.equal(junk.invalid?.reason, 'Выбери цветную фишку');
+    assert.equal(junk.run.hero.charge, 8, 'энергия не потрачена');
+  },
+  doubleentry() {
+    const run = scene({ active: 'doubleentry', charge: 14, enemyHp: 999 });
+    const ready = act(run, { type: 'active' });
+    assert.ok(ready.events.some((e) => e.t === 'armed' && e.what === 'double' && e.on));
+    assert.equal(ready.run.hero.charge, 7);
+    assert.equal(act(ready.run, { type: 'active' }).invalid?.reason, 'Уже готово');
+    const res = play(ready.run, line(ready.run, RED3));
+    assert.equal(res.strike.tally.dmg, 12, 'группа первой волны — дважды');
+    assert.equal(res.run.combat.armed, undefined, 'и только этот ход');
+    assert.equal(play(res.run, line(res.run, RED3, { row: 4 })).strike.tally.dmg, 6);
   },
   stapler() {
     const run = scene({ active: 'stapler', charge: 6, enemies: ['rat'] });
@@ -488,17 +499,20 @@ const ITEM_CHECKS = {
     );
   },
   corrector() {
-    const run = scene({ active: 'corrector', charge: 5, real: true });
+    const run = scene({ active: 'corrector', charge: 6, real: true, enemies: ['anchor', 'drop'], enemyHp: 99 });
     const cells = run.combat.board.cells;
     cells[0] = { id: 90001, kind: 'junk' };
+    cells[1] = { id: 90002, kind: 'junk', tape: true };
     cells[7] = { ...cells[7], pin: true };
     cells[8] = { ...cells[8], fuse: 2 };
     cells[9] = { ...cells[9], hidden: 3 };
     run.combat.board.colLock[5] = 2;
+    run.combat.board.flood = 2;
     const res = act(run, { type: 'active' });
     const after = res.run.combat.board;
     assert.ok(!after.cells.some((t) => t.kind === 'junk' || t.pin || t.fuse || t.hidden));
-    assert.equal(after.colLock[5], 0);
+    assert.deepEqual([after.colLock[5], after.flood], [0, 0], 'якоря и вода ушли');
+    assert.deepEqual(res.run.combat.enemies.map((e) => e.hp), [99 - 6, 99 - 6], 'по 3 урона каждому за каждую кляксу');
     assert.equal(res.strike, undefined, 'новые фишки, сложившиеся в ряд, сгорают впустую');
   },
   shredder() {
@@ -538,6 +552,11 @@ const POCKET_CHECKS = {
     const drop = erasedLine({ pockets: ['eraser'] }, (run, cell) => ({ type: 'pocket', slot: 0, cell }));
     assert.ok(drop.waves.some((w) => w.idle && w.groups.length));
     assert.equal(drop.strike, undefined, 'сложившийся ряд сгорает впустую');
+    // The mop pays for junk a board tool washed away.
+    const mop = erasedLine({ pockets: ['eraser'], relics: ['mop'] }, (run, cell) => ({ type: 'pocket', slot: 0, cell }));
+    const washed = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
+    assert.ok(washed >= 2);
+    assert.equal(mop.run.hero.armor, Math.min(ARMOR_CAP, Math.floor(washed / 2)), 'швабра платит и за ластик');
   },
   sticker() {
     const run = scene({ pockets: ['sticker'] });
@@ -590,12 +609,11 @@ test('effects outside the strike grow with the act: damage with enemy health, ar
 
 test('energy beyond a full meter burns: 1 damage per extra point', () => {
   const dmg = (opts, tiles = VIOLET3) => hit(opts, tiles).strike.tally.dmg;
-  assert.equal(dmg({ active: 'giftbox' }), 0, 'навык берёт весь заряд');
-  assert.equal(dmg({ active: 'eraser' }), 0, 'ровно на навык — без остатка');
-  assert.equal(dmg({ active: 'eraser', charge: 3 }), 3, 'навык полон: 3 лишних → 3 урона');
-  assert.equal(dmg({}), 3, 'без навыка весь заряд бьёт');
-  const s = hit({ active: 'eraser', charge: 2 }, VIOLET3);
-  assert.equal(s.strike.tally.dmg, 2, 'одно деление на навык, два — в урон');
+  assert.equal(dmg({}), 0, 'шкала не полна — энергия копится');
+  assert.equal(hit({}, VIOLET3).run.hero.charge, 3);
+  assert.equal(dmg({ charge: 7 }), 0, 'ровно до края — без остатка');
+  assert.equal(dmg({ charge: 10 }), 3, 'шкала полна: 3 лишних → 3 урона');
+  const s = hit({ charge: 9 }, VIOLET3);
+  assert.equal(s.strike.tally.dmg, 2, 'одно деление в шкалу, два — в урон');
   assert.ok(s.strike.notes.includes('Лишняя энергия +2 урона'));
-  assert.equal(hit({}, VIOLET3).run.hero.charge, 0, 'без навыка заряд не копится');
 });
