@@ -175,7 +175,7 @@ function sample(list, k, salt) {
 
 // ── A. Whole runs ────────────────────────────────────────────────────
 
-const VETERAN = { unlocked: ALL_UNLOCKS, pockets: ['coffee'], coins: 25 };
+const VETERAN = { unlocked: ALL_UNLOCKS, pockets: ['coffee'], coins: 8 };
 const RUN_CONFIGS = {
   greedy: {
     title: 'Жадный бот (стажёр, без открытий)',

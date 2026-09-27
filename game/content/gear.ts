@@ -421,31 +421,31 @@ export const GEAR: Record<string, GearItem> = {
   // ── Yellow: coins and finds (coins per group) ───────────────────────
   penny: g('penny', 'Монетка', 'starter', 'tile_coin', {
     fam: 'coin',
-    value: 1,
+    value: 0,
     strike: {},
     super: { coins: 1 },
     up: PLUS1,
-    strikeText: 'Группа даёт монету и копит находки.',
-    superText: 'Ещё монета.',
-    upText: '+1 монета за группу.',
+    strikeText: 'Копит находки: каждая жёлтая фишка — деление шкалы.',
+    superText: 'Монета.',
+    upText: 'Монета за каждую группу.',
   }),
   receipt: g('receipt', 'Чек', 'common', 'card_receipt', {
     fam: 'coin',
     value: 0,
-    strike: { coinsPerTile: 1 },
+    strike: { finds: 1 },
     super: { coins: 1 },
     up: { value: 1 },
-    strikeText: 'Монета за каждую фишку группы.',
-    superText: 'Ещё монета.',
-    upText: '+1 монета за группу.',
+    strikeText: 'Находки копятся вдвое: два деления шкалы за фишку.',
+    superText: 'Монета.',
+    upText: 'Монета за каждую группу.',
   }),
   bonus: g('bonus', 'Премия', 'uncommon', 'card_bonus', {
     fam: 'coin',
-    value: 1,
+    value: 0,
     strike: { dmgPerTile: 3 },
     super: { dmgPerTile: 2 },
     up: { strike: { dmgPerTile: 4 } },
-    strikeText: 'Монета и +3 урона удару за фишку.',
+    strikeText: '+3 урона удару за фишку.',
     superText: 'Ещё +2 урона за фишку.',
     upText: '+4 урона за фишку.',
   }),
@@ -468,13 +468,13 @@ export const GEAR: Record<string, GearItem> = {
   ),
   piggy: g('piggy', 'Копилка', 'uncommon', 'card_piggy', {
     fam: 'coin',
-    value: 1,
-    strike: { afterFight: 2 },
+    value: 0,
+    strike: { afterFight: 1 },
     super: { coins: 1 },
     up: PLUS1,
-    strikeText: 'Монета, и ещё 2 после боя за каждую группу.',
-    superText: 'Ещё монета.',
-    upText: '+1 монета за группу.',
+    strikeText: 'Монета после боя за каждую группу.',
+    superText: 'И монета сразу.',
+    upText: 'Монета сразу за каждую группу.',
   }),
   report: g(
     'report',
@@ -483,12 +483,12 @@ export const GEAR: Record<string, GearItem> = {
     'card_report',
     {
       fam: 'coin',
-      value: 1,
+      value: 0,
       strike: { famDmg: 2 },
       super: { coins: 1 },
       up: { strike: { famDmg: 3 } },
-      strikeText: 'Монета. Раз за ход: +2 урона удару за каждый цвет, собранный до отчёта.',
-      superText: 'Ещё монета.',
+      strikeText: 'Раз за ход: +2 урона удару за каждый цвет, собранный до отчёта.',
+      superText: 'Монета.',
       upText: '+3 урона за цвет.',
     },
     'bundle_accounting',
@@ -500,12 +500,12 @@ export const GEAR: Record<string, GearItem> = {
     'card_goldclip',
     {
       fam: 'coin',
-      value: 1,
+      value: 0,
       strike: { bonusPct: 0.3 },
       super: { coins: 1 },
       up: { strike: { bonusPct: 0.5 } },
-      strikeText: 'Монета. Раз за ход: урон хода +30%.',
-      superText: 'Ещё монета.',
+      strikeText: 'Раз за ход: урон хода +30%.',
+      superText: 'Монета.',
       upText: 'Урон хода +50%.',
     },
     'bundle_accounting',
@@ -527,7 +527,7 @@ export function withUpgrade(def: GearDef, up: boolean): GearDef {
 export const BASE_GEAR: Record<Fam, string> = { blade: 'knife', shield: 'shield', ink: 'battery', coin: 'penny' };
 
 /** Coins an item of each rarity costs at the till (the act scales it). */
-export const GEAR_PRICE: Record<Pool, number> = { starter: 30, common: 40, uncommon: 60, rare: 100, boss: 150, shop: 60 };
+export const GEAR_PRICE: Record<Pool, number> = { starter: 8, common: 10, uncommon: 14, rare: 20, boss: 26, shop: 14 };
 
 /** Gear the rewards and the till can offer. */
 export function gearPoolOf(unlocked: readonly string[]): string[] {

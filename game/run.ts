@@ -4,7 +4,10 @@ import { ACTS, CHARACTERS } from './content/acts.ts';
 import { BASE_GEAR, GEAR, GEAR_PRICE, MAX_GEAR, gearPoolOf } from './content/gear.ts';
 import { ENEMIES } from './content/enemies.ts';
 import { EVENTS, EVENT_BY_ID, type EventApi } from './content/events.ts';
-import { FINDS, FIND_KINDS } from './content/finds.ts';
+import { FINDS, FIND_KINDS, FIND_METER } from './content/finds.ts';
+import { MAX_COINS, gainCoins, loseCoins, priceScale } from './economy.ts';
+
+export { PRICE_ACT, priceScale } from './economy.ts';
 import { ITEMS, POCKETS, RELIC_PRICE, computeMods, relicPool, type Mods, type Pool } from './content/items.ts';
 import { generateActMap, reachable } from './actmap.ts';
 import { FAMS } from './types.ts';
@@ -67,7 +70,7 @@ export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[
       ward: 0,
       reflect: 0,
       charge: 0,
-      coins: ch.coins + (opts.coins ?? 0),
+      coins: Math.min(MAX_COINS, ch.coins + (opts.coins ?? 0)),
       active: ch.active,
       gear: { blade: [start('blade')], shield: [start('shield')], ink: [start('ink')], coin: [start('coin')] },
       equip: { blade: start('blade'), shield: start('shield'), ink: start('ink'), coin: start('coin') },
@@ -255,6 +258,22 @@ export function rollRelic(run: RunState, tier?: 'common' | 'uncommon' | 'rare' |
   return id;
 }
 
+/** A tier above: what a key finds on the safe's upper shelf. */
+const TIER_UP: Record<'common' | 'uncommon' | 'rare', 'uncommon' | 'rare'> = { common: 'uncommon', uncommon: 'rare', rare: 'rare' };
+
+/** Three items a key shows: relics a tier above the usual roll, a skill among them half the time. */
+function keyChoices(run: RunState): string[] {
+  const out: string[] = [];
+  const skills = activePool(run);
+  if (skills.length && int(run.rng.loot, 100) < 50) out.push(pick(run.rng.loot, skills));
+  while (out.length < 3) {
+    const id = rollRelic(run, TIER_UP[weighted(run.rng.loot, RELIC_ODDS)]);
+    if (!id) break;
+    out.push(id);
+  }
+  return out;
+}
+
 /** Active skills the player could swap to. */
 function activePool(run: RunState): string[] {
   return Object.values(ITEMS)
@@ -278,7 +297,7 @@ export function gainRelic(run: RunState, id: string, source: string, ev: GameEve
       ev.push({ t: 'maxHp', amount: def.maxHp });
     }
     if (def.heal) heal(run, def.heal, ev);
-    if (def.coins) hero.coins = Math.min(999, hero.coins + def.coins);
+    if (def.coins) gainCoins(run, def.coins);
     const slots = modsOf(run).pockets;
     while (hero.pockets.length < slots) hero.pockets.push(null);
     // A cheaper skill: the energy never exceeds the meter.
@@ -358,7 +377,7 @@ function enterNode(run: RunState, node: MapNode, ev: GameEvent[]) {
       break;
     case 'treasure': {
       const relic = rollRelic(run) ?? 'sandwich';
-      run.treasure = { relic, coins: range(run.rng.loot, 5, 12), opened: false };
+      run.treasure = { relic, coins: range(run.rng.loot, 3, 6), opened: false };
       run.phase = 'treasure';
       break;
     }
@@ -378,19 +397,12 @@ function enterNode(run: RunState, node: MapNode, ev: GameEvent[]) {
 }
 
 /** «Мастерская» (one upgrade) and the shredder (one red tape curse out) at the till. */
-const UPGRADE_PRICE = 50;
-const SHRED_PRICE = 40;
+const UPGRADE_PRICE = 10;
+const SHRED_PRICE = 6;
 
-/** Prices at the till grow from act to act, so coins keep their weight to the end of a shift. */
-export const PRICE_ACT = [1, 1.3, 1.6, 1.9];
-
-export function priceScale(run: RunState): number {
-  return PRICE_ACT[Math.min(run.act, PRICE_ACT.length - 1)];
-}
-
-/** Reprinting the till: 20 coins, 20 more each time in the same shop (grows with the act too). */
+/** Reprinting the till: 4 coins, 4 more each time in the same shop (grows with the act too). */
 export function rerollPrice(run: RunState): number {
-  return Math.round((20 + 20 * (run.shop?.rerolls ?? 0)) * priceScale(run));
+  return Math.round((4 + 4 * (run.shop?.rerolls ?? 0)) * priceScale(run));
 }
 
 /** Gear, items, pockets and the services on offer. */
@@ -421,7 +433,7 @@ function stockShop(run: RunState): Pick<ShopState, 'gear' | 'relics' | 'pockets'
 }
 
 function openShop(run: RunState) {
-  const shred = run.hero.tape > 0 ? { price: Math.round((SHRED_PRICE + 20 * run.shreds) * priceScale(run)), used: false } : null;
+  const shred = run.hero.tape > 0 ? { price: Math.round((SHRED_PRICE + 3 * run.shreds) * priceScale(run)), used: false } : null;
   run.shop = { ...stockShop(run), shred, rerolls: 0 };
 }
 
@@ -430,6 +442,9 @@ function openShop(run: RunState) {
 function winCombat(run: RunState, ev: GameEvent[]) {
   const c = run.combat!;
   unarm(run);
+  // A find nobody picked up waits on the next board.
+  const left = c.board.cells.find((t) => t.find)?.find;
+  if (left) run.hero.findNext = left;
   const mods = modsOf(run);
   const hero = run.hero;
   ev.push({ t: 'combatWon', kind: c.kind });
@@ -466,9 +481,9 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   }
   // Rewards.
   const rewards: RewardOption[] = [];
-  // Things are short: a plain fight pays coins half the time, and little, and offers a choice of
-  // gear now and then; the bosses and the upper management pay in full.
-  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [6, 6], fight: [4, 8], elite: [10, 15], boss: [25, 35] };
+  // Things are short (the wallet holds 99): a plain fight pays a few coins half the time and offers
+  // a choice of gear now and then; the bosses and the upper management pay more.
+  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [2, 2], fight: [2, 4], elite: [5, 8], boss: [10, 15] };
   const [lo, hi] = coinRange[kind];
   const paid = kind !== 'fight' || int(run.rng.loot, 100) < 50;
   const coins = (paid ? range(run.rng.loot, lo, hi) : 0) + c.bonusCoins;
@@ -484,6 +499,8 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   if (kind === 'elite') {
     const r = rollRelic(run);
     if (r) rewards.push({ kind: 'relic', relic: r });
+    // A key to the safe from a quarter of the upper management.
+    if (int(run.rng.loot, 100) < 25) rewards.push({ kind: 'key', amount: 1 });
   }
   if (run.eventRelic) {
     rewards.push({ kind: 'relic', relic: run.eventRelic });
@@ -576,8 +593,8 @@ function eventApi(run: RunState, ev: GameEvent[]): EventApi {
     run,
     roll: () => int(run.rng.loot, 10000) / 10000,
     coins: (n) => {
-      run.hero.coins = Math.max(0, Math.min(999, run.hero.coins + n));
-      ev.push({ t: 'coins', amount: n });
+      const d = n >= 0 ? gainCoins(run, n) : -loseCoins(run, -n);
+      ev.push({ t: 'coins', amount: d });
     },
     heal: (n) => void heal(run, n, ev),
     hurt: (n) => {
@@ -731,11 +748,7 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       if (run.phase !== 'reward') return fail(run, ev, 'Наград нет');
       const r = run.rewards[action.index];
       if (!r || r.taken) return fail(run, ev, 'Уже взято');
-      if (r.kind === 'coins') {
-        hero.coins = Math.min(999, hero.coins + (r.amount ?? 0));
-        run.stats.coinsEarned += r.amount ?? 0;
-        ev.push({ t: 'coins', amount: r.amount ?? 0 });
-      } else if (r.kind === 'gear') {
+      if (r.kind === 'coins') ev.push({ t: 'coins', amount: gainCoins(run, r.amount ?? 0) }); else if (r.kind === 'gear') {
         const id = r.gear?.[action.pick ?? -1];
         if (!id) return fail(run, ev, 'Выбери вещь');
         if (!gainGear(run, id, 'reward', ev)) return fail(run, ev, `Руки заняты: вещей цвета не больше ${MAX_GEAR}`);
@@ -837,10 +850,35 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
     case 'open': {
       const t = run.treasure;
       if (run.phase !== 'treasure' || !t || t.opened) return fail(run, ev, 'Нечего открывать');
+      if (action.index !== undefined) {
+        // The key's choice: one item, the others go back to the pool.
+        const id = t.choices?.[action.index];
+        if (!id) return fail(run, ev, 'Выбери предмет');
+        for (const x of t.choices!) if (x !== id && ITEMS[x]?.kind === 'passive' && !run.relicPool.includes(x)) run.relicPool.push(x);
+        t.opened = true;
+        t.relic = id;
+        gainRelic(run, id, 'treasure', ev);
+        ev.push({ t: 'coins', amount: gainCoins(run, t.coins) });
+        break;
+      }
+      if (action.key) {
+        // A key opens the upper shelf: a choice of three a tier above (a skill among them half the time).
+        if (t.choices) return fail(run, ev, 'Сейф уже открыт');
+        if (hero.keys <= 0) return fail(run, ev, 'Нет ключа');
+        hero.keys--;
+        ev.push({ t: 'keys', amount: -1 });
+        if (ITEMS[t.relic]?.kind === 'passive' && !run.relicPool.includes(t.relic)) run.relicPool.push(t.relic);
+        t.choices = keyChoices(run);
+        if (!t.choices.length) {
+          t.opened = true;
+          ev.push({ t: 'coins', amount: gainCoins(run, t.coins) });
+        }
+        break;
+      }
+      if (t.choices) return fail(run, ev, 'Выбери предмет');
       t.opened = true;
       gainRelic(run, t.relic, 'treasure', ev);
-      hero.coins = Math.min(999, hero.coins + t.coins);
-      ev.push({ t: 'coins', amount: t.coins });
+      ev.push({ t: 'coins', amount: gainCoins(run, t.coins) });
       break;
     }
     case 'event': {
@@ -875,9 +913,15 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
           break;
         case 'shop':
         case 'rest':
-        case 'treasure':
           run.phase = 'map';
           break;
+        case 'treasure': {
+          // Items a key showed and nobody took go back to the pool.
+          const t = run.treasure;
+          if (t?.choices && !t.opened) for (const x of t.choices) if (ITEMS[x]?.kind === 'passive' && !run.relicPool.includes(x)) run.relicPool.push(x);
+          run.phase = 'map';
+          break;
+        }
         case 'event':
           if (run.event?.result === undefined) return fail(run, ev, 'Сначала выбери');
           run.phase = 'map';
@@ -914,11 +958,11 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
       if (op.hp !== undefined) hero.hp = Math.max(1, Math.min(hero.maxHp, Math.round(op.hp)));
       hero.hp = Math.min(hero.hp, hero.maxHp);
       hero.armor = Math.min(hero.armor, armorCap(run));
-      if (op.coins !== undefined) hero.coins = Math.max(0, Math.min(999, Math.round(op.coins)));
+      if (op.coins !== undefined) hero.coins = Math.max(0, Math.min(MAX_COINS, Math.round(op.coins)));
       if (op.charge !== undefined) hero.charge = Math.max(0, Math.min(energyCap(run), Math.round(op.charge)));
       if (op.armor !== undefined) hero.armor = Math.max(0, Math.min(armorCap(run), Math.round(op.armor)));
       if (op.keys !== undefined) hero.keys = Math.max(0, Math.min(9, Math.round(op.keys)));
-      if (op.finds !== undefined) hero.finds = Math.max(0, Math.round(op.finds));
+      if (op.finds !== undefined) hero.finds = Math.max(0, Math.min(FIND_METER, Math.round(op.finds)));
       break;
     case 'build': {
       // Gear may come in its own list or among the items (the dev panel picks them there); a colour
@@ -993,7 +1037,7 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
           run.phase = 'shop';
           break;
         case 'treasure':
-          run.treasure = { relic: rollRelic(run) ?? 'sandwich', coins: 10, opened: false };
+          run.treasure = { relic: rollRelic(run) ?? 'sandwich', coins: 5, opened: false };
           run.phase = 'treasure';
           break;
         case 'event': {

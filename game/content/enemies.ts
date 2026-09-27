@@ -334,7 +334,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     armor: 3,
     size: 'L',
     material: 'metal',
-    coins: 12,
+    coins: 4,
     intents: [
       { kind: 'block', value: 10, timer: 3 },
       { kind: 'attack', value: 2, timer: 3 },

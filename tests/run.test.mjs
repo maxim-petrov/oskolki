@@ -81,7 +81,7 @@ test('things are short: a plain fight pays coins half the time and offers gear n
   const coins = all.map((r) => r.rewards.find((x) => x.kind === 'coins')).filter(Boolean);
   const gear = all.map((r) => r.rewards.find((x) => x.kind === 'gear')).filter(Boolean);
   assert.ok(coins.length >= 10 && coins.length <= 30, `монеты в ${coins.length} боях из 40`);
-  assert.ok(coins.every((x) => x.amount >= 4 && x.amount <= 8), 'по 4–8 монет');
+  assert.ok(coins.every((x) => x.amount >= 2 && x.amount <= 4), 'по 2–4 монеты');
   assert.ok(gear.length >= 8 && gear.length <= 26, `вещи в ${gear.length} боях из 40`);
   assert.ok(gear.every((x) => x.gear.length === 2 && new Set(x.gear).size === 2), 'две разные вещи на выбор');
 });
@@ -227,24 +227,24 @@ test('bots finish whole runs without errors', () => {
 
 test('the till can be reprinted: new stock, unsold items back to the pool, a rising price', () => {
   let { run } = newRun({ seed: 31, customSeed: true });
-  run = dispatch(run, { type: 'dev', op: { op: 'hero', coins: 500 } }).run;
+  run = dispatch(run, { type: 'dev', op: { op: 'hero', coins: 99 } }).run;
   run = dispatch(run, { type: 'dev', op: { op: 'enter', kind: 'shop' } }).run;
   const first = run.shop;
   const shown = first.relics.filter((r) => ITEMS[r.id].kind === 'passive').map((r) => r.id);
   for (const id of shown) assert.ok(!run.relicPool.includes(id), 'выставленный предмет вынут из пула');
-  assert.equal(rerollPrice(run), 20);
+  assert.equal(rerollPrice(run), 4);
   const res = dispatch(run, { type: 'reroll' });
   assert.ok(!res.events.some((e) => e.t === 'invalid'));
-  assert.equal(res.run.hero.coins, 480);
+  assert.equal(res.run.hero.coins, 95);
   assert.equal(res.run.shop.rerolls, 1);
-  assert.equal(rerollPrice(res.run), 40, 'каждый раз дороже');
+  assert.equal(rerollPrice(res.run), 8, 'каждый раз дороже');
   assert.deepEqual(res.run.shop.shred, first.shred, 'шредер тот же');
   for (const id of shown) assert.ok(res.run.relicPool.includes(id) || res.run.shop.relics.some((r) => r.id === id), 'непроданное вернулось в пул');
   assert.notDeepEqual(
     res.run.shop.gear.map((c) => c.id),
     first.gear.map((c) => c.id),
   );
-  const broke = dispatch(dispatch(res.run, { type: 'dev', op: { op: 'hero', coins: 10 } }).run, { type: 'reroll' });
+  const broke = dispatch(dispatch(res.run, { type: 'dev', op: { op: 'hero', coins: 3 } }).run, { type: 'reroll' });
   assert.ok(broke.events.some((e) => e.t === 'invalid'), 'без денег не перепечатать');
 });
 
@@ -257,9 +257,9 @@ test('prices at the till grow from act to act', () => {
   };
   const a0 = shopAt(0);
   const a2 = shopAt(2);
-  assert.equal(a0.shop.shred.price, 40);
-  assert.equal(a2.shop.shred.price, Math.round(40 * PRICE_ACT[2]));
-  assert.equal(rerollPrice(a2), Math.round(20 * PRICE_ACT[2]));
+  assert.equal(a0.shop.shred.price, 6);
+  assert.equal(a2.shop.shred.price, Math.round(6 * PRICE_ACT[2]));
+  assert.equal(rerollPrice(a2), Math.round(4 * PRICE_ACT[2]));
   const lo = (run) => Math.min(...run.shop.gear.map((c) => c.price));
   assert.ok(lo(a2) >= Math.round(GEAR_PRICE.common * 0.5 * 0.9 * PRICE_ACT[2]) - 1, 'вещи дороже');
 });

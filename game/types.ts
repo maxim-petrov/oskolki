@@ -255,6 +255,11 @@ export interface RunStats {
   damageDealt: number;
   damageTaken: number;
   coinsEarned: number;
+  /** Coins that did not fit the wallet. */
+  coinsLost?: number;
+  /** Finds that came onto the board and were picked up. */
+  finds?: number;
+  findsTaken?: number;
   maxCombo: number;
   maxMult: number;
   maxHit: number;
@@ -541,6 +546,9 @@ export type GameEvent =
   /** Red tape curses changed (gained or shredded). */
   | { t: 'tape'; amount: number }
   | { t: 'keys'; amount: number }
+  /** A find came onto the board (at a cell) or was picked up. */
+  | { t: 'findSpawn'; cell: number; find: FindKind }
+  | { t: 'found'; find: FindKind; text: string }
   | { t: 'pocket'; pocket: string }
   | { t: 'pocketUsed'; pocket: string }
   | { t: 'coins'; amount: number }

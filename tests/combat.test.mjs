@@ -34,13 +34,13 @@ test('the held yellow item decides what gold tiles do: the bonus adds damage per
   const plain = combatRun({ rows });
   setTile(plain, idx(0, 2), 'coin');
   const s = strikeOf(dispatch(plain, DOWN).events);
-  assert.deepEqual([s.tally.dmg, s.tally.coins], [0, 1], 'монетка: монета за группу');
+  assert.deepEqual([s.tally.dmg, s.tally.coins], [0, 0], 'монетка: копит находки, монет за тройку нет');
   const bonus = combatRun({ rows });
   setTile(bonus, idx(0, 2), 'coin');
   bonus.hero.gear.coin.push('bonus');
   bonus.hero.equip.coin = 'bonus';
   const b = strikeOf(dispatch(bonus, DOWN).events);
-  assert.deepEqual([b.tally.dmg, b.tally.coins], [9, 1], 'премия: +3 урона с фишки');
+  assert.deepEqual([b.tally.dmg, b.tally.coins], [9, 0], 'премия: +3 урона с фишки');
 });
 
 test('a blue group blocks half a heart and the armour is spent after the enemies act', () => {

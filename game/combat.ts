@@ -27,12 +27,14 @@ import {
   validMoves,
   type MoveRules,
 } from './board.ts';
-import { chance, next, pick, shuffle } from './rng.ts';
+import { chance, next, pick, shuffle, weighted } from './rng.ts';
 import { ENEMIES } from './content/enemies.ts';
 import { ACTS } from './content/acts.ts';
 import { CHARACTERS } from './content/acts.ts';
 import { BASE_GEAR, GEAR, GEAR_SWAP_COST, withUpgrade, type GearDef } from './content/gear.ts';
 import { heartText, heartsText } from './text.ts';
+import { FINDS, FIND_BOMB_COINS, FIND_COINS, FIND_ENERGY, FIND_KINDS, FIND_METER } from './content/finds.ts';
+import { gainCoins, loseCoins } from './economy.ts';
 import { ITEMS, POCKETS, computeMods, type Mods } from './content/items.ts';
 import {
   BAG_COPIES,
@@ -46,6 +48,7 @@ import {
   type Effect,
   type EnemyState,
   type Fam,
+  type FindKind,
   type GameEvent,
   type Group,
   type Intent,
@@ -119,6 +122,9 @@ export interface MoveState {
   /** Share of the target's maximum health the strike takes at once (the cutter's guillotine). */
   hpPct: number;
   bonusCoins: number;
+  /** Finds-meter points of the move (yellow tiles) and the finds picked up. */
+  findPts: number;
+  found: FindKind[];
   notes: string[];
 }
 
@@ -164,6 +170,8 @@ function newMoveState(): MoveState {
     rush: false,
     hpPct: 0,
     bonusCoins: 0,
+    findPts: 0,
+    found: [],
     notes: [],
   };
 }
@@ -379,11 +387,14 @@ export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: strin
       (i, k) => (board.cells[i].special = k % 2 ? 'rocketV' : 'rocketH'),
     );
   if (mods.interest) {
-    const bonus = Math.floor(run.hero.coins / 10);
-    if (bonus > 0) {
-      run.hero.coins = Math.min(999, run.hero.coins + bonus);
-      ev.push({ t: 'message', text: `Проценты: +${bonus}` });
-    }
+    const bonus = gainCoins(run, Math.floor(run.hero.coins / 20));
+    if (bonus > 0) ev.push({ t: 'message', text: `Проценты: +${bonus}` });
+  }
+  // A find left on the last board (or promised by an event) waits on this one.
+  if (run.hero.findNext) {
+    const [i] = randomCells(run.rng.fx, board.cells, 1, findable);
+    if (i !== undefined) board.cells[i].find = run.hero.findNext;
+    delete run.hero.findNext;
   }
   // A board dealt for plain swaps may have no move under the fight's rules (a turnstile allows only
   // up and down): shuffle it until it has some.
@@ -573,9 +584,8 @@ function killEnemy(ctx: Ctx, e: EnemyState) {
   const def = ENEMIES[e.def];
   const coins = (def.coins ?? 0) + e.stolen;
   if (coins > 0) {
-    run.hero.coins = Math.min(999, run.hero.coins + coins);
-    run.stats.coinsEarned += coins;
-    ctx.fx.push({ kind: 'coins', amount: coins, uid: e.uid, source: 'loot' });
+    const got = gainCoins(run, coins);
+    if (got > 0) ctx.fx.push({ kind: 'coins', amount: got, uid: e.uid, source: 'loot' });
   }
   const split: EnemyState[] = [];
   if (def.splitInto) {
@@ -670,7 +680,10 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
     if (fam === 'blade') add('dmg', value);
     else if (fam === 'shield') ms.blueBlasted++;
     else if (fam === 'ink') add('charge', value);
-    else ms.coinBlasted++;
+    else {
+      ms.coinBlasted++;
+      ms.findPts += 1 + (gear.strike.finds ?? 0);
+    }
     if (fam === 'blade') ms.redTiles++;
     scores.push(s);
     return;
@@ -734,8 +747,10 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
       break;
     }
     case 'coin': {
-      // The coin: coins per group (and per tile for the receipt), damage for some, the abacus's savings.
+      // The coin: coins per group (and per tile for the receipt), damage for some, the abacus's savings;
+      // every yellow tile fills the finds meter.
       if (mods.bankPer) ms.bank += mods.bankPer;
+      ms.findPts += 1 + (st.finds ?? 0);
       if (st.coinsPerTile) add('coins', st.coinsPerTile);
       const paidKey = `paid:${wave}:${g.cells[0]}:${rep}`;
       if (once('coin')) {
@@ -1031,10 +1046,12 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
     const nextCells: (Tile | null)[] = cells.slice();
     for (const i of matched) {
       cleared.push({ i, id: cells[i].id, kind: cells[i].kind, cause: 'match' });
+      if (cells[i].find) ms.found.push(cells[i].find!);
       nextCells[i] = null;
     }
     for (const i of blasted) {
       cleared.push({ i, id: cells[i].id, kind: cells[i].kind, cause: 'blast' });
+      if (cells[i].find) ms.found.push(cells[i].find!);
       nextCells[i] = null;
     }
     for (const i of splashed) {
@@ -1129,7 +1146,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   // Damage bonuses (no explicit multiplier): items give them for good, the move earns some.
   let bonus = t.bonus + mods.dmgBonus;
   if (mods.coinBonus && fromMove) {
-    const k = Math.floor(hero.coins / 50) * mods.coinBonus;
+    const k = Math.round(Math.floor(hero.coins / 10) * mods.coinBonus * 100) / 100;
     if (k > 0) {
       bonus += k;
       notes.push(`Сейф +${pct(k)}`);
@@ -1209,8 +1226,10 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     hero.armor += armor;
     if (ms.junkCleared && mods.mopJunk) gainArmor(run, mopArmor(ms.junkCleared, mods, scale.dmg));
     const coins = Math.round(t.coins);
-    hero.coins = Math.max(0, Math.min(999, hero.coins + coins));
-    if (coins > 0) run.stats.coinsEarned += coins;
+    if (coins > 0) gainCoins(run, coins);
+    else if (coins < 0) loseCoins(run, -coins);
+    hero.finds = Math.min(FIND_METER, (hero.finds ?? 0) + ms.findPts);
+    ms.findPts = 0;
     c.bonusCoins += ms.bonusCoins;
     hero.charge = run.dev?.ink ? energyCap(run) : Math.min(energyCap(run), hero.charge + Math.round(t.charge));
     if (target && damage > 0) {
@@ -1469,7 +1488,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'pin': {
-      const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => t.kind !== 'junk' && !t.pin);
+      const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => t.kind !== 'junk' && !t.pin && !t.find);
       for (const i of chosen) cells[i].pin = true;
       act.cells = chosen;
       act.board = snap(cells);
@@ -1486,7 +1505,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     }
     case 'censor': {
       if (!mods.censorImmune) {
-        const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => !t.hidden);
+        const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => !t.hidden && !t.find);
         for (const i of chosen) cells[i].hidden = 4;
         act.cells = chosen;
         act.board = snap(cells);
@@ -1707,13 +1726,86 @@ export function playerMove(run: RunState, mods: Mods, move: Move, ev: GameEvent[
 /** Shared tail for moves, bombs and actives. */
 export function afterAction(ctx: Ctx, spendsTime: boolean) {
   if (isDead(ctx.run)) return;
+  takeFinds(ctx);
   if (alive(ctx.c).length) fitBoard(ctx);
   if (spendsTime) moveEnd(ctx);
   else phaseCheck(ctx);
   if (spendsTime && alive(ctx.c).length && !isDead(ctx.run)) advanceTime(ctx);
   syncIds(ctx.run, ctx.c);
   if (!isDead(ctx.run) && alive(ctx.c).length) fitBoard(ctx);
+  if (!isDead(ctx.run) && alive(ctx.c).length) spawnFind(ctx);
   if (!isDead(ctx.run)) ensurePlayable(ctx);
+}
+
+// ── Finds ────────────────────────────────────────────────────────────
+
+/** A plain tile a find can wait on (it keeps its colour: a group or a blast picks it up). */
+const findable = (t: Tile) => FAMS.includes(t.kind as Fam) && !t.special && !t.pin && !t.hidden && !t.find && !t.fuse;
+
+/** A find to put down: never a heart for a hero at full health. */
+export function rollFind(run: RunState): FindKind {
+  const full = run.hero.hp >= run.hero.maxHp;
+  return weighted(
+    run.rng.loot,
+    FIND_KINDS.filter((k) => !(full && k === 'heart')).map((k) => [k, FINDS[k].weight] as [FindKind, number]),
+  );
+}
+
+/** A full meter puts a find on the board (one at a time: the meter waits while one lies there). */
+function spawnFind(ctx: Ctx) {
+  const { run, c } = ctx;
+  if ((run.hero.finds ?? 0) < FIND_METER || c.board.cells.some((t) => t.find)) return;
+  const [i] = randomCells(run.rng.fx, c.board.cells, 1, findable);
+  if (i === undefined) return;
+  const find = rollFind(run);
+  c.board.cells[i] = { ...c.board.cells[i], find };
+  run.hero.finds = 0;
+  run.stats.finds = (run.stats.finds ?? 0) + 1;
+  ctx.ev.push({ t: 'findSpawn', cell: i, find });
+}
+
+/** What the move picked up pays at once. */
+function takeFinds(ctx: Ctx) {
+  const { run, ms } = ctx;
+  const hero = run.hero;
+  for (const find of ms.found) {
+    run.stats.findsTaken = (run.stats.findsTaken ?? 0) + 1;
+    let text = FINDS[find].name;
+    switch (find) {
+      case 'coins':
+        text = `+${gainCoins(run, FIND_COINS)} монет`;
+        break;
+      case 'key':
+        hero.keys = Math.min(9, hero.keys + 1);
+        ctx.ev.push({ t: 'keys', amount: 1 });
+        text = 'Ключ от сейфа';
+        break;
+      case 'heart': {
+        const before = hero.hp;
+        hero.hp = Math.min(hero.maxHp, hero.hp + 2);
+        ctx.ev.push({ t: 'heal', amount: hero.hp - before });
+        text = 'Сердце';
+        break;
+      }
+      case 'battery': {
+        const before = hero.charge;
+        hero.charge = Math.min(energyCap(run), hero.charge + FIND_ENERGY);
+        text = `+${hero.charge - before} энергии`;
+        break;
+      }
+      case 'bomb': {
+        const slot = hero.pockets.indexOf(null);
+        if (slot >= 0) {
+          hero.pockets[slot] = 'bomb';
+          ctx.ev.push({ t: 'pocket', pocket: 'bomb' });
+          text = 'Бомба в кармане';
+        } else text = `Карманы полны: +${gainCoins(run, FIND_BOMB_COINS)} монеты`;
+        break;
+      }
+    }
+    ctx.ev.push({ t: 'found', find, text });
+  }
+  ms.found = [];
 }
 
 /** Junk a board tool cleared still pays the mop (the tool has no strike to pay it). */
@@ -1729,6 +1821,7 @@ function removeCell(ctx: Ctx, i: number) {
   const cells = c.board.cells;
   const next: (Tile | null)[] = cells.slice();
   const removed = cells[i];
+  if (removed.find) ctx.ms.found.push(removed.find);
   next[i] = null;
   const { falls, spawns } = gravity(c.board, run.rng.board, next);
   ev.push({
@@ -1961,6 +2054,8 @@ export interface MovePreview {
   pierce: boolean;
   /** Share of the target's maximum health the strike takes at once (the guillotine). */
   hpPct: number;
+  /** Finds the move picks up (first wave). */
+  finds: number;
 }
 
 /**
@@ -1969,7 +2064,7 @@ export interface MovePreview {
  */
 export function previewMove(run: RunState, mods: Mods, move: Move, armed?: { charge?: boolean; double?: boolean }): MovePreview {
   const c = run.combat;
-  const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0, bank: 0, aoe: 0, bleed: 0, stun: false, delay: 0, pierce: false, hpPct: 0 };
+  const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0, bank: 0, aoe: 0, bleed: 0, stun: false, delay: 0, pierce: false, hpPct: 0, finds: 0 };
   const rules = c ? moveRules(run, mods) : null;
   if (!c || !rules || !isValidMove(c.board, move, rules)) return empty;
   const kind = moveKind(c.board, move, rules)!;
@@ -2009,6 +2104,7 @@ export function previewMove(run: RunState, mods: Mods, move: Move, armed?: { cha
     delay: ms.delay,
     pierce: ms.pierce || mods.pierce,
     hpPct: ms.hpPct,
+    finds: [...matched, ...(set ? set.blast.cells : [])].filter((i, k, all) => all.indexOf(i) === k && cells[i]?.find).length,
   };
 }
 

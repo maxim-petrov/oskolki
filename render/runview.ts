@@ -1,6 +1,7 @@
 import { activeCost, energyCap } from '../game/combat.ts';
 import { ACTS } from '../game/content/acts.ts';
 import { FAM_ROLE } from '../game/content/gear.ts';
+import { FINDS } from '../game/content/finds.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
 import { dispatch, modsOf, saveRun } from '../game/run.ts';
 import type { Action, GameEvent, RunState } from '../game/types.ts';
@@ -266,6 +267,28 @@ export class RunView implements CombatHost {
         break;
       case 'keys':
         S.push({ dur: 0.25, begin: () => (this.toast(e.amount > 0 ? 'Ключ от сейфа' : 'Сейф открыт ключом'), this.audio.play('pickup')) });
+        break;
+      case 'findSpawn':
+        S.push({
+          dur: 0.3,
+          begin: () => {
+            this.toast(`На поле находка: ${FINDS[e.find].name.toLowerCase()}`, 1.4);
+            this.audio.play('item');
+            const v = [...this.combat.board.tiles.values()].find((x) => x.tile.find === e.find);
+            if (v) v.fresh = 1;
+          },
+        });
+        break;
+      case 'found':
+        S.push({
+          dur: 0.3,
+          begin: () => {
+            this.toast(e.text, 1.4);
+            this.audio.play(e.find === 'coins' ? 'coin' : 'pickup');
+            this.disp.coins = this.run.hero.coins;
+            this.disp.charge = this.run.hero.charge;
+          },
+        });
         break;
       case 'pocket':
         S.push({ dur: 0.2, begin: () => (this.toast(`В кармане: ${POCKETS[e.pocket]?.name ?? e.pocket}`), this.audio.play('pickup')) });

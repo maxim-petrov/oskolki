@@ -15,7 +15,7 @@ const WEIGHTS: [NodeKind, number][] = [
   ['event', 22],
   ['elite', 14],
   ['rest', 11],
-  ['shop', 7],
+  ['shop', 12],
 ];
 
 export function generateActMap(r: Rng, looks: number): ActMap {
@@ -78,6 +78,17 @@ export function generateActMap(r: Rng, looks: number): ActMap {
       n.kind = kind;
     }
     n.look = int(r, Math.max(1, looks));
+  }
+  // At least two tills an act: coins are short, but there must be somewhere to spend them.
+  for (let tries = 0; tries < 40 && nodes.filter((n) => n.kind === 'shop').length < 2; tries++) {
+    const free = sorted.filter((n) => {
+      if (n.kind !== 'fight' || n.row < 2 || n.row >= MAP_ROWS - 1 || n.row === 5) return false;
+      const ps = parents.get(n.id) ?? [];
+      const kids = n.next.map((id) => nodes[id]);
+      return !ps.some((p) => p.kind === 'shop') && !kids.some((k) => k.kind === 'shop');
+    });
+    if (!free.length) break;
+    pick(r, free).kind = 'shop';
   }
   // Neighbouring nodes lean towards the same look so rooms flow into each other.
   for (const n of sorted) {

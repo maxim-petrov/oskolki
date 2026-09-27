@@ -165,7 +165,7 @@ const ITEM_CHECKS = {
   coffee: () => assert.equal(hit({ relics: ['coffee'] }).strike.tally.dmg, 9),
   binderclip: () => assert.equal(hit({ relics: ['binderclip'] }, BLUE3).strike.armor, 2, 'синяя группа: ещё половинка сердца'),
   inkpot: () => assert.equal(hit({ relics: ['inkpot'] }, VIOLET3).strike.tally.charge, 6),
-  wallet: () => assert.equal(hit({ relics: ['wallet'] }, GOLD3).strike.tally.coins, 2, 'монета группы и ещё одна'),
+  wallet: () => assert.equal(hit({ relics: ['wallet'] }, GOLD3).strike.tally.coins, 1, 'монета за жёлтую группу'),
   vestrelic() {
     let run = scene({ relics: ['vestrelic'], enemies: ['neighbor'], enemyHp: 999 });
     ready(run, 'attack');
@@ -214,7 +214,7 @@ const ITEM_CHECKS = {
   },
   ledger() {
     const run = scene({ relics: ['ledger'], coins: 55 });
-    assert.equal(run.hero.coins, 60);
+    assert.equal(run.hero.coins, 57, '+1 за каждые 20');
     assert.ok(run.startEvents.some((e) => e.t === 'message'));
   },
   loupe() {
@@ -384,8 +384,9 @@ const ITEM_CHECKS = {
     assert.equal(run.combat.board.cells.filter((t) => t.seal).length, 3);
   },
   vault() {
-    assert.equal(hit({ relics: ['vault'], coins: 250 }).strike.damage, 9, '250 монет — +50%');
-    assert.equal(hit({ relics: ['vault'], coins: 49 }).strike.damage, 6);
+    assert.equal(hit({ relics: ['vault'], coins: 40 }).strike.damage, 7, '40 монет — +20% (7,2 → 7)');
+    assert.equal(hit({ relics: ['vault'], coins: 99 }).strike.damage, 9, 'полный кошелёк — +45%');
+    assert.equal(hit({ relics: ['vault'], coins: 9 }).strike.damage, 6);
   },
   hotkey() {
     // After a skill, the next move strikes +50%.

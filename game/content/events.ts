@@ -84,10 +84,10 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Пнуть копир',
-        hint: '50%: +20 монет, иначе −1 сердце',
+        hint: '50%: +7 монет, иначе −1 сердце',
         run: (a) => {
           if (a.roll() < 0.5) {
-            a.coins(20);
+            a.coins(7);
             return 'Из лотка сыплется мелочь. Кто-то копил её там годами.';
           }
           a.hurt(2);
@@ -133,9 +133,9 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Поставить 5',
-        hint: '+25 монет · Волокита в мешок',
+        hint: '+8 монет · Волокита в мешок',
         run: (a) => {
-          a.coins(25);
+          a.coins(8);
           a.curse();
           return 'Спасибо! Вам начислена премия. И задачи.';
         },
@@ -215,10 +215,10 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Купить батончик',
-        hint: '15 монет · +1 сердце к максимуму',
-        locked: needCoins(15),
+        hint: '5 монет · +1 сердце к максимуму',
+        locked: needCoins(5),
         run: (a) => {
-          a.coins(-15);
+          a.coins(-5);
           a.maxHp(2);
           return 'На вкус как картон. Сытно.';
         },
@@ -254,10 +254,10 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Скинуться на подарок',
-        hint: '30 монет · предмет',
-        locked: needCoins(30),
+        hint: '10 монет · предмет',
+        locked: needCoins(10),
         run: (a) => {
-          a.coins(-30);
+          a.coins(-10);
           const r = a.relic('common');
           return r ? `Тебе вручают подарок, который никто не покупал: «${r}».` : 'Подарок оказывается пустой коробкой.';
         },
@@ -289,9 +289,9 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Взять кошелёк',
-        hint: '+25 монет · Волокита в мешок',
+        hint: '+8 монет · Волокита в мешок',
         run: (a) => {
-          a.coins(25);
+          a.coins(8);
           a.curse();
           return 'В кошельке пропуск на твоё имя. Ты его никогда не терял.';
         },
@@ -449,9 +449,9 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Оставить записку',
-        hint: '+10 монет',
+        hint: '+3 монеты',
         run: (a) => {
-          a.coins(10);
+          a.coins(3);
           return 'Записка возвращается с монетами: «НЕ МЕШАЙТЕ».';
         },
       },
@@ -483,9 +483,9 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Унести банку',
-        hint: '+15 монет',
+        hint: '+5 монет',
         run: (a) => {
-          a.coins(15);
+          a.coins(5);
           return 'В кассе краску принимают как валюту. Никто не удивлён.';
         },
       },

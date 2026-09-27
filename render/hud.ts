@@ -1,5 +1,7 @@
 import { ACTS } from '../game/content/acts.ts';
 import { CHARGE_COST, RUSH_COST, armBlock } from '../game/combat.ts';
+import { FINDS, FIND_METER } from '../game/content/finds.ts';
+import { MAX_COINS } from '../game/economy.ts';
 import { heartText, heartsText } from '../game/text.ts';
 import { FAM_ROLE } from '../game/content/gear.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
@@ -88,8 +90,34 @@ export function drawTopBar(ctx: Ctx2D, ui: UI, run: RunState, d: Disp, t: number
       ui.tooltip('Броня', `${heartsText(d.armor)}: гасит удары до конца хода врагов и сгорает. Не больше твоих сердец: удар тяжелее ранит всегда.`, ui.p.x, ui.p.y + 24, 'cold5');
   }
   x += 4;
+  const cx0 = x;
   draw(ctx, getFrame('ui_coin'), x + 4, y + 6);
-  x += 10 + text(ctx, `${d.coins}`, x + 10, y + 2, 'gold4', { outline: 'ink0' }) + 6;
+  x += 10 + text(ctx, `${d.coins}`, x + 10, y + 2, d.coins >= MAX_COINS ? 'orange4' : 'gold4', { outline: 'ink0' }) + 4;
+  // The finds meter under the coins: yellow tiles fill it, a full one puts a find on the board.
+  const fk = Math.min(1, (run.hero.finds ?? 0) / FIND_METER);
+  ctx.fillStyle = hex('ink0');
+  ctx.fillRect(cx0 + 1, y + 11, x - cx0 - 3, 3);
+  ctx.fillStyle = hex(fk >= 1 ? (Math.floor(t * 4) % 2 ? 'gold4' : 'white') : 'gold3');
+  ctx.fillRect(cx0 + 2, y + 12, Math.round((x - cx0 - 5) * fk), 1);
+  ui.area('coins', cx0, y, x - cx0, 12);
+  if (ui.hovered === 'coins') {
+    const next = run.hero.findNext ? `\nВ следующем бою ждёт: ${FINDS[run.hero.findNext].name.toLowerCase()}.` : '';
+    ui.tooltip(
+      'Монеты и находки',
+      `${d.coins} из ${MAX_COINS}: больше кошелёк не держит.\nНаходки: ${run.hero.finds ?? 0}/${FIND_METER}. Каждая жёлтая фишка копит шкалу; полная кладёт на поле находку — монеты, ключ, сердце, батарейку или бомбу. Собери её группой или взрывом.${next}`,
+      ui.p.x,
+      ui.p.y + 24,
+      'gold4',
+    );
+  }
+  // Keys to the safe on the sixth floor.
+  if (run.hero.keys > 0) {
+    draw(ctx, getFrame('find_key'), x + 6, y + 12);
+    x += 12 + text(ctx, `${run.hero.keys}`, x + 12, y + 2, 'gold4', { outline: 'ink0' }) + 6;
+    ui.area('keys', x - 22, y, 20, 12);
+    if (ui.hovered === 'keys') ui.tooltip('Ключи от сейфа', 'Сейф на 6-м этаже откроется на выбор из трёх предметов ступенью выше.', ui.p.x, ui.p.y + 24, 'gold4');
+  }
+  x += 2;
   // Right: buttons.
   let bx = w - 14;
   let clicked: string | null = null;

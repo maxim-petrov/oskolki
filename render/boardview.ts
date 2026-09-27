@@ -697,6 +697,7 @@ export class BoardView {
         const id = art && hasSprite(art) ? art : `tile_${tile.kind}`;
         this.icon(ctx, id, x + T / 2, y + T / 2);
         this.drawMarks(ctx, tile, x + inset, y + inset, w, t);
+        if (tile.find) this.drawFind(ctx, tile, x, y, t);
       }
       this.drawSpecial(ctx, tile, x, y, t);
     }
@@ -736,6 +737,24 @@ export class BoardView {
     const k = this.T >= 42 ? 2 : 1;
     if (k === 1) draw(ctx, f, Math.round(cx - f.w / 2 + f.ox), Math.round(cy - f.h / 2 + f.oy));
     else drawScaled(ctx, f, Math.round(cx - f.w + f.ox * 2), Math.round(cy - f.h + f.oy * 2), 2);
+  }
+
+  /** A find waiting on a tile: a pulsing gold frame and its icon in the bottom-right corner. */
+  private drawFind(ctx: Ctx2D, tile: Tile, x: number, y: number, t: number) {
+    const { T } = this;
+    ctx.fillStyle = hex(Math.floor(t * 3) % 2 ? 'gold4' : 'orange4');
+    ctx.fillRect(x + 1, y + 1, T - 2, 1);
+    ctx.fillRect(x + 1, y + T - 2, T - 2, 1);
+    ctx.fillRect(x + 1, y + 1, 1, T - 2);
+    ctx.fillRect(x + T - 2, y + 1, 1, T - 2);
+    const f = getFrame(`find_${tile.find}`, Math.floor(t * 2) % 2 ? 'idle1' : 'idle0');
+    const k = T >= 42 ? 2 : 1;
+    const px = x + T - 2 - f.w * k;
+    const py = y + T - 2 - f.h * k;
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(px - 1, py - 1, f.w * k + 1, f.h * k + 1);
+    if (k === 1) draw(ctx, f, px + f.ox, py + f.oy);
+    else drawScaled(ctx, f, px + f.ox * 2, py + f.oy * 2, 2);
   }
 
   /** The upgrade plus of the colour's item and the department's stamp on a tile. */

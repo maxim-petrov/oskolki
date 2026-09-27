@@ -143,7 +143,7 @@ function scoreMove(run: RunState, p: MovePreview, w: Worth): number {
     shine = back >= run.hero.hp + run.hero.armor ? 1e6 : back * w.half * low;
   }
   const saved = p.bank ? Math.min(p.bank, Math.max(0, BANK_MAX - (c.bank ?? 0))) * w.bank : 0;
-  return dmg + kill + armor + charge + aoe + after + saved + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
+  return dmg + kill + armor + charge + aoe + after + saved + p.coins * 0.6 + p.finds * 8 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
 }
 
 /** The best move's score with the gear in hand (moves and previews for this kit). */
@@ -342,7 +342,7 @@ function mapAction(run: RunState, r: Rng): Action {
       case 'rest':
         return ratio < 0.5 ? 8 : 1;
       case 'shop':
-        return run.hero.coins >= 60 ? 6 : 0;
+        return run.hero.coins >= 20 ? 6 : 0;
       case 'treasure':
         return 7;
       case 'event':
@@ -432,11 +432,11 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
           const gear = s.gear.findIndex((x) => !x.sold && x.price <= coins && gearGain(run, x.id) >= 3);
           if (gear >= 0) return { type: 'buy', kind: 'gear', index: gear };
         }
-        if (s.upgrade && !s.upgrade.sold && coins >= s.upgrade.price + 10 && upgradable(run).length) return { type: 'buy', kind: 'upgrade', index: 0 };
-        const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - 20);
+        if (s.upgrade && !s.upgrade.sold && coins >= s.upgrade.price + 3 && upgradable(run).length) return { type: 'buy', kind: 'upgrade', index: 0 };
+        const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - 6);
         if (pocket >= 0 && run.hero.pockets.includes(null)) return { type: 'buy', kind: 'pocket', index: pocket };
         // Plenty left: reprint the till for another look.
-        if (coins >= rerollPrice(run) + 60) return { type: 'reroll' };
+        if (coins >= rerollPrice(run) + 20) return { type: 'reroll' };
       }
       return { type: 'leave' };
     }
@@ -445,8 +445,16 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
       return upgradable(run).length ? { type: 'rest', choice: 'upgrade' } : { type: 'rest', choice: 'heal' };
     case 'pick':
       return pickAction(run);
-    case 'treasure':
-      return run.treasure && !run.treasure.opened ? { type: 'open' } : { type: 'leave' };
+    case 'treasure': {
+      const t = run.treasure;
+      if (!t || t.opened) return { type: 'leave' };
+      // With a key the upper shelf: the first passive item (a skill only for a hero without one).
+      if (t.choices) {
+        const k = t.choices.findIndex((id) => ITEMS[id]?.kind === 'passive' || (ITEMS[id]?.kind === 'active' && !run.hero.active));
+        return { type: 'open', index: Math.max(0, k) };
+      }
+      return policy !== 'random' && run.hero.keys > 0 ? { type: 'open', key: true } : { type: 'open' };
+    }
     case 'event': {
       const e = run.event!;
       if (e.result !== undefined) return { type: 'leave' };

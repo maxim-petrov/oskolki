@@ -8,7 +8,8 @@ import { MAX_ENEMIES, REFLECT_PER_HALF, alive, armorCap, energyCap, moveRules } 
 import { ACTS } from '../content/acts.ts';
 import { ENEMIES } from '../content/enemies.ts';
 import { EVENT_BY_ID } from '../content/events.ts';
-import { FINDS } from '../content/finds.ts';
+import { FINDS, FIND_METER } from '../content/finds.ts';
+import { MAX_COINS } from '../economy.ts';
 import { MAX_GEAR } from '../content/gear.ts';
 import { ITEMS, POCKETS, computeMods } from '../content/items.ts';
 import { FAMS, QUEUE_LEN, type RunState, type Tile } from '../types.ts';
@@ -55,7 +56,7 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
   if (!Number.isInteger(h.maxHp) || h.maxHp < 1) bad(`максимум здоровья ${h.maxHp}`);
   if (!Number.isInteger(h.hp) || h.hp < 0 || h.hp > h.maxHp) bad(`здоровье ${h.hp}/${h.maxHp}`);
   if (run.phase === 'dead' ? h.hp !== 0 : h.hp <= 0) bad(`здоровье ${h.hp} в фазе ${run.phase}`);
-  if (!Number.isInteger(h.coins) || h.coins < 0 || h.coins > 999) bad(`монеты ${h.coins}`);
+  if (!Number.isInteger(h.coins) || h.coins < 0 || h.coins > MAX_COINS) bad(`монеты ${h.coins}`);
   if (!Number.isInteger(h.armor) || h.armor < 0 || h.armor > armorCap(run)) bad(`броня ${h.armor}/${armorCap(run)}`);
   if (h.ward < 0) bad(`зонтик ${h.ward}`);
   if (h.reflect !== 0 && h.reflect !== REFLECT_PER_HALF) bad(`отражение ${h.reflect}`);
@@ -70,7 +71,7 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
   if (new Set(h.ups).size !== h.ups.length) bad(`улучшение дважды: ${h.ups.join(', ')}`);
   if (!Number.isInteger(h.tape) || h.tape < 0 || h.tape > 9) bad(`волокита ${h.tape}`);
   if (!Number.isInteger(h.keys) || h.keys < 0 || h.keys > 9) bad(`ключи ${h.keys}`);
-  if (!Number.isInteger(h.finds) || h.finds < 0) bad(`шкала находок ${h.finds}`);
+  if (!Number.isInteger(h.finds) || h.finds < 0 || h.finds > FIND_METER) bad(`шкала находок ${h.finds}`);
   if (h.findNext !== undefined && !FINDS[h.findNext]) bad(`находка на следующий бой ${h.findNext}`);
   if (h.active !== null && ITEMS[h.active]?.kind !== 'active') bad(`навык ${h.active}`);
   if (new Set(h.relics).size !== h.relics.length) bad(`предмет дважды: ${h.relics.join(', ')}`);
@@ -122,6 +123,7 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
       if (q.length !== QUEUE_LEN) bad(`очередь ${col}: ${q.length}`);
       q.forEach((t, k) => checkTile(t, `очередь ${col}/${k}`, bad));
     });
+    if (b.cells.filter((t) => t?.find).length > 1) bad('на поле больше одной находки');
     const ids = [...b.cells, ...b.queue.flat()].map((t) => t?.id);
     if (new Set(ids).size !== ids.length) bad('id фишек повторяются');
     if (b.flood < 0 || b.flood > 3) bad(`вода ${b.flood}`);

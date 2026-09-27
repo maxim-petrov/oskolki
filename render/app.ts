@@ -157,7 +157,7 @@ export class App {
       customSeed: seed !== undefined && !intro,
       intro,
       pockets: u.includes('start_coffee') ? ['coffee'] : [],
-      coins: u.includes('start_coins') ? 25 : 0,
+      coins: u.includes('start_coins') ? 8 : 0,
     });
     this.game = new RunView(this, run, events);
     this.mode = 'run';

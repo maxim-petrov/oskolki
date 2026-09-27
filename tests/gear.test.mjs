@@ -6,6 +6,10 @@ import { dispatch } from '../game/run.ts';
 import { GEAR } from '../game/content/gear.ts';
 import { REFLECT_PER_HALF } from '../game/combat.ts';
 import { BLUE3, GOLD3, RED3, VIOLET3, blowOf, cascade, double, foe, hit, idx, line, play, put, ready, scene } from './scene.mjs';
+import { FIND_METER } from '../game/content/finds.ts';
+
+/** Finds-meter points a move of these tiles gave (the meter was empty and stays under full). */
+const findPts = (opts, tiles) => hit(opts, tiles).run.hero.finds;
 
 const three = (t) => [t, t, t];
 const four = (t) => [t, t, t, t];
@@ -165,7 +169,7 @@ const GEAR_CHECKS = {
   },
   carbon() {
     const run = scene({ enemyHp: 999 });
-    assert.equal(play(run, double(run, 'coin', 'carbon')).strike.tally.coins, 2, 'группа после копирки срабатывает дважды');
+    assert.equal(play(run, double(run, 'coin', 'carbon')).run.hero.finds, 6, 'жёлтая группа после копирки копит находки дважды');
     // The carbon's group scores first, so the next group is copied whatever its colour.
     // (A big skill takes the carbon's charge, so no spare energy adds damage here.)
     const red = scene({ enemyHp: 999, active: 'giftbox' });
@@ -178,18 +182,20 @@ const GEAR_CHECKS = {
 
   // ── Yellow: coins (per group) ──
   penny() {
-    assert.equal(hit({}, GOLD3).strike.tally.coins, 1, 'монета за группу');
-    assert.equal(hit({}, four('coin')).strike.tally.coins, 2, 'супер: ещё монета');
-    assert.equal(hit({ ups: ['penny'] }, GOLD3).strike.tally.coins, 2);
+    assert.equal(findPts({}, GOLD3), 3, 'деление шкалы находок за фишку');
+    assert.ok(3 < FIND_METER);
+    assert.equal(hit({}, GOLD3).strike.tally.coins, 0, 'монет за тройку нет');
+    assert.equal(hit({}, four('coin')).strike.tally.coins, 1, 'супер: монета');
+    assert.equal(hit({ ups: ['penny'] }, GOLD3).strike.tally.coins, 1, 'монетка+: монета за группу');
   },
   receipt() {
-    assert.equal(hit({}, three('receipt')).strike.tally.coins, 3, 'монета за фишку');
-    assert.equal(hit({}, four('receipt')).strike.tally.coins, 5, 'супер: ещё монета');
+    assert.equal(findPts({}, three('receipt')), 6, 'находки вдвое');
+    assert.equal(hit({}, four('receipt')).strike.tally.coins, 1, 'супер: монета');
   },
   bonus() {
     const s = hit({}, three('bonus')).strike;
     assert.equal(s.tally.dmg, 9, '+3 урона с фишки');
-    assert.equal(s.tally.coins, 1);
+    assert.equal(s.tally.coins, 0);
   },
   creditcard() {
     const paid = hit({ coins: 10 }, three('creditcard'));
@@ -199,8 +205,9 @@ const GEAR_CHECKS = {
   },
   piggy() {
     const res = hit({}, three('piggy'));
-    assert.equal(res.strike.tally.coins, 1);
-    assert.equal(res.run.combat.bonusCoins, 2, 'после боя +2 с каждой группы');
+    assert.equal(res.strike.tally.coins, 0);
+    assert.equal(res.run.combat.bonusCoins, 1, 'после боя монета с каждой группы');
+    assert.equal(hit({}, four('piggy')).strike.tally.coins, 1, 'супер: и монета сразу');
   },
   report() {
     assert.equal(hit({}, three('report')).strike.tally.dmg, 2, 'один цвет — +2');
@@ -209,7 +216,7 @@ const GEAR_CHECKS = {
   },
   goldclip() {
     const s = hit({}, three('goldclip')).strike;
-    assert.equal(s.tally.coins, 1);
+    assert.equal(s.tally.coins, 0);
     assert.equal(s.tally.bonus, 0.3, 'раз за ход +30%');
     assert.equal(hit({ ups: ['goldclip'] }, three('goldclip')).strike.tally.bonus, 0.5);
   },

@@ -347,16 +347,25 @@ export function drawEvent(ctx: Ctx2D, ui: UI, h: ScreenHost) {
 // ── The safe ────────────────────────────────────────────────────────
 
 export function drawTreasure(ctx: Ctx2D, ui: UI, h: ScreenHost) {
-  const tr = h.run.treasure;
+  const run = h.run;
+  const tr = run.treasure;
   if (!tr) return;
-  const w = Math.min(L.w - 16, 240);
+  if (tr.choices && !tr.opened) return drawKeyChoice(ctx, ui, h);
+  const w = Math.min(L.w - 16, 260);
   const x = Math.round((L.w - w) / 2);
   const y = L.mode === 'wide' ? L.board.y : overlayRect().y;
   panel(ctx, x, y, w, 70, { border: 'gold3', fill: 'ink1', glow: 'gold4' });
   title(ctx, 'СЕЙФ', x + w / 2, y + 6);
   if (!tr.opened) {
-    text(ctx, 'Код — дата твоего первого рабочего дня.', x + w / 2, y + 24, 'cold4', { align: 'center' });
-    if (ui.button(ctx, 'safe-open', x + w / 2 - 50, y + 44, 100, 18, 'Открыть', { accent: 'gold3' })) h.act({ type: 'open' });
+    const keys = run.hero.keys;
+    text(ctx, keys ? 'Код — дата первого рабочего дня. Или ключ.' : 'Код — дата твоего первого рабочего дня.', x + w / 2, y + 24, 'cold4', { align: 'center' });
+    const bw = keys ? Math.floor((w - 24) / 2) : 100;
+    const bx = keys ? x + 8 : x + w / 2 - 50;
+    if (ui.button(ctx, 'safe-open', bx, y + 44, bw, 18, 'Открыть кодом', { accent: 'gold3' })) h.act({ type: 'open' });
+    if (keys) {
+      if (ui.button(ctx, 'safe-key', bx + bw + 8, y + 44, bw, 18, `Ключом · ${keys}`, { accent: 'gold3' })) h.act({ type: 'open', key: true });
+      if (ui.hovered === 'safe-key') ui.tooltip('Верхняя полка', 'Ключ открывает выбор из трёх предметов ступенью выше (бывает и навык). Код — один предмет и монеты.', ui.p.x, ui.p.y - 40, 'gold4');
+    }
   } else {
     const def = ITEMS[tr.relic];
     // Centred: item icons stand on their bottom, gear art (a tile face) is anchored in the middle.
@@ -366,6 +375,36 @@ export function drawTreasure(ctx: Ctx2D, ui: UI, h: ScreenHost) {
     text(ctx, `+${tr.coins} монет`, x + 34, y + 34, 'cold4');
     if (ui.button(ctx, 'safe-leave', x + w - 86, y + 48, 78, 16, 'Дальше', { accent: 'gold3' })) h.act({ type: 'leave' });
   }
+}
+
+/** The safe opened with a key: three items a tier above, one to take. */
+function drawKeyChoice(ctx: Ctx2D, ui: UI, h: ScreenHost) {
+  const tr = h.run.treasure!;
+  const list = tr.choices ?? [];
+  const colW = Math.min(130, Math.floor((L.w - 20) / Math.max(1, list.length)));
+  const w = colW * list.length + 12;
+  const x = Math.round((L.w - w) / 2);
+  const y = L.mode === 'wide' ? L.top.h + 40 : L.stage.y + 30;
+  const hh = 160;
+  panel(ctx, x, y, w, hh, { border: 'gold3', fill: 'ink0', glow: 'gold4', alpha: 0.97 });
+  title(ctx, 'ВЕРХНЯЯ ПОЛКА', x + w / 2, y + 6);
+  list.forEach((id, k) => {
+    const def = ITEMS[id];
+    if (!def) return;
+    const cx = x + 6 + k * colW;
+    const aid = `safe-pick-${k}`;
+    const clicked = ui.area(aid, cx, y + 24, colW, hh - 50);
+    if (ui.hovered === aid) {
+      ctx.fillStyle = hex('ink2');
+      ctx.fillRect(cx + 1, y + 24, colW - 2, hh - 50);
+    }
+    const f = getFrame(def.icon);
+    drawScaled(ctx, f, cx + colW / 2 - 16 + f.ox * 2, y + 30 + f.oy * 2, 2);
+    text(ctx, def.name, cx + colW / 2, y + 66, 'gold4', { align: 'center' });
+    paragraph(ctx, `${def.kind === 'active' ? 'Навык (заменит нынешний). ' : ''}${def.desc}`, cx + 4, y + 78, colW - 8, 'cold5');
+    if (clicked) h.act({ type: 'open', index: k });
+  });
+  if (ui.button(ctx, 'safe-skip', x + w / 2 - 45, y + hh - 22, 90, 16, 'Не брать', { accent: 'grey3' })) h.act({ type: 'leave' });
 }
 
 // ── Gear grid (picks and the viewer) ────────────────────────────────

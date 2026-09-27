@@ -76,7 +76,7 @@ export interface Mods {
   pockets: number;
   /** Seal finish on N random tiles at the start of a fight. */
   sealStart: number;
-  /** Damage bonus for every 50 coins in the wallet. */
+  /** Damage bonus for every 10 coins in the wallet. */
   coinBonus: number;
   /** Share of the armour that survives the enemies' action. */
   armorKeep: number;
@@ -203,7 +203,7 @@ export const ITEMS: Record<string, ItemDef> = {
   sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+1 сердце к максимуму (и к потолку брони). Лечит 1 сердце.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 2, heal: 2 }),
   bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит ½ сердца.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 1) }),
   gum: i({ id: 'gum', name: 'Мятная жвачка', desc: 'Бой без полученного урона лечит 1 сердце.', kind: 'passive', icon: 'item_gum', pool: 'common', apply: (m) => (m.healNoHit += 2) }),
-  ledger: i({ id: 'ledger', name: 'Бухгалтерская книга', desc: 'В начале боя +1 монета за каждые 10 в кошельке.', kind: 'passive', icon: 'item_ledger', pool: 'common', apply: (m) => (m.interest = true) }),
+  ledger: i({ id: 'ledger', name: 'Бухгалтерская книга', desc: 'В начале боя +1 монета за каждые 20 в кошельке.', kind: 'passive', icon: 'item_ledger', pool: 'common', apply: (m) => (m.interest = true) }),
   loupe: i({ id: 'loupe', name: 'Лупа', desc: 'Очередь над полем показывает 3 следующие фишки.', kind: 'passive', icon: 'item_loupe', pool: 'common', apply: (m) => (m.preview = 3) }),
   gloves: i({ id: 'gloves', name: 'Резиновые перчатки', desc: 'Угольки не ранят.', kind: 'passive', icon: 'item_gloves', pool: 'common', apply: (m) => (m.emberImmune = true) }),
   clipholder: i({ id: 'clipholder', name: 'Скрепочница', desc: 'В начале боя две фишки поля становятся ракетами.', kind: 'passive', icon: 'item_clipholder', pool: 'common', apply: (m) => (m.startRockets += 2) }),
@@ -260,7 +260,7 @@ export const ITEMS: Record<string, ItemDef> = {
   espresso: i({ id: 'espresso', name: 'Двойной эспрессо', desc: 'Красные фишки +2 к урону.', kind: 'passive', icon: 'item_espresso', pool: 'boss', apply: (m) => (m.redPlus += 2) }),
   pocketbag: i({ id: 'pocketbag', name: 'Портфель', desc: '+2 кармана для расходников. +2 сердца к максимуму (и к потолку брони).', kind: 'passive', icon: 'item_pocketbag', pool: 'boss', maxHp: 4, heal: 4, apply: (m) => (m.pockets += 2) }),
   stamprelic: i({ id: 'stamprelic', name: 'Печать отдела', desc: 'В начале боя 3 фишки поля получают печать: +2 урона при сборе.', kind: 'passive', icon: 'item_stamprelic', pool: 'boss', apply: (m) => (m.sealStart += 3) }),
-  vault: i({ id: 'vault', name: 'Сейф директора', desc: '+10% урона за каждые 50 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinBonus += 0.1) }),
+  vault: i({ id: 'vault', name: 'Сейф директора', desc: '+5% урона за каждые 10 монет в кошельке.', kind: 'passive', icon: 'item_vault', pool: 'boss', apply: (m) => (m.coinBonus += 0.05) }),
   hotkey: i({ id: 'hotkey', name: 'Горячая клавиша', desc: 'Навык стоит на треть меньше энергии; удар хода после навыка +50%.', kind: 'passive', icon: 'item_hotkey', pool: 'boss', skillCost: 2 / 3, apply: (m) => (m.skillBonus += 0.5) }),
   steeldoor: i({ id: 'steeldoor', name: 'Бронедверь', desc: 'После действия врагов половина брони остаётся.', kind: 'passive', icon: 'item_steeldoor', pool: 'boss', apply: (m) => (m.armorKeep = 0.5) }),
   // The ring gives every row a second chance at the edge: too strong for a rare (+36 points to wins).
@@ -293,11 +293,11 @@ export interface PocketDef {
 }
 
 export const POCKETS: Record<string, PocketDef> = {
-  bomb: { id: 'bomb', name: 'Бомба', desc: 'Взрыв 3×3 в выбранном месте. Время не тратит.', icon: 'pocket_bomb', price: 30, aim: 'cell' },
-  coffee: { id: 'coffee', name: 'Кофе', desc: 'Лечит 1 сердце.', icon: 'pocket_coffee', price: 30 },
-  eraser: { id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку. Время не тратит; сложившиеся ряды сгорают впустую.', icon: 'pocket_eraser', price: 25, aim: 'cell' },
-  sticker: { id: 'sticker', name: 'Стикер «Срочно»', desc: 'Таймеры всех врагов +2.', icon: 'pocket_sticker', price: 35 },
-  choco: { id: 'choco', name: 'Шоколадка', desc: 'Следующий ход: урон +100%.', icon: 'pocket_energy', price: 30 },
+  bomb: { id: 'bomb', name: 'Бомба', desc: 'Взрыв 3×3 в выбранном месте. Время не тратит.', icon: 'pocket_bomb', price: 5, aim: 'cell' },
+  coffee: { id: 'coffee', name: 'Кофе', desc: 'Лечит 1 сердце.', icon: 'pocket_coffee', price: 4 },
+  eraser: { id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку. Время не тратит; сложившиеся ряды сгорают впустую.', icon: 'pocket_eraser', price: 3, aim: 'cell' },
+  sticker: { id: 'sticker', name: 'Стикер «Срочно»', desc: 'Таймеры всех врагов +2.', icon: 'pocket_sticker', price: 5 },
+  choco: { id: 'choco', name: 'Шоколадка', desc: 'Следующий ход: урон +100%.', icon: 'pocket_energy', price: 4 },
 };
 
 export function computeMods(relics: readonly string[]): Mods {
@@ -306,7 +306,7 @@ export function computeMods(relics: readonly string[]): Mods {
   return m;
 }
 
-export const RELIC_PRICE: Record<Pool, number> = { starter: 0, common: 100, uncommon: 135, rare: 190, boss: 250, shop: 110 };
+export const RELIC_PRICE: Record<Pool, number> = { starter: 0, common: 14, uncommon: 18, rare: 24, boss: 30, shop: 20 };
 
 /** Passive relics that can drop (skills and gear come from their own pools). */
 export function relicPool(unlocked: readonly string[], exclude: readonly string[]): string[] {
