@@ -244,7 +244,7 @@ test('armor soaks one enemy action and burns out', () => {
   assert.equal(res.run.hero.armor, 0, 'остаток брони сгорает');
 });
 
-test('every blow at a shining mirror costs the hero half a heart, more in later acts', () => {
+test('every blow at a shining mirror costs the hero half its blow scale (a heart in the boiler room)', () => {
   const back = (heroDmg, act = 2) => {
     const run = scene({ enemies: ['mirror'], enemyHp: 99999, act, hp: 500, maxHp: 500 });
     run.dev = { heroDmg };
@@ -252,23 +252,25 @@ test('every blow at a shining mirror costs the hero half a heart, more in later 
     return 500 - play(run, line(run, FISTS)).run.hero.hp;
   };
   assert.equal(back(1), back(1000), 'не зависит от силы удара');
-  assert.equal(back(1), Math.max(1, byBlows(1, 2)));
-  assert.equal(back(1, 3), Math.max(1, byBlows(1, 3)));
+  assert.equal(back(1), Math.max(1, Math.round(ACTS[2].dmgMul / 2)), 'половина масштаба ударов отдела');
+  assert.equal(back(1, 0), 1, 'в 1-м отделе — половинка сердца');
 });
 
-test('a blow the mirror sends back can kill, and the same move does not heal the dead', () => {
+test('a blow the mirror sends back can kill a hero on half a heart', () => {
+  // A move without armour: the reflection lands in full.
   const run = scene({ enemies: ['mirror'], enemyHp: 99999, act: 2, hp: 1, maxHp: 50 });
-  run.dev = { heroDmg: 1000 };
   foe(run).shining = true;
-  foe(run).dmgMul = 20; // a mirror that sends back more than the move's armour
-  // One swap: three fists in row 2 and four archive boxes (a group of 4 heals 4) in row 1.
-  for (const c of [0, 1]) put(run, 2, c, 'fist');
-  put(run, 1, 2, 'fist');
-  put(run, 2, 2, 'archivebox');
-  for (const c of [0, 1, 3]) put(run, 1, c, 'archivebox');
-  const res = play(run, { from: idx(1, 2), to: idx(2, 2) });
+  const res = play(run, line(run, FISTS));
   assert.equal(res.run.phase, 'dead');
   assert.equal(res.run.hero.hp, 0);
+  // With armour from the same move the half heart is blocked.
+  const safe = scene({ enemies: ['mirror'], enemyHp: 99999, act: 2, hp: 1, maxHp: 50 });
+  foe(safe).shining = true;
+  for (const c of [0, 1]) put(safe, 2, c, 'fist');
+  put(safe, 1, 2, 'fist');
+  put(safe, 2, 2, 'folder');
+  for (const c of [0, 1]) put(safe, 1, c, 'folder');
+  assert.equal(play(safe, { from: idx(1, 2), to: idx(2, 2) }).run.phase, 'combat');
 });
 
 test('every enemy of the game can be fought to the end with a starter deck (no stalls, no broken states)', () => {

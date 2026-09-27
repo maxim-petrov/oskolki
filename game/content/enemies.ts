@@ -365,12 +365,12 @@ export const ENEMIES: Record<string, EnemyDef> = {
   mirror: {
     id: 'mirror',
     name: 'Кривое зеркало',
-    hp: 330,
+    hp: 280,
     size: 'boss',
     material: 'glass',
     intents: [
       { kind: 'shine', value: 1, timer: 3 },
-      { kind: 'attack', value: 2, timer: 3 },
+      { kind: 'attack', value: 3, timer: 3 },
       { kind: 'ink', value: 4, timer: 3 },
     ],
     phases: [
@@ -378,12 +378,12 @@ export const ENEMIES: Record<string, EnemyDef> = {
         at: 0.5,
         intents: [
           { kind: 'shine', value: 1, timer: 3 },
-          { kind: 'heavy', value: 3, timer: 3 },
+          { kind: 'heavy', value: 4, timer: 3 },
           { kind: 'summon', value: 1, timer: 4, summon: 'shard' },
         ],
       },
     ],
-    blurb: 'Пока блестит, отражает часть удара в тебя.',
+    blurb: 'Пока блестит, каждый удар по нему отражается в тебя: полсердца, а в котельной — сердце.',
   },
 
   // ── Act 4 · Дирекция ──────────────────────────────────────────────

@@ -4,7 +4,7 @@
  * offers. They never inspect hidden refills or RNG state.
  */
 import { colOf, findGroups, idx, rowOf, validMoves } from './board.ts';
-import { BANK_MAX, actScale, activeCost, alive, currentIntent, energyCap, intentDamage, moveRules, previewMove, swapCost, weaponTile, type MovePreview } from './combat.ts';
+import { BANK_MAX, actScale, activeCost, alive, currentIntent, energyCap, intentDamage, mirrorBack, moveRules, previewMove, swapCost, weaponTile, type MovePreview } from './combat.ts';
 import { CARDS } from './content/cards.ts';
 import { EVENT_BY_ID } from './content/events.ts';
 import { ITEMS, MAX_WEAPONS, type Mods } from './content/items.ts';
@@ -125,7 +125,7 @@ function scoreMove(run: RunState, p: MovePreview, w: Worth): number {
   // A shining mirror costs half a heart (more in later acts) per blow: never hit it for a lethal one.
   let shine = 0;
   if (target?.shining && p.damage > 0) {
-    const back = Math.max(1, Math.round(target.dmgMul));
+    const back = mirrorBack(target);
     shine = back >= run.hero.hp + run.hero.armor ? 1e6 : back * w.half * low;
   }
   const saved = p.bank ? Math.min(p.bank, Math.max(0, BANK_MAX - (c.bank ?? 0))) * w.bank : 0;

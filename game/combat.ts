@@ -513,8 +513,9 @@ export function hitEnemy(ctx: Ctx, uid: number, raw: number, opts: { source: str
   ctx.run.stats.damageDealt += dealt;
   ctx.fx.push({ kind: 'damage', amount: dmg, uid, blocked, source: opts.source });
   if (e.shining && e.hp > 0 && opts.source === 'strike' && dmg > 0) {
-    // Every blow at a shining mirror costs the hero half a heart (more in later acts).
-    const back = Math.max(1, Math.round(e.dmgMul));
+    // Every blow at a shining mirror costs the hero half its own blow (a heart in the boiler room):
+    // a tax on striking while it shines, not a wall (a whole blow was two hearts, fights waited it out).
+    const back = mirrorBack(e);
     const hurt = hurtHero(ctx, back, 'Отражение Кривого зеркала');
     ctx.fx.push({ kind: 'proc', amount: hurt.red, uid, source: 'mirror', text: `Отражение −${hurt.red}` });
   }
@@ -523,6 +524,11 @@ export function hitEnemy(ctx: Ctx, uid: number, raw: number, opts: { source: str
 }
 
 // ── Scoring ──────────────────────────────────────────────────────────
+
+/** Half-hearts a blow at a shining mirror costs the hero: half of the mirror's own blow scale. */
+export function mirrorBack(e: EnemyState): number {
+  return Math.max(1, Math.round(e.dmgMul / 2));
+}
 
 /** Cascade waves that score: later waves still clear the board, but for nothing (endless chains ran away). */
 export const SCORED_WAVES = 6;
