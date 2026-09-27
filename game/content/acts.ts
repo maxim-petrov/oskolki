@@ -120,7 +120,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
     coins: 40,
     relic: 'calculator',
     active: null,
-    pockets: ['energy'],
+    pockets: ['choco'],
     unlock: 'char_accountant',
   },
   janitor: {

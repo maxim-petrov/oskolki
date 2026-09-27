@@ -1,5 +1,5 @@
 import { derive, int, pick, range, rng, shuffle, weighted } from './rng.ts';
-import { MAX_ENEMIES, alive, activeCost, deckTokens, energyCap, playerActive, playerMove, playerPocket, setTarget, startCombat, swapCost } from './combat.ts';
+import { MAX_ENEMIES, alive, armorCap, deckTokens, energyCap, playerActive, playerMove, playerPocket, setTarget, startCombat, swapCost } from './combat.ts';
 import { ACTS, CHARACTERS } from './content/acts.ts';
 import { CARDS, RARITY_PRICE, STARTER_DECKS, rewardPool, type Rarity } from './content/cards.ts';
 import { ENEMIES } from './content/enemies.ts';
@@ -863,10 +863,10 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
       if (op.maxHp !== undefined) hero.maxHp = Math.max(1, Math.round(op.maxHp));
       if (op.hp !== undefined) hero.hp = Math.max(1, Math.min(hero.maxHp, Math.round(op.hp)));
       hero.hp = Math.min(hero.hp, hero.maxHp);
-      hero.armor = Math.min(hero.armor, hero.maxHp);
+      hero.armor = Math.min(hero.armor, armorCap(run));
       if (op.coins !== undefined) hero.coins = Math.max(0, Math.min(999, Math.round(op.coins)));
-      if (op.charge !== undefined) hero.charge = Math.max(0, Math.min(activeCost(run), Math.round(op.charge)));
-      if (op.armor !== undefined) hero.armor = Math.max(0, Math.min(hero.maxHp, Math.round(op.armor)));
+      if (op.charge !== undefined) hero.charge = Math.max(0, Math.min(energyCap(run), Math.round(op.charge)));
+      if (op.armor !== undefined) hero.armor = Math.max(0, Math.min(armorCap(run), Math.round(op.armor)));
       break;
     case 'build': {
       if (op.deck) {
@@ -985,10 +985,6 @@ export function enemyName(id: string) {
 
 export function actName(run: RunState) {
   return ACTS[Math.min(run.act, ACTS.length - 1)].name;
-}
-
-export function chargeCost(run: RunState) {
-  return activeCost(run);
 }
 
 export function saveRun(run: RunState): string {

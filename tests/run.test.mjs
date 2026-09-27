@@ -2,11 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dispatch, newRun, saveRun, loadRun, MIN_DECK, PRICE_ACT, rerollPrice } from '../game/run.ts';
 import { ITEMS } from '../game/content/items.ts';
+import { armorCap, energyCap } from '../game/combat.ts';
 import { RARITY_PRICE } from '../game/content/cards.ts';
 import { reachable } from '../game/actmap.ts';
 import { playRun } from '../game/bot.ts';
 import { EVENTS } from '../game/content/events.ts';
 import { ACTS } from '../game/content/acts.ts';
+
+test('dev hero op keeps energy and armour within their caps', () => {
+  const { run } = newRun({ seed: 3, customSeed: true });
+  const r = dispatch(run, { type: 'dev', op: { op: 'hero', charge: 99, armor: 99 } }).run;
+  assert.equal(r.hero.charge, energyCap(r));
+  assert.equal(r.hero.armor, armorCap(r));
+});
 
 test('a new run: starter deck, the paper knife in hand, map of the first act', () => {
   const { run } = newRun({ seed: 1 });

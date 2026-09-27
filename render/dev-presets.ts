@@ -37,19 +37,19 @@ const ACT_BUILD: DevBuild[] = [
     deck(['fist', 3], ['fist', 1, true], ['folder', 1], ['binder', 1], ['drawer', 1], ['laminator', 1], ['ink', 1], ['quill', 2], ['carbon', 1], ['clip', 1], ['bonus', 2], ['report', 1]),
     ['knife', 'staplegun', 'scissors', 'badge', 'coffee', 'binderclip', 'poster', 'lucky', 'timesheet'],
     'stapler',
-    ['bomb', 'energy', 'coffee'],
+    ['bomb', 'choco', 'coffee'],
   ),
   build(
     deck(['fist', 5, true], ['drawer', 2], ['vest', 1], ['laminator', 1], ['quill', 2], ['carbon', 1], ['copystamp', 1], ['bonus', 2], ['goldclip', 1], ['report', 1], ['card', 1]),
     ['scissors', 'cutter', 'punch', 'badge', 'espresso', 'poster', 'award', 'coffeemachine', 'carbonpack', 'puncher'],
     'shredder',
-    ['bomb', 'bomb', 'energy'],
+    ['bomb', 'bomb', 'choco'],
   ),
   build(
     deck(['fist', 5, true], ['drawer', 2], ['vest', 1, true], ['quill', 2, true], ['carbon', 2], ['copystamp', 1], ['bonus', 2, true], ['goldclip', 1, true], ['report', 1, true], ['card', 1]),
     ['cutter', 'awl', 'scissors', 'badge', 'espresso', 'poster', 'award', 'coffeemachine', 'carbonpack', 'puncher', 'lamp', 'stamprelic', 'pen', 'lucky'],
     'giftbox',
-    ['bomb', 'energy', 'sticker'],
+    ['bomb', 'choco', 'sticker'],
   ),
 ];
 
@@ -123,7 +123,7 @@ const SUITES: DevSuite[] = [
         id: 'combo-ink',
         name: 'Чернила и навык',
         desc: 'Чернильница (фиолетовые бьют), картридж, батарейка, лампа; перья, кляксы, копирка и шредер.',
-        cfg: combo(build(deck(['ink', 3], ['quill', 2], ['blotcurse', 2], ['carbon', 1], ['weight', 1], ['fist', 2]), ['inkwell', 'inkpot', 'battery', 'lamp'], 'shredder')),
+        cfg: combo(build(deck(['ink', 3], ['quill', 2], ['blotcurse', 2], ['carbon', 1], ['weight', 1], ['fist', 2]), ['inkwell', 'inkpot', 'powerbank', 'lamp'], 'shredder')),
       },
       {
         id: 'combo-armor',
@@ -266,7 +266,7 @@ const SUITES: DevSuite[] = [
         name: 'Все предметы сразу',
         desc: 'Каждый пассивный предмет игры и три оружия на одном герое: проверка, что они уживаются вместе.',
         cfg: combo(
-          build(ACT_BUILD[2].deck, [...Object.values(ITEMS).filter((i) => i.kind === 'passive').map((i) => i.id), 'knife', 'scissors', 'awl'], 'giftbox', ['bomb', 'energy', 'coffee']),
+          build(ACT_BUILD[2].deck, [...Object.values(ITEMS).filter((i) => i.kind === 'passive').map((i) => i.id), 'knife', 'scissors', 'awl'], 'giftbox', ['bomb', 'choco', 'coffee']),
           ['copier', 'rat', 'blot'],
         ),
       },

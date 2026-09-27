@@ -233,7 +233,7 @@ const ITEM_CHECKS = {
     assert.equal(burn([]), 60 - byBlows(1), 'уголёк ранит');
     assert.equal(burn(['gloves']), 60);
   },
-  battery: () => assert.equal(hit({ relics: ['battery'], active: 'stapler' }, FOLDERS).run.hero.charge, 1),
+  powerbank: () => assert.equal(hit({ relics: ['powerbank'], active: 'stapler' }, FOLDERS).run.hero.charge, 1),
   spider() {
     const run = scene({ relics: ['spider'], enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, FOLDERS));
@@ -495,6 +495,11 @@ const ITEM_CHECKS = {
     assert.equal(foe(res.run).countdown, before, 'время не тратит');
     const drop = erasedLine({ active: 'eraser', charge: 3 }, (run, cell) => ({ type: 'active', cell }));
     assert.ok(drop.waves.some((w) => w.idle && w.groups.length), 'ряд сложился');
+    // The mop pays for junk a board tool washed away.
+    const mop = erasedLine({ active: 'eraser', charge: 3, relics: ['mop'] }, (run, cell) => ({ type: 'active', cell }));
+    const washed = mop.waves.flatMap((w) => w.cleared).filter((x) => x.kind === 'junk').length;
+    assert.ok(washed >= 2);
+    assert.equal(mop.run.hero.armor, Math.min(ARMOR_CAP, Math.floor(washed / 2)), 'швабра платит и за ластик');
     assert.equal(drop.strike, undefined, 'и сгорел впустую: ластик — не ход');
     assert.equal(foe(drop.run).hp, 999);
   },
@@ -502,9 +507,21 @@ const ITEM_CHECKS = {
     const run = scene({ active: 'stapler', charge: 6, enemies: ['rat'] });
     const stunned = act(run, { type: 'active', uid: foe(run).uid }).run;
     ready(stunned, 'attack');
-    assert.equal(play(stunned, line(stunned, CLIPS)).acts[0].skipped, true);
+    const after = play(stunned, line(stunned, CLIPS));
+    assert.equal(after.acts[0].skipped, true);
+    // No stun lock: the enemy just out of a stun (or still stunned) cannot be stapled; no energy spent.
+    const again = after.run;
+    again.hero.charge = 6;
+    const res = act(again, { type: 'active', uid: foe(again).uid });
+    assert.equal(res.invalid?.reason, 'Недавно оглушён');
+    assert.equal(res.run.hero.charge, 6);
+    const twice = act(scene({ active: 'stapler', charge: 12, enemies: ['rat'] }), { type: 'active', uid: 1 }).run;
+    assert.equal(act(twice, { type: 'active', uid: 1 }).invalid?.reason, 'Недавно оглушён', 'уже оглушённого не степлерят');
   },
   coffeeToGo() {
+    // Two uses do not stack: the quiet lasts two ticks.
+    const twice = act(act(scene({ active: 'coffeeToGo', charge: 12, enemyHp: 9999 }), { type: 'active' }).run, { type: 'active' }).run;
+    assert.equal(twice.combat.freeTicks, 2);
     const run = act(scene({ active: 'coffeeToGo', charge: 6, real: true, enemyHp: 9999 }), { type: 'active' }).run;
     const start = foe(run).countdown;
     const res = moves(run, 3);
@@ -569,8 +586,8 @@ const POCKET_CHECKS = {
     const run = scene({ pockets: ['sticker'] });
     assert.equal(foe(act(run, { type: 'pocket', slot: 0 }).run).countdown, foe(run).countdown + 2);
   },
-  energy() {
-    const run = act(scene({ pockets: ['energy'], enemyHp: 999 }), {
+  choco() {
+    const run = act(scene({ pockets: ['choco'], enemyHp: 999 }), {
       type: 'pocket',
       slot: 0,
     }).run;

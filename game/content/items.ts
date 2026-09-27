@@ -38,7 +38,8 @@ export interface Mods {
   freezeOn4Shields: boolean;
   spider: number;
   cactus: number;
-  battery: number;
+  /** Energy after every move (the power bank). */
+  energyPerMove: number;
   startArmor: number;
   /** The first enemy blow of every fight does not get through. */
   firstBlowGuard: boolean;
@@ -116,7 +117,7 @@ export function baseMods(): Mods {
     freezeOn4Shields: false,
     spider: 0,
     cactus: 0,
-    battery: 0,
+    energyPerMove: 0,
     startArmor: 0,
     firstBlowGuard: false,
     bankPer: 0,
@@ -245,7 +246,7 @@ export const ITEMS: Record<string, ItemDef> = {
   calendar: i({ id: 'calendar', name: 'Настольный календарь', desc: 'Каждый третий выигранный бой: +1 сердце к максимуму (до +3 за смену).', kind: 'passive', icon: 'item_calendar', pool: 'common', apply: (m) => (m.growHp = 3) }),
 
   // ── Uncommon ──────────────────────────────────────────────────────
-  battery: i({ id: 'battery', name: 'Батарейка', desc: '+1 энергия после каждого хода.', kind: 'passive', icon: 'item_battery', pool: 'uncommon', apply: (m) => (m.battery += 1) }),
+  powerbank: i({ id: 'powerbank', name: 'Пауэрбанк', desc: '+1 энергия после каждого хода.', kind: 'passive', icon: 'item_battery', pool: 'uncommon', apply: (m) => (m.energyPerMove += 1) }),
   spider: i({ id: 'spider', name: 'Скрепка-паук', desc: 'После каждого хода кусает самого слабого врага на 3 (растёт с отделом).', kind: 'passive', icon: 'item_spider', pool: 'uncommon', apply: (m) => (m.spider += 3) }),
   cactus: i({ id: 'cactus', name: 'Кактус на столе', desc: 'Враг, ударивший тебя, получает 5 урона (растёт с отделом).', kind: 'passive', icon: 'item_cactus', pool: 'uncommon', apply: (m) => (m.cactus += 5) }),
   inkwell: i({ id: 'inkwell', name: 'Чернильница', desc: 'Каждая фиолетовая фишка наносит цели 2 урона.', kind: 'passive', icon: 'item_inkwell', pool: 'uncommon', apply: (m) => (m.inkDamage += 2) }),
@@ -386,7 +387,7 @@ export const POCKETS: Record<string, PocketDef> = {
   coffee: { id: 'coffee', name: 'Кофе', desc: 'Лечит 1 сердце.', icon: 'pocket_coffee', price: 30 },
   eraser: { id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку. Время не тратит; сложившиеся ряды сгорают впустую.', icon: 'pocket_eraser', price: 25, aim: 'cell' },
   sticker: { id: 'sticker', name: 'Стикер «Срочно»', desc: 'Таймеры всех врагов +2.', icon: 'pocket_sticker', price: 35 },
-  energy: { id: 'energy', name: 'Энергетик', desc: 'Следующий ход: урон +100%.', icon: 'pocket_energy', price: 30 },
+  choco: { id: 'choco', name: 'Шоколадка', desc: 'Следующий ход: урон +100%.', icon: 'pocket_energy', price: 30 },
 };
 
 export function computeMods(relics: readonly string[]): Mods {

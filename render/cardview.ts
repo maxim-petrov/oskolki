@@ -1,4 +1,5 @@
-import { CARDS, FINISH_TEXT, cardText, cardValue, heartText } from '../game/content/cards.ts';
+import { CARDS, FINISH_TEXT, cardText, cardValue } from '../game/content/cards.ts';
+import { heartText } from '../game/text.ts';
 import type { Finish } from '../game/types.ts';
 import { bigText, measure, paragraph, text } from './font.ts';
 import { hex } from './palette.ts';

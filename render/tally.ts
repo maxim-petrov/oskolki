@@ -1,4 +1,4 @@
-import { heartText } from '../game/content/cards.ts';
+import { heartText } from '../game/text.ts';
 import type { Tally } from '../game/types.ts';
 import { bigText, measureBig, text } from './font.ts';
 import { hex } from './palette.ts';

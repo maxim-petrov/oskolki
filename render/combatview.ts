@@ -1,6 +1,7 @@
 import { area, isValidMove, lineCells, moveBlock, moveKind } from '../game/board.ts';
 import { activeCost, alive, intentDamage, moveRules, previewMove, swapCost } from '../game/combat.ts';
-import { CARDS, heartText, heartsText } from '../game/content/cards.ts';
+import { CARDS } from '../game/content/cards.ts';
+import { heartText, heartsText } from '../game/text.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
 import type { Blast, Effect, GameEvent, Move, RunState, TileScore } from '../game/types.ts';
@@ -585,12 +586,14 @@ export class CombatView {
           burst(this.h.ps, cx, cy, 14, { ramp: ['white', 'gold4', 'orange3'], add: true, layer: 'ui', speed: [30, 80], max: 0.4 });
         }
         for (const f of e.falls) b.moveTo(f.id, f.to, 0.2 * Math.max(0.6, pace));
+        // Columns of the fight's board (5 to 8 wide), not of the classic 6×6.
         const byCol = new Map<number, number>();
-        for (const s of e.spawns) byCol.set(s.to % 6, Math.max(byCol.get(s.to % 6) ?? 0, s.rank + 1));
+        const w = this.run.combat?.board.w ?? 6;
+        for (const s of e.spawns) byCol.set(s.to % w, Math.max(byCol.get(s.to % w) ?? 0, s.rank + 1));
         for (const s of e.spawns) {
           const tile = e.board[s.to];
           const [x] = b.cellXY(s.to);
-          const n = byCol.get(s.to % 6) ?? 1;
+          const n = byCol.get(s.to % w) ?? 1;
           const v = b.make(tile, x, -T * (n - s.rank), this.h.t);
           b.tiles.set(tile.id, v);
           b.moveTo(tile.id, s.to, (0.2 + 0.02 * n) * Math.max(0.6, pace));
@@ -1237,7 +1240,7 @@ export class CombatView {
       return;
     }
     if (tg.aim === 'cell' && cell >= 0) this.h.act({ type: 'active', cell });
-    else if (tg.aim === 'col' && cell >= 0) this.h.act({ type: 'active', col: cell % 6 });
+    else if (tg.aim === 'col' && cell >= 0) this.h.act({ type: 'active', col: cell % (this.run.combat?.board.w ?? 6) });
     else if (tg.aim === 'enemy') {
       const v = this.enemyAt(x, y);
       if (v) this.h.act({ type: 'active', uid: v.uid });

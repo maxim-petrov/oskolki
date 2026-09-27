@@ -31,7 +31,8 @@ import {
 import { chance, next, pick, shuffle } from './rng.ts';
 import { ENEMIES } from './content/enemies.ts';
 import { ACTS } from './content/acts.ts';
-import { CARDS, cardValue, heartText, heartsText } from './content/cards.ts';
+import { CARDS, cardValue } from './content/cards.ts';
+import { heartText, heartsText } from './text.ts';
 import { ITEMS, POCKETS, WEAPON_SWAP_COST, computeMods, type Mods, type WeaponDef } from './content/items.ts';
 import {
   BAG_COPIES,
@@ -1059,7 +1060,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
   }
   if (c.nextBonus && fromMove) {
     bonus += c.nextBonus;
-    notes.push(`Энергетик +${pct(c.nextBonus)}`);
+    notes.push(`Шоколадка +${pct(c.nextBonus)}`);
     c.nextBonus = 0;
   }
   if (fromMove) {
@@ -1260,10 +1261,10 @@ function moveEnd(ctx: Ctx) {
       const weakest = alive(c).sort((a, b) => a.hp - b.hp)[0];
       if (weakest) hitEnemy(ctx, weakest.uid, mods.spider * actScale(run).hp, { source: 'spider', pierce: true });
     }
-    if (mods.battery > 0 && energyCap(run) > 0) {
+    if (mods.energyPerMove > 0 && energyCap(run) > 0) {
       const before = run.hero.charge;
-      run.hero.charge = Math.min(energyCap(run), run.hero.charge + mods.battery);
-      if (run.hero.charge > before) ctx.fx.push({ kind: 'charge', amount: run.hero.charge - before, source: 'battery' });
+      run.hero.charge = Math.min(energyCap(run), run.hero.charge + mods.energyPerMove);
+      if (run.hero.charge > before) ctx.fx.push({ kind: 'charge', amount: run.hero.charge - before, source: 'powerbank' });
     }
   });
   if (mods.garlandEvery > 0 && alive(c).length) {
@@ -1631,6 +1632,14 @@ export function afterAction(ctx: Ctx, spendsTime: boolean) {
   if (!isDead(ctx.run)) ensurePlayable(ctx);
 }
 
+/** Junk a board tool cleared still pays the mop (the tool has no strike to pay it). */
+function toolArmor(ctx: Ctx) {
+  const { run, mods, ms } = ctx;
+  if (!ms.junkCleared || !mods.mopJunk) return;
+  const got = gainArmor(run, mopArmor(ms.junkCleared, mods, actScale(run).dmg));
+  if (got > 0) ctx.ev.push({ t: 'effects', effects: [{ kind: 'armor', amount: got, source: 'mop' }] });
+}
+
 function removeCell(ctx: Ctx, i: number) {
   const { c, run, ev } = ctx;
   const cells = c.board.cells;
@@ -1691,6 +1700,7 @@ export function playerPocket(run: RunState, mods: Mods, slot: number, cell: numb
       // A board tool: what falls into place clears for nothing (a free move would break the clock).
       removeCell(ctx, cell!);
       resolve(ctx, [], undefined, [], false);
+      toolArmor(ctx);
       break;
     case 'sticker':
       ev.push({
@@ -1700,9 +1710,9 @@ export function playerPocket(run: RunState, mods: Mods, slot: number, cell: numb
           .filter((f) => f.amount > 0),
       });
       break;
-    case 'energy':
+    case 'choco':
       c!.nextBonus += 1;
-      ev.push({ t: 'effects', effects: [{ kind: 'proc', amount: 1, source: 'energy', text: 'Следующий ход: урон +100%' }] });
+      ev.push({ t: 'effects', effects: [{ kind: 'proc', amount: 1, source: 'choco', text: 'Следующий ход: урон +100%' }] });
       break;
   }
   afterAction(ctx, false);
@@ -1732,6 +1742,12 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     ev.push({ t: 'invalid', reason: 'Выбери цель' });
     return false;
   }
+  // A stunned enemy, or one just out of a stun, cannot be stunned again (no stun lock); no energy spent.
+  const aimed = def.aim === 'enemy' ? c.enemies.find((x) => x.uid === arg.uid) : undefined;
+  if (def.id === 'stapler' && aimed && (aimed.stunned || aimed.stunImmune)) {
+    ev.push({ t: 'invalid', reason: 'Недавно оглушён' });
+    return false;
+  }
   hero.charge = run.dev?.ink ? hero.charge : hero.charge - cost;
   if (mods.skillBonus) c.skillBonus = mods.skillBonus;
   ev.push({ t: 'activeUsed', item: def.id });
@@ -1739,9 +1755,11 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
     case 'eraser':
       removeCell(ctx, arg.cell!);
       resolve(ctx, [], undefined, [], false);
+      toolArmor(ctx);
       break;
     case 'coffeeToGo':
-      c.freeTicks += 2;
+      // Two ticks of quiet; uses do not stack into a frozen fight.
+      c.freeTicks = Math.max(c.freeTicks, 2);
       break;
     case 'stapler': {
       const e = c.enemies.find((x) => x.uid === arg.uid)!;

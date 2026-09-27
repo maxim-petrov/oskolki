@@ -1,4 +1,5 @@
-import { CARDS, FINISH_TEXT, cardValue, heartsText } from '../game/content/cards.ts';
+import { CARDS, FINISH_TEXT, cardValue } from '../game/content/cards.ts';
+import { heartsText } from '../game/text.ts';
 import { EVENT_BY_ID } from '../game/content/events.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import { pickable, rerollPrice } from '../game/run.ts';

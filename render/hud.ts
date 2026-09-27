@@ -1,5 +1,5 @@
 import { ACTS } from '../game/content/acts.ts';
-import { heartText, heartsText } from '../game/content/cards.ts';
+import { heartText, heartsText } from '../game/text.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import type { RunState } from '../game/types.ts';
 import { bigText, text } from './font.ts';

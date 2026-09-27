@@ -238,7 +238,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
     if (!p) continue;
     if (p === 'coffee' && hero.hp < hero.maxHp * 0.4) return { type: 'pocket', slot };
     if (p === 'sticker' && danger >= hero.hp * 0.4) return { type: 'pocket', slot };
-    if (p === 'energy' && alive(c).some((e) => e.hp > 40)) return { type: 'pocket', slot };
+    if (p === 'choco' && alive(c).some((e) => e.hp > 40)) return { type: 'pocket', slot };
     if ((p === 'bomb' || (p === 'eraser' && erase === 'junk')) && danger >= hero.hp * 0.5) return { type: 'pocket', slot, cell: 14 };
     if (p === 'eraser' && erase === 'match') {
       const t = eraseTarget(run);
@@ -264,7 +264,10 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
         if (eager || cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
         break;
       case 'stapler': {
-        const e = alive(c).sort((a, b) => intentDamage(c, b) / Math.max(1, b.countdown) - intentDamage(c, a) / Math.max(1, a.countdown))[0];
+        // Only an enemy that can be stunned now (not stunned, not just out of a stun).
+        const e = alive(c)
+          .filter((x) => !x.stunned && !x.stunImmune)
+          .sort((a, b) => intentDamage(c, b) / Math.max(1, b.countdown) - intentDamage(c, a) / Math.max(1, a.countdown))[0];
         if (e) return { type: 'active', uid: e.uid };
         break;
       }

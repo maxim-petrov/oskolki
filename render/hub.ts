@@ -1,5 +1,5 @@
 import { CHARACTERS } from '../game/content/acts.ts';
-import { heartsText } from '../game/content/cards.ts';
+import { heartsText } from '../game/text.ts';
 import type { CharId } from '../game/types.ts';
 import { HeroView } from './actors.ts';
 import type { App } from './app.ts';

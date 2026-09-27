@@ -1,5 +1,5 @@
 import { currentIntent } from '../game/combat.ts';
-import { heartText, heartsText } from '../game/content/cards.ts';
+import { heartText, heartsText } from '../game/text.ts';
 import { ENEMIES, INTENT_TEXT, MATERIAL_NAME } from '../game/content/enemies.ts';
 import type { EnemyState, Intent } from '../game/types.ts';
 import { text } from './font.ts';
