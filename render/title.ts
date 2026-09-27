@@ -7,12 +7,13 @@ import { Particles } from './particles.ts';
 import { draw, frameNames, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
 import { HUB_SPOTS, HUB_W, Stage } from './stage.ts';
 import { StageRenderer } from './stagedraw.ts';
+import type { CharId } from '../game/types.ts';
 import type { UI } from './ui.ts';
 import { L, STAGE_FEET, STAGE_H } from './view.ts';
 
 /**
  * Title: the bright open space, the intern typing at his desk under the logo. One tap starts:
- * the first time with the intro, later straight in the office.
+ * the first time with the intro, later straight in the office — or straight in a new shift.
  */
 export class TitleView {
   stage = new Stage('hub', false, HUB_W, 1);
@@ -66,9 +67,16 @@ export class TitleView {
     else this.go(() => this.app.toHub('enter'));
   }
 
+  /** A new shift without the office: the hero last chosen at the desk. */
+  shift() {
+    const p = this.app.profile;
+    this.go(() => this.app.startShift((p.settings.char as CharId) ?? 'intern'));
+  }
+
   key(k: string) {
     if (k === 'Enter' || k === ' ') this.start();
     if ((k === 'c' || k === 'с') && this.app.hasSave()) this.go(() => this.app.continueRun());
+    if ((k === 'n' || k === 'N' || k === 'т' || k === 'Т') && this.app.profile.introDone && !this.app.hasSave()) this.shift();
   }
 
   draw(ctx: Ctx2D, ui: UI) {
@@ -101,6 +109,7 @@ export class TitleView {
     if (L.mode === 'wide') {
       const items: [string, string, number, () => void][] = [[`start`, label, 96, () => this.start()]];
       if (save) items.push(['continue', 'Продолжить смену', 112, () => this.go(() => this.app.continueRun())]);
+      else if (p.introDone) items.push(['shift', 'Новая смена', 96, () => this.shift()]);
       items.push(['sound', sound, 64, () => {
         this.app.audio.toggleMute();
         p.settings.muted = this.app.audio.muted;
@@ -121,6 +130,9 @@ export class TitleView {
       by += 28;
       if (save) {
         if (ui.button(ctx, 'continue', bx, by, bw, 20, 'Продолжить смену')) this.go(() => this.app.continueRun());
+        by += 26;
+      } else if (p.introDone) {
+        if (ui.button(ctx, 'shift', bx, by, bw, 20, 'Новая смена')) this.shift();
         by += 26;
       }
       const half = Math.floor((bw - 4) / 2);

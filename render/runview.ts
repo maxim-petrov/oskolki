@@ -615,8 +615,8 @@ export class RunView implements CombatHost {
     ctx.globalAlpha = 1;
     const w = 180;
     const x = Math.round((L.w - w) / 2);
-    const y = Math.round(L.h / 2 - 70);
-    panel(ctx, x, y, w, 140, { border: 'cold3', fill: 'ink1' });
+    const y = Math.round(L.h / 2 - 81);
+    panel(ctx, x, y, w, 162, { border: 'cold3', fill: 'ink1' });
     bigText(ctx, 'ПАУЗА', L.w / 2, y + 8, 'cream', { align: 'center' });
     if (ui.button(ctx, 'p-resume', x + 16, y + 30, w - 32, 18, 'Продолжить', { accent: 'gold3' })) this.paused = false;
     if (ui.button(ctx, 'p-sound', x + 16, y + 52, w - 32, 18, this.audio.muted ? 'Звук: выкл' : 'Звук: вкл')) {
@@ -627,11 +627,15 @@ export class RunView implements CombatHost {
       const s = this.app.profile.settings;
       s.speed = s.speed >= 2 ? 1 : s.speed + 0.5;
     }
-    if (ui.button(ctx, 'p-quit', x + 16, y + 100, w - 32, 18, 'Уйти в офис (сдаться)', { accent: 'red3' })) {
+    if (ui.button(ctx, 'p-again', x + 16, y + 100, w - 32, 18, 'Новая смена (сдаться)', { accent: 'red3' })) {
+      this.paused = false;
+      this.app.abandon(true);
+    }
+    if (ui.button(ctx, 'p-quit', x + 16, y + 122, w - 32, 18, 'Уйти в офис (сдаться)', { accent: 'red3' })) {
       this.paused = false;
       this.app.abandon();
     }
-    text(ctx, `сид ${this.run.seed}`, L.w / 2, y + 124, 'grey2', { align: 'center' });
+    text(ctx, `сид ${this.run.seed}`, L.w / 2, y + 146, 'grey2', { align: 'center' });
   }
 
   /** The run falls apart into ash; then the app shows the office. */

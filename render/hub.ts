@@ -17,7 +17,8 @@ import { L, STAGE_FEET, STAGE_H } from './view.ts';
 /**
  * The office between shifts. The intern walks along the open space: coworkers type and
  * grumble, the board of requests takes shards of memory, his desk keeps the files, the heavy
- * archive door at the far end starts the next shift. The office changes as the story goes on.
+ * archive door at the far end starts the next shift — or the «Новая смена» button under the room
+ * (key N), without the walk. The office changes as the story goes on.
  */
 interface Npc {
   sprite: string;
@@ -75,6 +76,8 @@ export class HubView {
   phone = { next: 35 + Math.random() * 30, rings: 0, t: 0 };
   bubble: { s: string; t: number; x: number; y: number } | null = null;
   leaving = 0;
+  /** A shift is saved: the door and the button continue it instead of starting a new one. */
+  saved: boolean;
   noteRead = false;
   summary: { s: string; t: number } | null = null;
 
@@ -83,6 +86,7 @@ export class HubView {
     how: 'wake' | 'enter' | 'won',
   ) {
     const st = officeState(app.profile);
+    this.saved = app.hasSave();
     this.hero.char = (app.profile.settings.char as CharId) ?? 'intern';
     this.spots = [
       { id: 'elevator', x: HUB_SPOTS.elevator, label: 'Лифт' },
@@ -92,7 +96,7 @@ export class HubView {
       { id: 'copier', x: HUB_SPOTS.copier, label: 'Копир' },
       { id: 'glass', x: HUB_SPOTS.glass, label: 'Кабинет начальницы' },
       { id: 'vending', x: HUB_SPOTS.vending, label: 'Автомат' },
-      { id: 'archive', x: HUB_SPOTS.archive, label: this.app.hasSave() ? 'Архив: продолжить смену' : 'Дверь архива' },
+      { id: 'archive', x: HUB_SPOTS.archive, label: this.saved ? 'Архив: продолжить смену' : 'Дверь архива' },
     ];
     const npc = (sprite: string, x: number, lines: string[], kind: Npc['kind'] = 'sit') => {
       if (hasSprite(sprite)) this.npcs.push({ sprite, x, lines, kind, say: null, cool: 0, seed: x * 0.13, spoke: false });
@@ -158,6 +162,10 @@ export class HubView {
       else this.app.toTitle();
       return;
     }
+    if (k === 'n' || k === 'N' || k === 'т' || k === 'Т') {
+      this.quickStart();
+      return;
+    }
     if (this.overlay || this.script) return;
     if (k === 'ArrowLeft' || k === 'a' || k === 'A' || k === 'ф') this.keys.left = true;
     if (k === 'ArrowRight' || k === 'd' || k === 'D' || k === 'в') this.keys.right = true;
@@ -174,6 +182,13 @@ export class HubView {
 
   nearSpot(): Spot | undefined {
     return this.spots.find((s) => Math.abs(s.x - this.hero.x) < 34);
+  }
+
+  /** Straight into the shift from anywhere in the office (the wake-up is cut short). */
+  quickStart() {
+    if (this.leaving || this.overlay) return;
+    if (this.script) this.endScript();
+    this.use(this.spots.find((s) => s.id === 'archive')!);
   }
 
   say(s: string, x: number, y = STAGE_FEET - 100, t = 2.4) {
@@ -240,24 +255,7 @@ export class HubView {
         this.hero.pose = 'wake';
         this.say(this.line(sc.how === 'won' ? 'Отчёт… сдан? Я что, {уснул|уснула}?' : '…Опять {задремал|задремала}?'), this.hero.x + 10, STAGE_FEET - 84, 2.6);
       }
-      if (sc.t > 3.6) {
-        this.hero.state = 'idle';
-        this.hero.x = HUB_SPOTS.desk + 20;
-        this.script = null;
-        // What is left of the shift: a line in the corner, like a stamp on a report.
-        const last = this.app.profile.history[0];
-        if (last) {
-          const acts = ['Изнанка отдела', 'Затопленный архив', 'Котельная', 'Дирекция'];
-          this.summary = {
-            t: 6,
-            s: last.won ? `Отчёт сдан. Осколков памяти: +${last.shards}` : `Смена оборвалась: ${acts[Math.min(last.act, 3)]}. Осколков памяти: +${last.shards}`,
-          };
-        }
-        if (this.app.profile.deaths === 1 && !this.app.profile.notes.includes('first')) {
-          this.app.profile.notes.push('first');
-          this.say('На доске что-то новое.', this.hero.x, STAGE_FEET - 100, 2.6);
-        }
-      }
+      if (sc.t > 3.6) this.endScript();
     } else if (!this.overlay && !this.leaving) this.walk(dt);
     // Coworkers never look up from their work as the hero passes. Now and then one of them says a
     // few words without turning — at most once a visit; mostly they are silent.
@@ -303,6 +301,26 @@ export class HubView {
         this.app.profile.settings.char = this.hero.char;
         if (!this.app.continueRun()) this.app.startShift(this.hero.char as CharId);
       }
+    }
+  }
+
+  /** The hero is up after the wake-up: the summary of the last shift, the first note on the board. */
+  private endScript() {
+    this.hero.state = 'idle';
+    this.hero.x = HUB_SPOTS.desk + 20;
+    this.script = null;
+    // What is left of the shift: a line in the corner, like a stamp on a report.
+    const last = this.app.profile.history[0];
+    if (last) {
+      const acts = ['Изнанка отдела', 'Затопленный архив', 'Котельная', 'Дирекция'];
+      this.summary = {
+        t: 6,
+        s: last.won ? `Отчёт сдан. Осколков памяти: +${last.shards}` : `Смена оборвалась: ${acts[Math.min(last.act, 3)]}. Осколков памяти: +${last.shards}`,
+      };
+    }
+    if (this.app.profile.deaths === 1 && !this.app.profile.notes.includes('first')) {
+      this.app.profile.notes.push('first');
+      this.say('На доске что-то новое.', this.hero.x, STAGE_FEET - 100, 2.6);
     }
   }
 
@@ -421,6 +439,7 @@ export class HubView {
       ctx.globalAlpha = 1;
     }
     this.drawControls(ctx, ui, sy);
+    this.drawQuick(ctx, ui, sy);
     if (this.overlay === 'board') this.drawBoard(ctx, ui);
     if (this.overlay === 'desk') this.drawDesk(ctx, ui);
     if (this.fade > 0) ditherFade(ctx, this.fade, L.w, L.h);
@@ -528,6 +547,17 @@ export class HubView {
     const mx = 12 + bw;
     const mw = L.w - 2 * (12 + bw);
     if (ui.button(ctx, 'hub-act', mx, y, mw, bh, near ? near.label : '…', { accent: 'gold3', disabled: !near }) && near) this.use(near);
+  }
+
+  /** The shortcut under the room: one click (or N) instead of the walk to the archive door. */
+  private drawQuick(ctx: Ctx2D, ui: UI, sy: number) {
+    if (this.overlay || this.leaving) return;
+    const label = `${L.touch ? '' : 'N — '}${this.saved ? 'Продолжить смену' : 'Новая смена'}`;
+    // A thumb-sized target on touch screens.
+    const w = L.touch ? Math.max(measure(label) + 24, Math.round(L.w * 0.5)) : measure(label) + 20;
+    const h = L.touch ? 28 : 18;
+    const y = sy + STAGE_H + (L.mode === 'wide' && !L.touch ? 26 : 10);
+    if (ui.button(ctx, 'hub-quick', Math.round((L.w - w) / 2), y, w, h, label, { accent: 'gold3' })) this.quickStart();
   }
 
   // ── Overlays ──────────────────────────────────────────────────────

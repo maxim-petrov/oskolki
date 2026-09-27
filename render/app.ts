@@ -49,6 +49,8 @@ export class App {
   private disposers: (() => void)[] = [];
   private ready = false;
   private sizeKey = '';
+  /** Set when the player gave up with «Новая смена»: after the ash the next shift starts at once. */
+  private again: CharId | null = null;
 
   constructor(private host: HTMLElement) {
     this.canvas = document.createElement('canvas');
@@ -193,10 +195,13 @@ export class App {
     recordRun(this.profile, run);
   }
 
-  /** After the ash: the office, where the intern wakes up at his desk. */
+  /** After the ash: the office, where the intern wakes up at his desk (or straight the next shift). */
   afterRun(run: RunState) {
     this.game = null;
-    this.toHub(run.phase === 'won' ? 'won' : 'wake');
+    const again = this.again;
+    this.again = null;
+    if (again) this.startShift(again);
+    else this.toHub(run.phase === 'won' ? 'won' : 'wake');
   }
 
   toHub(how: 'wake' | 'enter' | 'won') {
@@ -207,13 +212,15 @@ export class App {
     this.intro = null;
   }
 
-  abandon() {
+  /** Gives up the shift (it counts as a death); `again` skips the office and starts a new one. */
+  abandon(again = false) {
     const g = this.game;
     if (!g) return;
     const run = g.run;
     run.phase = 'dead';
     run.stats.deathCause = 'Ушёл с работы пораньше';
     this.endRun(run);
+    this.again = again ? run.hero.char : null;
     g.ending = { kind: 'dead', t: 0 };
   }
 
