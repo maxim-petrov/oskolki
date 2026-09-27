@@ -1138,6 +1138,7 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     // The guillotine: a share of the target's maximum health, through armour and shields.
     if (tgt && ms.hpPct && !tgt.submerged) {
       const cut = Math.max(1, Math.round(tgt.maxHp * ms.hpPct));
+      ctx.fx.push({ kind: 'proc', amount: cut, uid: tgt.uid, source: 'guillotine', text: 'Гильотина!' });
       hitEnemy(ctx, tgt.uid, cut, { source: 'guillotine', pierce: true });
     }
     if (tgt && tgt.hp > 0) {

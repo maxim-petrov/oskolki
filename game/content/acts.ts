@@ -61,7 +61,7 @@ export const ACTS: ActDef[] = [
     subtitle: 'Отдел 3',
     fx: 'boiler',
     hpMul: 13.5,
-    dmgMul: 3.1,
+    dmgMul: 2.8,
     eliteHp: 1.25,
     eliteDmg: 1.25,
     weak: [['candle'], ['stoker'], ['bell']],
