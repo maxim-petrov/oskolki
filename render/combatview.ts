@@ -1503,10 +1503,16 @@ export class CombatView {
     const [px, py] = this.pocketXY();
     const slot = drawPockets(ctx, ui, px, py, this.pocketSize(), this.run, this.targeting?.kind === 'pocket' ? (this.targeting.slot ?? -1) : -1);
     if (slot >= 0) this.usePocket(slot);
-    // Gear: a slot per colour next to the pockets on wide screens, at the left of the second row on phones.
+    // Gear: a slot per colour next to the pockets on wide screens (under them when the panel is
+    // narrow, as on a tablet), at the left of the second row on phones.
     const size = this.pocketSize();
-    const wx = L.mode === 'wide' ? px + this.run.hero.pockets.length * (size + 3) + 6 : L.bottom.x + 4;
-    const gear = drawGear(ctx, ui, wx, py, size, this.run, this.h.disp, swapCost(this.run));
+    const nextTo = px + this.run.hero.pockets.length * (size + 3) + 6;
+    const under = L.mode === 'wide' && nextTo + 4 * (size + 3) > L.side.x + L.side.w;
+    const wx = L.mode === 'wide' ? (under ? L.side.x : nextTo) : L.bottom.x + 4;
+    const wy = under ? py + size + 4 : py;
+    const gear = drawGear(ctx, ui, wx, wy, size, this.run, this.h.disp, swapCost(this.run));
+    // The lines under the slots move down when the gear takes a row of its own.
+    const below = py + this.pocketSize() + (under ? size + 4 : 0);
     if (gear && this.canPlay()) this.h.act({ type: 'gear', id: gear });
     if (L.mode === 'wide') {
       drawRelics(ctx, ui, { ...L.side2, h: L.side2.h - 12 }, this.run);
@@ -1531,10 +1537,10 @@ export class CombatView {
       }
       const bag = c?.board.bag.length ?? 0;
       const total = c?.board.source.length ?? 0;
-      if (c) text(ctx, bag > 0 ? `Мешок: ${bag} из ${total}` : `Мешок: ${total} фишек`, L.side.x, py + this.pocketSize() + 6, 'cold3');
-      if (ui.area('bag', L.side.x, py + this.pocketSize() + 4, 70, 10)) void 0;
+      if (c) text(ctx, bag > 0 ? `Мешок: ${bag} из ${total}` : `Мешок: ${total} фишек`, L.side.x, below + 6, 'cold3');
+      if (ui.area('bag', L.side.x, below + 4, 70, 10)) void 0;
       if (ui.hovered === 'bag') ui.tooltip('Мешок фишек', 'Поле пополняется из мешка: у каждого цвета своя доля, Волокита подкладывает мусор. Кончится — соберётся заново.', ui.p.x, ui.p.y - 40);
-      if (c) text(ctx, `ход ${c.moves + 1}${c.moves >= 20 ? ' · сверхурочные!' : ''}`, L.side.x, py + this.pocketSize() + 16, c.moves >= 20 ? 'red4' : 'cold3');
+      if (c) text(ctx, `ход ${c.moves + 1}${c.moves >= 20 ? ' · сверхурочные!' : ''}`, L.side.x, below + 16, c.moves >= 20 ? 'red4' : 'cold3');
     } else {
       drawRelics(ctx, ui, { x: 4, y: L.top.h + 2, w: Math.min(L.w - 8, 17 * 8), h: 17 }, this.run);
     }
