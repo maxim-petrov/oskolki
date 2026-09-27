@@ -181,7 +181,7 @@ const SUITES: DevSuite[] = [
     items: [
       { id: 'gear-red', name: 'Красные: ножницы', desc: 'Ножницы в руке: кровотечение с каждой красной группы, двойное лезвие из четырёх.', cfg: combo(build(['knife', 'scissors'], [], 'eraser')) },
       { id: 'gear-blue', name: 'Синие: планшет', desc: 'Планшет в руке: следующий удар врага бьёт и его.', cfg: combo(build(['shield', 'clipboard'], [], 'eraser'), ['bell', 'rat']) },
-      { id: 'gear-violet', name: 'Фиолетовые: клякса', desc: 'Клякса в руке: фиолетовые бьют всех вместо энергии.', cfg: combo(build(['battery', 'blotcurse'], [], 'eraser'), ['rat', 'rat', 'drop']) },
+      { id: 'gear-violet', name: 'Фиолетовые: клякса', desc: 'Клякса в руке: фиолетовые дают энергию и бьют всех врагов.', cfg: combo(build(['battery', 'blotcurse'], [], 'eraser'), ['rat', 'rat', 'drop']) },
       { id: 'gear-gold', name: 'Жёлтые: кредитка', desc: 'Кредитка в руке: жёлтая группа — +6 урона за фишку, но стоит монету.', cfg: combo(build(['penny', 'creditcard'], [], 'eraser'), undefined, { hero: { coins: 40 } }) },
       { id: 'gear-ups', name: 'Всё улучшено', desc: 'Простые вещи, все улучшены: нож+, щит+, батарейка+, монетка+.', cfg: combo(build([], [], 'eraser', [], ['knife', 'shield', 'battery', 'penny'])) },
     ],
