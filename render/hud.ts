@@ -248,59 +248,120 @@ const GEAR_SLOT: Record<Fam, [string, string, string]> = {
 };
 const GEAR_TIP: Record<Fam, string> = { blade: 'red4', shield: 'cold5', ink: 'vio5', coin: 'gold4' };
 
+/** The colour whose spare items are shown over its slot (a click on the slot opens it). */
+let spares: Fam | null = null;
+
+/** Draws one item of gear in a slot of a colour (face, the item, the upgrade plus). */
+function gearSlot(ctx: Ctx2D, id: string, fam: Fam, sx: number, sy: number, cell: number, lit: boolean, up: boolean) {
+  const def = ITEMS[id];
+  const [face, light, dark] = GEAR_SLOT[fam];
+  ctx.fillStyle = hex('ink0');
+  ctx.fillRect(sx, sy, cell, cell);
+  ctx.fillStyle = hex(lit ? light : face);
+  ctx.fillRect(sx + 1, sy + 1, cell - 2, cell - 2);
+  ctx.fillStyle = hex(light);
+  ctx.fillRect(sx + 1, sy + 1, cell - 2, 1);
+  ctx.fillStyle = hex(dark);
+  ctx.fillRect(sx + 1, sy + cell - 2, cell - 2, 1);
+  const f = getFrame(def && hasSprite(def.icon) ? def.icon : `tile_${fam}`);
+  if (cell >= 36) drawScaled(ctx, f, sx + cell / 2 - f.w + f.ox * 2, Math.round(sy + cell / 2) + f.oy * 2 - f.h, 2);
+  else draw(ctx, f, Math.round(sx + cell / 2 - f.w / 2 + f.ox), Math.round(sy + cell / 2 - f.h / 2 + f.oy));
+  if (up) {
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(sx + cell - 6, sy + 1, 5, 5);
+    ctx.fillStyle = hex('gold4');
+    ctx.fillRect(sx + cell - 5, sy + 3, 3, 1);
+    ctx.fillRect(sx + cell - 4, sy + 2, 1, 3);
+  }
+}
+
+/** Rules of an item for a tooltip: what a group does, the super, the upgrade when it has one. */
+function gearTip(id: string, up: boolean): string {
+  const g = ITEMS[id]?.gear;
+  if (!g) return ITEMS[id]?.desc ?? '';
+  const upLine = up ? `\nУлучшено: ${g.upText[0].toLowerCase()}${g.upText.slice(1)}` : '';
+  return `${g.strikeText}\nГруппа из 4+: ${g.superText[0].toLowerCase()}${g.superText.slice(1)}${upLine}`;
+}
+
 /**
- * The items held, one slot per colour: every tile of the colour is that item. A click takes the
- * next carried item of the colour in hand (energy in a fight). `grid` packs the four slots 2×2 into
- * one square (phones). Returns the item to take in hand, or null.
+ * The items held, one slot per colour: every tile of the colour is that item. A click on a colour
+ * with spares shows them over the slot; a click on a spare takes it in hand (energy in a fight).
+ * `grid` packs the four slots 2×2 into one square. Returns the item to take in hand, or null.
  */
 export function drawGear(ctx: Ctx2D, ui: UI, x: number, y: number, size: number, run: RunState, d: Disp, cost: number, grid = false): string | null {
   const hero = run.hero;
   let picked: string | null = null;
   const cell = grid ? Math.floor((size - 1) / 2) : size;
+  const price = cost === 1 ? '1 энергию' : `${cost} энергии`;
+  const slotAt = (k: number) => [grid ? x + (k % 2) * (cell + 1) : x + k * (size + 3), grid ? y + Math.floor(k / 2) * (cell + 1) : y];
   FAMS.forEach((fam, k) => {
     const list = hero.gear[fam];
     const id = hero.equip[fam];
     const def = ITEMS[id];
     if (!def) return;
-    const sx = grid ? x + (k % 2) * (cell + 1) : x + k * (size + 3);
-    const sy = grid ? y + Math.floor(k / 2) * (cell + 1) : y;
+    const [sx, sy] = slotAt(k);
     const key = `gear-${fam}`;
-    const next = list[(list.indexOf(id) + 1) % list.length];
-    const can = list.length > 1 && d.charge >= cost;
-    if (ui.area(key, sx, sy, cell, cell) && can) picked = next;
+    const can = list.length > 1;
+    if (ui.area(key, sx, sy, cell, cell) && can) spares = spares === fam ? null : fam;
     const hot = ui.hovered === key;
-    const [face, light, dark] = GEAR_SLOT[fam];
-    ctx.fillStyle = hex('ink0');
-    ctx.fillRect(sx, sy, cell, cell);
-    ctx.fillStyle = hex(hot && can ? light : face);
-    ctx.fillRect(sx + 1, sy + 1, cell - 2, cell - 2);
-    ctx.fillStyle = hex(light);
-    ctx.fillRect(sx + 1, sy + 1, cell - 2, 1);
-    ctx.fillStyle = hex(dark);
-    ctx.fillRect(sx + 1, sy + cell - 2, cell - 2, 1);
-    const f = getFrame(hasSprite(def.icon) ? def.icon : `tile_${fam}`);
-    if (cell >= 36) drawScaled(ctx, f, sx + cell / 2 - f.w + f.ox * 2, Math.round(sy + cell / 2) + f.oy * 2 - f.h, 2);
-    else draw(ctx, f, Math.round(sx + cell / 2 - f.w / 2 + f.ox), Math.round(sy + cell / 2 - f.h / 2 + f.oy));
-    if (hero.ups.includes(id)) {
-      ctx.fillStyle = hex('ink0');
-      ctx.fillRect(sx + cell - 6, sy + 1, 5, 5);
-      ctx.fillStyle = hex('gold4');
-      ctx.fillRect(sx + cell - 5, sy + 3, 3, 1);
-      ctx.fillRect(sx + cell - 4, sy + 2, 1, 3);
-    }
-    // Spares: how many items the colour carries (a click takes the next one).
-    if (list.length > 1) text(ctx, `${list.length}`, sx + 2, sy + cell - 9, can ? 'vio5' : 'grey2', { outline: 'ink0' });
-    if (hot) {
-      const others = list.filter((x) => x !== id).map((x) => ITEMS[x]?.name ?? x);
-      const price = cost === 1 ? '1 энергию' : `${cost} энергии`;
-      const swap = list.length > 1 ? `\nЕщё: ${others.join(', ')}. ${L.touch ? 'Тап' : 'Клик'} — ${ITEMS[next]?.name ?? next} за ${price}.` : '';
-      const g = def.gear;
-      const up = g && hero.ups.includes(id) ? `\nУлучшено: ${g.upText[0].toLowerCase()}${g.upText.slice(1)}` : '';
-      const body = g ? `${g.strikeText}\nГруппа из 4+: ${g.superText[0].toLowerCase()}${g.superText.slice(1)}${up}${swap}` : def.desc;
-      ui.tooltip(`${def.name}${hero.ups.includes(id) ? '+' : ''} · ${FAM_ROLE[fam]}`, body, ui.p.x, ui.p.y - 60, GEAR_TIP[fam]);
+    gearSlot(ctx, id, fam, sx, sy, cell, (hot && can) || spares === fam, hero.ups.includes(id));
+    // Spares: how many items the colour carries (a click shows them).
+    if (list.length > 1) text(ctx, `${list.length}`, sx + 2, sy + cell - 9, d.charge >= cost ? 'vio5' : 'grey2', { outline: 'ink0' });
+    if (hot && spares !== fam) {
+      const more = list.length > 1 ? `\nЗапасные: ${list.filter((x) => x !== id).map((x) => ITEMS[x]?.name ?? x).join(', ')}. ${L.touch ? 'Тап' : 'Клик'} — выбрать, смена за ${price}.` : '';
+      ui.tooltip(`${def.name}${hero.ups.includes(id) ? '+' : ''} · ${FAM_ROLE[fam]}`, `${gearTip(id, hero.ups.includes(id))}${more}`, ui.p.x, ui.p.y - 60, GEAR_TIP[fam]);
     }
   });
+  // The spares of the open colour, over its slot: a click takes one in hand.
+  if (spares && hero.gear[spares].length > 1) {
+    const fam = spares;
+    const list = hero.gear[fam];
+    const [sx, sy] = slotAt(FAMS.indexOf(fam));
+    const pw = list.length * (cell + 3) + 3;
+    const px = Math.max(2, Math.min(L.w - pw - 2, sx - 3));
+    const py = Math.max(L.top.h + 2, sy - cell - 8);
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(px - 1, py - 1, pw + 2, cell + 8);
+    ctx.fillStyle = hex(GEAR_TIP[fam]);
+    ctx.fillRect(px, py, pw, cell + 6);
+    ctx.fillStyle = hex('ink1');
+    ctx.fillRect(px + 1, py + 1, pw - 2, cell + 4);
+    list.forEach((id, k) => {
+      const ix = px + 3 + k * (cell + 3);
+      const iy = py + 3;
+      const held = hero.equip[fam] === id;
+      const key = `spare-${id}`;
+      const afford = held || d.charge >= cost;
+      if (ui.area(key, ix, iy, cell, cell)) {
+        if (!held && afford) picked = id;
+        spares = null;
+      }
+      const hot = ui.hovered === key;
+      gearSlot(ctx, id, fam, ix, iy, cell, hot && afford, hero.ups.includes(id));
+      if (held) {
+        ctx.fillStyle = hex('gold4');
+        ctx.fillRect(ix, iy + cell, cell, 1);
+      } else if (!afford) {
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = hex('ink0');
+        ctx.fillRect(ix, iy, cell, cell);
+        ctx.globalAlpha = 1;
+      }
+      if (hot) {
+        const state = held ? 'В руке.' : afford ? `Взять в руку: ${price}.` : `Нужно ${price}.`;
+        ui.tooltip(`${ITEMS[id]?.name ?? id}${hero.ups.includes(id) ? '+' : ''} · ${FAM_ROLE[fam]}`, `${gearTip(id, hero.ups.includes(id))}\n${state}`, ui.p.x, ui.p.y - 60, GEAR_TIP[fam]);
+      }
+    });
+    // A click anywhere else closes the list.
+    const [ox, oy] = slotAt(FAMS.indexOf(fam));
+    if (ui.p.released && !ui.over(px - 1, py - 1, pw + 2, cell + 8) && !ui.over(ox, oy, cell, cell)) spares = null;
+  }
   return picked;
+}
+
+/** Closes the spares list (a fight ends, the screen changes). */
+export function closeSpares() {
+  spares = null;
 }
 
 /** Pocket slots in a row. Returns the clicked slot index, or -1. */

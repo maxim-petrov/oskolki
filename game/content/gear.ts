@@ -316,7 +316,7 @@ export const GEAR: Record<string, GearItem> = {
   }),
 
   // ── Violet: energy (per tile) ───────────────────────────────────────
-  battery: g('battery', 'Батарейка', 'starter', 'tile_ink', {
+  battery: g('battery', 'Батарейка', 'starter', 'tile_battery', {
     fam: 'ink',
     value: 1,
     strike: {},

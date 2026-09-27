@@ -9,7 +9,7 @@ import { EnemyView, HeroView, enemySlots, heroX } from './actors.ts';
 import { gearRules, gearTitle } from './gearview.ts';
 import { BoardView } from './boardview.ts';
 import { paragraph, text } from './font.ts';
-import { drawArm, drawGear, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
+import { closeSpares, drawArm, drawGear, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
 import type { Juice } from './juice.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
@@ -217,6 +217,7 @@ export class CombatView {
     const juice = this.h.juice;
     switch (e.t) {
       case 'combatStart':
+        closeSpares();
         S.push({
           dur: e.kind === 'boss' ? 1.2 : 0.55,
           begin: () => {

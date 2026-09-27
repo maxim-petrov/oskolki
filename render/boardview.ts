@@ -67,7 +67,7 @@ export class BoardView {
   /** The ring binder: edge tiles swap with the opposite edge. */
   wrap = false;
   /** Art of the item held in every colour: each tile of the colour shows it (a plus when upgraded). */
-  gearArt: Record<Fam, string> = { blade: 'card_knife', shield: 'tile_shield', ink: 'tile_ink', coin: 'tile_coin' };
+  gearArt: Record<Fam, string> = { blade: 'card_knife', shield: 'tile_shield', ink: 'tile_battery', coin: 'tile_coin' };
   gearUp: Record<Fam, boolean> = { blade: false, shield: false, ink: false, coin: false };
   /** Move rules of the fight: slides along a line, diagonal swaps, only up and down. */
   slide = false;

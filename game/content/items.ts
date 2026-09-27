@@ -194,8 +194,8 @@ export const ITEMS: Record<string, ItemDef> = {
 
   // ── Common ────────────────────────────────────────────────────────
   coffee: i({ id: 'coffee', name: 'Крепкий кофе', desc: 'Красные фишки +1 к урону.', kind: 'passive', icon: 'item_coffee', pool: 'common', apply: (m) => (m.redPlus += 1) }),
-  redpen: i({ id: 'redpen', name: 'Красная ручка', desc: 'Первая красная группа каждого хода — супер-удар, даже из трёх фишек.', kind: 'passive', icon: 'card_redpen', pool: 'uncommon', apply: (m) => (m.redPenFirst = true) }),
-  alarm: i({ id: 'alarm', name: 'Тревожная кнопка', desc: '+3 урона удару за каждую красную группу хода.', kind: 'passive', icon: 'card_alarm', pool: 'rare', unlock: 'bundle_paper', apply: (m) => (m.redGroupDmg += 3) }),
+  redpen: i({ id: 'redpen', name: 'Красная ручка', desc: 'Первая красная группа каждого хода — супер-удар, даже из трёх фишек.', kind: 'passive', icon: 'item_redpen', pool: 'uncommon', apply: (m) => (m.redPenFirst = true) }),
+  alarm: i({ id: 'alarm', name: 'Тревожная кнопка', desc: '+3 урона удару за каждую красную группу хода.', kind: 'passive', icon: 'item_alarm', pool: 'rare', unlock: 'bundle_paper', apply: (m) => (m.redGroupDmg += 3) }),
   binderclip: i({ id: 'binderclip', name: 'Зажим для бумаг', desc: 'Синие группы дают на ½ сердца брони больше.', kind: 'passive', icon: 'item_binderclip', pool: 'common', apply: (m) => (m.bluePlus += 1) }),
   inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к энергии.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
   wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Жёлтая группа: +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
