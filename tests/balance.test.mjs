@@ -27,9 +27,9 @@ test('fights of the first act take a few moves, its boss a dozen or more', () =>
   assert.ok(moves('boss') >= 8 && moves('boss') <= 30, `босс: ${moves('boss').toFixed(1)} хода`);
 });
 
-test('taking no cards is much worse than taking good ones', () => {
-  const none = rate(runs(12, { policy: 'noCards' }), (r) => r.won);
-  assert.ok(none < rate(greedy, (r) => r.won), `без фишек ${pct(none)}`);
+test('taking no gear is much worse than taking good gear', () => {
+  const none = rate(runs(12, { policy: 'noGear' }), (r) => r.won);
+  assert.ok(none < rate(greedy, (r) => r.won), `без вещей ${pct(none)}`);
 });
 
 test('every hero can clear the first act', () => {

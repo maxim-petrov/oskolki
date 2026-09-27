@@ -1,10 +1,11 @@
-import { CARDS, FINISH_TEXT, cardValue } from '../game/content/cards.ts';
+import { bagWeights } from '../game/combat.ts';
 import { heartsText } from '../game/text.ts';
 import { EVENT_BY_ID } from '../game/content/events.ts';
+import { FAM_ROLE, GEAR } from '../game/content/gear.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
-import { pickable, rerollPrice } from '../game/run.ts';
-import type { Action, DeckCard, RunState } from '../game/types.ts';
-import { CARD_H, CARD_W, cardName, cardRules, drawCard, drawCardBlock } from './cardview.ts';
+import { famOf, pickable, rerollPrice, upgradable } from '../game/run.ts';
+import { BAG_COPIES, FAMS, type Action, type Fam, type RunState } from '../game/types.ts';
+import { GEAR_H, GEAR_W, drawGear, drawGearBlock, gearRules, gearTitle } from './gearview.ts';
 import { LINE, bigText, measure, measureBig, paragraph, text, wrap } from './font.ts';
 import { hex } from './palette.ts';
 import { draw, drawScaled, frameNames, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
@@ -12,8 +13,8 @@ import { panel, type UI } from './ui.ts';
 import { L } from './view.ts';
 
 /**
- * Screens between fights: reward, the till, the cooler, events, the safe, card picks, the boss
- * relic choice and the deck viewer. Each draws itself over the stage and returns an action.
+ * Screens between fights: reward, the till, the cooler, events, the safe, gear picks, the boss
+ * relic choice and the gear viewer. Each draws itself over the stage and returns an action.
  */
 export interface ScreenHost {
   run: RunState;
@@ -80,27 +81,38 @@ export class RewardScreen {
       if (row.kind === 'coins') {
         icon = 'ui_coin';
         label = `${row.amount} монет`;
-      } else if (row.kind === 'card') {
+      } else if (row.kind === 'gear') {
+        icon = GEAR[row.gear?.[0] ?? '']?.icon ?? 'ui_deck';
+        label = 'Выбрать вещь';
+        sub = (row.gear?.length ?? 3) === 2 ? 'одна из двух: сразу в руку' : 'одна из трёх: сразу в руку';
+      } else if (row.kind === 'upgrade') {
         icon = 'ui_deck';
-        label = 'Выбрать фишку в колоду';
-        sub = (row.cards?.length ?? 3) === 2 ? 'одна из двух' : 'одна из трёх';
+        label = 'Улучшить вещь';
+        sub = 'одна вещь на выбор';
+      } else if (row.kind === 'key') {
+        icon = hasSprite('item_key') ? 'item_key' : 'ui_coin';
+        label = 'Ключ от сейфа';
+        sub = 'сейф откроется на выбор из трёх';
+      } else if (row.kind === 'shards') {
+        icon = 'ui_shard';
+        label = `Осколки: ${row.amount ?? 1}`;
       } else if (row.kind === 'relic' && row.relic) {
         icon = ITEMS[row.relic].icon;
         label = ITEMS[row.relic].name;
-        sub = `${ITEMS[row.relic].kind === 'weapon' ? 'Оружие. ' : ''}${ITEMS[row.relic].desc}`;
+        sub = ITEMS[row.relic].desc;
       } else if (row.kind === 'pocket' && row.pocket) {
         icon = POCKETS[row.pocket].icon;
         label = POCKETS[row.pocket].name;
         sub = disabled && !row.taken ? 'карманы полны' : POCKETS[row.pocket].desc;
       }
-      const f = getFrame(icon);
+      const f = getFrame(hasSprite(icon) ? icon : 'ui_deck');
       draw(ctx, f, x + 16 - Math.floor(f.w / 2) + f.ox, ry + 11 - Math.floor(f.h / 2) + f.oy);
       text(ctx, label, x + 30, ry + (sub ? 2 : 7), row.taken ? 'grey2' : 'cream');
       if (sub) text(ctx, sub.length > 40 ? sub.slice(0, 38) + '…' : sub, x + 30, ry + 12, row.taken ? 'grey1' : 'cold4');
       if (row.taken) text(ctx, 'взято', x + w - 12, ry + 7, 'green3', { align: 'right' });
       if (hot && row.kind === 'relic' && row.relic) ui.tooltip(label, ITEMS[row.relic].desc, ui.p.x, ui.p.y, 'gold4');
       if (clicked) {
-        if (row.kind === 'card') this.choosing = k;
+        if (row.kind === 'gear') this.choosing = k;
         else h.act({ type: 'reward', index: k });
       }
     });
@@ -110,24 +122,24 @@ export class RewardScreen {
   }
 
   private drawCards(ctx: Ctx2D, ui: UI, h: ScreenHost) {
-    const row = h.run.rewards[this.choosing];
-    if (!row || row.taken || !row.cards) {
+    const run = h.run;
+    const row = run.rewards[this.choosing];
+    if (!row || row.taken || !row.gear) {
       this.choosing = -1;
       return;
     }
-    const n = row.cards.length;
+    const n = row.gear.length;
     const colW = Math.min(118, Math.floor((L.w - 16) / n));
     const w = colW * n + 12;
     const x = Math.round((L.w - w) / 2);
     // Height follows the longest rules text.
-    const textH = Math.max(...row.cards.map((id, k) => wrap(cardRules({ id, up: !!row.ups?.[k] }), colW - 4).length)) * (LINE + 1);
-    const hgt = Math.min(L.h - L.top.h - 12, 28 + CARD_H + 24 + textH + 34);
+    const textH = Math.max(...row.gear.map((id) => wrap(gearRules(id), colW - 4).length)) * (LINE + 1);
+    const hgt = Math.min(L.h - L.top.h - 12, 28 + GEAR_H + 24 + textH + 46);
     const y = L.mode === 'wide' ? Math.max(L.top.h + 6, Math.round((L.h - hgt) / 2)) : L.stage.y + 30;
     panel(ctx, x, y, w, hgt, { border: 'gold3', fill: 'ink0', alpha: 0.96 });
-    title(ctx, 'ВЫБЕРИ ФИШКУ', x + w / 2, y + 6);
-    row.cards.forEach((id, k) => {
+    title(ctx, 'ВЫБЕРИ ВЕЩЬ', x + w / 2, y + 6);
+    row.gear.forEach((id, k) => {
       const cx = x + 6 + k * colW;
-      const card = { id, up: !!row.ups?.[k] };
       const aid = `pick-card-${k}`;
       const clicked = ui.area(aid, cx, y + 24, colW, hgt - 50);
       const hot = ui.hovered === aid;
@@ -135,10 +147,13 @@ export class RewardScreen {
         ctx.fillStyle = hex('ink2');
         ctx.fillRect(cx + 1, y + 24, colW - 2, hgt - 52);
       }
-      drawCardBlock(ctx, card, cx, y + 28, colW, { hot, t: h.t });
+      const used = drawGearBlock(ctx, id, false, cx, y + 28, colW, { hot, t: h.t, act: run.act });
+      // What it replaces in hand (the old item stays as a spare).
+      const fam = famOf(id);
+      if (fam) text(ctx, `в руке: ${gearTitle(run.hero.equip[fam], run.hero.ups.includes(run.hero.equip[fam]))}`, cx + colW / 2, y + 30 + used, 'grey3', { align: 'center' });
       if (clicked) {
         h.audio.play('card');
-        h.act({ type: 'reward', index: this.choosing, card: k });
+        h.act({ type: 'reward', index: this.choosing, pick: k });
         this.choosing = -1;
       }
     });
@@ -169,28 +184,29 @@ export class ShopScreen {
         text(ctx, `${p}`, cx + 4, cy, p <= coins ? 'gold4' : 'red4', { align: 'center' });
       }
     };
-    // Cards.
-    const cols = Math.max(1, Math.min(s.cards.length, Math.floor((w - 12) / (CARD_W + 8))));
+    // Gear: one of the three at half price.
+    const cols = Math.max(1, Math.min(s.gear.length, Math.floor((w - 12) / (GEAR_W + 8))));
     let cy = y + 26;
-    s.cards.forEach((c, k) => {
+    s.gear.forEach((c, k) => {
       const col = k % cols;
       const rowi = Math.floor(k / cols);
-      const cx = x + 8 + col * (CARD_W + 8);
-      const yy = cy + rowi * (CARD_H + 22);
+      const cx = x + 8 + col * (GEAR_W + 8);
+      const yy = cy + rowi * (GEAR_H + 22);
       const id = `shop-card-${k}`;
-      const clicked = !c.sold && ui.area(id, cx, yy, CARD_W, CARD_H);
+      const clicked = !c.sold && ui.area(id, cx, yy, GEAR_W, GEAR_H);
       const hot = ui.hovered === id;
-      drawCard(ctx, { id: c.id, up: c.up }, cx, yy, { hot, dim: c.sold, t: h.t });
-      price(c.price, cx + CARD_W / 2, yy + CARD_H + 4, c.sold);
-      if (hot) ui.tooltip(cardName({ id: c.id, up: c.up }), cardRules({ id: c.id, up: c.up }), ui.p.x, ui.p.y, 'gold4');
+      drawGear(ctx, c.id, false, cx, yy, { hot, dim: c.sold, t: h.t, act: run.act });
+      price(c.price, cx + GEAR_W / 2, yy + GEAR_H + 4, c.sold);
+      const fam = famOf(c.id);
+      if (hot && fam) ui.tooltip(`${gearTitle(c.id)} · ${FAM_ROLE[fam]}`, `${gearRules(c.id)}\nВ руке сейчас: ${gearTitle(run.hero.equip[fam])} (останется запасной).`, ui.p.x, ui.p.y, 'gold4');
       if (clicked) {
-        if (h.act({ type: 'buy', kind: 'card', index: k })) h.audio.play('buy');
+        if (h.act({ type: 'buy', kind: 'gear', index: k })) h.audio.play('buy');
       }
     });
-    cy += Math.ceil(s.cards.length / cols) * (CARD_H + 22) + 2;
+    cy += Math.ceil(s.gear.length / cols) * (GEAR_H + 22) + 2;
     // Relics and pockets in one row of icons.
     const items: { kind: 'relic' | 'pocket'; k: number; icon: string; name: string; desc: string; price: number; sold: boolean }[] = [
-      ...s.relics.map((it, k) => ({ kind: 'relic' as const, k, icon: ITEMS[it.id].icon, name: ITEMS[it.id].name, desc: `${ITEMS[it.id].kind === 'active' ? 'Навык (заменит нынешний). ' : ITEMS[it.id].kind === 'weapon' ? 'Оружие (в свободную руку). ' : ''}${ITEMS[it.id].desc}`, price: it.price, sold: it.sold })),
+      ...s.relics.map((it, k) => ({ kind: 'relic' as const, k, icon: ITEMS[it.id].icon, name: ITEMS[it.id].name, desc: `${ITEMS[it.id].kind === 'active' ? 'Навык (заменит нынешний). ' : ''}${ITEMS[it.id].desc}`, price: it.price, sold: it.sold })),
       ...s.pockets.map((it, k) => ({ kind: 'pocket' as const, k, icon: POCKETS[it.id].icon, name: POCKETS[it.id].name, desc: POCKETS[it.id].desc, price: it.price, sold: it.sold })),
     ];
     const iw = 36;
@@ -212,18 +228,22 @@ export class ShopScreen {
     cy += Math.ceil(items.length / perRow) * 34 + 4;
     // Services.
     const bw = Math.min(150, Math.floor((w - 20) / 2));
-    if (s.finish) {
-      const f = s.finish;
-      const label = f.sold ? 'Отделка: продано' : `${FINISH_TEXT[f.kind].name} · ${f.price}`;
-      if (ui.button(ctx, 'shop-finish', x + 8, cy, bw, 18, label, { disabled: f.sold || coins < f.price, accent: 'gold3' })) h.act({ type: 'buy', kind: 'finish', index: 0 });
-      if (ui.hovered === 'shop-finish') ui.tooltip(`Отделка «${FINISH_TEXT[f.kind].name}»`, `Одна фишка колоды: ${FINISH_TEXT[f.kind].text}.`, ui.p.x, ui.p.y);
+    if (s.upgrade) {
+      const u = s.upgrade;
+      const none = !upgradable(run).length;
+      const label = u.sold ? 'Мастерская: занята' : `Мастерская · ${u.price}`;
+      if (ui.button(ctx, 'shop-finish', x + 8, cy, bw, 18, label, { disabled: u.sold || none || coins < u.price, accent: 'gold3' })) h.act({ type: 'buy', kind: 'upgrade', index: 0 });
+      if (ui.hovered === 'shop-finish') ui.tooltip('Мастерская', none ? 'Всё уже улучшено.' : 'Улучшить одну вещь на выбор.', ui.p.x, ui.p.y);
     }
-    const rlabel = s.removed ? 'Шредер: занят' : `Шредер · ${s.removePrice}`;
-    if (ui.button(ctx, 'shop-remove', x + 12 + bw, cy, bw, 18, rlabel, { disabled: s.removed || coins < s.removePrice, accent: 'red3' })) h.act({ type: 'remove' });
-    if (ui.hovered === 'shop-remove') ui.tooltip('Шредер', 'Убрать одну фишку из колоды. Тонкая колода — предсказуемое поле.', ui.p.x, ui.p.y);
+    if (s.shred) {
+      const sh = s.shred;
+      const rlabel = sh.used ? 'Шредер: занят' : `Шредер · ${sh.price}`;
+      if (ui.button(ctx, 'shop-remove', x + 12 + bw, cy, bw, 18, rlabel, { disabled: sh.used || coins < sh.price || run.hero.tape <= 0, accent: 'red3' })) h.act({ type: 'remove' });
+      if (ui.hovered === 'shop-remove') ui.tooltip('Шредер', `Снять одну Волокиту: в мешке станет меньше мусора. Сейчас волокиты: ${run.hero.tape}.`, ui.p.x, ui.p.y);
+    }
     const rr = rerollPrice(run);
     if (ui.button(ctx, 'shop-reroll', x + 8, y + hh - 22, 118, 16, `Перепечатать · ${rr}`, { disabled: coins < rr, accent: 'gold3' }) && h.act({ type: 'reroll' })) h.audio.play('buy');
-    if (ui.hovered === 'shop-reroll') ui.tooltip('Перепечатать витрину', 'Новые фишки, предметы, карманы и отделка. Шредер остаётся. Каждый раз дороже.', ui.p.x, ui.p.y - 30);
+    if (ui.hovered === 'shop-reroll') ui.tooltip('Перепечатать витрину', 'Новые вещи, предметы и карманы. Услуги остаются. Каждый раз дороже.', ui.p.x, ui.p.y - 30);
     if (ui.button(ctx, 'shop-leave', x + w - 80, y + hh - 22, 72, 16, 'Уйти', { accent: 'grey3' })) h.act({ type: 'leave' });
   }
 }
@@ -241,7 +261,7 @@ export function drawRest(ctx: Ctx2D, ui: UI, h: ScreenHost) {
   text(ctx, 'Можно перевести дух. Или разобрать бумаги.', x + w / 2, y + 22, 'cold4', { align: 'center' });
   const heal = Math.round(run.hero.maxHp * 0.3);
   const bw = Math.floor((w - 24) / 2);
-  const canUp = run.hero.deck.some((c) => !c.up && CARDS[c.id]?.rarity !== 'status');
+  const canUp = upgradable(run).length > 0;
   if (ui.button(ctx, 'rest-heal', x + 8, y + 36, bw, 44, '', { accent: 'green3' })) h.act({ type: 'rest', choice: 'heal' });
   draw(ctx, getFrame('map_rest'), x + 8 + bw / 2, y + 50);
   text(ctx, `Выпить воды`, x + 8 + bw / 2, y + 60, 'cream', { align: 'center' });
@@ -249,7 +269,7 @@ export function drawRest(ctx: Ctx2D, ui: UI, h: ScreenHost) {
   if (ui.button(ctx, 'rest-up', x + 16 + bw, y + 36, bw, 44, '', { accent: 'gold3', disabled: !canUp })) h.act({ type: 'rest', choice: 'upgrade' });
   draw(ctx, getFrame('ui_deck'), x + 16 + bw + bw / 2, y + 50);
   text(ctx, 'Разобрать бумаги', x + 16 + bw + bw / 2, y + 60, canUp ? 'cream' : 'grey2', { align: 'center' });
-  text(ctx, 'повысить фишку', x + 16 + bw + bw / 2, y + 69, canUp ? 'gold4' : 'grey2', { align: 'center' });
+  text(ctx, 'улучшить вещь', x + 16 + bw + bw / 2, y + 69, canUp ? 'gold4' : 'grey2', { align: 'center' });
   if (ui.button(ctx, 'rest-leave', x + w - 80, y + 94, 72, 16, 'Уйти', { accent: 'grey3' })) h.act({ type: 'leave' });
 }
 
@@ -339,7 +359,7 @@ export function drawTreasure(ctx: Ctx2D, ui: UI, h: ScreenHost) {
     if (ui.button(ctx, 'safe-open', x + w / 2 - 50, y + 44, 100, 18, 'Открыть', { accent: 'gold3' })) h.act({ type: 'open' });
   } else {
     const def = ITEMS[tr.relic];
-    // Centred: item icons stand on their bottom, weapon art (a tile face) is anchored in the middle.
+    // Centred: item icons stand on their bottom, gear art (a tile face) is anchored in the middle.
     const f = getFrame(def.icon);
     draw(ctx, f, x + 20 - Math.floor(f.w / 2) + f.ox, y + 28 - Math.floor(f.h / 2) + f.oy);
     text(ctx, def.name, x + 34, y + 24, 'gold4');
@@ -348,40 +368,51 @@ export function drawTreasure(ctx: Ctx2D, ui: UI, h: ScreenHost) {
   }
 }
 
-// ── Deck grid (picks and the viewer) ────────────────────────────────
+// ── Gear grid (picks and the viewer) ────────────────────────────────
+
+const FAM_COL: Record<Fam, string> = { blade: 'red4', shield: 'cold5', ink: 'vio5', coin: 'gold4' };
 
 export class DeckGrid {
   scroll = 0;
-  hover = -1;
+  /** The item under the pointer, and the one picked in the viewer. */
+  hover = '';
+  selected = '';
 
-  /** Draws the deck; returns the uid clicked (or -1). `ok` marks cards that may be chosen. */
-  draw(ctx: Ctx2D, ui: UI, deck: DeckCard[], x: number, y: number, w: number, h: number, t: number, ok: (c: DeckCard) => boolean, wheel: number): number {
-    const order = { blade: 0, shield: 1, ink: 2, coin: 3, status: 4 } as Record<string, number>;
-    const cards = [...deck].sort((a, b) => (order[CARDS[a.id]?.fam ?? 'status'] ?? 5) - (order[CARDS[b.id]?.fam ?? 'status'] ?? 5) || a.id.localeCompare(b.id) || Number(b.up) - Number(a.up));
+  /**
+   * Draws the gear: a row per colour, the item in hand first. Returns the id clicked (or '').
+   * `ok` marks items that may be chosen.
+   */
+  draw(ctx: Ctx2D, ui: UI, run: RunState, x: number, y: number, w: number, h: number, t: number, ok: (id: string) => boolean, wheel: number): string {
     const gap = 6;
-    const cols = Math.max(1, Math.floor((w + gap) / (CARD_W + gap)));
-    const rows = Math.ceil(cards.length / cols);
-    const full = rows * (CARD_H + gap + 10);
+    const rowH = GEAR_H + gap + 10;
+    const full = FAMS.length * rowH;
     this.scroll = Math.max(0, Math.min(full - h, this.scroll + wheel));
-    const ox = x + Math.round((w - (cols * (CARD_W + gap) - gap)) / 2);
-    let clicked = -1;
-    this.hover = -1;
+    let clicked = '';
+    this.hover = '';
     ctx.save();
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    cards.forEach((c, k) => {
-      const cx = ox + (k % cols) * (CARD_W + gap);
-      const cy = y + Math.floor(k / cols) * (CARD_H + gap + 10) - Math.round(this.scroll);
-      if (cy + CARD_H < y || cy > y + h) return;
-      const can = ok(c);
-      const id = `deck-${c.uid}`;
-      const vis = ui.over(x, y, w, h);
-      const hit = vis && ui.area(id, cx, Math.max(y, cy), CARD_W, Math.min(CARD_H, y + h - cy));
-      const hot = ui.hovered === id;
-      if (hot) this.hover = c.uid;
-      drawCard(ctx, c, cx, cy, { hot: hot && can, dim: !can, t });
-      if (hit && can) clicked = c.uid;
+    FAMS.forEach((fam, r) => {
+      const hero = run.hero;
+      const list = [hero.equip[fam], ...hero.gear[fam].filter((id) => id !== hero.equip[fam])];
+      const ry = y + r * rowH - Math.round(this.scroll);
+      if (ry + GEAR_H < y || ry > y + h) return;
+      const role = FAM_ROLE[fam];
+      text(ctx, `${role[0].toUpperCase()}${role.slice(1)}`, x + 2, ry + 2, FAM_COL[fam]);
+      const ox = x + Math.min(70, Math.round(w * 0.22));
+      list.forEach((id, k) => {
+        const cx = ox + k * (GEAR_W + gap);
+        const can = ok(id);
+        const aid = `deck-${id}`;
+        const vis = ui.over(x, y, w, h);
+        const hit = vis && ui.area(aid, cx, Math.max(y, ry), GEAR_W, Math.min(GEAR_H, y + h - ry));
+        const hot = ui.hovered === aid;
+        if (hot) this.hover = id;
+        drawGear(ctx, id, hero.ups.includes(id), cx, ry, { hot: hot && can, dim: !can, t, held: k === 0, selected: this.selected === id, act: run.act });
+        if (k === 0) text(ctx, 'в руке', cx + GEAR_W / 2, ry + GEAR_H + 2, 'gold4', { align: 'center' });
+        if (hit && can) clicked = id;
+      });
     });
     ctx.restore();
     if (full > h) {
@@ -398,11 +429,8 @@ export class DeckGrid {
 }
 
 const PICK_TITLE: Record<string, string> = {
-  remove: 'Что отправить в шредер?',
-  upgrade: 'Какую фишку повысить?',
-  finish: 'Какую фишку отделать?',
-  transform: 'Кого перевести на другую должность?',
-  copy: 'Какую фишку скопировать?',
+  upgrade: 'Какую вещь улучшить?',
+  transform: 'Какую вещь заменить на другую того же цвета?',
 };
 
 export function drawPick(ctx: Ctx2D, ui: UI, h: ScreenHost, grid: DeckGrid, wheel: number) {
@@ -414,45 +442,59 @@ export function drawPick(ctx: Ctx2D, ui: UI, h: ScreenHost, grid: DeckGrid, whee
   const w = L.w - 12;
   const hh = L.h - y - 4;
   panel(ctx, x, y, w, hh, { border: 'gold3', fill: 'ink0', alpha: 0.97 });
-  let head = PICK_TITLE[p.purpose] ?? 'Выбери фишку';
-  if (p.purpose === 'finish' && p.finish) head = `Отделка «${FINISH_TEXT[p.finish].name}»: ${FINISH_TEXT[p.finish].text}`;
+  const head = (PICK_TITLE[p.purpose] ?? 'Выбери вещь') + (p.fam ? ` (${FAM_ROLE[p.fam]})` : '');
   text(ctx, head, x + w / 2, y + 6, 'gold4', { align: 'center' });
   if (p.count > 1) text(ctx, `осталось выбрать: ${p.count}`, x + w / 2, y + 16, 'cold4', { align: 'center' });
   const infoH = 30;
-  const uid = grid.draw(ctx, ui, run.hero.deck, x + 6, y + 28, w - 12, hh - 28 - infoH - 24, h.t, (c) => pickable(run, p, c), wheel);
-  // Details of the hovered card (and the upgrade preview).
-  const hov = run.hero.deck.find((c) => c.uid === grid.hover);
+  const id = grid.draw(ctx, ui, run, x + 6, y + 28, w - 12, hh - 28 - infoH - 24, h.t, (g) => pickable(run, p, g), wheel);
+  // Details of the hovered item (and what the upgrade adds).
+  const hov = grid.hover;
   const iy = y + hh - infoH - 22;
-  if (hov) {
-    let line = `${cardName(hov)}: ${cardRules(hov).replace('\n', ' ')}`;
-    if (p.purpose === 'upgrade' && !hov.up) line = `${cardName(hov)} → ${cardName({ ...hov, up: true })}: ${cardValue(hov.id, false)} → ${cardValue(hov.id, true)}. ${cardRules({ ...hov, up: true }).replace('\n', ' ')}`;
+  if (hov && GEAR[hov]) {
+    const up = run.hero.ups.includes(hov);
+    const line =
+      p.purpose === 'upgrade' && !up
+        ? `${gearTitle(hov)} → ${gearTitle(hov, true)}: ${GEAR[hov].gear.upText}`
+        : `${gearTitle(hov, up)}: ${gearRules(hov, up).replace(/\n/g, ' ')}`;
     paragraph(ctx, line, x + 10, iy, w - 20, 'cold5');
   }
-  if (uid >= 0) h.act({ type: 'pick', uid });
+  if (id) h.act({ type: 'pick', id });
   if (ui.button(ctx, 'pick-cancel', x + w - 86, y + hh - 20, 78, 16, 'Отмена', { accent: 'grey3' })) h.act({ type: 'leave' });
 }
 
-export function drawDeckViewer(ctx: Ctx2D, ui: UI, run: RunState, grid: DeckGrid, t: number, wheel: number): boolean {
+/**
+ * The gear viewer: every colour's items, the bag it makes. A click picks an item; the picked spare
+ * can be taken in hand (energy in a fight) or put down between fights. Returns true to close.
+ */
+export function drawDeckViewer(ctx: Ctx2D, ui: UI, h: ScreenHost, grid: DeckGrid, t: number, wheel: number): boolean {
+  const run = h.run;
   const x = 6;
   const y = L.top.h + 4;
   const w = L.w - 12;
   const hh = L.h - y - 4;
   panel(ctx, x, y, w, hh, { border: 'cold3', fill: 'ink0', alpha: 0.97 });
-  const counts = { blade: 0, shield: 0, ink: 0, coin: 0, status: 0 } as Record<string, number>;
-  for (const c of run.hero.deck) counts[CARDS[c.id]?.fam ?? 'status']++;
-  text(ctx, `Колода: ${run.hero.deck.length} · в мешке ${run.hero.deck.length * 3} фишек`, x + 8, y + 6, 'cream');
-  const fams: [string, string, string][] = [
-    ['blade', 'удар', 'red4'],
-    ['shield', 'защита', 'cold5'],
-    ['ink', 'чернила', 'vio5'],
-    ['coin', 'бухгалтерия', 'gold4'],
-  ];
+  text(ctx, 'Снаряжение: каждый цвет поля — вещь в руке', x + 8, y + 6, 'cream');
+  // The bag: tiles of each colour a refill draws from, and the junk of red tape.
+  const wts = bagWeights(run);
   let fx = x + 8;
-  for (const [f, name, col] of fams) fx += text(ctx, `${name} ${counts[f]}`, fx, y + 16, col) + 10;
-  if (counts.status) text(ctx, `волокита ${counts.status}`, fx, y + 16, 'grey3');
-  grid.draw(ctx, ui, run.hero.deck, x + 6, y + 28, w - 12, hh - 28 - 44, t, () => true, wheel);
-  const hov = run.hero.deck.find((c) => c.uid === grid.hover);
-  if (hov) paragraph(ctx, `${cardName(hov)}: ${cardRules(hov).replace('\n', ' ')}`, x + 10, y + hh - 40, w - 110, 'cold5');
+  fx += text(ctx, 'Мешок:', fx, y + 16, 'cold3') + 4;
+  for (const f of FAMS) fx += text(ctx, `${wts[f] * BAG_COPIES}`, fx, y + 16, FAM_COL[f]) + 6;
+  if (run.hero.tape) text(ctx, `волокита ${run.hero.tape * BAG_COPIES}`, fx + 4, y + 16, 'grey3');
+  const picked = grid.draw(ctx, ui, run, x + 6, y + 28, w - 12, hh - 28 - 44, t, () => true, wheel);
+  if (picked) grid.selected = grid.selected === picked ? '' : picked;
+  const sel = grid.selected && famOf(grid.selected) && run.hero.gear[famOf(grid.selected)!].includes(grid.selected) ? grid.selected : '';
+  const hov = grid.hover || sel;
+  if (hov && GEAR[hov]) paragraph(ctx, `${gearTitle(hov, run.hero.ups.includes(hov))}: ${gearRules(hov, run.hero.ups.includes(hov)).replace(/\n/g, ' ')}`, x + 10, y + hh - 40, w - 180, 'cold5');
+  if (sel) {
+    const fam = famOf(sel)!;
+    const held = run.hero.equip[fam] === sel;
+    const fight = run.phase === 'combat';
+    if (!held && ui.button(ctx, 'gear-hold', x + w - 176, y + hh - 20, 86, 16, fight ? 'В руку · энергия' : 'В руку', { accent: 'gold3' })) h.act({ type: 'gear', id: sel });
+    if (!fight && run.hero.gear[fam].length > 1 && ui.button(ctx, 'gear-drop', x + w - 176, y + hh - 38, 86, 16, 'Отложить', { accent: 'red3' })) {
+      h.act({ type: 'dropGear', id: sel });
+      grid.selected = '';
+    }
+  }
   return ui.button(ctx, 'deck-close', x + w - 86, y + hh - 20, 78, 16, 'Закрыть', { accent: 'grey3' });
 }
 

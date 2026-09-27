@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import type { Finish } from '@/game/types';
-import { CARD_H, CARD_W, drawCard } from '@/render/cardview';
+import { GEAR_H, GEAR_W, drawGear } from '@/render/gearview';
 import { Particles } from '@/render/particles';
 import { frameNames, getFrame, hasSprite, type Canvas, type Frame } from '@/render/sprite';
 import { Stage, type RoomId } from '@/render/stage';
@@ -9,7 +8,7 @@ import { StageRenderer } from '@/render/stagedraw';
 
 /**
  * Previews for the dev panel, drawn by the game itself: sprites from the registry (trimmed to
- * their opaque pixels, integer-scaled), real card badges, and rooms rendered through the stage
+ * their opaque pixels, integer-scaled), real gear badges, and rooms rendered through the stage
  * renderer with their lights.
  */
 
@@ -109,19 +108,19 @@ export function Sprite({
   );
 }
 
-/** A deck card exactly as the game draws it (the laminated badge). */
-export function CardBadge({ card, scale = 2 }: { card: { id: string; up?: boolean; finish?: Finish }; scale?: number }) {
+/** An item of gear exactly as the game draws it (the laminated badge). */
+export function GearBadge({ id, up = false, held = false, scale = 2 }: { id: string; up?: boolean; held?: boolean; scale?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const w = CARD_W + 3;
-  const h = CARD_H + 4;
+  const w = GEAR_W + 3;
+  const h = GEAR_H + 4;
   useEffect(() => {
     const c = ref.current;
     const ctx = c?.getContext('2d');
     if (!c || !ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
     ctx.imageSmoothingEnabled = false;
-    drawCard(ctx, { id: card.id, up: !!card.up, finish: card.finish }, 0, 0, { t: 0 });
-  }, [card.id, card.up, card.finish]);
+    drawGear(ctx, id, up, 0, 0, { t: 0, held });
+  }, [id, up, held]);
   return <canvas ref={ref} width={w} height={h} className="px" style={{ width: w * scale, height: h * scale }} />;
 }
 

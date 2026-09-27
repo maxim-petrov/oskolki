@@ -4,24 +4,18 @@
  * offers. They never inspect hidden refills or RNG state.
  */
 import { colOf, findGroups, idx, rowOf, validMoves } from './board.ts';
-import { BANK_MAX, actScale, activeCost, alive, currentIntent, energyCap, intentDamage, mirrorBack, moveRules, previewMove, swapCost, weaponTile, type MovePreview } from './combat.ts';
-import { CARDS } from './content/cards.ts';
+import { BANK_MAX, actScale, activeCost, alive, currentIntent, energyCap, intentDamage, mirrorBack, moveRules, previewMove, swapCost, type MovePreview } from './combat.ts';
 import { EVENT_BY_ID } from './content/events.ts';
-import { ITEMS, MAX_WEAPONS, type Mods } from './content/items.ts';
+import { MAX_GEAR } from './content/gear.ts';
+import { ITEMS, type Mods } from './content/items.ts';
 import { reachable } from './actmap.ts';
 import { int, next, type Rng } from './rng.ts';
-import { clone, dispatch, modsOf, pickable, rerollPrice } from './run.ts';
-import type { Action, DeckCard, RunState } from './types.ts';
+import { clone, dispatch, famOf, modsOf, pickable, rerollPrice, upgradable } from './run.ts';
+import { FAMS } from './types.ts';
+import type { Action, Fam, RunState } from './types.ts';
 
-/**
- * greedy: best move, best cards; focus: greedy play, but builds one family (red) — takes only red
- * cards, cuts the others at the till; randomCards / noCards: control bots for card choice; random.
- */
-export type Policy = 'greedy' | 'focus' | 'randomCards' | 'noCards' | 'random';
-
-/** The family the focus bot builds. */
-const FOCUS = 'blade';
-const inFocus = (id: string) => CARDS[id]?.fam === FOCUS;
+/** greedy: best move, best gear; randomGear / noGear: control bots for the gear choice; random. */
+export type Policy = 'greedy' | 'randomGear' | 'noGear' | 'random';
 
 export interface BotOptions {
   policy: Policy;
@@ -34,43 +28,62 @@ export interface BotOptions {
 }
 
 /**
- * How much a card is worth to the greedy bot. Calibrated on the balance lab (docs/balance): the hp a
- * card saves in real fights plus what one copy does to a whole run; recalibrate after big changes.
+ * How much an item of gear is worth to the greedy bot over the plain item of its colour (0).
+ * Calibrated on the balance lab (docs/balance): what holding it does to real fights and whole runs;
+ * recalibrate after big changes.
  */
-export const CARD_SCORE: Record<string, number> = {
-  fist: 2,
-  pins: 5,
-  redpen: 7,
-  alarm: 7,
-  folder: 1.5,
-  ink: 1,
-  clip: 0.5,
+export const GEAR_SCORE: Record<string, number> = {
+  knife: 0,
+  staplegun: 6,
+  scissors: 7,
+  punch: 7,
+  ruler: 8,
+  sharpener: 7,
+  awl: 9,
+  cutter: 8,
+  shield: 0,
   binder: 5,
-  sleeve: 4.5,
-  umbrella: 5,
+  sleeve: 3,
+  umbrella: 4,
   drawer: 6,
   laminator: 4,
   archivebox: 6,
-  vest: 4.5,
+  foldervest: 6,
   clipboard: 5,
-  corrector: 3.3,
-  urgent: 4.9,
-  blotcurse: 4.7,
+  battery: 0,
+  whiteout: 3,
+  urgent: 4,
+  blotcurse: 5,
   quill: 6,
-  copystamp: 9.5,
-  carbon: 5.7,
-  weight: 7.2,
-  coin: 1,
-  receipt: 1,
-  bonus: 1,
-  card: 1,
-  piggy: 1,
-  report: 1,
-  goldclip: 1,
-  redtape: -10,
+  copystamp: 8,
+  carbon: 6,
+  weight: 6,
+  penny: 0,
+  receipt: 2,
+  bonus: 4,
+  creditcard: 4,
+  piggy: 2,
+  report: 4,
+  goldclip: 6,
 };
 
-const cardScore = (c: { id: string; up?: boolean }) => (CARD_SCORE[c.id] ?? 3) + (c.up ? 1.5 : 0);
+/** An upgrade adds about this much to an item. */
+const UP_SCORE = 3;
+
+export const gearScore = (run: RunState, id: string) => (GEAR_SCORE[id] ?? 3) + (run.hero.ups.includes(id) ? UP_SCORE : 0);
+
+/** The best item the hero carries in a colour, by the bot's scores. */
+function bestOf(run: RunState, fam: Fam): string {
+  return [...run.hero.gear[fam]].sort((a, b) => gearScore(run, b) - gearScore(run, a))[0] ?? run.hero.equip[fam];
+}
+
+/** What a new item adds: how much better than the best one of its colour (a spare to swap to is worth a little). */
+function gearGain(run: RunState, id: string): number {
+  const fam = famOf(id);
+  if (!fam || run.hero.gear[fam].includes(id) || run.hero.gear[fam].length >= MAX_GEAR) return -Infinity;
+  const gain = (GEAR_SCORE[id] ?? 3) - gearScore(run, bestOf(run, fam));
+  return gain > 0 ? gain : gain * 0.25 + 0.5;
+}
 
 function threat(run: RunState): number {
   const c = run.combat!;
@@ -132,7 +145,7 @@ function scoreMove(run: RunState, p: MovePreview, w: Worth): number {
   return dmg + kill + armor + charge + aoe + after + saved + p.coins * 0.6 + p.specials * 6 + (p.blast ? 5 : 0) - shine;
 }
 
-/** The best move's score with the weapon in hand (moves and previews for this weapon). */
+/** The best move's score with the gear in hand (moves and previews for this kit). */
 function bestScore(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, w: Worth): number {
   let best = 0;
   for (const m of moves) best = Math.max(best, scoreMove(run, previewMove(run, mods, m), w));
@@ -140,47 +153,27 @@ function bestScore(run: RunState, mods: Mods, moves: ReturnType<typeof validMove
 }
 
 /**
- * Another weapon for this board: the bot tries each in its hands on the same moves and swaps when
- * one strikes clearly better, worth the energy. Returns the weapon to swap to, or null.
+ * Another item for this board: the bot tries each spare item of a colour on the same moves (those
+ * with a group of that colour) and swaps when one scores clearly better, worth the energy. Returns
+ * the item to swap to, or null.
  */
-function weaponSwap(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, previews: MovePreview[], current: number, w: Worth): string | null {
+function gearSwap(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, previews: MovePreview[], current: number, w: Worth): string | null {
   const hero = run.hero;
   const cost = swapCost(run);
-  if (hero.weapons.length < 2 || hero.charge < cost) return null;
-  // Only moves with a red group change with the weapon.
-  const red = moves.filter((_, k) => previews[k].groups.some((g) => g.fam === 'blade'));
-  if (!red.length) return null;
+  if (hero.charge < cost) return null;
   let best: { id: string; s: number } | null = null;
-  for (const id of hero.weapons) {
-    if (id === hero.weapon) continue;
-    const trial = { ...run, hero: { ...hero, weapon: id } };
-    const s = bestScore(trial, mods, red, w);
-    if (s > current * 1.25 + cost * 4 && (!best || s > best.s)) best = { id, s };
+  for (const fam of FAMS) {
+    if (hero.gear[fam].length < 2) continue;
+    const touched = moves.filter((_, k) => previews[k].groups.some((g) => g.fam === fam));
+    if (!touched.length) continue;
+    for (const id of hero.gear[fam]) {
+      if (id === hero.equip[fam]) continue;
+      const trial = { ...run, hero: { ...hero, equip: { ...hero.equip, [fam]: id } } };
+      const s = bestScore(trial, mods, touched, w);
+      if (s > current * 1.25 + cost * 4 && (!best || s > best.s)) best = { id, s };
+    }
   }
   return best?.id ?? null;
-}
-
-/** Between fights the bot holds the weapon that strikes best on an average board. */
-function mainWeapon(run: RunState): string {
-  // A group of three: its tiles, damage to all (about 1,3 enemies), bleed, paper half the time,
-  // cascades a third of the time; the super strike about a third of the red groups.
-  const rate = (id: string) => {
-    const w = ITEMS[id]?.weapon;
-    if (!w) return 0;
-    const s = w.strike;
-    const u = w.super;
-    const strike =
-      weaponTile(w, run) * 3 +
-      (s.allPerTile ?? 0) * 3 * 1.3 +
-      (s.bleed ?? 0) * 3 +
-      (s.paper ?? 0) * w.tile * 3 * 0.5 +
-      (s.cascadeTile ? (s.cascadeTile - w.tile) * 3 * 0.35 : 0) +
-      (s.pierce ? 2 : 0) +
-      (s.delay ? 3 : 0);
-    const sup = (u.perTile ?? 0) * 4 + (u.allPerTile ?? 0) * 4 * 1.3 + (u.bleed ?? 0) * 3 + (u.stun ? 6 : 0) + (u.pierce ? 2 : 0);
-    return strike + sup * 0.3;
-  };
-  return [...run.hero.weapons].sort((a, b) => rate(b) - rate(a))[0] ?? run.hero.weapon;
 }
 
 const FAM_WEIGHT: Record<string, number> = { blade: 2, shield: 1.5, ink: 1, coin: 1 };
@@ -284,7 +277,7 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
     }
   }
   if (!moves.length) return null;
-  if (policy === 'greedy' || policy === 'focus' || policy === 'randomCards' || policy === 'noCards') {
+  if (policy === 'greedy' || policy === 'randomGear' || policy === 'noGear') {
     let best = moves[0];
     let top = -Infinity;
     const previews = moves.map((m) => previewMove(run, mods, m));
@@ -298,8 +291,8 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
         best = m;
       }
     }
-    const swap = weaponSwap(run, mods, moves, previews, top, w);
-    if (swap) return { type: 'weapon', id: swap };
+    const swap = gearSwap(run, mods, moves, previews, top, w);
+    if (swap) return { type: 'gear', id: swap };
     return { type: 'move', move: best };
   }
   return { type: 'move', move: moves[int(r, moves.length)] };
@@ -315,7 +308,7 @@ function mapAction(run: RunState, r: Rng): Action {
       case 'rest':
         return ratio < 0.5 ? 8 : 1;
       case 'shop':
-        return run.hero.coins >= 100 ? 6 : 0;
+        return run.hero.coins >= 60 ? 6 : 0;
       case 'treasure':
         return 7;
       case 'event':
@@ -337,40 +330,29 @@ function mapAction(run: RunState, r: Rng): Action {
 /** Value of a run state for choosing event options. */
 function worth(run: RunState): number {
   const h = run.hero;
-  const deck = h.deck.reduce((s, c) => s + cardScore(c), 0);
+  // The items held count in full, the spares a little; red tape is junk in every fight.
+  let gear = -h.tape * 10 + h.keys * 6 + (h.findNext ? 4 : 0);
+  for (const f of FAMS) for (const id of h.gear[f]) gear += gearScore(run, id) * (id === bestOf(run, f) ? 1 : 0.2) + 4;
   // Health in half-hearts: half a heart is dear (about 8 hp of the old 60).
-  let v = h.hp * 8 + h.maxHp * 12 + h.coins * 0.25 + (h.relics.length + h.weapons.length) * 25 + deck + run.stats.shards * 4;
-  if (run.phase === 'pick' && run.pick) v += { remove: 8, upgrade: 6, finish: 5, transform: 3, copy: 6 }[run.pick.purpose] * run.pick.count;
+  let v = h.hp * 8 + h.maxHp * 12 + h.coins * 0.25 + h.relics.length * 25 + gear + run.stats.shards * 4;
+  if (run.phase === 'pick' && run.pick) v += { upgrade: UP_SCORE * 2, transform: 3 }[run.pick.purpose] * run.pick.count;
   if (run.phase === 'combat') v += h.hp / h.maxHp > 0.7 ? 10 : -40;
   return v;
 }
 
-function removeOrder(deck: DeckCard[]) {
-  return [...deck].sort((a, b) => cardScore(a) - cardScore(b));
-}
-
-function pickAction(run: RunState, policy: Policy): Action {
+function pickAction(run: RunState): Action {
   const p = run.pick!;
-  const list = run.hero.deck.filter((c) => pickable(run, p, c));
+  const list = FAMS.flatMap((f) => run.hero.gear[f]).filter((id) => pickable(run, p, id));
   if (!list.length) return { type: 'leave' };
-  const focus = policy === 'focus';
-  let card: DeckCard;
-  if (p.purpose === 'remove' || p.purpose === 'transform') {
-    const off = focus ? list.filter((c) => !inFocus(c.id)) : [];
-    card = removeOrder(off.length ? off : list)[0];
-    if (focus && off.length) return { type: 'pick', uid: card.uid };
-  } else {
-    const on = focus ? list.filter((c) => inFocus(c.id)) : [];
-    card = [...(on.length ? on : list)].sort((a, b) => cardScore(b) - cardScore(a))[0];
+  if (p.purpose === 'upgrade') {
+    // The items held first (what the board is made of), the best of them.
+    const held = list.filter((id) => FAMS.some((f) => bestOf(run, f) === id));
+    const pool = held.length ? held : list;
+    return { type: 'pick', id: [...pool].sort((a, b) => gearScore(run, b) - gearScore(run, a))[0] };
   }
-  if (p.purpose === 'remove' && cardScore(card) >= 4) return { type: 'leave' };
-  return { type: 'pick', uid: card.uid };
-}
-
-function wantCard(run: RunState, c: { id: string; up?: boolean }) {
-  const n = run.hero.deck.length;
-  const bar = n <= 14 ? 4 : n <= 20 ? 6 : 8;
-  return cardScore(c) >= bar;
+  // A trade: the weakest item goes (a plain one is worth changing, a good one is not).
+  const worst = [...list].sort((a, b) => gearScore(run, a) - gearScore(run, b))[0];
+  return gearScore(run, worst) <= 3 ? { type: 'pick', id: worst } : { type: 'leave' };
 }
 
 export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
@@ -379,32 +361,29 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
     case 'combat':
       return combatAction(run, policy, r, opts.erase);
     case 'map':
-      // Between fights a swap is free: the bot takes its best weapon into the next fight.
-      if (policy !== 'random' && run.hero.weapons.length > 1) {
-        const main = mainWeapon(run);
-        if (main !== run.hero.weapon) return { type: 'weapon', id: main };
-      }
+      // Between fights a swap is free: the bot takes its best item of every colour into the next fight.
+      if (policy !== 'random')
+        for (const f of FAMS) {
+          const main = bestOf(run, f);
+          if (main !== run.hero.equip[f]) return { type: 'gear', id: main };
+        }
       if (policy === 'random') {
         const opts2 = reachable(run.map, run.node);
         return { type: 'travel', node: opts2[int(r, opts2.length)] };
       }
       return mapAction(run, r);
     case 'reward': {
-      // Rows the bot still wants: pockets only with a free slot, cards only when worth it.
+      // Rows the bot still wants: pockets only with a free slot, gear only when worth it.
       const free = run.hero.pockets.includes(null);
       const open = run.rewards.map((x, k) => ({ x, k })).filter(({ x }) => !x.taken && (x.kind !== 'pocket' || free));
       for (const { x, k } of open) {
-        if (x.kind !== 'card') return { type: 'reward', index: k };
-        const cards = (x.cards ?? []).map((id, c) => ({ id, up: !!x.ups?.[c], c }));
-        if (policy === 'noCards' || !cards.length) continue;
-        if (policy === 'random' || policy === 'randomCards') return { type: 'reward', index: k, card: int(r, cards.length) };
-        if (policy === 'focus') {
-          const red = cards.filter((c) => inFocus(c.id)).sort((a, b) => cardScore(b) - cardScore(a))[0];
-          if (red) return { type: 'reward', index: k, card: red.c };
-          continue;
-        }
-        const best = cards.sort((a, b) => cardScore(b) - cardScore(a))[0];
-        if (best && wantCard(run, best)) return { type: 'reward', index: k, card: best.c };
+        if (x.kind === 'upgrade' && !upgradable(run).length) continue;
+        if (x.kind !== 'gear') return { type: 'reward', index: k };
+        const gear = (x.gear ?? []).map((id, n) => ({ id, n, gain: gearGain(run, id) })).filter((g) => g.gain > -Infinity);
+        if (policy === 'noGear' || !gear.length) continue;
+        if (policy === 'random' || policy === 'randomGear') return { type: 'reward', index: k, pick: gear[int(r, gear.length)].n };
+        const best = gear.sort((a, b) => b.gain - a.gain)[0];
+        if (best.gain >= 1) return { type: 'reward', index: k, pick: best.n };
       }
       return { type: 'leave' };
     }
@@ -412,35 +391,26 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
       const s = run.shop!;
       const coins = run.hero.coins;
       if (policy !== 'random') {
-        const worst = removeOrder(run.hero.deck)[0];
-        const offFocus = policy === 'focus' && run.hero.deck.some((c) => !inFocus(c.id));
-        if (!s.removed && coins >= s.removePrice && worst && (offFocus || (cardScore(worst) < 2 && run.hero.deck.length > 8)) && run.hero.deck.length > 5)
-          return { type: 'remove' };
-        const relic = s.relics.findIndex(
-          (x) => !x.sold && x.price <= coins && (ITEMS[x.id].kind === 'passive' || (ITEMS[x.id].kind === 'weapon' && run.hero.weapons.length < MAX_WEAPONS)),
-        );
+        if (s.shred && !s.shred.used && run.hero.tape > 0 && coins >= s.shred.price) return { type: 'remove' };
+        const relic = s.relics.findIndex((x) => !x.sold && x.price <= coins && ITEMS[x.id].kind === 'passive');
         if (relic >= 0) return { type: 'buy', kind: 'relic', index: relic };
         if (policy === 'greedy') {
-          const card = s.cards.findIndex((x) => !x.sold && x.price <= coins && wantCard(run, x) && cardScore(x) >= 6);
-          if (card >= 0) return { type: 'buy', kind: 'card', index: card };
+          const gear = s.gear.findIndex((x) => !x.sold && x.price <= coins && gearGain(run, x.id) >= 3);
+          if (gear >= 0) return { type: 'buy', kind: 'gear', index: gear };
         }
-        if (policy === 'focus') {
-          const card = s.cards.findIndex((x) => !x.sold && x.price <= coins && inFocus(x.id));
-          if (card >= 0) return { type: 'buy', kind: 'card', index: card };
-        }
-        if (s.finish && !s.finish.sold && coins >= s.finish.price + 40) return { type: 'buy', kind: 'finish', index: 0 };
-        const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - 40);
+        if (s.upgrade && !s.upgrade.sold && coins >= s.upgrade.price + 10 && upgradable(run).length) return { type: 'buy', kind: 'upgrade', index: 0 };
+        const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - 20);
         if (pocket >= 0 && run.hero.pockets.includes(null)) return { type: 'buy', kind: 'pocket', index: pocket };
         // Plenty left: reprint the till for another look.
-        if (coins >= rerollPrice(run) + 150) return { type: 'reroll' };
+        if (coins >= rerollPrice(run) + 60) return { type: 'reroll' };
       }
       return { type: 'leave' };
     }
     case 'rest':
       if (run.hero.hp < run.hero.maxHp * 0.55 || policy === 'random') return { type: 'rest', choice: 'heal' };
-      return run.hero.deck.some((c) => !c.up && CARDS[c.id].rarity !== 'status') ? { type: 'rest', choice: 'upgrade' } : { type: 'rest', choice: 'heal' };
+      return upgradable(run).length ? { type: 'rest', choice: 'upgrade' } : { type: 'rest', choice: 'heal' };
     case 'pick':
-      return pickAction(run, policy);
+      return pickAction(run);
     case 'treasure':
       return run.treasure && !run.treasure.opened ? { type: 'open' } : { type: 'leave' };
     case 'event': {
@@ -486,7 +456,9 @@ export interface SimResult {
   steps: number;
   fights: FightLog[];
   stats: RunState['stats'];
-  deck: number;
+  /** Items of gear carried at the end, and how many of them upgraded. */
+  gear: number;
+  ups: number;
   relics: number;
 }
 
@@ -535,7 +507,8 @@ export function playRun(start: RunState, opts: BotOptions, maxSteps = 20000): Si
     steps,
     fights,
     stats: run.stats,
-    deck: run.hero.deck.length,
+    gear: FAMS.reduce((n, f) => n + run.hero.gear[f].length, 0),
+    ups: run.hero.ups.length,
     relics: run.hero.relics.length,
   };
 }

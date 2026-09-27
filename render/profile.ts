@@ -1,4 +1,4 @@
-import type { RunState } from '../game/types.ts';
+import { FAMS, type RunState } from '../game/types.ts';
 
 /**
  * Persistent profile (localStorage only): shards of memory and what they bought on the board
@@ -110,7 +110,7 @@ export interface Request {
 
 export const REQUESTS: Request[] = [
   { id: 'start_coffee', title: 'Аптечка', text: 'Каждая смена начинается с кофе в кармане.', cost: 3 },
-  { id: 'bundle_paper', title: 'Канцелярия+', text: 'В наградах и кассе появится оружие: Резак и Шило.', cost: 4 },
+  { id: 'bundle_paper', title: 'Канцелярия+', text: 'В наградах и кассе появятся Резак, Шило и Тревожная кнопка.', cost: 4 },
   { id: 'start_coins', title: 'Аванс', text: '+25 монет в начале смены.', cost: 4 },
   { id: 'bundle_accounting', title: 'Бухгалтерия+', text: 'Квартальный отчёт, Золотая скрепка, Кредитка.', cost: 5 },
   { id: 'char_accountant', title: 'Перевод: Бухгалтер', text: 'Коллега из бухгалтерии выйдет в смену вместо тебя.', cost: 6 },
@@ -144,7 +144,7 @@ export function recordRun(p: Profile, run: RunState) {
   p.shards += run.stats.shards;
   p.shardsTotal += run.stats.shards;
   for (const b of run.stats.bossesKilled) if (!p.bosses.includes(b)) p.bosses.push(b);
-  for (const c of run.hero.deck) if (!p.seenCards.includes(c.id)) p.seenCards.push(c.id);
+  for (const f of FAMS) for (const id of run.hero.gear[f]) if (!p.seenRelics.includes(id)) p.seenRelics.push(id);
   for (const r of run.hero.relics) if (!p.seenRelics.includes(r)) p.seenRelics.push(r);
   p.history.unshift({
     seed: run.seed,

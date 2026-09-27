@@ -24,16 +24,16 @@ import {
   reshuffle,
   rowOf,
   shiftCells,
-  tokenTile,
   validMoves,
   type MoveRules,
 } from './board.ts';
 import { chance, next, pick, shuffle } from './rng.ts';
 import { ENEMIES } from './content/enemies.ts';
 import { ACTS } from './content/acts.ts';
-import { CARDS, cardValue } from './content/cards.ts';
+import { CHARACTERS } from './content/acts.ts';
+import { BASE_GEAR, GEAR, GEAR_SWAP_COST, withUpgrade, type GearDef } from './content/gear.ts';
 import { heartText, heartsText } from './text.ts';
-import { ITEMS, POCKETS, WEAPON_SWAP_COST, computeMods, type Mods, type WeaponDef } from './content/items.ts';
+import { ITEMS, POCKETS, computeMods, type Mods } from './content/items.ts';
 import {
   BAG_COPIES,
   FAMS,
@@ -96,15 +96,19 @@ export interface MoveState {
   /** Cells whose neighbours get cleaned of junk (and pins with the corrector). */
   cleanse: number[];
   cleansePins: boolean;
-  copyStamp: number;
+  /** Random tiles of the board turning red after the strike (the copy stamp). */
+  stamp: number;
+  /** Damage the drawer adds when red and blue both scored this move. */
+  redBonus: number;
   floodDown: number;
   burn: boolean;
   freeze: boolean;
   plane: number;
   junkCleared: number;
-  /** Blue tiles blasted this wave (they block in threes). */
+  /** Blue and yellow tiles blasted this wave (they block and pay in threes). */
   blueBlasted: number;
-  /** The red group being scored strikes with the weapon's super strike. */
+  coinBlasted: number;
+  /** The group being scored works as its colour's super. */
   superGroup: boolean;
   /** Share of the target's maximum health the strike takes at once (the cutter's guillotine). */
   hpPct: number;
@@ -139,13 +143,15 @@ function newMoveState(): MoveState {
     reflect: 0,
     cleanse: [],
     cleansePins: false,
-    copyStamp: 0,
+    stamp: 0,
+    redBonus: 0,
     floodDown: 0,
     burn: false,
     freeze: false,
     plane: 0,
     junkCleared: 0,
     blueBlasted: 0,
+    coinBlasted: 0,
     superGroup: false,
     hpPct: 0,
     bonusCoins: 0,
@@ -157,6 +163,8 @@ export interface Ctx {
   run: RunState;
   c: Combat;
   mods: Mods;
+  /** The items held for every colour (upgrades merged in). */
+  gear: Record<Fam, GearDef>;
   ev: GameEvent[];
   /** Current effect sink (a wave or a standalone effects batch). */
   fx: Effect[];
@@ -167,7 +175,25 @@ export interface Ctx {
 }
 
 export function newCtx(run: RunState, mods: Mods, ev: GameEvent[]): Ctx {
-  return { run, c: run.combat!, mods, ev, fx: [], wave: 0, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
+  return { run, c: run.combat!, mods, gear: heldGear(run), ev, fx: [], wave: 0, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
+}
+
+// ── Gear ─────────────────────────────────────────────────────────────
+
+/** The item held for a colour, its upgrade merged in (the value adds, effects replace). */
+export function gearOf(run: RunState, fam: Fam): GearDef {
+  const id = run.hero.equip?.[fam] ?? BASE_GEAR[fam];
+  const def = ITEMS[id]?.gear ?? GEAR[BASE_GEAR[fam]].gear;
+  return withUpgrade(def, !!run.hero.ups?.includes(id));
+}
+
+export function heldGear(run: RunState): Record<Fam, GearDef> {
+  return { blade: gearOf(run, 'blade'), shield: gearOf(run, 'shield'), ink: gearOf(run, 'ink'), coin: gearOf(run, 'coin') };
+}
+
+/** The item's value in this act (the awl grows with the shift). */
+export function gearValue(def: GearDef, run: RunState): number {
+  return def.value + (def.valueAct ?? 0) * run.act;
 }
 
 // ── Enemies ──────────────────────────────────────────────────────────
@@ -262,23 +288,28 @@ function snapQueue(c: Combat): Tile[][] {
   return c.board.queue.map((q) => q.map((t) => ({ ...t })));
 }
 
-/** Cards' worth of tiles every family keeps in the bag, and the plain card that fills in. */
-export const FAMILY_FLOOR = 2;
-const PLAIN: Record<Fam, string> = { blade: 'fist', shield: 'folder', ink: 'ink', coin: 'clip' };
+/** Bag weights of the colours (yellow is rarer); a hero may have its own. */
+export const BASE_WEIGHTS: Record<Fam, number> = { blade: 4, shield: 4, ink: 3, coin: 2 };
+/** Every colour keeps a share of the bag: a board of three colours cascaded without end. */
+export const WEIGHT_MIN = 2;
+export const WEIGHT_MAX = 6;
+
+export function bagWeights(run: RunState): Record<Fam, number> {
+  const own = CHARACTERS[run.hero.char]?.weights ?? {};
+  const out = { ...BASE_WEIGHTS };
+  for (const f of FAMS) out[f] = Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, own[f] ?? BASE_WEIGHTS[f]));
+  return out;
+}
 
 /**
- * The fight's bag: every deck card puts BAG_COPIES tiles in. A family with fewer than FAMILY_FLOOR
- * cards is topped up with its plain card: a board of three colours cascaded without end (every
- * move cleared half the board, with armour to the cap).
+ * The fight's bag: BAG_COPIES tiles for every point of a colour's weight, and as many junk tiles
+ * for every red tape curse the hero carries.
  */
-export function deckTokens(run: RunState): BagToken[] {
+export function bagTokens(run: RunState): BagToken[] {
   const out: BagToken[] = [];
-  for (const card of run.hero.deck)
-    for (let k = 0; k < BAG_COPIES; k++) out.push({ card: card.id, up: card.up, ...(card.finish ? { finish: card.finish } : {}) });
-  for (const fam of FAMS) {
-    const n = run.hero.deck.filter((c) => CARDS[c.id]?.fam === fam).length;
-    for (let k = n; k < FAMILY_FLOOR; k++) for (let j = 0; j < BAG_COPIES; j++) out.push({ card: PLAIN[fam], up: false });
-  }
+  const w = bagWeights(run);
+  for (const fam of FAMS) for (let k = 0; k < w[fam] * BAG_COPIES; k++) out.push({ kind: fam });
+  for (let k = 0; k < (run.hero.tape ?? 0) * BAG_COPIES; k++) out.push({ kind: 'junk', tape: true });
   return out;
 }
 
@@ -312,7 +343,7 @@ function fitBoard(ctx: Ctx) {
 }
 
 export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: string[], mods: Mods, ev: GameEvent[]): Combat {
-  const board = createBoard(run.rng.board, deckTokens(run), mods.wrap, 6, run.nextId, boardDims(run, mods, enemyIds));
+  const board = createBoard(run.rng.board, bagTokens(run), mods.wrap, 6, run.nextId, boardDims(run, mods, enemyIds));
   const c: Combat = {
     kind,
     board,
@@ -333,7 +364,7 @@ export function startCombat(run: RunState, kind: Combat['kind'], enemyIds: strin
   run.hero.ward = 0;
   run.hero.reflect = 0;
   if (mods.sealStart > 0)
-    for (const i of randomCells(run.rng.fx, board.cells, mods.sealStart, (t) => t.kind !== 'junk' && t.kind !== 'prism')) board.cells[i].finish = 'seal';
+    for (const i of randomCells(run.rng.fx, board.cells, mods.sealStart, (t) => t.kind !== 'junk' && t.kind !== 'prism')) board.cells[i].seal = true;
   if (mods.startRockets > 0)
     randomCells(run.rng.fx, board.cells, mods.startRockets, (t) => t.kind !== 'junk' && t.kind !== 'prism' && !t.special).forEach(
       (i, k) => (board.cells[i].special = k % 2 ? 'rocketV' : 'rocketH'),
@@ -373,18 +404,19 @@ export function activeCost(run: RunState): number {
   return share === 1 ? base : Math.max(1, Math.ceil(base * share - 1e-9));
 }
 
-/** Energy a weapon swap costs in a fight. */
+/** Energy a gear swap costs in a fight. */
 export function swapCost(run: RunState): number {
-  return Math.max(0, WEAPON_SWAP_COST - modsOfRelics(run).swapDiscount);
+  return Math.max(0, GEAR_SWAP_COST - modsOfRelics(run).swapDiscount);
 }
 
 /**
- * How much energy the hero can hold: enough for the skill, and for a weapon swap when there is a
- * second weapon to swap to. Nothing to spend it on — nothing is held.
+ * How much energy the hero can hold: enough for the skill, and for a gear swap when some colour
+ * has a spare item. Nothing to spend it on — nothing is held.
  */
 export function energyCap(run: RunState): number {
   const skill = run.hero.active ? activeCost(run) : 0;
-  const swap = (run.hero.weapons?.length ?? 1) > 1 ? swapCost(run) : 0;
+  const spare = FAMS.some((f) => (run.hero.gear?.[f]?.length ?? 1) > 1);
+  const swap = spare ? swapCost(run) : 0;
   return Math.max(skill, swap);
 }
 
@@ -538,195 +570,171 @@ export const SCORED_WAVES = 6;
 export const BANK_MAX = 0.5;
 
 
-/** Damage of a red tile with this weapon in this act. */
-export function weaponTile(w: WeaponDef, run: RunState): number {
-  return w.tile + (w.tileAct ?? 0) * run.act;
-}
-
-/** The weapon in hand (the knife if the save knows nothing better). */
-export function weaponOf(run: RunState): WeaponDef {
-  return ITEMS[run.hero.weapon]?.weapon ?? ITEMS.knife.weapon!;
+/** The plain bonus items give every tile of a colour (the coffee, the binder clip, the cartridge). */
+function famPlus(fam: Fam, mods: Mods): number {
+  return fam === 'blade' ? mods.redPlus : fam === 'ink' ? mods.inkPlus : 0;
 }
 
 /**
- * One tile adds its value to the move's tally. Pure with respect to the board and enemies:
- * effects that change them are recorded in the move state and applied at the strike.
+ * One tile adds to the move's tally by the item held for its colour. Pure with respect to the board
+ * and enemies: effects that change them are recorded in the move state and applied at the strike.
+ * Per-group effects fire once per group (a blasted tile has no group and scores its plain value).
  */
-export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave: number, scores: TileScore[], again = false) {
+export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave: number, scores: TileScore[], rep = 0) {
   if (tile.kind === 'junk') return;
-  const { ms, mods } = ctx;
+  const { ms, mods, run } = ctx;
   const t = ms.tally;
   const fam: Fam = tile.kind === 'prism' ? (g?.fam ?? 'blade') : tile.kind;
-  const card = tile.card;
-  const up = !!tile.up;
-  // Red tiles strike with the weapon in hand: its damage per tile, the card only adds its upgrade.
-  const weapon = fam === 'blade' ? weaponOf(ctx.run) : null;
-  const wTile = weapon ? weaponTile(weapon, ctx.run) : 0;
-  let v = weapon ? wTile + (card ? cardValue(card, up) : 0) : card ? cardValue(card, up) : 2;
-  if (tile.finish === 'sharp') v += 1;
-  v += fam === 'blade' ? mods.redPlus : fam === 'shield' ? mods.bluePlus : fam === 'ink' ? mods.inkPlus : mods.coinPlus;
-  const size = g?.size ?? 1;
-  const s: TileScore = { i, id: tile.id, card, fam };
+  const gear = ctx.gear[fam];
+  const value = gearValue(gear, run) + famPlus(fam, mods);
+  const s: TileScore = { i, id: tile.id, fam };
   const add = (k: keyof Tally, n: number) => {
     if (!n) return;
     t[k] += n;
     s[k] = (s[k] ?? 0) + n;
   };
   ms.fams.add(fam);
-  // Multiplier effects fire once per group (per blasted tile when there is no group).
+  // Once per group (a group scored again by the carbon or the echo is a new time), or per move.
   const once = (tag: string, perMove = false) => {
-    const key = perMove ? tag : `${tag}:${wave}:${g ? g.cells[0] : `b${i}`}`;
+    const key = perMove ? tag : `${tag}:${wave}:${g ? g.cells[0] : `b${i}`}:${rep}`;
     if (ms.flags.has(key)) return false;
     ms.flags.add(key);
     return true;
   };
-  // Blasted tiles (no group) score their plain value: card rules need a match.
+  // Blasted tiles (no group) score their plain value; blue and yellow ones count in threes.
   if (!g) {
-    if (fam === 'blade') add('dmg', v);
-    else if (fam === 'shield') ctx.ms.blueBlasted++;
-    else if (fam === 'ink') add('charge', v);
-    else add('coins', v);
+    if (fam === 'blade') add('dmg', value);
+    else if (fam === 'shield') ms.blueBlasted++;
+    else if (fam === 'ink') add('charge', value);
+    else ms.coinBlasted++;
     if (fam === 'blade') ms.redTiles++;
-    if (tile.finish === 'gild') add('coins', 1);
     scores.push(s);
     return;
   }
-  if (fam === 'coin' && mods.bankPer) ms.bank += mods.bankPer;
-  if (weapon) {
-    // The strike: every red tile of a group; the super strike: a red group of 4 or more (of 3 with
-    // a red pen in it).
-    const st = weapon.strike;
-    const su = ms.superGroup ? weapon.super : null;
-    add('dmg', wave >= 2 && st.cascadeTile ? st.cascadeTile + (v - wTile) : v);
-    if (st.allPerTile) add('aoe', st.allPerTile);
-    if (su?.perTile) add('dmg', su.perTile);
-    if (su?.allPerTile) add('aoe', su.allPerTile);
-    if (once('weapon')) {
-      if (st.bleed) ms.bleed += st.bleed;
-      if (st.pierce) ms.pierce = true;
-      if (st.paper) ms.paperBonus = Math.max(ms.paperBonus, st.paper);
-      if (st.delay && once('weaponDelay', true)) ms.delay += st.delay;
-      if (su?.bleed) ms.bleed += su.bleed;
-      if (su?.hpPct) ms.hpPct = Math.max(ms.hpPct, su.hpPct);
-      if (su?.pierce) ms.pierce = true;
-      if (su?.stun) ms.stun = true;
-      if (su?.selfDmg) ms.selfDmg += su.selfDmg;
-      if (su) s.note = 'супер-удар';
+  const st = gear.strike;
+  const su = ms.superGroup ? gear.super : null;
+  switch (fam) {
+    case 'blade': {
+      // The weapon: damage per tile (in cascades its own), to all enemies, and its group effects.
+      add('dmg', wave >= 2 && st.cascadeTile ? st.cascadeTile + famPlus(fam, mods) : value);
+      if (st.allPerTile) add('aoe', st.allPerTile);
+      if (su?.perTile) add('dmg', su.perTile);
+      if (su?.allPerTile) add('aoe', su.allPerTile);
+      if (once('weapon')) {
+        if (st.bleed) ms.bleed += st.bleed;
+        if (st.pierce) ms.pierce = true;
+        if (st.paper) ms.paperBonus = Math.max(ms.paperBonus, st.paper);
+        if (st.delay && once('weaponDelay', true)) ms.delay += st.delay;
+        if (su?.bleed) ms.bleed += su.bleed;
+        if (su?.hpPct) ms.hpPct = Math.max(ms.hpPct, su.hpPct);
+        if (su?.pierce) ms.pierce = true;
+        if (su?.stun) ms.stun = true;
+        if (su?.selfDmg) ms.selfDmg += su.selfDmg;
+        if (su) s.note = 'супер-удар';
+      }
+      ms.redTiles++;
+      break;
     }
-    // The alarm button: +3 for every red group of the move so far, once per group.
-    if (card === 'alarm' && once('alarm')) add('dmg', 3 * ms.redGroups);
-  } else if (fam === 'shield') {
-    // Blue tiles block once per group (groupArmor); here only what the cards add to it.
-    if (card === 'sleeve') ms.cleanse.push(i);
-    // The umbrella softens the next blow by half a heart per group (not per tile: it was a wall).
-    if (card === 'umbrella' && once('umbrella')) ms.ward += 1;
-    if (card === 'drawer') ms.flags.add('drawer');
-    if (card === 'archivebox' && size >= 4 && once('archivebox')) ms.heal += 1;
-    if (card === 'vest') ms.armorX = 2;
-    if (card === 'clipboard') ms.reflect = Math.max(ms.reflect, REFLECT_PER_HALF);
-  } else switch (card) {
-    case 'corrector':
-      add('charge', v);
-      ms.cleanse.push(i);
-      ms.cleansePins = true;
-      break;
-    case 'urgent':
-      add('charge', v);
-      // Once a move: stacked stamps held the target's timer for good (it never acted again).
-      if (once('urgent', true)) ms.delay += 1;
-      break;
-    case 'blotcurse':
-      add('aoe', v);
-      break;
-    case 'quill':
-      add('charge', v);
-      if (ctx.run.hero.active && ctx.run.hero.charge + t.charge >= activeCost(ctx.run) && once('quill')) add('dmg', 3);
-      break;
-    case 'copystamp':
-      add('charge', v);
-      ms.copyStamp += up ? 3 : 2;
-      break;
-    case 'carbon':
-      add('charge', v);
-      ms.copyNext += 1;
-      break;
-    case 'weight':
-      add('charge', v);
-      if (size >= 4) ms.stun = true;
-      break;
-    case 'receipt':
-      add('coins', v * size);
-      break;
-    case 'bonus':
-      add('coins', 1);
-      add('dmg', v);
-      break;
-    case 'card':
-      if (ctx.run.hero.coins + t.coins >= 2) {
-        add('dmg', v);
-        add('coins', -2);
+    case 'shield': {
+      // The shield blocks once per group (groupArmor); here what it does besides.
+      if (st.cleanse) {
+        ms.cleanse.push(i);
+        if (st.cleanse === 'all') ms.cleansePins = true;
+      }
+      if (once('shield')) {
+        const ward = su?.ward ?? st.ward;
+        if (ward) ms.ward += ward;
+        if (st.redBonus) ms.redBonus = Math.max(ms.redBonus, st.redBonus);
+        if (st.armorX) ms.armorX = Math.max(ms.armorX, st.armorX);
+        if (st.reflect) ms.reflect = REFLECT_PER_HALF;
+        if (su?.heal) ms.heal += su.heal;
+        if (su) s.note = 'супер-блок';
       }
       break;
-    case 'piggy':
-      add('coins', v);
-      ms.bonusCoins += 3;
+    }
+    case 'ink': {
+      // The battery: energy per tile (the blot pays in damage to all instead).
+      add('charge', value + (su?.energy ?? 0));
+      if (st.aoe) add('aoe', st.aoe + (su?.aoe ?? 0));
+      if (st.cleanse) {
+        ms.cleanse.push(i);
+        if (st.cleanse === 'all') ms.cleansePins = true;
+      }
+      if (st.delay && once('urgent', true)) ms.delay += st.delay;
+      if (once('ink')) {
+        if (st.copyNext) ms.copyNext += st.copyNext;
+        if (st.stamp) ms.stamp += st.stamp + (su?.stamp ?? 0);
+        if (su?.stun) ms.stun = true;
+        if (su) s.note = 'супер-заряд';
+      }
       break;
-    case 'report':
-      add('coins', 1);
-      if (once('report', true)) add('dmg', v * ms.fams.size);
+    }
+    case 'coin': {
+      // The coin: coins per group (and per tile for the receipt), damage for some, the abacus's savings.
+      if (mods.bankPer) ms.bank += mods.bankPer;
+      if (st.coinsPerTile) add('coins', st.coinsPerTile);
+      const paidKey = `paid:${wave}:${g.cells[0]}:${rep}`;
+      if (once('coin')) {
+        add('coins', value + (su?.coins ?? 0) + mods.coinPlus);
+        if (st.afterFight) ms.bonusCoins += st.afterFight;
+        // The credit card: the group pays for its damage, or does nothing.
+        if (st.costPerGroup && run.hero.coins + t.coins >= st.costPerGroup) {
+          ms.flags.add(paidKey);
+          add('coins', -st.costPerGroup);
+        }
+        if (st.bonusPct && once('goldclip', true)) add('bonus', st.bonusPct);
+        if (st.famDmg && once('report', true)) add('dmg', st.famDmg * ms.fams.size);
+        if (su) s.note = 'супер-находка';
+      }
+      const paid = !st.costPerGroup || ms.flags.has(paidKey);
+      if (st.dmgPerTile && paid) add('dmg', st.dmgPerTile + (su?.dmgPerTile ?? 0));
       break;
-    case 'goldclip':
-      add('coins', v);
-      // Once per move, however many gold clips it holds: the bonus must not snowball.
-      if (once('gold', true)) add('bonus', up ? 0.5 : 0.3);
-      break;
-    default:
-      if (fam === 'ink') add('charge', v);
-      else add('coins', v);
+    }
   }
-  if (fam === 'blade') ms.redTiles++;
   if (fam === 'ink' && mods.inkDamage) add('dmg', mods.inkDamage);
   if (fam === 'coin' && mods.coinDamage) add('dmg', mods.coinDamage);
-  if (tile.finish === 'gild') add('coins', 1);
-  if (tile.finish === 'seal') add('dmg', 2);
-  if (again) s.note = 'дважды';
+  if (rep > 0) s.note = 'дважды';
   scores.push(s);
-  if (tile.finish === 'copy' && !again) scoreTile(ctx, tile, i, g, wave, scores, true);
-}
-
-/** Armour (half-hearts) of one blue tile as the best card of its group: its value, +1 sharpened. */
-function blueValue(t: Tile): number {
-  if (t.kind !== 'shield' && t.kind !== 'prism') return 0;
-  return (t.card && CARDS[t.card]?.fam === 'shield' ? cardValue(t.card, !!t.up) : 1) + (t.finish === 'sharp' ? 1 : 0);
 }
 
 /**
- * A blue group blocks once: its best card's value in half-hearts, half a heart more for a group of
- * 4+ (the laminator doubles it), plus the binder clip. Health is counted in half-hearts, so per-tile
- * armour was a wall: one match of folders blocked any blow.
+ * A blue group blocks once: the shield's value in half-hearts, its super adds (the laminator doubles
+ * the group), plus the binder clip. Health is counted in half-hearts, so per-tile armour was a wall.
  */
 export function groupArmor(ctx: Ctx, g: Group, cells: Tile[], scores: TileScore[]) {
-  let best = 0;
-  let at = g.cells[0];
-  for (const i of g.cells) {
-    const v = blueValue(cells[i]);
-    if (v > best) {
-      best = v;
-      at = i;
-    }
-  }
-  let n = best + (g.size >= 4 ? 1 : 0) + ctx.mods.bluePlus;
-  if (cells[at]?.card === 'laminator' && g.size >= 4) n *= 2;
+  const gear = ctx.gear.shield;
+  const su = ctx.ms.superGroup ? gear.super : null;
+  let n = gearValue(gear, ctx.run) + (su?.block ?? 0) + ctx.mods.bluePlus;
+  if (su?.groupX) n *= su.groupX;
+  const at = g.cells[0];
   ctx.ms.tally.armor += n;
   const s = [...scores].reverse().find((x) => x.i === at);
   if (s) s.armor = (s.armor ?? 0) + n;
-  else scores.push({ i: at, id: cells[at].id, card: cells[at].card, fam: 'shield', armor: n });
+  else scores.push({ i: at, id: cells[at].id, fam: 'shield', armor: n });
+}
+
+/**
+ * A group works as its colour's super: 4+ tiles, a stamped tile in it, or the red pen's first red
+ * group of the move.
+ */
+function isSuper(ctx: Ctx, g: Group, cells: Tile[]): boolean {
+  if (g.size >= 4 || g.cells.some((i) => cells[i]?.seal)) return true;
+  if (g.fam === 'blade' && ctx.mods.redPenFirst && !ctx.ms.flags.has('redpen')) {
+    ctx.ms.flags.add('redpen');
+    return true;
+  }
+  return false;
 }
 
 function scoreGroup(ctx: Ctx, g: Group, cells: Tile[], wave: number, scores: TileScore[]) {
   const { ms, mods, c } = ctx;
   if (g.fam === 'blade') ms.redGroups++;
-  ms.superGroup = g.fam === 'blade' && (g.size >= 4 || g.cells.some((i) => cells[i]?.card === 'redpen'));
+  ms.superGroup = isSuper(ctx, g, cells);
+  // The alarm button: damage for every red group of the move.
+  if (g.fam === 'blade' && mods.redGroupDmg) {
+    ms.tally.dmg += mods.redGroupDmg;
+    scores.push({ i: g.cells[0], id: -1, fam: 'blade', dmg: mods.redGroupDmg, note: 'Тревожная кнопка' });
+  }
   let reps = 1;
   if (ms.copyNext > 0) {
     reps++;
@@ -737,8 +745,15 @@ function scoreGroup(ctx: Ctx, g: Group, cells: Tile[], wave: number, scores: Til
     ms.echoUsed = true;
   }
   for (let r = 0; r < reps; r++) {
-    for (const i of g.cells) scoreTile(ctx, cells[i], i, g, wave, scores, r > 0);
+    for (const i of g.cells) scoreTile(ctx, cells[i], i, g, wave, scores, r);
     if (g.fam === 'shield') groupArmor(ctx, g, cells, scores);
+    // The quill: damage when the group's energy fills the meter (counted after all its tiles).
+    const quill = g.fam === 'ink' ? ctx.gear.ink.strike.quill : 0;
+    const cap = quill ? energyCap(ctx.run) : 0;
+    if (quill && cap > 0 && ctx.run.hero.charge + ms.tally.charge >= cap) {
+      ms.tally.dmg += quill;
+      scores.push({ i: g.cells[0], id: -1, fam: 'ink', dmg: quill, note: 'Перо' });
+    }
   }
   ms.famGroups[g.fam]++;
   if (g.fam === 'blade' && mods.bleedOnRed) ms.bleed += mods.bleedOnRed;
@@ -845,12 +860,13 @@ function blastArea(ctx: Ctx, i: number, t: Tile, fam: Fam | undefined, cells: Ti
 }
 
 /**
- * Groups in the order they score: a group with a carbon copy goes first, so «the next group of
- * the move» is really the next one, whatever its family.
+ * Groups in the order they score: with the carbon copy held, violet groups go first, so «the next
+ * group of the move» is really the next one, whatever its colour.
  */
-export function scoringOrder(groups: Group[], cells: Tile[]): Group[] {
-  const carbon = (g: Group) => (g.cells.some((i) => cells[i]?.card === 'carbon') ? 1 : 0);
-  return [...groups].sort((a, b) => carbon(b) - carbon(a));
+export function scoringOrder(groups: Group[], gear: Record<Fam, GearDef>): Group[] {
+  if (!gear.ink.strike.copyNext) return groups;
+  const first = (g: Group) => (g.fam === 'ink' ? 1 : 0);
+  return [...groups].sort((a, b) => first(b) - first(a));
 }
 
 /**
@@ -919,14 +935,20 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
 
     // Score: groups first, then blasted tiles one by one.
     if (scoring) {
-      for (const g of scoringOrder(groups, cells)) scoreGroup(ctx, g, cells, wave, scores);
+      for (const g of scoringOrder(groups, ctx.gear)) scoreGroup(ctx, g, cells, wave, scores);
       ms.blueBlasted = 0;
+      ms.coinBlasted = 0;
       for (const i of blasted) scoreTile(ctx, cells[i], i, null, wave, scores);
-      // Blasted blue tiles block like a group: half a heart for every three.
+      // Blasted blue and yellow tiles work like a group: half a heart, a coin, for every three.
       const blue = Math.floor(ms.blueBlasted / 3);
       if (blue > 0) {
         ms.tally.armor += blue;
         scores.push({ i: -1, id: -1, fam: 'shield', armor: blue, note: 'синие во взрыве' });
+      }
+      const gold = Math.floor(ms.coinBlasted / 3);
+      if (gold > 0) {
+        ms.tally.coins += gold;
+        scores.push({ i: -1, id: -1, fam: 'coin', coins: gold, note: 'жёлтые во взрыве' });
       }
     }
 
@@ -962,12 +984,7 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
         ms.flags.add('prismpact');
       }
       if (created.some((x) => x.at === g.at)) continue;
-      // The special keeps the card of the tile it grew from.
-      const src = cells[g.at];
-      const tile =
-        make === 'prism'
-          ? makeTile(c.board, 'prism')
-          : makeTile(c.board, g.fam, { special: make, ...(src?.card && src.kind === g.fam ? { card: src.card, up: src.up, finish: src.finish } : {}) });
+      const tile = make === 'prism' ? makeTile(c.board, 'prism') : makeTile(c.board, g.fam, { special: make });
       nextCells[g.at] = tile;
       created.push({ at: g.at, tile: { ...tile } });
     }
@@ -1014,16 +1031,6 @@ function batch(ctx: Ctx, body: () => void) {
   flushDeaths(ctx);
 }
 
-/** The best card of the deck (rarity, then value): the copy stamp prints it. */
-function bestCard(run: RunState) {
-  const rank = { starter: 0, common: 1, uncommon: 2, rare: 3, status: -1 };
-  return [...run.hero.deck].sort((a, b) => {
-    const da = CARDS[a.id];
-    const db = CARDS[b.id];
-    return rank[db.rarity] - rank[da.rarity] || cardValue(b.id, b.up) - cardValue(a.id, a.up);
-  })[0];
-}
-
 /**
  * The move's single strike: damage × mult at the target, the same mult on armor, then all
  * deferred effects (statuses, cleanup, copies). Also used by pocket bombs and actives.
@@ -1042,7 +1049,10 @@ export function strike(ctx: Ctx, fromMove: boolean) {
     t.dmg += mods.inkGroupDmg * ms.famGroups.ink;
     notes.push(`Лампа +${mods.inkGroupDmg * ms.famGroups.ink}`);
   }
-  if (ms.flags.has('drawer') && ms.fams.has('blade') && ms.fams.has('shield')) t.dmg += 3;
+  if (ms.redBonus && ms.fams.has('blade') && ms.fams.has('shield')) {
+    t.dmg += ms.redBonus;
+    notes.push(`Картотека +${ms.redBonus}`);
+  }
   // Ink beyond a full meter burns: it deals damage (with nothing to charge, all of it does).
   const spare = inkOverflow(run, t.charge);
   if (spare > 0) {
@@ -1204,14 +1214,11 @@ export function strike(ctx: Ctx, fromMove: boolean) {
       }
     if (washed && mods.mopJunk) gainArmor(run, mopArmor(washed, mods, actScale(run).dmg));
   }
-  if (ms.copyStamp) {
-    const best = bestCard(run);
-    if (best) {
-      for (const i of randomCells(run.rng.fx, cells, ms.copyStamp, (u) => !u.special && u.kind !== 'prism' && !u.pin)) {
-        cells[i] = tokenTile(c.board, { card: best.id, up: best.up, ...(best.finish ? { finish: best.finish } : {}) });
-      }
-      boardChanged = true;
-    }
+  if (ms.stamp) {
+    // The copy stamp: plain tiles of other colours turn red (the weapon).
+    for (const i of randomCells(run.rng.fx, cells, ms.stamp, (u) => !u.special && u.kind !== 'prism' && u.kind !== 'junk' && u.kind !== 'blade' && !u.pin && !u.find))
+      cells[i] = { ...cells[i], kind: 'blade' };
+    boardChanged = true;
   }
   if (ms.floodDown) {
     c.board.flood = Math.max(0, c.board.flood - ms.floodDown);
@@ -1287,8 +1294,8 @@ function advanceCycle(ctx: Ctx, e: EnemyState) {
   e.held = 0;
 }
 
-/** Tiles an enemy may spoil: plain, not laminated. */
-const spoilable = (t: Tile) => !t.special && t.kind !== 'prism' && t.kind !== 'junk' && !t.pin && !t.fuse && t.finish !== 'laminate';
+/** Tiles an enemy may spoil: plain ones without a find. */
+const spoilable = (t: Tile) => !t.special && t.kind !== 'prism' && t.kind !== 'junk' && !t.pin && !t.fuse && !t.find;
 
 function enemyAct(ctx: Ctx, e: EnemyState) {
   const { c, run, mods } = ctx;
@@ -1333,7 +1340,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       attack(blow(intent.value));
       break;
     case 'strike': {
-      const pinned = randomCells(run.rng.ai, cells, 1, (t) => t.kind !== 'junk' && !t.pin && t.finish !== 'laminate');
+      const pinned = randomCells(run.rng.ai, cells, 1, (t) => t.kind !== 'junk' && !t.pin);
       for (const i of pinned) cells[i].pin = true;
       act.cells = pinned;
       act.board = snap(cells);
@@ -1380,9 +1387,9 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     case 'tape': {
       // Red tape: board tiles turn into useless paperwork, and one more slips into the bag.
       const chosen = randomCells(run.rng.ai, cells, intent.value, spoilable);
-      for (const i of chosen) cells[i] = { id: cells[i].id, kind: 'junk', card: 'redtape' };
-      c.board.source.push({ card: 'redtape', up: false });
-      c.board.bag.splice(Math.floor(next(run.rng.ai) * (c.board.bag.length + 1)), 0, { card: 'redtape', up: false });
+      for (const i of chosen) cells[i] = { id: cells[i].id, kind: 'junk', tape: true };
+      c.board.source.push({ kind: 'junk', tape: true });
+      c.board.bag.splice(Math.floor(next(run.rng.ai) * (c.board.bag.length + 1)), 0, { kind: 'junk', tape: true });
       act.cells = chosen;
       act.board = snap(cells);
       act.added = 1;
@@ -1395,7 +1402,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
       break;
     }
     case 'pin': {
-      const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => t.kind !== 'junk' && !t.pin && t.finish !== 'laminate');
+      const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => t.kind !== 'junk' && !t.pin);
       for (const i of chosen) cells[i].pin = true;
       act.cells = chosen;
       act.board = snap(cells);
@@ -1412,7 +1419,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     }
     case 'censor': {
       if (!mods.censorImmune) {
-        const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => !t.hidden && t.finish !== 'laminate');
+        const chosen = randomCells(run.rng.ai, cells, intent.value, (t) => !t.hidden);
         for (const i of chosen) cells[i].hidden = 4;
         act.cells = chosen;
         act.board = snap(cells);
@@ -1864,10 +1871,10 @@ export function previewMove(run: RunState, mods: Mods, move: Move): MovePreview 
   const cells = applyMove(c.board, c.board.cells, move, kind);
   const groups = findGroups(c.board, cells, mods.wrap, moveCells(move));
   const set = swapBlast(c.board, cells, move, mods, kind);
-  const ctx: Ctx = { run, c, mods, ev: [], fx: [], wave: 1, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
+  const ctx: Ctx = { run, c, mods, gear: heldGear(run), ev: [], fx: [], wave: 1, pendingDeaths: [], rocketsThisMove: 0, ms: newMoveState() };
   const scores: TileScore[] = [];
   const matched = new Set(groups.flatMap((g) => g.cells));
-  for (const g of scoringOrder(groups, cells)) scoreGroup(ctx, g, cells, 1, scores);
+  for (const g of scoringOrder(groups, ctx.gear)) scoreGroup(ctx, g, cells, 1, scores);
   if (set) for (const i of set.blast.cells) if (!matched.has(i)) scoreTile(ctx, cells[i], i, null, 1, scores);
   const t = ctx.ms.tally;
   const base = t.dmg + inkOverflow(run, t.charge) + (mods.goldGroupDmg * ctx.ms.famGroups.coin) + mods.inkGroupDmg * ctx.ms.famGroups.ink;

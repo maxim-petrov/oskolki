@@ -14,7 +14,6 @@ import {
   type TileKind,
 } from './types.ts';
 import { int, pick, shuffle, type Rng } from './rng.ts';
-import { CARDS } from './content/cards.ts';
 
 /** The usual board: 6×6. */
 export const BASE_DIMS: Dims = { w: W, h: H };
@@ -28,23 +27,21 @@ export const colOf = (d: Dims, i: number) => i % d.w;
 export const cellCount = (d: Dims) => d.w * d.h;
 export const dimsOf = (b: Dims): Dims => ({ w: b.w, h: b.h });
 
-/** Family a bag token turns into on the board; status cards are junk. */
+/** Kind of tile a bag token turns into on the board: its colour, or junk for red tape. */
 export function tokenKind(t: BagToken): TileKind {
-  const fam = CARDS[t.card]?.fam;
-  return !fam || fam === 'status' ? 'junk' : fam;
+  return t.kind;
 }
 
 export function tokenTile(b: { nextId: number }, t: BagToken): Tile {
-  const tile: Tile = { id: b.nextId++, kind: tokenKind(t), card: t.card };
-  if (t.up) tile.up = true;
-  if (t.finish) tile.finish = t.finish;
+  const tile: Tile = { id: b.nextId++, kind: t.kind };
+  if (t.kind === 'junk') tile.tape = true;
   return tile;
 }
 
-/** Next token from the fight's bag; an empty bag is refilled from the deck and shuffled. */
+/** Next token from the fight's bag; an empty bag is refilled from the colour weights and shuffled. */
 export function drawToken(b: BoardState, r: Rng): BagToken {
   if (!b.bag.length) b.bag = shuffle(r, b.source.map((t) => ({ ...t })));
-  return b.bag.pop() ?? { card: 'fist', up: false };
+  return b.bag.pop() ?? { kind: 'blade' };
 }
 
 export function drawTile(b: BoardState, r: Rng): Tile {
@@ -430,8 +427,8 @@ function wouldMatchAt(d: Dims, cells: (Tile | undefined)[], i: number, kind: Til
 
 /**
  * The token for cell `i` that does not complete a line: the bag's next one if it fits, else the
- * nearest fitting one further down the bag, else a copy of a fitting deck card (a deck heavy in one
- * family still starts without ready lines). Only a one-family deck leaves the line in place.
+ * nearest fitting one further down the bag, else a copy of a fitting colour of the fight (a bag
+ * heavy in one colour still starts without ready lines).
  */
 function dealToken(b: BoardState, r: Rng, cells: Tile[], i: number, wrap: boolean): BagToken {
   const tok = drawToken(b, r);
@@ -572,7 +569,7 @@ export function reshuffle(b: BoardState, r: Rng, rules: MoveRules) {
   }
   // Last resort: plain tiles go back and fresh ones are dealt from the bag.
   for (let attempt = 0; attempt < 60; attempt++) {
-    const cells = b.cells.map((t) => (t.special || t.kind === 'prism' || t.pin ? t : drawTile(b, r)));
+    const cells = b.cells.map((t) => (t.special || t.kind === 'prism' || t.pin || t.find ? t : drawTile(b, r)));
     const test = { ...b, cells };
     if (validMoves(test, rules).length >= 3) {
       b.cells = cells;

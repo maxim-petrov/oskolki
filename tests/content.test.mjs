@@ -1,16 +1,17 @@
-// Content integrity: every item, card, enemy, event and hero is complete and wired up — names,
+// Content integrity: every item, piece of gear, enemy, event and hero is complete and wired up — names,
 // texts, art, prices, unlocks, references between them and the simulation bots that play them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ACTS, CHARACTERS } from '../game/content/acts.ts';
-import { CARDS, RARITY_PRICE, STARTER_DECKS, cardText, rewardPool } from '../game/content/cards.ts';
+import { BASE_GEAR, FAM_ROLE, GEAR, GEAR_PRICE, MAX_GEAR, gearPoolOf } from '../game/content/gear.ts';
 import { ENEMIES, INTENT_TEXT, MATERIAL_NAME } from '../game/content/enemies.ts';
 import { EVENTS } from '../game/content/events.ts';
 import { ITEMS, POCKETS, RELIC_PRICE, relicPool } from '../game/content/items.ts';
-import { MAX_ENEMIES, activeCost } from '../game/combat.ts';
-import { CARD_SCORE, decide } from '../game/bot.ts';
+import { MAX_ENEMIES, WEIGHT_MAX, WEIGHT_MIN, activeCost } from '../game/combat.ts';
+import { GEAR_SCORE, decide } from '../game/bot.ts';
+import { FAMS } from '../game/types.ts';
 import { dispatch } from '../game/run.ts';
 import { REQUESTS } from '../render/profile.ts';
 import { scene } from './scene.mjs';
@@ -39,12 +40,15 @@ test('items: names, texts, icons, pools, prices, unlocks', () => {
     if (d.kind === 'active') {
       assert.ok(Number.isInteger(d.charge) && d.charge > 0, `${d.name}: цена энергии`);
       assert.ok(!d.apply, `${d.name}: у навыка нет пассивного эффекта`);
-    } else if (d.kind === 'weapon') {
-      // A weapon: damage per red tile, its strike and super strike, and what they say.
-      assert.ok(d.weapon && d.weapon.tile > 0, `${d.name}: урон за фишку`);
-      assert.ok(text(d.weapon.strikeText) && text(d.weapon.superText), `${d.name}: тексты удара и супер-удара`);
-      assert.ok(Object.keys(d.weapon.super).length > 0, `${d.name}: супер-удар что-то делает`);
-      assert.ok(!d.apply, `${d.name}: у оружия нет пассивного эффекта`);
+    } else if (d.kind === 'gear') {
+      // Gear: what a group of its colour does, its super and upgrade, and what they say.
+      const g = d.gear;
+      assert.ok(g && FAMS.includes(g.fam), `${d.name}: цвет`);
+      assert.ok(g.value >= 0, `${d.name}: значение`);
+      assert.ok(text(g.strikeText) && text(g.superText) && text(g.upText), `${d.name}: тексты группы, супера и улучшения`);
+      assert.ok(Object.keys(g.super).length > 0, `${d.name}: супер что-то делает`);
+      assert.ok(g.up.value || g.up.strike || g.up.super, `${d.name}: улучшение что-то делает`);
+      assert.ok(!d.apply, `${d.name}: у вещи нет пассивного эффекта`);
     } else assert.ok(d.apply || d.maxHp || d.heal || d.coins || d.skillCost, `${d.name}: предмет ничего не делает`);
   }
   for (const [key, p] of Object.entries(POCKETS)) {
@@ -54,7 +58,8 @@ test('items: names, texts, icons, pools, prices, unlocks', () => {
   }
 });
 
-test('items: every pool that drops has something in it', () => {
+test('items: every pool that drops has something in it (gear is not among the items)', () => {
+  assert.ok(relicPool([], []).every((id) => ITEMS[id].kind === 'passive'), 'в пуле предметов только предметы');
   const all = relicPool(
     REQUESTS.map((r) => r.id),
     [],
@@ -75,25 +80,23 @@ test('boss rewards: three items after each of the first three bosses (4-act shif
   assert.ok(bossItems >= 3 * 3, `предметов босса ${bossItems}, нужно 9`);
 });
 
-test('cards: families, values, texts, prices, unlocks, art', () => {
-  for (const [key, d] of Object.entries(CARDS)) {
+test('gear: a plain item per colour, prices, art, and enough of every colour to find', () => {
+  for (const [key, d] of Object.entries(GEAR)) {
     assert.equal(d.id, key);
-    assert.ok(text(d.name) && text(d.text), key);
-    assert.ok(['blade', 'shield', 'ink', 'coin', 'status'].includes(d.fam), `${key}: семейство`);
-    assert.ok(d.rarity in RARITY_PRICE, `${key}: редкость`);
-    assert.ok(d.vUp >= d.v, `${d.name}: улучшенная не слабее`);
+    assert.ok(d.pool in GEAR_PRICE, `${d.name}: редкость`);
+    assert.ok(ART.has(d.icon), `${d.name}: нет картинки ${d.icon}`);
     if (d.unlock) assert.ok(UNLOCKS.has(d.unlock), `${d.name}: открытие ${d.unlock}`);
-    for (const up of [false, true]) assert.ok(!cardText(key, up).includes('{'), `${d.name}: текст с подстановкой`);
-    if (d.fam !== 'status') {
-      assert.ok(d.text.includes('{v}') || d.text.includes('{h}') || key === 'report', `${d.name}: значение в тексте`);
-      assert.ok(ART.has(`card_${key}`), `${d.name}: нет картинки card_${key}`);
-    }
   }
-  for (const fam of ['blade', 'shield', 'ink', 'coin'])
-    assert.ok(rewardPool([]).filter((id) => CARDS[id].fam === fam).length >= 3, `в наградах мало фишек семейства ${fam}`);
+  for (const fam of FAMS) {
+    assert.equal(GEAR[BASE_GEAR[fam]]?.gear.fam, fam, `простая вещь цвета ${fam}`);
+    assert.equal(GEAR[BASE_GEAR[fam]].pool, 'starter');
+    assert.ok(text(FAM_ROLE[fam]));
+    assert.ok(gearPoolOf([]).filter((id) => GEAR[id].gear.fam === fam).length >= MAX_GEAR, `в наградах мало вещей цвета ${fam}`);
+  }
+  assert.ok(Object.values(GEAR).filter((d) => d.pool === 'starter').every((d) => Object.values(BASE_GEAR).includes(d.id) || Object.values(CHARACTERS).some((c) => Object.values(c.gear ?? {}).includes(d.id))), 'простые вещи — у героев');
 });
 
-test('heroes: starting decks, items and pockets exist', () => {
+test('heroes: starting gear, colour weights, items and pockets exist', () => {
   for (const [key, ch] of Object.entries(CHARACTERS)) {
     assert.equal(ch.id, key);
     assert.ok(text(ch.name) && text(ch.desc) && ch.maxHp > 0, key);
@@ -101,14 +104,13 @@ test('heroes: starting decks, items and pockets exist', () => {
     if (ch.active) assert.equal(ITEMS[ch.active]?.kind, 'active', `${ch.name}: навык`);
     for (const p of ch.pockets) assert.ok(POCKETS[p], `${ch.name}: карман ${p}`);
     if (ch.unlock) assert.ok(UNLOCKS.has(ch.unlock), `${ch.name}: открытие`);
-    const deck = STARTER_DECKS[key];
-    assert.equal(deck?.length, 12, `${ch.name}: 12 карт`);
-    for (const id of deck) assert.ok(CARDS[id], `${ch.name}: карта ${id}`);
+    for (const [fam, id] of Object.entries(ch.gear ?? {})) assert.equal(GEAR[id]?.gear.fam, fam, `${ch.name}: вещь ${id} цвета ${fam}`);
+    for (const [fam, w] of Object.entries(ch.weights ?? {})) assert.ok(FAMS.includes(fam) && w >= WEIGHT_MIN && w <= WEIGHT_MAX, `${ch.name}: вес ${fam} ${w}`);
   }
-  // Starting items belong to a hero; the starting weapon is in every hero's hands.
+  // Starting items belong to a hero; the plain gear is in every hero's hands.
   for (const r of Object.values(ITEMS).filter((d) => d.pool === 'starter'))
     assert.ok(
-      r.kind === 'weapon' || Object.values(CHARACTERS).some((c) => c.relic === r.id),
+      r.kind === 'gear' || Object.values(CHARACTERS).some((c) => c.relic === r.id),
       `стартовый предмет ${r.name} ничей`,
     );
 });
@@ -176,7 +178,6 @@ test('events: 2–3 choices, texts, art', () => {
 
 test('meta: every request unlocks something that exists', () => {
   const used = new Set([
-    ...Object.values(CARDS).map((c) => c.unlock),
     ...Object.values(ITEMS).map((i) => i.unlock),
     ...Object.values(CHARACTERS).map((c) => c.unlock),
   ]);
@@ -189,8 +190,8 @@ test('meta: every request unlocks something that exists', () => {
   }
 });
 
-test('bots know every card and can use every skill', () => {
-  for (const id of Object.keys(CARDS)) assert.ok(id in CARD_SCORE, `бот не знает цену фишки «${CARDS[id].name}» (game/bot.ts, CARD_SCORE)`);
+test('bots know every item of gear and can use every skill', () => {
+  for (const id of Object.keys(GEAR)) assert.ok(id in GEAR_SCORE, `бот не знает цену вещи «${GEAR[id].name}» (game/bot.ts, GEAR_SCORE)`);
   for (const d of Object.values(ITEMS).filter((x) => x.kind === 'active')) {
     const run = scene({
       real: true,

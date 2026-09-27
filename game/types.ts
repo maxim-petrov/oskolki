@@ -5,23 +5,23 @@ export const H = 6;
 export const CELLS = W * H;
 /** Upcoming tiles kept above every column. */
 export const QUEUE_LEN = 6;
-/** Tiles each deck card puts into the bag. */
+/** Tiles each point of a colour's weight puts into the bag (a weight of 4 → 12 tiles). */
 export const BAG_COPIES = 3;
 
 export type Fam = 'blade' | 'shield' | 'ink' | 'coin';
 export const FAMS: readonly Fam[] = ['blade', 'shield', 'ink', 'coin'];
 export type TileKind = Fam | 'prism' | 'junk';
 export type SpecialKind = 'rocketH' | 'rocketV' | 'bomb';
-/** Card finishes (like Balatro enhancements): a mark on one card of the deck. */
-export type Finish = 'sharp' | 'gild' | 'seal' | 'copy' | 'laminate';
+/** A find on a tile: matching or blasting the tile collects it. */
+export type FindKind = 'coins' | 'key' | 'heart' | 'battery' | 'bomb';
 
+/**
+ * A board tile: a colour (every tile of a colour is the item held for it), a prism or junk. There
+ * are no cards: what a tile does is decided by the hero's gear of its colour.
+ */
 export interface Tile {
   id: number;
   kind: TileKind;
-  /** The deck card this tile was drawn from (absent on prisms made by matches). */
-  card?: string;
-  up?: boolean;
-  finish?: Finish;
   special?: SpecialKind;
   /** Stapled: the tile cannot be moved. */
   pin?: boolean;
@@ -29,21 +29,16 @@ export interface Tile {
   fuse?: number;
   /** Censored for this many ticks: the player cannot see the family. */
   hidden?: number;
+  /** Junk that is red tape («Волокита»): enemies and curses slip it into the bag. */
+  tape?: boolean;
+  /** The department's stamp: the tile's group works as a super. */
+  seal?: boolean;
+  /** A find waiting on the tile. */
+  find?: FindKind;
 }
 
-/** One card of the deck. Each card puts BAG_COPIES tiles into the bag. */
-export interface DeckCard {
-  uid: number;
-  id: string;
-  up: boolean;
-  finish?: Finish;
-}
-
-export interface BagToken {
-  card: string;
-  up: boolean;
-  finish?: Finish;
-}
+/** A bag token: a tile of a colour, or red tape. */
+export type BagToken = { kind: Fam } | { kind: 'junk'; tape: true };
 
 /** Board size in cells (6×6 by default; items and enemies change it). */
 export interface Dims {
@@ -60,9 +55,9 @@ export interface BoardState extends Dims {
   /** Ticks left on anchored columns / rows: their tiles cannot be moved. */
   colLock: number[];
   rowLock: number[];
-  /** Draw pile of the fight: shuffled deck tokens; refilled when empty. */
+  /** Draw pile of the fight: shuffled colour tokens; refilled when empty. */
   bag: BagToken[];
-  /** Deck tokens a refill is built from (the fight's copy of the deck). */
+  /** Tokens a refill is built from: the colour weights of the fight (and its red tape). */
   source: BagToken[];
 }
 
@@ -177,18 +172,26 @@ export interface Hero {
   armor: number;
   /** Next enemy blow is weaker by this much (umbrella). */
   ward: number;
-  /** Share of the next blow sent back (clipboard), 0..1. */
+  /** Damage per half-heart of the next blow sent back at the attacker (clipboard). */
   reflect: number;
-  /** Energy: violet tiles fill it; the skill and weapon swaps spend it. */
+  /** Energy: violet tiles fill it; skills and gear swaps spend it. */
   charge: number;
   coins: number;
   active: string | null;
-  /** Weapons carried (up to MAX_WEAPONS) and the one in hand: red tiles strike with it. */
-  weapons: string[];
-  weapon: string;
+  /** Gear carried per colour (1..MAX_GEAR) and the item held: every tile of the colour is it. */
+  gear: Record<Fam, string[]>;
+  equip: Record<Fam, string>;
+  /** Upgraded gear («Щит+»). */
+  ups: string[];
+  /** Red tape curses: each puts BAG_COPIES junk tiles into the bag of every fight. */
+  tape: number;
+  keys: number;
+  /** Finds meter: yellow tiles fill it; a full meter puts a find on the board. */
+  finds: number;
+  /** A find left on a board when its fight ended: it comes back in the next fight. */
+  findNext?: FindKind;
   relics: string[];
   pockets: (string | null)[];
-  deck: DeckCard[];
   flashUsed: boolean;
   /** Heart containers the desk calendar has added this run, and fights won since it came. */
   grown?: number;
@@ -252,7 +255,7 @@ export interface RunStats {
   elites: number;
   floors: number;
   bossesNoHit: number;
-  cardsTaken: number;
+  gearTaken: number;
   relicsTaken: number;
   deathCause: string;
   bossesKilled: string[];
@@ -260,24 +263,23 @@ export interface RunStats {
 }
 
 export interface RewardOption {
-  kind: 'coins' | 'card' | 'relic' | 'pocket' | 'shards';
+  kind: 'coins' | 'gear' | 'upgrade' | 'relic' | 'pocket' | 'key' | 'shards';
   amount?: number;
-  cards?: string[];
-  /** Which of the offered cards come upgraded. */
-  ups?: boolean[];
+  /** Gear on offer: take one (or none). */
+  gear?: string[];
   relic?: string;
   pocket?: string;
   taken?: boolean;
 }
 
 export interface ShopState {
-  cards: { id: string; up: boolean; price: number; sold: boolean }[];
+  gear: { id: string; price: number; sold: boolean }[];
   relics: { id: string; price: number; sold: boolean }[];
   pockets: { id: string; price: number; sold: boolean }[];
-  /** Card finishing service: one card gets the finish. */
-  finish: { kind: Finish; price: number; sold: boolean } | null;
-  removePrice: number;
-  removed: boolean;
+  /** «Мастерская»: one item gets its upgrade. */
+  upgrade: { price: number; sold: boolean } | null;
+  /** The shredder: one red tape curse out (only offered with a curse). */
+  shred: { price: number; used: boolean } | null;
   /** Reprints of the till in this shop (each costs more). */
   rerolls?: number;
 }
@@ -286,6 +288,8 @@ export interface TreasureState {
   relic: string;
   coins: number;
   opened: boolean;
+  /** Opened with a key: a choice of items instead of the one. */
+  choices?: string[];
 }
 
 export interface EventState {
@@ -296,16 +300,19 @@ export interface EventState {
   step?: number;
 }
 
-/** A pending choice of a card from the deck (remove / upgrade / finish / transform / copy). */
+/** A pending choice of an item of the hero's gear: upgrade it, or trade it for another of its colour. */
 export interface PickState {
-  purpose: 'remove' | 'upgrade' | 'finish' | 'transform' | 'copy';
-  finish?: Finish;
-  /** Cards still to choose. */
+  purpose: 'upgrade' | 'transform';
+  /** Only gear of this colour. */
+  fam?: Fam;
+  /** Items still to choose. */
   count: number;
   /** Where the pick came from: completion and cancel return there (a rest is used up). */
-  from: 'shop' | 'rest' | 'event' | 'map';
-  /** Coins charged when the first card is chosen (shop services). */
+  from: 'shop' | 'rest' | 'event' | 'map' | 'reward';
+  /** Coins charged when the first item is chosen (shop services). */
   cost?: number;
+  /** The reward row that started the pick: it is taken once an item is chosen. */
+  reward?: number;
 }
 
 /**
@@ -332,8 +339,12 @@ export interface DevState {
 
 /** Dev panel commands (the `dev` action; custom runs only). */
 export type DevOp =
-  | { op: 'hero'; hp?: number; maxHp?: number; coins?: number; charge?: number; armor?: number }
-  | { op: 'build'; deck?: { id: string; up?: boolean; finish?: Finish }[]; relics?: string[]; weapons?: string[]; weapon?: string; active?: string | null; pockets?: (string | null)[] }
+  | { op: 'hero'; hp?: number; maxHp?: number; coins?: number; charge?: number; armor?: number; keys?: number; finds?: number }
+  /**
+   * The hero's kit: gear ids (any colour; gear listed among `relics` counts too), the items held,
+   * upgrades, red tape curses, items, skill and pockets.
+   */
+  | { op: 'build'; gear?: string[]; equip?: string[]; ups?: string[]; tape?: number; relics?: string[]; active?: string | null; pockets?: (string | null)[] }
   | { op: 'set'; dev: DevState }
   | { op: 'act'; act: number }
   | { op: 'enter'; kind: NodeKind | 'bossReward' | 'map'; enemies?: string[]; event?: string }
@@ -342,7 +353,7 @@ export type DevOp =
   | { op: 'lose' };
 
 export interface RunState {
-  v: 3;
+  v: 4;
   seed: number;
   customSeed: boolean;
   act: number;
@@ -360,15 +371,16 @@ export interface RunState {
   pick: PickState | null;
   bossRelics: string[];
   relicPool: string[];
-  cardPool: string[];
+  /** Gear the rewards and the till can offer (unlocks applied; the starting items are not in it). */
+  gearPool: string[];
   /** Events already seen this run (not repeated). */
   seenEvents: string[];
   treasure: TreasureState | null;
   /** Fights fought in the current act (the first ones are easier). */
   fightsInAct: number;
   lastEncounter: string;
-  /** Cards removed at the till this run (each removal costs more). */
-  removals: number;
+  /** Curses shredded at the till this run (each costs more). */
+  shreds: number;
   /** A fight started by an event pays this relic on top. */
   eventRelic: string | null;
   stats: RunStats;
@@ -382,19 +394,22 @@ export type Action =
   | { type: 'move'; move: Move }
   | { type: 'target'; uid: number }
   | { type: 'active'; cell?: number; col?: number; uid?: number }
-  /** Take another carried weapon in hand (costs energy in a fight). */
-  | { type: 'weapon'; id: string }
+  /** Hold another carried item of its colour (costs energy in a fight). */
+  | { type: 'gear'; id: string }
+  /** Put a carried item down (between fights; never the last of its colour). */
+  | { type: 'dropGear'; id: string }
   | { type: 'pocket'; slot: number; cell?: number }
   | { type: 'discardPocket'; slot: number }
   | { type: 'travel'; node: number }
-  | { type: 'reward'; index: number; card?: number }
-  | { type: 'buy'; kind: 'card' | 'relic' | 'pocket' | 'finish'; index: number }
+  | { type: 'reward'; index: number; pick?: number }
+  | { type: 'buy'; kind: 'gear' | 'relic' | 'pocket' | 'upgrade'; index: number }
+  /** The till's shredder: one red tape curse out. */
   | { type: 'remove' }
   | { type: 'reroll' }
   | { type: 'rest'; choice: 'heal' | 'upgrade' }
   | { type: 'event'; option: number }
-  | { type: 'pick'; uid: number }
-  | { type: 'open' }
+  | { type: 'pick'; id: string }
+  | { type: 'open'; key?: boolean; index?: number }
   | { type: 'bossRelic'; index: number }
   | { type: 'leave' }
   | { type: 'dev'; op: DevOp };
@@ -427,7 +442,6 @@ export interface Blast {
 export interface TileScore {
   i: number;
   id: number;
-  card?: string;
   fam: Fam | 'prism';
   dmg?: number;
   armor?: number;
@@ -502,18 +516,20 @@ export type GameEvent =
   | { t: 'board'; reason: 'reshuffle' | 'enemy' | 'active' | 'timers'; board: BoardSnap; queue?: Tile[][] }
   /** The board changed its size mid-fight (a cramped enemy fell): new cells came in. */
   | { t: 'resize'; w: number; h: number; board: BoardSnap; queue: Tile[][] }
-  /** Another weapon in hand: red tiles strike with it. */
-  | { t: 'weapon'; id: string }
+  /** Another item held: every tile of its colour is it now. */
+  | { t: 'gear'; id: string; fam: Fam }
   | { t: 'enemyDie'; uid: number; split?: EnemyState[] }
   | { t: 'combatStart'; kind: Combat['kind'] }
   | { t: 'combatWon'; kind: Combat['kind'] }
   | { t: 'act'; act: number }
   | { t: 'enterNode'; node: number; kind: NodeKind }
   | { t: 'relic'; relic: string; source: string }
-  | { t: 'card'; card: string; source: string }
-  | { t: 'cardRemoved'; card: string }
-  | { t: 'cardUpgraded'; card: string }
-  | { t: 'cardFinished'; card: string; finish: Finish }
+  | { t: 'gearGained'; id: string; source: string }
+  | { t: 'gearUpgraded'; id: string }
+  | { t: 'gearDropped'; id: string }
+  /** Red tape curses changed (gained or shredded). */
+  | { t: 'tape'; amount: number }
+  | { t: 'keys'; amount: number }
   | { t: 'pocket'; pocket: string }
   | { t: 'pocketUsed'; pocket: string }
   | { t: 'coins'; amount: number }

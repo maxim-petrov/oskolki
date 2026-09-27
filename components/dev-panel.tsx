@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react';
-import { CardBadge, RoomThumb, Sprite } from '@/components/dev-previews';
-import type { CharId, DevOp, DevState, Finish } from '@/game/types';
+import { GearBadge, RoomThumb, Sprite } from '@/components/dev-previews';
+import type { CharId, DevOp, DevState } from '@/game/types';
 import { cheatList } from '@/render/dev-cheats';
-import type { DevApi, DevBuild, DevCard, DevPlace, DevStart } from '@/render/dev';
+import type { DevApi, DevBuild, DevPlace, DevStart } from '@/render/dev';
 import { DEV_SUITES, type DevSuiteItem } from '@/render/dev-presets';
 
 /**
  * The dev panel («Отдел тестов»), drawn in the game's own look: ink panels with pixel bevels, the
- * Tiny5 type, gold for what is chosen — and a preview for everything (heroes, cards as the game
+ * Tiny5 type, gold for what is chosen — and a preview for everything (heroes, gear as the game
  * draws them, items, pockets, enemies, events, rooms rendered with their lights, the map's icons).
  * ` or Ё opens it, F9 repeats the last test. All of it goes through render/dev.ts.
  */
@@ -28,19 +28,10 @@ const TABS: [Tab, string, string][] = [
 ];
 
 const FAMS: [string, string, string][] = [
-  ['blade', 'Удар', 'tile_blade'],
-  ['shield', 'Защита', 'tile_shield'],
-  ['ink', 'Чернила', 'tile_ink'],
-  ['coin', 'Деньги', 'tile_coin'],
-  ['status', 'Волокита', 'tile_junk'],
-];
-const FINISHES: [Finish | '', string][] = [
-  ['', 'без отделки'],
-  ['sharp', 'заточка'],
-  ['gild', 'позолота'],
-  ['seal', 'печать'],
-  ['copy', 'копия'],
-  ['laminate', 'ламинат'],
+  ['blade', 'Оружие', 'tile_blade'],
+  ['shield', 'Щит', 'tile_shield'],
+  ['ink', 'Энергия', 'tile_ink'],
+  ['coin', 'Находки', 'tile_coin'],
 ];
 const POOLS: [string, string][] = [
   ['', 'все'],
@@ -50,8 +41,9 @@ const POOLS: [string, string][] = [
   ['rare', 'редкие'],
   ['boss', 'босс'],
   ['shop', 'касса'],
-  ['weapon', 'оружие'],
 ];
+/** Most items a colour carries (MAX_GEAR in game/content/gear.ts). */
+const MAX_GEAR = 3;
 const KIND_ICON: Record<string, string> = { fight: 'map_fight', elite: 'map_elite', boss: 'map_boss', event: 'map_event', shop: 'map_shop', rest: 'map_rest', treasure: 'map_treasure' };
 const PHASE_NAME: Record<string, string> = {
   map: 'карта',
@@ -62,7 +54,7 @@ const PHASE_NAME: Record<string, string> = {
   event: 'событие',
   treasure: 'сейф',
   bossReward: 'награда босса',
-  pick: 'выбор фишки',
+  pick: 'выбор вещи',
   dead: 'смерть',
   won: 'победа',
 };
@@ -141,10 +133,9 @@ function TipLayer() {
   );
 }
 
-const POOL_NAME: Record<string, string> = { starter: 'стартовый', common: 'обычный', uncommon: 'необычный', rare: 'редкий', boss: 'от босса', shop: 'из кассы', weapon: 'оружие' };
+const POOL_NAME: Record<string, string> = { starter: 'стартовый', common: 'обычный', uncommon: 'необычный', rare: 'редкий', boss: 'от босса', shop: 'из кассы' };
 const SIZE_NAME: Record<string, string> = { S: 'мелкий', M: 'средний', L: 'крупный', boss: 'босс' };
-const FAM_TITLE: Record<string, string> = { blade: 'удар', shield: 'защита', ink: 'чернила', coin: 'деньги', status: 'волокита' };
-const RARITY_NAME: Record<string, string> = { starter: 'стартовая', common: 'обычная', uncommon: 'необычная', rare: 'редкая', status: 'статус' };
+const RARITY_NAME: Record<string, string> = { starter: 'простая', common: 'обычная', uncommon: 'необычная', rare: 'редкая' };
 
 const PLACE_TEXT: Record<string, string> = {
   map: 'План эвакуации отдела: путь выбираешь сам.',
@@ -152,8 +143,8 @@ const PLACE_TEXT: Record<string, string> = {
   elite: 'Бой с начальством: сильнее обычного, в награде предмет.',
   boss: 'Босс отдела: две фазы, после победы — награда босса.',
   event: 'Служебная записка с выбором.',
-  shop: 'Касса: фишки, предметы, расходники, отделка и удаление фишки.',
-  rest: 'Кулер: вылечиться или улучшить фишку.',
+  shop: 'Касса: вещи, предметы, расходники, «Мастерская» и шредер волокиты.',
+  rest: 'Кулер: вылечиться или улучшить вещь.',
   treasure: 'Сейф: предмет и монеты.',
   bossReward: 'Выбор одного из трёх предметов босса.',
 };
@@ -170,12 +161,11 @@ function tipAct(catalog: Catalog, k: number): TipData {
   };
 }
 
-function tipCard(catalog: Catalog, id: string, finish?: Finish): TipData | undefined {
-  const c = catalog.cards.find((x) => x.id === id);
-  if (!c) return undefined;
-  const lines = [`${FAM_TITLE[c.fam] ?? c.fam} · ${RARITY_NAME[c.rarity] ?? c.rarity}`, `Улучшенная: ${c.textUp}`];
-  if (finish) lines.push(`${catalog.finishText[finish].name}: ${catalog.finishText[finish].text}`);
-  return { title: c.name, icon: `card_${c.id}`, lines, body: c.text, accent: c.fam === 'blade' ? 'red' : c.fam === 'ink' ? 'vio' : c.fam === 'shield' ? 'cold' : 'gold' };
+function tipGear(catalog: Catalog, id: string): TipData | undefined {
+  const g = catalog.gear.find((x) => x.id === id);
+  if (!g) return undefined;
+  const lines = [`${g.role} · ${RARITY_NAME[g.pool] ?? g.pool}`, `Группа из 4+: ${g.super}`, `Улучшение: ${g.up}`];
+  return { title: g.name, icon: g.icon, lines, body: g.strike, accent: g.fam === 'blade' ? 'red' : g.fam === 'ink' ? 'vio' : g.fam === 'shield' ? 'cold' : 'gold' };
 }
 
 function tipItem(catalog: Catalog, id: string): TipData | undefined {
@@ -511,10 +501,10 @@ function BuildStrip({ catalog, build }: { catalog: Catalog; build: DevBuild }) {
   const icon = (id: string) => catalog.relics.find((r) => r.id === id)?.icon ?? catalog.actives.find((r) => r.id === id)?.icon ?? '';
   return (
     <span className="dp-strip">
-      {build.deck.slice(0, 18).map((c, k) => (
-        <Sprite key={k} id={`card_${c.id}`} scale={1} />
+      {build.gear.map((id, k) => (
+        <Sprite key={k} id={catalog.gear.find((g) => g.id === id)?.icon ?? ''} scale={1} />
       ))}
-      {build.deck.length > 18 && <span className="dp-hint">+{build.deck.length - 18}</span>}
+      {!!build.tape && <span className="dp-hint">волокита {build.tape}</span>}
       <span className="dp-sep" />
       {build.relics.map((r) => (
         <Sprite key={r} id={icon(r)} scale={1} />
@@ -536,7 +526,9 @@ function suiteTip(catalog: Catalog, item: DevSuiteItem): TipData {
   if (c.enemies?.length) lines.push(`враги: ${c.enemies.map((id) => catalog.enemies.find((e) => e.id === id)?.name ?? id).join(', ')}`);
   if (c.build) {
     const relics = c.build.relics.map((id) => catalog.relics.find((r) => r.id === id)?.name ?? id);
-    lines.push(`колода ${c.build.deck.length} · предметы: ${relics.slice(0, 6).join(', ')}${relics.length > 6 ? ` и ещё ${relics.length - 6}` : ''}`);
+    const gear = c.build.gear.map((id) => catalog.gear.find((g) => g.id === id)?.name ?? id);
+    lines.push(`вещи: ${gear.join(', ') || 'простые'}`);
+    lines.push(`предметы: ${relics.slice(0, 6).join(', ')}${relics.length > 6 ? ` и ещё ${relics.length - 6}` : ''}`);
   } else lines.push('стартовая сборка');
   const cheats = cheatList(c.cheats);
   if (cheats.length) lines.unshift(`ЧИТЫ: ${cheats.join(', ')}`);
@@ -774,7 +766,7 @@ function StartTab(props: {
           </Tile>
           <Tile on={useBuild} onClick={() => setUseBuild(true)} className="build">
             <span className="dp-name">
-              Своя · {build.deck.length} фишек, {build.relics.length} предм.
+              Своя · {build.gear.length} вещей, {build.relics.length} предм.
             </span>
             <BuildStrip catalog={catalog} build={build} />
           </Tile>
@@ -839,11 +831,16 @@ function BuildTab(props: {
     setBuild({ ...build, ...b });
     setUseBuild(true);
   };
-  const setCard = (k: number, patch: Partial<DevCard>) => edit({ deck: build.deck.map((c, i) => (i === k ? { ...c, ...patch } : c)) });
-  const nextFinish = (f?: Finish) => {
-    const k = FINISHES.findIndex(([id]) => id === (f ?? ''));
-    const n = FINISHES[(k + 1) % FINISHES.length][0];
-    return n || undefined;
+  const famOf = (id: string) => catalog.gear.find((g) => g.id === id)?.fam ?? '';
+  const ups = build.ups ?? [];
+  const equip = build.equip ?? [];
+  // The item held in a colour: the last listed in `equip`, else the first carried.
+  const held = (f: string) => [...equip].reverse().find((id) => famOf(id) === f && build.gear.includes(id)) ?? build.gear.find((id) => famOf(id) === f);
+  const addGear = (id: string) => {
+    const f = famOf(id);
+    if (build.gear.includes(id)) return;
+    if (build.gear.filter((x) => famOf(x) === f).length >= MAX_GEAR) return say(`В цвете не больше ${MAX_GEAR} вещей`);
+    edit({ gear: [...build.gear, id], equip: [...equip.filter((x) => famOf(x) !== f), id] });
   };
   const relics = catalog.relics.filter((r) => (!pool || r.pool === pool) && (!find || r.name.toLowerCase().includes(find.toLowerCase())));
   const pockets = [...build.pockets, null, null, null].slice(0, 3);
@@ -870,27 +867,30 @@ function BuildTab(props: {
           из забега
         </button>
       </div>
-      <Section title={`Колода · ${build.deck.length}`} right={<span className="dp-hint">▲ улучшить · ✦ отделка · ✕ убрать</span>}>
+      <Section title={`Снаряжение · ${build.gear.length}`} right={<span className="dp-hint">★ в руке · ▲ улучшить · ✕ убрать; нет вещей цвета — простая</span>}>
         <div className="dp-grid five cards">
-          {build.deck.map((c, k) => (
-            <div key={k} className="dp-cardcell" {...tipHandlers(tipCard(catalog, c.id, c.finish))}>
-              <CardBadge card={c} scale={2} />
+          {build.gear.map((id) => (
+            <div key={id} className="dp-cardcell" {...tipHandlers(tipGear(catalog, id))}>
+              <GearBadge id={id} up={ups.includes(id)} held={held(famOf(id)) === id} scale={2} />
               <span className="dp-row tight">
-                <button className={`dp-mini ${c.up ? 'on' : ''}`} onClick={() => setCard(k, { up: !c.up })} title="Улучшить">
+                <button className={`dp-mini ${held(famOf(id)) === id ? 'on' : ''}`} onClick={() => edit({ equip: [...equip.filter((x) => famOf(x) !== famOf(id)), id] })} title="В руку">
+                  ★
+                </button>
+                <button className={`dp-mini ${ups.includes(id) ? 'on' : ''}`} onClick={() => edit({ ups: ups.includes(id) ? ups.filter((x) => x !== id) : [...ups, id] })} title="Улучшить">
                   ▲
                 </button>
-                <button className={`dp-mini ${c.finish ? 'on' : ''}`} onClick={() => setCard(k, { finish: nextFinish(c.finish) })} title={FINISHES.find(([id]) => id === (c.finish ?? ''))?.[1]}>
-                  ✦
-                </button>
-                <button className="dp-mini" onClick={() => edit({ deck: build.deck.filter((_, i) => i !== k) })} title="Убрать">
+                <button className="dp-mini" onClick={() => edit({ gear: build.gear.filter((x) => x !== id), equip: equip.filter((x) => x !== id), ups: ups.filter((x) => x !== id) })} title="Убрать">
                   ✕
                 </button>
               </span>
             </div>
           ))}
         </div>
+        <div className="dp-row">
+          <Stepper icon="tile_junk" label="волокита" value={build.tape ?? 0} placeholder="0" onChange={(v) => edit({ tape: Math.max(0, Math.min(9, v ?? 0)) })} />
+        </div>
       </Section>
-      <Section title="Добавить фишку" right={<span className="dp-hint">клик — +1</span>}>
+      <Section title="Добавить вещь" right={<span className="dp-hint">клик — в руку (до {MAX_GEAR} в цвете)</span>}>
         <div className="dp-row wrap">
           {FAMS.map(([id, name, icon]) => (
             <Chip key={id} on={fam === id} onClick={() => setFam(id)} icon={icon}>
@@ -899,12 +899,12 @@ function BuildTab(props: {
           ))}
         </div>
         <div className="dp-grid five">
-          {catalog.cards
-            .filter((c) => c.fam === fam)
-            .map((c) => (
-              <Tile key={c.id} onClick={() => edit({ deck: [...build.deck, { id: c.id }] })} tip={tipCard(catalog, c.id)} className="card">
-                <Sprite id={`card_${c.id}`} scale={2} />
-                <span className="dp-name">{c.name}</span>
+          {catalog.gear
+            .filter((g) => g.fam === fam)
+            .map((g) => (
+              <Tile key={g.id} on={build.gear.includes(g.id)} onClick={() => addGear(g.id)} tip={tipGear(catalog, g.id)} className="card">
+                <Sprite id={g.icon} scale={2} />
+                <span className="dp-name">{g.name}</span>
               </Tile>
             ))}
         </div>
@@ -1365,7 +1365,7 @@ function SettingsTab({ dev, snap }: { dev: DevApi; snap: Snapshot }) {
             ['F2', 'свет'],
             ['F', 'полный экран'],
             ['M', 'карта'],
-            ['D', 'колода'],
+            ['D', 'снаряжение'],
             ['Q', 'навык'],
             ['1–3', 'карманы'],
             ['Esc', 'пауза'],

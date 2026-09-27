@@ -1,6 +1,9 @@
+import { GEAR, type GearDef } from './gear.ts';
+
 /**
- * Items: passive relics that bend the rules, one active skill slot charged by ink,
- * and pocket consumables. Effects are Mods flags read by the combat and run code.
+ * Items: passive relics that bend the rules, one active skill slot charged by energy, the gear of
+ * every colour (game/content/gear.ts) and pocket consumables. Effects are Mods flags read by the
+ * combat and run code.
  */
 export type Pool = 'common' | 'uncommon' | 'rare' | 'boss' | 'shop' | 'starter';
 
@@ -55,8 +58,12 @@ export interface Mods {
   inkGroupDmg: number;
   /** Damage per gold group of the move (calculator). */
   goldGroupDmg: number;
-  /** Energy a weapon swap costs less (the intern's pass). */
+  /** Energy a gear swap costs less (the intern's pass). */
   swapDiscount: number;
+  /** The first red group of every move works as a super (the red pen). */
+  redPenFirst: boolean;
+  /** Damage per red group of the move (the alarm button). */
+  redGroupDmg: number;
   /** Armor for every junk tile cleared (mop). */
   mopJunk: number;
   interest: boolean;
@@ -128,6 +135,8 @@ export function baseMods(): Mods {
     inkGroupDmg: 0,
     goldGroupDmg: 0,
     swapDiscount: 0,
+    redPenFirst: false,
+    redGroupDmg: 0,
     mopJunk: 0,
     interest: false,
     healAfterFight: 0,
@@ -149,51 +158,13 @@ export function baseMods(): Mods {
   };
 }
 
-/** What a red group does with a weapon in hand, besides its damage. */
-export interface WeaponEffect {
-  /** Extra damage per red tile of the group (on the target). */
-  perTile?: number;
-  /** Damage per red tile to every enemy. */
-  allPerTile?: number;
-  /** Bleed on the target (grows with enemy health, like every effect outside the strike). */
-  bleed?: number;
-  pierce?: boolean;
-  stun?: boolean;
-  /** Ticks the target's timer is pushed back (once a move, within the hold cap). */
-  delay?: number;
-  /** Damage bonus against paper enemies (+1 = +100%). */
-  paper?: number;
-  /** Half-hearts the hero loses. */
-  selfDmg?: number;
-  /** Damage of every red tile in cascade waves (2+), instead of the weapon's own. */
-  cascadeTile?: number;
-  /** Share of the target's maximum health it loses at once (through armour: it grows with the act). */
-  hpPct?: number;
-}
-
-/** A weapon: red tiles show it and strike with it. A group of 4+ is its super strike. */
-export interface WeaponDef {
-  /** Damage of every red tile of a group. */
-  tile: number;
-  /** Added to the tile damage in every act after the first (a weapon that grows with the shift). */
-  tileAct?: number;
-  strike: WeaponEffect;
-  super: WeaponEffect;
-  /** Texts for the tooltip: the strike (any red group) and the super strike (a red group of 4+). */
-  strikeText: string;
-  superText: string;
-}
-
-/** Weapons a hero can carry; swapping in a fight costs energy. */
-export const MAX_WEAPONS = 3;
-export const WEAPON_SWAP_COST = 2;
-
 export interface ItemDef {
   id: string;
   name: string;
   desc: string;
-  kind: 'passive' | 'active' | 'weapon';
-  weapon?: WeaponDef;
+  kind: 'passive' | 'active' | 'gear';
+  /** Gear: what every tile of its colour does while it is held. */
+  gear?: GearDef;
   /** Sprite id of the icon. */
   icon: string;
   pool: Pool;
@@ -212,28 +183,19 @@ export interface ItemDef {
 }
 
 const i = (def: ItemDef) => def;
-const w = (id: string, name: string, pool: Pool, icon: string, weapon: WeaponDef, unlock?: string): ItemDef => ({
-  id,
-  name,
-  desc: `${weapon.strikeText} Группа из 4+: ${weapon.superText[0].toLowerCase()}${weapon.superText.slice(1)}`,
-  kind: 'weapon',
-  icon,
-  pool,
-  weapon,
-  ...(unlock ? { unlock } : {}),
-});
-
 export const ITEMS: Record<string, ItemDef> = {
   // ── Starting items ────────────────────────────────────────────────
-  badge: i({ id: 'badge', name: 'Пропуск стажёра', desc: 'Смена оружия в бою стоит на 1 энергию меньше.', kind: 'passive', icon: 'item_badge', pool: 'starter', apply: (m) => (m.swapDiscount += 1) }),
+  badge: i({ id: 'badge', name: 'Пропуск стажёра', desc: 'Смена вещи в бою стоит на 1 энергию меньше.', kind: 'passive', icon: 'item_badge', pool: 'starter', apply: (m) => (m.swapDiscount += 1) }),
   calculator: i({ id: 'calculator', name: 'Калькулятор', desc: 'Каждая золотая группа хода: +3 урона удару.', kind: 'passive', icon: 'item_calculator', pool: 'starter', apply: (m) => (m.goldGroupDmg += 3) }),
   mop: i({ id: 'mop', name: 'Швабра', desc: 'Каждые 2 убранные кляксы или волокиты дают броню на ½ сердца.', kind: 'passive', icon: 'item_mop', pool: 'starter', apply: (m) => (m.mopJunk += 1) }),
 
   // ── Common ────────────────────────────────────────────────────────
   coffee: i({ id: 'coffee', name: 'Крепкий кофе', desc: 'Красные фишки +1 к урону.', kind: 'passive', icon: 'item_coffee', pool: 'common', apply: (m) => (m.redPlus += 1) }),
+  redpen: i({ id: 'redpen', name: 'Красная ручка', desc: 'Первая красная группа каждого хода — супер-удар, даже из трёх фишек.', kind: 'passive', icon: 'card_redpen', pool: 'uncommon', apply: (m) => (m.redPenFirst = true) }),
+  alarm: i({ id: 'alarm', name: 'Тревожная кнопка', desc: '+3 урона удару за каждую красную группу хода.', kind: 'passive', icon: 'card_alarm', pool: 'rare', unlock: 'bundle_paper', apply: (m) => (m.redGroupDmg += 3) }),
   binderclip: i({ id: 'binderclip', name: 'Зажим для бумаг', desc: 'Синие группы дают на ½ сердца брони больше.', kind: 'passive', icon: 'item_binderclip', pool: 'common', apply: (m) => (m.bluePlus += 1) }),
   inkpot: i({ id: 'inkpot', name: 'Запасной картридж', desc: 'Фиолетовые фишки +1 к энергии.', kind: 'passive', icon: 'item_inkpot', pool: 'common', apply: (m) => (m.inkPlus += 1) }),
-  wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Золотые фишки +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
+  wallet: i({ id: 'wallet', name: 'Толстый кошелёк', desc: 'Жёлтая группа: +1 монета.', kind: 'passive', icon: 'item_wallet', pool: 'common', apply: (m) => (m.coinPlus += 1) }),
   vestrelic: i({ id: 'vestrelic', name: 'Жилет охранника', desc: 'Первый удар врага в каждом бою вдвое слабее.', kind: 'passive', icon: 'item_vest', pool: 'uncommon', apply: (m) => (m.firstBlowGuard = true) }),
   sandwich: i({ id: 'sandwich', name: 'Бутерброд', desc: '+1 сердце к максимуму (и к потолку брони). Лечит 1 сердце.', kind: 'passive', icon: 'item_sandwich', pool: 'common', maxHp: 2, heal: 2 }),
   bowl: i({ id: 'bowl', name: 'Кошачья миска', desc: 'После каждого боя лечит ½ сердца.', kind: 'passive', icon: 'item_bowl', pool: 'common', apply: (m) => (m.healAfterFight += 1) }),
@@ -304,65 +266,6 @@ export const ITEMS: Record<string, ItemDef> = {
   closet: i({ id: 'closet', name: 'Тесная каморка', desc: 'Поле уже на столбец, зато урон +100%.', kind: 'passive', icon: 'item_closet', pool: 'boss', apply: (m) => ((m.boardW -= 1), (m.dmgBonus += 1)) }),
   prismpact: i({ id: 'prismpact', name: 'Радужная скрепка', desc: 'Первая группа из 4 за ход создаёт призму вместо ракеты.', kind: 'passive', icon: 'item_pact', pool: 'boss', apply: (m) => (m.prismOn4 = true) }),
 
-  // ── Weapons (red tiles strike with the one in hand; a red group of 4+ is its super strike) ──
-  knife: w('knife', 'Канцелярский нож', 'starter', 'card_knife', {
-    tile: 2,
-    strike: { paper: 1 },
-    super: { allPerTile: 2 },
-    strikeText: '2 урона за фишку. По бумажным врагам +100%.',
-    superText: 'Длинный разрез: ещё 2 урона за фишку каждому врагу.',
-  }),
-  staplegun: w('staplegun', 'Строительный степлер', 'common', 'card_stapler', {
-    tile: 2,
-    strike: { delay: 1 },
-    super: { stun: true },
-    strikeText: '2 урона за фишку. Скобы: таймер цели +1 (раз за ход).',
-    superText: 'Скрепить намертво: цель пропускает действие.',
-  }),
-  scissors: w('scissors', 'Ножницы', 'uncommon', 'card_scissors', {
-    tile: 2,
-    strike: { bleed: 1 },
-    super: { bleed: 3 },
-    strikeText: '2 урона за фишку. Цель кровоточит: 1 (растёт с отделом).',
-    superText: 'Двойное лезвие: ещё 3 кровотечения.',
-  }),
-  punch: w('punch', 'Дырокол', 'uncommon', 'card_punch', {
-    tile: 2,
-    strike: { pierce: true },
-    super: { stun: true },
-    strikeText: '2 урона за фишку. Удар пробивает броню и щит.',
-    superText: 'Сквозная дыра: цель пропускает действие.',
-  }),
-  ruler: w('ruler', 'Линейка', 'uncommon', 'card_ruler', {
-    tile: 2,
-    strike: { allPerTile: 3 },
-    super: { allPerTile: 3 },
-    strikeText: 'Бьёт всех: 2 урона за фишку цели и ещё 3 — каждому врагу.',
-    superText: 'Плашмя по всем: ещё 3 за фишку каждому врагу.',
-  }),
-  sharpener: w('sharpener', 'Точилка', 'uncommon', 'card_sharpener', {
-    tile: 2,
-    strike: { cascadeTile: 6 },
-    super: { perTile: 3 },
-    strikeText: '2 урона за фишку, а в каскаде — 6.',
-    superText: 'Стружка: ещё 3 за фишку.',
-  }),
-  awl: w('awl', 'Шило', 'rare', 'card_awl', {
-    tile: 4,
-    tileAct: 2,
-    strike: { pierce: true },
-    super: { perTile: 4 },
-    strikeText: '4 урона за фишку (+2 с каждым отделом), насквозь через броню и щит.',
-    superText: 'Прокол: ещё 4 за фишку.',
-  }, 'bundle_paper'),
-  cutter: w('cutter', 'Резак', 'rare', 'card_cutter', {
-    tile: 2,
-    strike: { paper: 2 },
-    super: { hpPct: 0.1 },
-    strikeText: '2 урона за фишку. По бумажным врагам +200%.',
-    superText: 'Гильотина: цель теряет 10% максимума здоровья.',
-  }, 'bundle_paper'),
-
   // ── Active skills (charged by energy from violet tiles) ────────────────────────────────
   eraser: i({ id: 'eraser', name: 'Ластик', desc: 'Убирает выбранную фишку, сверху падает новая. Время не тратит; сложившиеся ряды сгорают впустую.', kind: 'active', icon: 'item_eraser', pool: 'shop', charge: 3, aim: 'cell' }),
   stapler: i({ id: 'stapler', name: 'Степлер', desc: 'Выбранный враг пропускает следующее действие.', kind: 'active', icon: 'item_stapler', pool: 'uncommon', charge: 6, aim: 'enemy' }),
@@ -371,6 +274,9 @@ export const ITEMS: Record<string, ItemDef> = {
   shredder: i({ id: 'shredder', name: 'Шредер', desc: 'Очищает выбранный столбец, фишки срабатывают.', kind: 'active', icon: 'item_shredder', pool: 'rare', charge: 8, aim: 'col' }),
   megaphone: i({ id: 'megaphone', name: 'Мегафон', desc: 'Таймеры всех врагов +2.', kind: 'active', icon: 'item_megaphone', pool: 'uncommon', charge: 8 }),
   giftbox: i({ id: 'giftbox', name: 'Коробка с сюрпризом', desc: 'Две бомбы и призма появляются на поле.', kind: 'active', icon: 'item_giftbox', pool: 'rare', charge: 10 }),
+
+  // ── Gear of every colour (game/content/gear.ts) ──
+  ...GEAR,
 };
 
 export interface PocketDef {
@@ -398,9 +304,9 @@ export function computeMods(relics: readonly string[]): Mods {
 
 export const RELIC_PRICE: Record<Pool, number> = { starter: 0, common: 100, uncommon: 135, rare: 190, boss: 250, shop: 110 };
 
-/** Passive relics that can drop (actives come from their own pools). */
+/** Passive relics that can drop (skills and gear come from their own pools). */
 export function relicPool(unlocked: readonly string[], exclude: readonly string[]): string[] {
   return Object.values(ITEMS)
-    .filter((d) => d.pool !== 'starter' && d.kind !== 'active' && (!d.unlock || unlocked.includes(d.unlock)) && !exclude.includes(d.id))
+    .filter((d) => d.pool !== 'starter' && d.kind === 'passive' && (!d.unlock || unlocked.includes(d.unlock)) && !exclude.includes(d.id))
     .map((d) => d.id);
 }

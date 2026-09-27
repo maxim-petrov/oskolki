@@ -1,15 +1,15 @@
 import { area, isValidMove, lineCells, moveBlock, moveKind } from '../game/board.ts';
 import { activeCost, alive, intentDamage, moveRules, previewMove, swapCost } from '../game/combat.ts';
-import { CARDS } from '../game/content/cards.ts';
+import { BAG_COPIES } from '../game/types.ts';
 import { heartText, heartsText } from '../game/text.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
-import type { Blast, Effect, GameEvent, Move, RunState, TileScore } from '../game/types.ts';
+import { FAMS, type Blast, type Effect, type GameEvent, type Move, type RunState, type TileScore } from '../game/types.ts';
 import { EnemyView, HeroView, enemySlots, heroX } from './actors.ts';
-import { cardName, cardRules } from './cardview.ts';
+import { gearRules, gearTitle } from './gearview.ts';
 import { BoardView } from './boardview.ts';
 import { paragraph, text } from './font.ts';
-import { drawPockets, drawRelics, drawSkill, drawWeapons, type Disp } from './hud.ts';
+import { drawGear, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
 import type { Juice } from './juice.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
@@ -311,14 +311,14 @@ export class CombatView {
           },
         });
         return true;
-      case 'weapon':
+      case 'gear':
         S.push({
           dur: 0.25,
           begin: () => {
-            // Every red tile turns into the new weapon: they flash as it comes in hand.
+            // Every tile of the colour turns into the new item: they flash as it comes in hand.
             this.h.toast(`В руке: ${ITEMS[e.id]?.name ?? e.id}`);
             this.h.disp.charge = this.run.hero.charge;
-            for (const v of this.board.tiles.values()) if (v.tile.kind === 'blade') v.flash = 1;
+            for (const v of this.board.tiles.values()) if (v.tile.kind === e.fam) v.flash = 1;
             au.play('swap', 1.3);
           },
         });
@@ -446,7 +446,7 @@ export class CombatView {
   private skillRect() {
     if (L.mode === 'wide') return { x: L.side.x, y: L.side.y, w: L.side.w, h: 34 };
     const b = L.bottom;
-    // Pockets on the right and the weapon in hand next to them.
+    // Pockets on the right and the gear slots next to them.
     const pw = this.pocketSize() * 4 + 21;
     return { x: b.x + 4, y: b.y + 4, w: b.w - pw - 12, h: Math.min(44, b.h - 8) };
   }
@@ -1102,7 +1102,11 @@ export class CombatView {
     this.board.slide = !!rules.slide;
     this.board.diagonal = !!rules.diagonal;
     this.board.vertical = !!rules.vertical;
-    this.board.weaponArt = ITEMS[this.run.hero.weapon]?.icon ?? 'card_knife';
+    for (const f of FAMS) {
+      const id = this.run.hero.equip[f];
+      this.board.gearArt[f] = ITEMS[id]?.icon ?? `tile_${f}`;
+      this.board.gearUp[f] = this.run.hero.ups.includes(id);
+    }
     this.board.layout();
     this.board.update(frozen ? 0 : dt * speed);
     this.hero.update(dt);
@@ -1363,15 +1367,19 @@ export class CombatView {
     let title = '';
     let body = '';
     if (tile.kind === 'junk') {
-      title = tile.card === 'redtape' ? 'Волокита' : 'Клякса';
+      title = tile.tape ? 'Волокита' : 'Клякса';
       body = 'Не собирается. Исчезает, если рядом собрать группу или взорвать.';
     } else if (tile.kind === 'prism') {
       title = 'Призма';
-      body = 'Подходит к любому семейству. Обменяй с фишкой — сотрёт всё её семейство.';
-    } else if (tile.card) {
-      title = cardName({ id: tile.card, up: !!tile.up, finish: tile.finish });
-      body = cardRules({ id: tile.card, up: !!tile.up, finish: tile.finish });
+      body = 'Подходит к любому цвету. Обменяй с фишкой — сотрёт весь её цвет.';
+    } else {
+      // Every tile of a colour is the item held for it.
+      const id = this.run.hero.equip[tile.kind];
+      const up = this.run.hero.ups.includes(id);
+      title = gearTitle(id, up);
+      body = gearRules(id, up);
     }
+    if (tile.seal) body += '\nПечать: группа с ней срабатывает как супер.';
     if (tile.special) body += tile.special === 'bomb' ? '\nБомба: взрыв 3×3.' : '\nРакета: чистит линию.';
     if (tile.pin) body += '\nПрибита скобой: не двигается.';
     if (tile.fuse) body += `\nУголёк: сгорит через ${tile.fuse}.`;
@@ -1445,19 +1453,20 @@ export class CombatView {
     const [px, py] = this.pocketXY();
     const slot = drawPockets(ctx, ui, px, py, this.pocketSize(), this.run, this.targeting?.kind === 'pocket' ? (this.targeting.slot ?? -1) : -1);
     if (slot >= 0) this.usePocket(slot);
-    // Weapons: all of them next to the pockets on wide screens, the one in hand on phones.
+    // Gear: a slot per colour next to the pockets on wide screens, packed 2×2 into one slot on phones.
     const size = this.pocketSize();
     const wx = L.mode === 'wide' ? px + this.run.hero.pockets.length * (size + 3) + 6 : px - size - 6;
-    const weapon = drawWeapons(ctx, ui, wx, py, size, this.run, this.h.disp, swapCost(this.run), L.mode !== 'wide');
-    if (weapon && this.canPlay()) this.h.act({ type: 'weapon', id: weapon });
+    const gear = drawGear(ctx, ui, wx, py, size, this.run, this.h.disp, swapCost(this.run), L.mode !== 'wide');
+    if (gear && this.canPlay()) this.h.act({ type: 'gear', id: gear });
     if (L.mode === 'wide') {
       drawRelics(ctx, ui, { ...L.side2, h: L.side2.h - 12 }, this.run);
-      // Deck by family: what the bag is made of.
+      // The bag by colour: what the refills are drawn from.
       const counts: Record<string, number> = { blade: 0, shield: 0, ink: 0, coin: 0, status: 0 };
-      for (const d of this.run.hero.deck) counts[CARDS[d.id]?.fam ?? 'status']++;
+      for (const tk of c?.board.source ?? []) counts[tk.kind === 'junk' ? 'status' : tk.kind]++;
+      if (!c) counts.status = this.run.hero.tape * BAG_COPIES;
       let dx = L.side2.x;
       const dy = L.side2.y + L.side2.h - 10;
-      dx += text(ctx, `Колода ${this.run.hero.deck.length}:`, dx, dy, 'cold3') + 4;
+      dx += text(ctx, 'Мешок:', dx, dy, 'cold3') + 4;
       for (const [f, col] of [
         ['blade', 'red4'],
         ['shield', 'cold5'],
@@ -1474,7 +1483,7 @@ export class CombatView {
       const total = c?.board.source.length ?? 0;
       if (c) text(ctx, bag > 0 ? `Мешок: ${bag} из ${total}` : `Мешок: ${total} фишек`, L.side.x, py + this.pocketSize() + 6, 'cold3');
       if (ui.area('bag', L.side.x, py + this.pocketSize() + 4, 70, 10)) void 0;
-      if (ui.hovered === 'bag') ui.tooltip('Мешок фишек', 'Поле пополняется из мешка: каждая карта колоды — 3 фишки. Кончится — соберётся заново.', ui.p.x, ui.p.y - 40);
+      if (ui.hovered === 'bag') ui.tooltip('Мешок фишек', 'Поле пополняется из мешка: у каждого цвета своя доля, Волокита подкладывает мусор. Кончится — соберётся заново.', ui.p.x, ui.p.y - 40);
       if (c) text(ctx, `ход ${c.moves + 1}${c.moves >= 20 ? ' · сверхурочные!' : ''}`, L.side.x, py + this.pocketSize() + 16, c.moves >= 20 ? 'red4' : 'cold3');
     } else {
       drawRelics(ctx, ui, { x: 4, y: L.top.h + 2, w: Math.min(L.w - 8, 17 * 8), h: 17 }, this.run);
@@ -1487,7 +1496,7 @@ export class CombatView {
       ctx.fillRect(r.x, r.y, r.w, L.mode === 'wide' ? 60 : r.h);
       if (L.mode === 'wide') {
         paragraph(ctx, 'Потяни фишку на соседнюю клетку: три одинаковых в ряд — это ход.', r.x + 6, r.y + 6, r.w - 12, 'gold4', { alpha: a });
-        paragraph(ctx, 'Красные фишки бьют оружием в руке, синие — броня, фиолетовые — энергия. Враги ходят по таймерам.', r.x + 6, r.y + 32, r.w - 12, 'cold5', { alpha: a });
+        paragraph(ctx, 'Каждый цвет — вещь в руке: красные бьют оружием, синие — щит, фиолетовые — энергия, жёлтые — монеты. Враги ходят по таймерам.', r.x + 6, r.y + 32, r.w - 12, 'cold5', { alpha: a });
       } else text(ctx, 'Потяни фишку к соседней: 3 в ряд — ход', r.x + r.w / 2, r.y + r.h / 2 - 4, 'gold4', { align: 'center', alpha: a });
     }
     if (this.targeting) text(ctx, L.touch ? 'Коснись цели · вне поля — отмена' : 'Выбери цель · Esc — отмена', L.w / 2, b.by - 20, 'orange4', { align: 'center', outline: 'ink0' });

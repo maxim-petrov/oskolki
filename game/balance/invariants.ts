@@ -6,15 +6,16 @@
 import { MAX_SIDE, MIN_SIDE, validMoves } from '../board.ts';
 import { MAX_ENEMIES, REFLECT_PER_HALF, alive, armorCap, energyCap, moveRules } from '../combat.ts';
 import { ACTS } from '../content/acts.ts';
-import { CARDS } from '../content/cards.ts';
 import { ENEMIES } from '../content/enemies.ts';
 import { EVENT_BY_ID } from '../content/events.ts';
-import { ITEMS, MAX_WEAPONS, POCKETS, computeMods } from '../content/items.ts';
+import { FINDS } from '../content/finds.ts';
+import { MAX_GEAR } from '../content/gear.ts';
+import { ITEMS, POCKETS, computeMods } from '../content/items.ts';
 import { FAMS, QUEUE_LEN, type RunState, type Tile } from '../types.ts';
 
 const KINDS = new Set<string>([...FAMS, 'prism', 'junk']);
+const COLOURS = new Set<string>(FAMS);
 const SPECIALS = new Set(['rocketH', 'rocketV', 'bomb']);
-const FINISHES = new Set(['sharp', 'gild', 'seal', 'copy', 'laminate']);
 
 /** Every number in the state is finite (no NaN or Infinity sneaking in through a multiplier). */
 function scanNumbers(v: unknown, path: string, out: string[], depth = 0) {
@@ -31,13 +32,10 @@ function checkTile(t: Tile, where: string, bad: (msg: string) => void) {
   if (!t || typeof t !== 'object') return bad(`${where}: пустая клетка`);
   if (!Number.isInteger(t.id)) bad(`${where}: id ${t.id}`);
   if (!KINDS.has(t.kind)) bad(`${where}: вид ${t.kind}`);
-  if (t.card !== undefined) {
-    const def = CARDS[t.card];
-    if (!def) bad(`${where}: неизвестная карта ${t.card}`);
-    else if (t.kind === 'junk' ? def.fam !== 'status' : t.kind !== 'prism' && def.fam !== t.kind) bad(`${where}: карта ${t.card} на фишке ${t.kind}`);
-  }
+  if (t.tape && t.kind !== 'junk') bad(`${where}: волокита на фишке ${t.kind}`);
   if (t.special !== undefined && (!SPECIALS.has(t.special) || t.kind === 'junk' || t.kind === 'prism')) bad(`${where}: особая ${t.special} на ${t.kind}`);
-  if (t.finish !== undefined && !FINISHES.has(t.finish)) bad(`${where}: отделка ${t.finish}`);
+  if (t.seal && !COLOURS.has(t.kind)) bad(`${where}: печать на фишке ${t.kind}`);
+  if (t.find !== undefined && (!FINDS[t.find] || !COLOURS.has(t.kind))) bad(`${where}: находка ${t.find} на фишке ${t.kind}`);
   if (t.fuse !== undefined && !(t.fuse >= 1)) bad(`${where}: фитиль ${t.fuse}`);
   if (t.hidden !== undefined && !(t.hidden >= 1)) bad(`${where}: цензура ${t.hidden}`);
 }
@@ -62,21 +60,23 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
   if (h.ward < 0) bad(`зонтик ${h.ward}`);
   if (h.reflect !== 0 && h.reflect !== REFLECT_PER_HALF) bad(`отражение ${h.reflect}`);
   if (!Number.isInteger(h.charge) || h.charge < 0 || h.charge > energyCap(run)) bad(`энергия ${h.charge}/${energyCap(run)}`);
-  if (!h.weapons.length || h.weapons.length > MAX_WEAPONS || new Set(h.weapons).size !== h.weapons.length) bad(`оружие ${h.weapons.join(', ')}`);
-  for (const id of h.weapons) if (ITEMS[id]?.kind !== 'weapon') bad(`оружие ${id}`);
-  if (!h.weapons.includes(h.weapon)) bad(`в руке ${h.weapon}, а есть ${h.weapons.join(', ')}`);
+  for (const f of FAMS) {
+    const list = h.gear[f] ?? [];
+    if (!list.length || list.length > MAX_GEAR || new Set(list).size !== list.length) bad(`вещи цвета ${f}: ${list.join(', ')}`);
+    for (const id of list) if (ITEMS[id]?.kind !== 'gear' || ITEMS[id].gear?.fam !== f) bad(`вещь ${id} в цвете ${f}`);
+    if (!list.includes(h.equip[f])) bad(`в руке ${h.equip[f]}, а есть ${list.join(', ')}`);
+  }
+  for (const id of h.ups) if (!FAMS.some((f) => h.gear[f].includes(id))) bad(`улучшена вещь, которой нет: ${id}`);
+  if (new Set(h.ups).size !== h.ups.length) bad(`улучшение дважды: ${h.ups.join(', ')}`);
+  if (!Number.isInteger(h.tape) || h.tape < 0 || h.tape > 9) bad(`волокита ${h.tape}`);
+  if (!Number.isInteger(h.keys) || h.keys < 0 || h.keys > 9) bad(`ключи ${h.keys}`);
+  if (!Number.isInteger(h.finds) || h.finds < 0) bad(`шкала находок ${h.finds}`);
+  if (h.findNext !== undefined && !FINDS[h.findNext]) bad(`находка на следующий бой ${h.findNext}`);
   if (h.active !== null && ITEMS[h.active]?.kind !== 'active') bad(`навык ${h.active}`);
   if (new Set(h.relics).size !== h.relics.length) bad(`предмет дважды: ${h.relics.join(', ')}`);
   for (const id of h.relics) if (ITEMS[id]?.kind !== 'passive') bad(`предмет ${id}`);
   if (h.pockets.length !== mods.pockets) bad(`карманов ${h.pockets.length}, а положено ${mods.pockets}`);
   for (const p of h.pockets) if (p !== null && !POCKETS[p]) bad(`карман ${p}`);
-  const uids = new Set(h.deck.map((c) => c.uid));
-  if (uids.size !== h.deck.length) bad('в колоде повторяются uid');
-  for (const c of h.deck) {
-    if (!CARDS[c.id]) bad(`карта ${c.id}`);
-    if (c.finish !== undefined && !FINISHES.has(c.finish)) bad(`отделка ${c.finish} у ${c.id}`);
-  }
-  if (!h.deck.length) bad('пустая колода');
 
   // Run and phase.
   if (run.act < 0 || run.act > run.lastAct || run.lastAct >= ACTS.length) bad(`отдел ${run.act} из ${run.lastAct}`);
@@ -96,7 +96,7 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
       if (!run.event || !EVENT_BY_ID[run.event.id]) bad(`событие ${run.event?.id}`);
       break;
     case 'pick':
-      if (!run.pick || run.pick.count < 1) bad('выбор карты без выбора');
+      if (!run.pick || run.pick.count < 1) bad('выбор вещи без выбора');
       break;
     case 'treasure':
       if (!run.treasure) bad('сейф без содержимого');
@@ -127,7 +127,8 @@ export function checkRun(run: RunState, prev?: RunState): string[] {
     if (b.flood < 0 || b.flood > 3) bad(`вода ${b.flood}`);
     if (b.colLock.length !== b.w || b.rowLock.length !== b.h || [...b.colLock, ...b.rowLock].some((x) => !Number.isInteger(x) || x < 0))
       bad('замки строк/столбцов');
-    for (const t of b.source) if (!CARDS[t.card]) bad(`в мешке карта ${t.card}`);
+    for (const t of b.source) if (!(COLOURS.has(t.kind) || (t.kind === 'junk' && t.tape))) bad(`в мешке жетон ${JSON.stringify(t)}`);
+    if (!FAMS.every((f) => b.source.some((t) => t.kind === f))) bad('в мешке нет какого-то цвета');
     const living = alive(c);
     if (!living.length) bad('бой идёт, а врагов нет');
     if (living.length > MAX_ENEMIES + 1) bad(`врагов ${living.length}`);

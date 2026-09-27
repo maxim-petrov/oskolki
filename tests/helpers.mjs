@@ -2,24 +2,21 @@ import { newRun } from '../game/run.ts';
 import { makeEnemy, startCombat } from '../game/combat.ts';
 import { computeMods } from '../game/content/items.ts';
 import * as B from '../game/board.ts';
+import { FAMS } from '../game/types.ts';
 
 /** Cell of the usual 6×6 board. */
 export const idx = (r, c) => B.idx({ w: 6, h: 6 }, r, c);
 
 const F = { b: 'blade', s: 'shield', i: 'ink', c: 'coin', p: 'prism', j: 'junk' };
-const CARD = { blade: 'fist', shield: 'folder', ink: 'ink', coin: 'clip' };
-/** Board from 6 strings of letters b/s/i/c/p/j; tiles carry the starter card of their family. */
+/** Board from 6 strings of letters b/s/i/c/p/j: every tile of a colour is the item held for it. */
 export function cells(rows, start = 1000) {
   let id = start;
-  return rows.flatMap((row) =>
-    [...row].map((ch) => {
-      const kind = F[ch];
-      return CARD[kind] ? { id: id++, kind, card: CARD[kind] } : { id: id++, kind };
-    }),
-  );
+  return rows.flatMap((row) => [...row].map((ch) => ({ id: id++, kind: F[ch] })));
 }
 export const FILLER = ['sicbsi', 'cbsicb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'];
-export const STARTER_BAG = ['fist', 'folder', 'ink', 'clip'].flatMap((card) => Array(9).fill({ card, up: false }));
+/** A bag of 9 tiles of every colour. */
+export const STARTER_BAG = FAMS.flatMap((kind) => Array(9).fill({ kind }));
+export const TAPE = { kind: 'junk', tape: true };
 
 /** A run in a fight with the given enemies and board; relics are added to the hero first. */
 export function combatRun({ seed = 1, enemies = ['rat'], rows = FILLER, relics = [], char, quiet = true } = {}) {
@@ -36,16 +33,15 @@ export function combatRun({ seed = 1, enemies = ['rat'], rows = FILLER, relics =
   c.board.cells = cells(rows);
   if (quiet) {
     // Refills are paperwork that never matches: numbers in tests stay exact (no surprise cascades).
-    c.board.source = [{ card: 'redtape', up: false }];
+    c.board.source = [TAPE];
     c.board.bag = [];
-    c.board.queue = c.board.queue.map((q) => q.map((t, k) => ({ id: 20000 + t.id + k, kind: 'junk', card: 'redtape' })));
+    c.board.queue = c.board.queue.map((q) => q.map((t, k) => ({ id: 20000 + t.id + k, kind: 'junk', tape: true })));
   }
   return run;
 }
 
-/** Puts a card on a board cell. */
-export function setCard(run, i, card, extra = {}) {
-  const fam = { fist: 'blade', folder: 'shield', ink: 'ink', clip: 'coin' }[card];
+/** Puts a tile of a colour on a board cell (extra: special, seal, pin…). */
+export function setTile(run, i, kind, extra = {}) {
   const t = run.combat.board.cells[i];
-  run.combat.board.cells[i] = { ...t, card, ...(fam ? { kind: fam } : {}), ...extra };
+  run.combat.board.cells[i] = { id: t.id, kind, ...extra };
 }

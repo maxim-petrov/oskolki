@@ -1,4 +1,4 @@
-import type { Fam, Finish, RunState } from '../types.ts';
+import type { Fam, RunState } from '../types.ts';
 
 /**
  * «Непонятное» on the map: short scenes on a memo sheet with 2–3 choices. Effects go
@@ -13,25 +13,29 @@ export interface EventApi {
   /** Hurts, but never below 1 hp: an event cannot kill. */
   hurt(n: number): void;
   maxHp(n: number): void;
-  /** Adds a card to the deck; returns its name. */
-  card(id: string, up?: boolean): string;
-  /** A random reward card, optionally of one rarity and family. */
-  randomCard(rarity?: 'common' | 'uncommon' | 'rare', fam?: Fam): string;
-  /** Puts «Волокита» into the deck. */
+  /** Gives an item of gear (held at once); returns its name, or null when the colour's hands are full. */
+  gear(id: string): string | null;
+  /** A random item of gear, optionally of one rarity and colour; its name, or null when nothing fits. */
+  randomGear(rarity?: 'common' | 'uncommon' | 'rare', fam?: Fam): string | null;
+  /** Red tape («Волокита»): junk tiles in the bag of every fight. */
   curse(): void;
+  /** Takes one red tape curse away; false when there is none. */
+  uncurse(): boolean;
   /** A random relic of a tier; returns its name or null when the pool is empty. */
   relic(tier?: 'common' | 'uncommon' | 'rare'): string | null;
-  /** A weapon into a free slot; returns its name or null when the slots are full (or it is there). */
-  weapon(id: string): string | null;
   /** A random consumable into a free pocket; returns its name or null when pockets are full. */
   pocket(): string | null;
   shards(n: number): void;
-  /** Lets the player choose cards of the deck (the scene waits). */
-  pick(purpose: 'remove' | 'upgrade' | 'finish' | 'transform' | 'copy', count: number, finish?: Finish): void;
-  /** Upgrades random cards; returns their names. */
-  upgradeRandom(n: number): string[];
-  /** Finishes random cards; returns their names. */
-  finishRandom(finish: Finish, n: number): string[];
+  /** Lets the player choose items of gear (the scene waits). */
+  pick(purpose: 'upgrade' | 'transform', count: number, fam?: Fam): void;
+  /** Upgrades random items of gear (of a colour); returns their names. */
+  upgradeRandom(n: number, fam?: Fam): string[];
+  /** Upgrades the item held in a colour; its name, or null when it is upgraded already. */
+  upgradeEquipped(fam: Fam): string | null;
+  /** Keys to the safe on the sixth floor. */
+  key(n: number): void;
+  /** The next fight starts with a find on the board. */
+  findSoon(): void;
   /** Starts a fight with the act's elite; winning pays a relic on top. */
   eliteFight(): void;
 }
@@ -56,7 +60,9 @@ export interface EventDef {
 }
 
 const needCoins = (n: number) => (run: RunState) => (run.hero.coins < n ? `Нужно ${n} монет` : null);
-const needCards = (n: number) => (run: RunState) => (run.hero.deck.length <= n ? 'Колода слишком тонкая' : null);
+const needTape = (run: RunState) => (run.hero.tape <= 0 ? 'Волокиты нет' : null);
+const needUpgrade = (fam?: Fam) => (run: RunState) =>
+  Object.entries(run.hero.gear).some(([f, list]) => (!fam || f === fam) && list.some((id) => !run.hero.ups.includes(id))) ? null : 'Улучшать нечего';
 const leave = (text: string): EventOption => ({ label: 'Уйти', hint: 'Ничего не случится', run: () => text });
 
 export const EVENTS: EventDef[] = [
@@ -68,11 +74,12 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Вытащить лист',
-        hint: '−½ сердца · копия фишки',
+        hint: '−½ сердца · улучшить вещь на выбор',
+        locked: needUpgrade(),
         run: (a) => {
           a.hurt(1);
-          a.pick('copy', 1);
-          return 'Лист выходит тёплым. На нём — твоя фишка, только чуть ровнее.';
+          a.pick('upgrade', 1);
+          return 'Лист выходит тёплым. На нём — твоя вещь, только чуть лучше.';
         },
       },
       {
@@ -98,16 +105,17 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Высидеть до конца',
-        hint: '−1 сердце · повысить 2 случайные фишки',
+        hint: '−1 сердце · улучшить 2 случайные вещи',
+        locked: needUpgrade(),
         run: (a) => {
           a.hurt(2);
           const up = a.upgradeRandom(2);
-          return `Через час ты понимаешь синергию. Повышены: ${up.join(', ') || 'нечего'}.`;
+          return `Через час ты понимаешь синергию. Улучшены: ${up.join(', ') || 'ничего'}.`;
         },
       },
       {
         label: 'Задремать',
-        hint: '+1 сердце · в колоду — Волокита',
+        hint: '+1 сердце · Волокита в мешок',
         run: (a) => {
           a.heal(2);
           a.curse();
@@ -125,7 +133,7 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Поставить 5',
-        hint: '+25 монет · в колоду — Волокита',
+        hint: '+25 монет · Волокита в мешок',
         run: (a) => {
           a.coins(25);
           a.curse();
@@ -134,11 +142,10 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Ответить честно',
-        hint: 'Убрать фишку из колоды',
-        locked: needCards(5),
+        hint: 'Ключ от сейфа',
         run: (a) => {
-          a.pick('remove', 1);
-          return 'Анкету забирает шредер. Вместе с чем-то ещё.';
+          a.key(1);
+          return 'Анкету забирает шредер. Взамен из щели выпадает ключ с биркой «6 этаж».';
         },
       },
       leave('Через минуту анкета снова лежит на столе.'),
@@ -268,18 +275,21 @@ export const EVENTS: EventDef[] = [
         label: 'Взять ножницы',
         hint: 'Оружие «Ножницы»',
         run: (a) => {
-          const name = a.weapon('scissors');
+          const name = a.gear('scissors');
           return name ? `Ножницы тёплые, будто их только что держали. ${name} — теперь твоё оружие.` : 'Ножницы тёплые, но руки заняты: ты кладёшь их обратно.';
         },
       },
       {
         label: 'Взять зонтик',
-        hint: 'Фишка «Зонтик»',
-        run: (a) => `В помещении без окон зонтик мокрый. ${a.card('umbrella')} — в колоде.`,
+        hint: 'Щит «Зонтик»',
+        run: (a) => {
+          const name = a.gear('umbrella');
+          return name ? `В помещении без окон зонтик мокрый. ${name} — теперь твой щит.` : 'В помещении без окон зонтик мокрый. Руки заняты — он остаётся в коробке.';
+        },
       },
       {
         label: 'Взять кошелёк',
-        hint: '+25 монет · в колоду — Волокита',
+        hint: '+25 монет · Волокита в мешок',
         run: (a) => {
           a.coins(25);
           a.curse();
@@ -295,22 +305,21 @@ export const EVENTS: EventDef[] = [
     art: 'ev_shredder',
     options: [
       {
-        label: 'Скормить документ',
-        hint: 'Убрать фишку из колоды',
-        locked: needCards(5),
+        label: 'Скормить волокиту',
+        hint: 'Снять одну Волокиту',
+        locked: needTape,
         run: (a) => {
-          a.pick('remove', 1);
+          a.uncurse();
           return 'Шредер довольно урчит.';
         },
       },
       {
-        label: 'Скормить два',
-        hint: 'Убрать 2 фишки · −1 сердце',
-        locked: needCards(6),
+        label: 'Порыться в обрезках',
+        hint: '−½ сердца · находка в следующем бою',
         run: (a) => {
-          a.hurt(2);
-          a.pick('remove', 2);
-          return 'Шредер прихватывает рукав. Рукав ты отдаёшь.';
+          a.hurt(1);
+          a.findSoon();
+          return 'Шредер прихватывает рукав. Зато в обрезках что-то блестит — ты суёшь это в карман.';
         },
       },
       leave('Шредер урчит тебе вслед.'),
@@ -323,11 +332,12 @@ export const EVENTS: EventDef[] = [
     art: 'ev_laminator',
     options: [
       {
-        label: 'Заламинировать фишки',
-        hint: '2 фишки: враги их не портят',
+        label: 'Заламинировать щит',
+        hint: 'Улучшить щит в руке',
+        locked: (run) => (run.hero.ups.includes(run.hero.equip.shield) ? 'Щит уже улучшен' : null),
         run: (a) => {
-          a.pick('finish', 2, 'laminate');
-          return 'Плёнка схватывается с тихим щелчком.';
+          const name = a.upgradeEquipped('shield');
+          return `Плёнка схватывается с тихим щелчком. ${name ?? 'Щит'} теперь держит больше.`;
         },
       },
       {
@@ -358,11 +368,12 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Забрать стопку',
-        hint: 'Редкая фиолетовая фишка · в колоду — Волокита',
+        hint: 'Редкая фиолетовая вещь · Волокита в мешок',
+        locked: (run) => (run.hero.gear.ink.length >= 3 ? 'Руки заняты' : null),
         run: (a) => {
-          const name = a.randomCard('rare', 'ink');
+          const name = a.randomGear('rare', 'ink');
           a.curse();
-          return `Среди листов — «${name}». Остальное придётся разбирать.`;
+          return name ? `Среди листов — «${name}». Остальное придётся разбирать.` : 'Среди листов ничего нужного. Остальное придётся разбирать.';
         },
       },
       leave('Ты выдёргиваешь шнур. Принтер допечатывает лист без питания.'),
@@ -376,18 +387,20 @@ export const EVENTS: EventDef[] = [
     options: [
       {
         label: 'Поставить печать',
-        hint: 'Отделка «Печать» на фишку: +2 урона',
+        hint: 'Улучшить вещь на выбор',
+        locked: needUpgrade(),
         run: (a) => {
-          a.pick('finish', 1, 'seal');
+          a.pick('upgrade', 1);
           return 'Оттиск ложится ровно. Кажется, так и было задумано.';
         },
       },
       {
         label: 'Проштамповать всё',
-        hint: '«Печать» на 2 случайные фишки · −½ сердца',
+        hint: '−½ сердца · улучшить случайную вещь',
+        locked: needUpgrade(),
         run: (a) => {
           a.hurt(1);
-          const list = a.finishRandom('seal', 2);
+          const list = a.upgradeRandom(1);
           return `Рука немеет. Проштампованы: ${list.join(', ') || 'ничего'}.`;
         },
       },
@@ -401,11 +414,12 @@ export const EVENTS: EventDef[] = [
     art: 'ev_kitchen',
     options: [
       {
-        label: 'Заточить фишки',
-        hint: '2 фишки: +1 к значению',
+        label: 'Заточить оружие',
+        hint: 'Улучшить оружие в руке',
+        locked: (run) => (run.hero.ups.includes(run.hero.equip.blade) ? 'Оружие уже заточено' : null),
         run: (a) => {
-          a.pick('finish', 2, 'sharp');
-          return 'Звук, от которого сводит зубы.';
+          const name = a.upgradeEquipped('blade');
+          return `Звук, от которого сводит зубы. ${name ?? 'Оружие'} режет лучше.`;
         },
       },
       {
@@ -451,11 +465,12 @@ export const EVENTS: EventDef[] = [
     art: 'ev_paint',
     options: [
       {
-        label: 'Позолотить фишки',
-        hint: '2 фишки: +1 монета при сборе',
+        label: 'Позолотить монетку',
+        hint: 'Улучшить жёлтую вещь в руке',
+        locked: (run) => (run.hero.ups.includes(run.hero.equip.coin) ? 'Уже позолочено' : null),
         run: (a) => {
-          a.pick('finish', 2, 'gild');
-          return 'Краска ложится толстым слоем.';
+          const name = a.upgradeEquipped('coin');
+          return `Краска ложится толстым слоем. ${name ?? 'Монетка'} блестит, как настоящая.`;
         },
       },
       {
@@ -483,16 +498,16 @@ export const EVENTS: EventDef[] = [
     art: 'ev_hr',
     options: [
       {
-        label: 'Перевести фишку',
-        hint: 'Заменить фишку случайной',
+        label: 'Перевести вещь',
+        hint: 'Заменить вещь случайной того же цвета',
         run: (a) => {
           a.pick('transform', 1);
-          return 'Фишка возвращается с другим бейджем.';
+          return 'Вещь возвращается с другим бейджем.';
         },
       },
       {
         label: 'Перевести две',
-        hint: 'Заменить 2 фишки случайными',
+        hint: 'Заменить 2 вещи случайными того же цвета',
         run: (a) => {
           a.pick('transform', 2);
           return '«Приказ подписан задним числом».';

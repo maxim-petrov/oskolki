@@ -1,4 +1,4 @@
-import type { CharId } from '../types.ts';
+import type { CharId, Fam } from '../types.ts';
 
 /**
  * Acts (biomes) of a run. Encounters are fixed enemy groups: the first fights of an act
@@ -96,6 +96,10 @@ export interface CharDef {
   relic: string;
   active: string | null;
   pockets: string[];
+  /** Items held at the start where they differ from the plain ones (BASE_GEAR). */
+  gear?: Partial<Record<Fam, string>>;
+  /** Colour weights of the bag where they differ from the usual 4/4/3/2. */
+  weights?: Partial<Record<Fam, number>>;
   /** Meta unlock id; null = available from the start. */
   unlock: string | null;
 }
@@ -104,7 +108,7 @@ export const CHARACTERS: Record<CharId, CharDef> = {
   intern: {
     id: 'intern',
     name: 'Стажёр',
-    desc: 'Первая неделя. Канцелярский нож, пропуск и ластик.',
+    desc: 'Первая неделя. Канцелярский нож, щит, батарейка и монетка — ничего лишнего; пропуск и ластик.',
     maxHp: 8,
     coins: 20,
     relic: 'badge',
@@ -115,23 +119,26 @@ export const CHARACTERS: Record<CharId, CharDef> = {
   accountant: {
     id: 'accountant',
     name: 'Бухгалтер',
-    desc: 'Считает каждую монету. Калькулятор: золотые группы добавляют урон удару.',
+    desc: 'Считает каждую монету. Жёлтых фишек у него больше, премия и калькулятор превращают их в урон.',
     maxHp: 8,
     coins: 40,
     relic: 'calculator',
     active: null,
     pockets: ['choco'],
+    gear: { coin: 'bonus' },
+    weights: { blade: 3, shield: 3, ink: 2, coin: 4 },
     unlock: 'char_accountant',
   },
   janitor: {
     id: 'janitor',
     name: 'Уборщик',
-    desc: 'Видел всё. Молчит. Швабра превращает грязь на поле в броню.',
+    desc: 'Видел всё. Молчит. Файлик вместо щита, а швабра превращает грязь на поле в броню.',
     maxHp: 8,
     coins: 10,
     relic: 'mop',
     active: 'corrector',
     pockets: [],
+    gear: { shield: 'sleeve' },
     unlock: 'char_janitor',
   },
 };

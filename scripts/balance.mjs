@@ -8,9 +8,9 @@
 //                                   (encounters, lab, runab, bench, archetypes, events, chaos)
 //   npm run balance -- --patch=docs/balance/patches/example.mjs --out=/tmp/whatif
 //                                   try a tuning before changing the game: the patch module
-//                                   edits the content (acts, items, cards…) in every worker
+//                                   edits the content (acts, items, gear…) in every worker
 //
-// Everything new in the content (items, cards, enemies, events) is picked up automatically.
+// Everything new in the content (items, gear, enemies, events) is picked up automatically.
 import { Worker } from 'node:worker_threads';
 import { pathToFileURL } from 'node:url';
 import fs from 'node:fs';
@@ -18,13 +18,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ACTS, CHARACTERS } from '../game/content/acts.ts';
-import { CARDS, rewardPool } from '../game/content/cards.ts';
+import { BASE_GEAR, GEAR, MAX_GEAR, gearPoolOf } from '../game/content/gear.ts';
 import { ENEMIES } from '../game/content/enemies.ts';
 import { EVENTS } from '../game/content/events.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import { REQUESTS } from '../render/profile.ts';
 import { TARGETS } from '../game/balance/targets.ts';
-import { CARD_SCORE } from '../game/bot.ts';
+import { GEAR_SCORE } from '../game/bot.ts';
 import { mean, median, paired, quantile, stderr } from '../game/balance/lab.ts';
 import { rng, shuffle, int, derive } from '../game/rng.ts';
 
@@ -46,7 +46,7 @@ const N = QUICK
       others: 80,
       heroes: 80,
       items: 80,
-      cards: 60,
+      gear: 60,
       snaps: 14,
       enc: 14,
       bench: 8,
@@ -59,7 +59,7 @@ const N = QUICK
       others: 200,
       heroes: 200,
       items: 200,
-      cards: 160,
+      gear: 160,
       snaps: 40,
       enc: 36,
       bench: 16,
@@ -69,18 +69,17 @@ const N = QUICK
     };
 
 const FAMS = ['blade', 'shield', 'ink', 'coin'];
-const PLAIN = { blade: 'fist', shield: 'folder', ink: 'ink', coin: 'clip' };
-// Items the lab tries: passive ones and weapons (the starting knife is in every hand already).
+// Items the lab tries: the passive ones (gear has its own lab).
 const PASSIVES = Object.values(ITEMS)
-  .filter((d) => d.kind === 'passive' || (d.kind === 'weapon' && d.pool !== 'starter'))
+  .filter((d) => d.kind === 'passive')
   .map((d) => d.id);
 const ACTIVES = Object.values(ITEMS)
   .filter((d) => d.kind === 'active')
   .map((d) => d.id);
 const POCKET_IDS = Object.keys(POCKETS);
-const FINISH_IDS = ['sharp', 'gild', 'seal', 'copy', 'laminate'];
 const ALL_UNLOCKS = REQUESTS.map((r) => r.id);
-const CARD_IDS = rewardPool(ALL_UNLOCKS);
+const GEAR_IDS = gearPoolOf(ALL_UNLOCKS);
+const famOf = (id) => GEAR[id]?.gear.fam;
 const STARTER_RELICS = new Set(Object.values(CHARACTERS).map((c) => c.relic));
 
 // ── Worker pool ──────────────────────────────────────────────────────
@@ -155,12 +154,12 @@ const pctx = (x, d = 0) => `${(x * 100).toFixed(d).replace('.', ',')}%`;
 const num = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d).replace('.', ',') : '—');
 const signed = (x, d = 1, unit = '') => (Number.isFinite(x) ? `${x > 0 ? '+' : x < 0 ? '−' : '±'}${Math.abs(x).toFixed(d).replace('.', ',')}${unit}` : '—');
 const pp = (x) => signed(x * 100, 1, ' п.п.');
-const cardName = (id) => CARDS[id]?.name ?? id;
+const gearName = (id) => GEAR[id]?.name ?? id;
 const FAM_NAME = {
-  blade: 'удар',
-  shield: 'защита',
-  ink: 'чернила',
-  coin: 'бухгалтерия',
+  blade: 'оружие',
+  shield: 'щит',
+  ink: 'энергия',
+  coin: 'находки',
 };
 const itemName = (id) => ITEMS[id]?.name ?? POCKETS[id]?.name ?? id;
 const enemyName = (id) => ENEMIES[id]?.name ?? id;
@@ -183,25 +182,20 @@ const RUN_CONFIGS = {
     spec: { policy: 'greedy', snapshots: true },
     n: N.runs,
   },
-  randomCards: {
-    title: 'Случайные фишки',
-    spec: { policy: 'randomCards' },
+  randomGear: {
+    title: 'Случайные вещи',
+    spec: { policy: 'randomGear' },
     n: N.others,
   },
-  noCards: {
-    title: 'Без новых фишек',
-    spec: { policy: 'noCards' },
+  noGear: {
+    title: 'Без новых вещей',
+    spec: { policy: 'noGear' },
     n: N.others,
   },
   random: { title: 'Случайные ходы', spec: { policy: 'random' }, n: N.others },
   eraserMatch: {
     title: 'Стажёр ловит ластиком совпадения',
     spec: { policy: 'greedy', erase: 'match' },
-    n: N.others,
-  },
-  focus: {
-    title: 'Фокус на красных (берёт только красные, остальные утилизирует)',
-    spec: { policy: 'focus' },
     n: N.others,
   },
   accountant: {
@@ -257,7 +251,8 @@ function summarize(results, lastAct = 2) {
     kinds: {},
     causes: {},
     diedIn: {},
-    deck: mean(results.map((r) => r.deck)),
+    gear: mean(results.map((r) => r.gear)),
+    ups: mean(results.map((r) => r.ups)),
     relics: mean(results.map((r) => r.relics.length)),
     maxMult: results.map((r) => r.maxMult),
     maxHit: results.map((r) => r.maxHit),
@@ -443,23 +438,18 @@ if (want('encounters'))
   }
 });
 
-// ── C. Variant lab: every item, skill, pocket, finish and card added to real builds ──
+// ── C. Variant lab: every item, skill, pocket and piece of gear added to real builds ──
 
-function bestCardIndex(deck, finish) {
-  const rank = { starter: 0, common: 1, uncommon: 2, rare: 3, status: -1 };
-  let best = -1;
-  for (let k = 0; k < deck.length; k++) {
-    const d = CARDS[deck[k].id];
-    if (!d || d.rarity === 'status' || deck[k].finish === finish) continue;
-    if (best < 0) {
-      best = k;
-      continue;
-    }
-    const b = CARDS[deck[best].id];
-    const val = (c) => (c.up ? CARDS[c.id].vUp : CARDS[c.id].v);
-    if (rank[d.rarity] > rank[b.rarity] || (rank[d.rarity] === rank[b.rarity] && val(deck[k]) > val(deck[best]))) best = k;
-  }
-  return best;
+/** The build holding this item in its colour (it keeps up to two spares of the colour). */
+function withHeld(b, id, up = false) {
+  const fam = famOf(id);
+  const same = b.gear.filter((x) => famOf(x) === fam && x !== id).slice(0, MAX_GEAR - 1);
+  return {
+    ...b,
+    gear: [...b.gear.filter((x) => famOf(x) !== fam), ...same, id],
+    equip: [...(b.equip ?? []).filter((x) => famOf(x) !== fam), id],
+    ups: up ? [...new Set([...(b.ups ?? []), id])] : (b.ups ?? []).filter((x) => x !== id),
+  };
 }
 
 function variantsOf(b) {
@@ -467,11 +457,7 @@ function variantsOf(b) {
   v.set('base', b);
   v.set('noPockets', { ...b, pockets: b.pockets.map(() => null) });
   v.set('noActive', { ...b, active: null });
-  for (const fam of FAMS)
-    v.set(`plain:${fam}`, {
-      ...b,
-      deck: [...b.deck, { id: PLAIN[fam] }, { id: PLAIN[fam] }],
-    });
+  for (const fam of FAMS) v.set(`plain:${fam}`, withHeld(b, BASE_GEAR[fam]));
   for (const id of PASSIVES)
     if (b.relics.includes(id)) v.set(`minus:${id}`, { ...b, relics: b.relics.filter((x) => x !== id) });
     else v.set(`item:${id}`, { ...b, relics: [...b.relics, id] });
@@ -481,20 +467,9 @@ function variantsOf(b) {
       ...b,
       pockets: b.pockets.map((_, k) => (k === 0 ? id : null)),
     });
-  for (const f of FINISH_IDS) {
-    const k = bestCardIndex(b.deck, f);
-    if (k >= 0)
-      v.set(`finish:${f}`, {
-        ...b,
-        deck: b.deck.map((c, i) => (i === k ? { ...c, finish: f } : c)),
-      });
-  }
-  for (const id of CARD_IDS) {
-    v.set(`card:${id}`, { ...b, deck: [...b.deck, { id }, { id }] });
-    v.set(`cardUp:${id}`, {
-      ...b,
-      deck: [...b.deck, { id, up: true }, { id, up: true }],
-    });
+  for (const id of GEAR_IDS) {
+    v.set(`gear:${id}`, withHeld(b, id));
+    v.set(`gearUp:${id}`, withHeld(b, id, true));
   }
   return v;
 }
@@ -506,16 +481,10 @@ function comparisons(b) {
     out.push(b.relics.includes(id) ? { group: 'item', id, a: `minus:${id}`, b: 'base' } : { group: 'item', id, a: 'base', b: `item:${id}` });
   for (const id of ACTIVES) out.push({ group: 'active', id, a: 'noActive', b: `active:${id}` });
   for (const id of POCKET_IDS) out.push({ group: 'pocket', id, a: 'noPockets', b: `pocket:${id}` });
-  for (const f of FINISH_IDS) out.push({ group: 'finish', id: f, a: 'base', b: `finish:${f}` });
-  for (const id of CARD_IDS) {
-    out.push({
-      group: 'cardRule',
-      id,
-      a: `plain:${CARDS[id].fam}`,
-      b: `card:${id}`,
-    });
-    out.push({ group: 'cardTake', id, a: 'base', b: `card:${id}` });
-    out.push({ group: 'cardUp', id, a: `card:${id}`, b: `cardUp:${id}` });
+  for (const id of GEAR_IDS) {
+    out.push({ group: 'gearRule', id, a: `plain:${famOf(id)}`, b: `gear:${id}` });
+    out.push({ group: 'gearTake', id, a: 'base', b: `gear:${id}` });
+    out.push({ group: 'gearUp', id, a: `gear:${id}`, b: `gearUp:${id}` });
   }
   return out;
 }
@@ -523,7 +492,7 @@ function comparisons(b) {
 const lab = {}; // `${group}:${id}` → { act → { hp: [], dead: [], moves: [] } }
 const labSnaps = [];
 if (want('lab'))
-  await stage('лаборатория предметов, навыков, карманов, отделки и фишек', async () => {
+  await stage('лаборатория предметов, навыков, карманов и вещей', async () => {
   const specs = [];
   const index = [];
   for (const a of LAB_ACTS)
@@ -586,20 +555,20 @@ function labStat(key) {
   };
 }
 
-// ── D. Whole runs with one item or card from the start (paired with the plain runs) ──
+// ── D. Whole runs with one item or piece of gear from the start (paired with the plain runs) ──
 
 const runAB = {};
 if (want('runab'))
-  await stage('забеги с предметом или фишкой со старта', async () => {
+  await stage('забеги с предметом или вещью со старта', async () => {
   const jobs = [];
   const add = (key, spec, n) => {
     for (const seed of seeds(n)) jobs.push({ key, spec: { seed, policy: 'greedy', lite: true, ...spec } });
   };
   for (const id of PASSIVES) if (!STARTER_RELICS.has(id)) add(`item:${id}`, { relics: [id] }, N.items);
   for (const id of ACTIVES) if (id !== CHARACTERS.intern.active) add(`active:${id}`, { relics: [id] }, N.items);
-  for (const fam of FAMS) add(`plain:${fam}`, { cards: [{ id: PLAIN[fam] }] }, N.cards);
-  for (const fam of FAMS) add(`minus:${fam}`, { without: [PLAIN[fam]] }, N.cards);
-  for (const id of CARD_IDS) add(`card:${id}`, { cards: [{ id }] }, N.cards);
+  for (const fam of FAMS) add(`up:${fam}`, { ups: [BASE_GEAR[fam]] }, N.gear);
+  add('tape', { tape: 1 }, N.gear);
+  for (const id of GEAR_IDS) add(`gear:${id}`, { relics: [id] }, N.gear);
   const out = await pool.map(
     'run',
     jobs.map((j) => j.spec),
@@ -658,7 +627,7 @@ if (want('bench'))
       const b = s.build;
       push('base', b);
       for (const id of passives) if (!b.relics.includes(id)) push(`item:${id}`, { ...b, relics: [...b.relics, id] });
-      for (const id of CARD_IDS) push(`card:${id}`, { ...b, deck: [...b.deck, { id }, { id }] });
+      for (const id of GEAR_IDS) push(`gear:${id}`, withHeld(b, id));
       if (j < N.pairs)
         for (let x = 0; x < passives.length; x++)
           for (let y = x + 1; y < passives.length; y++) {
@@ -702,27 +671,27 @@ const dpsOf = (key) => {
 // ── F0. Build archetypes of GDD §6 on the budget of real builds ─────
 
 /**
- * Each archetype replaces the cards a real build added to its starter deck with as many cards of
- * the archetype (in this order, round and round) and adds its key items. Same budget, other plan.
+ * Each archetype swaps the gear a real build found for the archetype's kit (the last listed of a
+ * colour is held) and adds its key items. Same point of the run, another plan.
  */
 const ARCHETYPES = [
-  { id: 'paper', title: '«Бумажный резак» (резак и нож против бумаги)', cards: ['pins', 'redpen', 'pins', 'alarm', 'pins', 'redpen', 'fist', 'pins'], relics: ['knife', 'cutter', 'timesheet'] },
-  { id: 'bleed', title: '«Кровопускатель» (ножницы и ржавое лезвие)', cards: ['pins', 'redpen', 'pins', 'alarm', 'fist', 'pins', 'redpen', 'pins'], relics: ['scissors', 'rustyblade'] },
-  { id: 'accountant', title: '«Бухгалтер» (золото в урон)', cards: ['bonus', 'goldclip', 'report', 'card', 'bonus', 'receipt', 'goldclip', 'coin'], relics: ['calculator', 'wallet', 'abacus'] },
-  { id: 'fortress', title: '«Крепость» (синие с отражением)', cards: ['vest', 'clipboard', 'laminator', 'archivebox', 'binder', 'clipboard', 'umbrella', 'drawer'], relics: ['tape', 'binderclip'] },
-  { id: 'ink', title: '«Чернильная магия» (фиолетовые)', cards: ['copystamp', 'blotcurse', 'carbon', 'quill', 'blotcurse', 'weight', 'copystamp', 'urgent'], relics: ['inkwell', 'lamp'], active: 'giftbox' },
-  { id: 'mono', title: '«Моно-масть» (только красные)', cards: ['pins', 'redpen', 'alarm', 'pins', 'fist', 'pins', 'redpen', 'fist'], relics: [], mono: 'blade' },
+  { id: 'paper', title: '«Бумажный резак» (резак против бумаги, табель, красная ручка)', gear: ['knife', 'cutter'], relics: ['timesheet', 'redpen'] },
+  { id: 'bleed', title: '«Кровопускатель» (ножницы, ржавое лезвие, тревожная кнопка)', gear: ['scissors'], relics: ['rustyblade', 'alarm'] },
+  { id: 'accountant', title: '«Бухгалтер» (жёлтые в урон)', gear: ['bonus', 'report', 'goldclip'], relics: ['calculator', 'wallet', 'abacus'] },
+  { id: 'fortress', title: '«Крепость» (синие с отражением)', gear: ['foldervest', 'clipboard'], relics: ['tape', 'binderclip'] },
+  { id: 'ink', title: '«Чернильная магия» (фиолетовые)', gear: ['blotcurse', 'copystamp'], relics: ['inkwell', 'lamp'], active: 'giftbox' },
+  { id: 'plain', title: '«Простые вещи, все улучшены»', gear: [], ups: ['knife', 'shield', 'battery', 'penny'], relics: [] },
 ];
-const STARTERS = new Set(['fist', 'folder', 'ink', 'clip']);
 
 function archetypeBuild(b, arch) {
-  const starters = b.deck.filter((c) => STARTERS.has(c.id));
-  const added = b.deck.length - starters.length;
-  const base = arch.mono ? starters.filter((c) => CARDS[c.id].fam === arch.mono) : starters;
-  // A one-family deck keeps its size: the other starters are swapped for the family's cards too.
-  const n = arch.mono ? b.deck.length - base.length : added;
-  const cards = Array.from({ length: n }, (_, k) => ({ id: arch.cards[k % arch.cards.length] }));
-  return { ...b, deck: [...base, ...cards], relics: [...new Set([...b.relics, ...arch.relics])], ...(arch.active ? { active: arch.active } : {}) };
+  return {
+    ...b,
+    gear: [...arch.gear],
+    equip: [...arch.gear],
+    ups: [...(arch.ups ?? [])],
+    relics: [...new Set([...b.relics, ...arch.relics])],
+    ...(arch.active ? { active: arch.active } : {}),
+  };
 }
 
 const archetypes = [];
@@ -803,10 +772,10 @@ if (want('events'))
         hp: avg((r) => r.hp),
         maxHp: avg((r) => r.maxHp),
         coins: avg((r) => r.coins),
-        deck: avg((r) => r.deck),
+        gear: avg((r) => r.gear),
         ups: avg((r) => r.ups),
-        finishes: avg((r) => r.finishes),
         curses: avg((r) => r.curses),
+        keys: avg((r) => r.keys),
         relics: avg((r) => r.relics),
         pockets: avg((r) => r.pockets),
         shards: avg((r) => r.shards),
@@ -822,18 +791,11 @@ let chaos = { n: 0, violations: [], stuck: 0 };
 if (want('chaos'))
   await stage('хаос-сборки (инварианты)', async () => {
   const r = rng(derive(99, 'chaos'));
-  const allCards = Object.keys(CARDS);
+  const allGear = Object.keys(GEAR);
   const enemyIds = Object.keys(ENEMIES);
   const specs = [];
   for (let k = 0; k < N.chaos; k++) {
-    const deck = Array.from({ length: 5 + int(r, 30) }, () => {
-      const id = allCards[int(r, allCards.length)];
-      return {
-        id,
-        ...(int(r, 3) === 0 ? { up: true } : {}),
-        ...(int(r, 5) === 0 ? { finish: FINISH_IDS[int(r, FINISH_IDS.length)] } : {}),
-      };
-    });
+    const gear = shuffle(r, [...allGear]).slice(0, int(r, 13));
     const relics = shuffle(r, [...PASSIVES]).slice(0, int(r, 12));
     const act = int(r, ACTS.length);
     const kind = ['fight', 'elite', 'boss'][int(r, 3)];
@@ -845,7 +807,10 @@ if (want('chaos'))
       enemies,
       build: {
         char: ['intern', 'accountant', 'janitor'][int(r, 3)],
-        deck,
+        gear,
+        equip: shuffle(r, [...gear]).slice(0, int(r, 5)),
+        ups: gear.filter(() => int(r, 3) === 0),
+        tape: int(r, 4) ? 0 : 1 + int(r, 4),
         relics,
         active: int(r, 4) ? ACTIVES[int(r, ACTIVES.length)] : null,
         pockets: Array.from({ length: 5 }, () => (int(r, 2) ? POCKET_IDS[int(r, POCKET_IDS.length)] : null)),
@@ -888,8 +853,8 @@ metrics['engine.stalls'] = encounters.reduce((s, e) => s + e.timeout, 0);
 metrics['greedy.win'] = G.win;
 G.clear.forEach((x, a) => (metrics[`greedy.clear.${a}`] = x));
 G.deathRate.forEach((x, a) => (metrics[`greedy.deathRate.${a}`] = x));
-metrics['randomCards.gap'] = G.win - runSummary.randomCards.win;
-metrics['noCards.win'] = runSummary.noCards.win;
+metrics['randomGear.gap'] = G.win - runSummary.randomGear.win;
+metrics['noGear.win'] = runSummary.noGear.win;
 for (const a of [0, 1, 2]) {
   metrics[`greedy.fight.moves.${a}`] = G.kinds[`${a}.fight`].moves;
   metrics[`greedy.fight.acts.${a}`] = G.kinds[`${a}.fight`].acts;
@@ -923,27 +888,26 @@ if (want('lab') && want('runab')) {
   metrics['items.weak'] = itemRows.filter((r) => r.verdict === 'weak').length;
 }
 
-const cardRows = CARD_IDS.map((id) => {
-  const fam = CARDS[id].fam;
-  const run = runDelta(`card:${id}`);
-  const rule = labStat(`cardRule:${id}`);
-  const take = labStat(`cardTake:${id}`);
-  const up = labStat(`cardUp:${id}`);
-  const dps = dpsOf(`card:${id}`);
+const gearRows = GEAR_IDS.map((id) => {
+  const fam = famOf(id);
+  const run = runDelta(`gear:${id}`);
+  const rule = labStat(`gearRule:${id}`);
+  const take = labStat(`gearTake:${id}`);
+  const up = labStat(`gearUp:${id}`);
+  const dps = dpsOf(`gear:${id}`);
   let verdict = 'ok';
   if (run && run.win - 2 * run.winSe > 0.15) verdict = 'op';
   else if (rule.hp + 2 * rule.hpSe < 0 && (!run || run.win < 0)) verdict = 'worse';
   return { id, fam, run, rule, take, up, dps, verdict };
 });
 if (want('lab') && want('runab')) {
-  metrics['cards.op'] = cardRows.filter((r) => r.verdict === 'op').length;
-  metrics['cards.worse'] = cardRows.filter((r) => r.verdict === 'worse').length;
+  metrics['gear.op'] = gearRows.filter((r) => r.verdict === 'op').length;
+  metrics['gear.worse'] = gearRows.filter((r) => r.verdict === 'worse').length;
 }
 
 const heroWins = ['vetIntern', 'vetAccountant', 'vetJanitor'].map((k) => runSummary[k].win);
 metrics['heroes.spread'] = Math.max(...heroWins) - Math.min(...heroWins);
 metrics['eraser.gain'] = runSummary.eraserMatch.win - G.win;
-metrics['focus.gain'] = runSummary.focus.win - G.win;
 metrics['eraser.freeShare'] = runSummary.eraserMatch.freeShare;
 metrics['greedy.shops.buy'] = G.shopBuy;
 metrics['full4.deathRate.3'] = runSummary.full4.deathRate[3];
@@ -992,19 +956,14 @@ const confRows = Object.entries(RUN_CONFIGS).map(([k, c]) => {
     pctx(s.win, 1),
     s.clear.map((x) => pctx(x)).join(' / '),
     num(s.floors),
-    num(s.deck),
+    `${num(s.gear)} (${num(s.ups)} улучш.)`,
     num(s.relics),
     num(median(s.maxMult)),
     num(median(s.maxHit), 0),
   ];
 });
 L.push(
-  table(['Конфигурация', 'Забегов', 'Победы', 'Прошли отделы', 'Этажей', 'Колода', 'Предметов', 'Макс. сила удара, × (медиана)', 'Макс. удар (медиана)'], confRows),
-);
-L.push('');
-const FO = runSummary.focus;
-L.push(
-  `Одно семейство: каскады растут экспоненциально с долей семейства в колоде. Бот, который берёт только красные фишки и утилизирует остальные, выигрывает ${pctx(FO.win, 1)} против ${pctx(G.win, 1)} (проходит отделы: ${FO.clear.map((x) => pctx(x)).join(' / ')}), медиана максимального удара — ${num(median(FO.maxHit), 0)}.`,
+  table(['Конфигурация', 'Забегов', 'Победы', 'Прошли отделы', 'Этажей', 'Вещей', 'Предметов', 'Макс. сила удара, × (медиана)', 'Макс. удар (медиана)'], confRows),
 );
 L.push('');
 const EM = runSummary.eraserMatch;
@@ -1012,21 +971,19 @@ L.push(
   `Ластик как бесплатный ход: если убирать фишку так, чтобы сверху упало совпадение (очередь видна), совпадение срабатывает без траты времени. Стажёр, играющий так, выигрывает ${pctx(EM.win, 1)} против ${pctx(G.win, 1)}; бесплатных действий — ${num(EM.freePerMove, 2)} на ход, они дают ${pctx(EM.freeShare)} всего урона. Остальные разделы считаются с ластиком только на кляксы — как будто бесплатные совпадения закрыты.`,
 );
 L.push('');
-L.push('Состав стартовой колоды (стажёр, забег, разница побед с обычной колодой):');
+L.push('Простые вещи (стажёр, забег, разница побед с обычным стартом): улучшенная со старта и Волокита в мешке.');
 L.push('');
+const tape = runDelta('tape');
 L.push(
   table(
-    ['Семейство', 'Стартовая фишка', '+1 такая же', '−1 из колоды'],
-    FAMS.map((fam) => {
-      const plus = runDelta(`plain:${fam}`);
-      const minus = runDelta(`minus:${fam}`);
-      return [
-        FAM_NAME[fam],
-        cardName(PLAIN[fam]),
-        plus ? `${pp(plus.win)} ± ${num(plus.winSe * 100, 1)}` : '—',
-        minus ? `${pp(minus.win)} ± ${num(minus.winSe * 100, 1)}` : '—',
-      ];
-    }),
+    ['Цвет', 'Простая вещь', 'Улучшена со старта'],
+    [
+      ...FAMS.map((fam) => {
+        const up = runDelta(`up:${fam}`);
+        return [FAM_NAME[fam], gearName(BASE_GEAR[fam]), up ? `${pp(up.win)} ± ${num(up.winSe * 100, 1)}` : '—'];
+      }),
+      ['мусор', 'Волокита (3 кляксы в мешке)', tape ? `${pp(tape.win)} ± ${num(tape.winSe * 100, 1)}` : '—'],
+    ],
   ),
 );
 L.push('');
@@ -1181,7 +1138,7 @@ L.push(
   ),
 );
 L.push('');
-L.push('### Навыки, карманы, отделка');
+L.push('### Навыки и карманы');
 L.push('');
 const activeRows = ACTIVES.map((id) => {
   const s = labStat(`active:${id}`);
@@ -1197,46 +1154,38 @@ const pocketRows = POCKET_IDS.map((id) => {
   const s = labStat(`pocket:${id}`);
   return [`${itemName(id)} (карман, ${POCKETS[id].price} мон.)`, `${signed(s.hp * 100, 1, '%')} ± ${num(s.hpSe * 100, 1)}`, signed(-s.moves, 1), '—'];
 });
-/** The greedy bot's price of a card from the lab: fight value of taking it plus one copy in a whole run. */
+/**
+ * The greedy bot's price of an item of gear from the lab (the plain item of its colour is 0): what
+ * holding it saves in fights against the plain one, plus what it does to a whole run.
+ */
 function suggestedScore(r) {
-  if (!r.run || !Number.isFinite(r.take?.hp)) return null;
-  return Math.round(Math.max(1, Math.min(9.5, 4 + 0.35 * r.take.hp * 100 + 0.12 * r.run.win * 100)) * 10) / 10;
+  if (!r.run || !Number.isFinite(r.rule?.hp)) return null;
+  return Math.round(Math.max(-3, Math.min(12, 0.4 * r.rule.hp * 100 + 0.15 * r.run.win * 100)) * 10) / 10;
 }
-const FINISH_NAME = {
-  sharp: 'Заточка',
-  gild: 'Позолота',
-  seal: 'Печать',
-  copy: 'Копия',
-  laminate: 'Ламинат',
-};
-const finishRows = FINISH_IDS.map((f) => {
-  const s = labStat(`finish:${f}`);
-  return [`${FINISH_NAME[f]} (на лучшую карту)`, `${signed(s.hp * 100, 1, '%')} ± ${num(s.hpSe * 100, 1)}`, signed(-s.moves, 1), '—'];
-});
-L.push(table(['Что', 'Бой: здоровье', 'Ходов', 'Забег'], [...activeRows, ...pocketRows, ...finishRows]));
+L.push(table(['Что', 'Бой: здоровье', 'Ходов', 'Забег'], [...activeRows, ...pocketRows]));
 L.push('');
 
-L.push('## Фишки');
+L.push('## Вещи');
 L.push('');
 L.push(
-  '**Правило** — две копии фишки против двух простых фишек того же семейства (сколько даёт само правило). **Взять** — две копии против пропуска награды. **Повышение** — улучшенная против обычной. **Забег** — одна копия со старта против обычной стартовой колоды. Плюс — лучше. **По замеру** — подсказка к цене фишки для жадного бота из этих чисел (4 + 0,35 × «Взять» в % + 0,12 × «Забег» в п.п., от 1 до 9,5): показывает, какие фишки бот переоценивает или недооценивает; новые цены в `CARD_SCORE` (game/bot.ts) оставляют, только если бот с ними не слабее в целых забегах.',
+  '**Правило** — вещь в руке против простой вещи того же цвета в тех же боях (сколько даёт её правило). **Взять** — взять её в руку против сборки как есть. **Улучшение** — улучшенная против обычной. **Забег** — вещь в руке со старта против обычного старта. Плюс — лучше. **По замеру** — подсказка к цене вещи для жадного бота (0,4 × «Правило» в % + 0,15 × «Забег» в п.п., от −3 до 12; простая вещь — 0): показывает, какие вещи бот переоценивает или недооценивает; новые цены в `GEAR_SCORE` (game/bot.ts) оставляют, только если бот с ними не слабее в целых забегах.',
 );
 L.push('');
 L.push(
   table(
-    ['Фишка', 'Семейство', 'Редкость', 'Правило', 'Взять', 'Повышение', 'Забег', 'Урон ×', 'Бот ценит', 'По замеру', ''],
-    [...cardRows]
+    ['Вещь', 'Цвет', 'Редкость', 'Правило', 'Взять', 'Улучшение', 'Забег', 'Урон ×', 'Бот ценит', 'По замеру', ''],
+    [...gearRows]
       .sort((x, y) => y.rule.hp - x.rule.hp)
       .map((r) => [
-        cardName(r.id),
+        gearName(r.id),
         FAM_NAME[r.fam],
-        CARDS[r.id].rarity,
+        GEAR[r.id].pool,
         `${signed(r.rule.hp * 100, 1, '%')} ± ${num(r.rule.hpSe * 100, 1)}`,
         signed(r.take.hp * 100, 1, '%'),
         signed(r.up.hp * 100, 1, '%'),
         r.run ? `${pp(r.run.win)} ± ${num(r.run.winSe * 100, 1)}` : '—',
         num(r.dps, 2),
-        num(CARD_SCORE[r.id] ?? 3, 1),
+        num(GEAR_SCORE[r.id] ?? 3, 1),
         suggestedScore(r) === null ? '—' : num(suggestedScore(r), 1),
         r.verdict === 'op' ? '🔥 имба' : r.verdict === 'worse' ? '⬇️ хуже простой' : '',
       ]),
@@ -1286,7 +1235,7 @@ L.push('');
 
 L.push('## Архетипы сборок (GDD §6)');
 L.push('');
-L.push('Реальные сборки бота, в которых добранные фишки заменены фишками архетипа (столько же), плюс его ключевые предметы. Здоровье, сбережённое в бою против той же сборки как есть (плюс — архетип лучше), и изменение поражений.');
+L.push('Реальные сборки бота, в которых найденные вещи заменены набором архетипа, плюс его ключевые предметы. Здоровье, сбережённое в бою против той же сборки как есть (плюс — архетип лучше), и изменение поражений.');
 L.push('');
 L.push(
   table(
@@ -1298,22 +1247,22 @@ L.push('');
 
 L.push('## События');
 L.push('');
-L.push('Средний итог выбора для героев 1–3-го отделов (выбор доигран: карта выбрана, бой сыгран).');
+L.push('Средний итог выбора для героев 1–3-го отделов (выбор доигран: вещь выбрана, бой сыгран).');
 L.push('');
 const d = (x, dd = 1) => (Math.abs(x) < 0.05 ? '' : signed(x, dd));
 L.push(
   table(
-    ['Событие', 'Выбор', 'Здоровье', 'Макс.', 'Монеты', 'Карты', 'Повыш.', 'Отделка', 'Волокита', 'Предметы', 'Карманы', 'Осколки', 'Бой', 'Закрыт'],
+    ['Событие', 'Выбор', 'Здоровье', 'Макс.', 'Монеты', 'Вещи', 'Улучш.', 'Волокита', 'Ключи', 'Предметы', 'Карманы', 'Осколки', 'Бой', 'Закрыт'],
     eventStats.map((e) => [
       e.title,
       e.label,
       d(e.hp),
       d(e.maxHp),
       d(e.coins, 0),
-      d(e.deck),
+      d(e.gear),
       d(e.ups),
-      d(e.finishes),
       d(e.curses),
+      d(e.keys),
       d(e.relics, 2),
       d(e.pockets),
       d(e.shards),
@@ -1335,13 +1284,13 @@ L.push(
       `${num(s.coins, 0)} / ${num(s.coinsMed, 0)}`,
       pctx(s.buy),
       Object.entries(s.bought)
-        .map(([k, v]) => `${{ card: 'фишки', relic: 'предметы', pocket: 'карманы', finish: 'отделка', remove: 'утилизация' }[k] ?? k} ${v}`)
+        .map(([k, v]) => `${{ gear: 'вещи', relic: 'предметы', pocket: 'карманы', upgrade: 'мастерская', shred: 'шредер' }[k] ?? k} ${v}`)
         .join(', ') || '—',
     ]),
   ),
 );
 L.push('');
-L.push(`Монет в конце забега: ${num(G.coinsEnd, 0)} в среднем. Кулер: лечение ${num(G.rests.heal)} / повышение ${num(G.rests.upgrade)} раз за забег.`);
+L.push(`Монет в конце забега: ${num(G.coinsEnd, 0)} в среднем. Кулер: лечение ${num(G.rests.heal)} / улучшение ${num(G.rests.upgrade)} раз за забег.`);
 L.push('');
 const NODE = {
   fight: 'бои',
@@ -1368,7 +1317,7 @@ L.push('');
 L.push('## Движок');
 L.push('');
 L.push(
-  `Проверено инвариантов: после каждого действия всех забегов, боёв встреч и ${chaos.n} хаос-боёв (случайные колоды 5–35 карт, до 11 предметов, любые враги любого отдела, жадный и случайный бот). Нарушений: ${allViolations.length}, зависаний: ${metrics['engine.stuck']}, бесконечных боёв (800 действий без исхода): ${metrics['engine.stalls']} в реальных сборках, ${chaos.timeout} в хаос-сборках.`,
+  `Проверено инвариантов: после каждого действия всех забегов, боёв встреч и ${chaos.n} хаос-боёв (случайные вещи в руках и запасе, улучшения, волокита, до 11 предметов, любые враги любого отдела, жадный и случайный бот). Нарушений: ${allViolations.length}, зависаний: ${metrics['engine.stuck']}, бесконечных боёв (800 действий без исхода): ${metrics['engine.stalls']} в реальных сборках, ${chaos.timeout} в хаос-сборках.`,
 );
 L.push('');
 for (const v of allViolations.slice(0, 20)) L.push(`- ${v}`);
@@ -1379,21 +1328,21 @@ for (const e of encounters)
   if (e.timeout) L.push(`- бесконечные бои встречи ${encName(e.enemies)} (${ACTS[e.act].name}): ${e.timeout} — сборка не может ни победить, ни проиграть`);
 for (const c of chaos.stuckCases ?? [])
   L.push(
-    `- ${c.timeout ? 'бесконечный' : 'зависший'} хаос-бой #${c.k}: ${JSON.stringify({ act: c.spec.act, kind: c.spec.kind, enemies: c.spec.enemies, deck: c.spec.build.deck.map((x) => x.id), relics: c.spec.build.relics, active: c.spec.build.active })}`,
+    `- ${c.timeout ? 'бесконечный' : 'зависший'} хаос-бой #${c.k}: ${JSON.stringify({ act: c.spec.act, kind: c.spec.kind, enemies: c.spec.enemies, gear: c.spec.build.gear, equip: c.spec.build.equip, relics: c.spec.build.relics, active: c.spec.build.active })}`,
   );
 L.push('');
 L.push('## Методика');
 L.push('');
 L.push(
-  `- Боты (\`game/bot.ts\`): жадный выбирает ход по оценке первой волны, берёт фишки по таблице ценности, ходит по карте с оглядкой на здоровье. Это нижняя граница умения игрока: живой игрок сильнее.`,
+  `- Боты (\`game/bot.ts\`): жадный выбирает ход по оценке первой волны, берёт вещи по таблице ценности (\`GEAR_SCORE\`) и меняет их в бою, если так заметно лучше, ходит по карте с оглядкой на здоровье. Это нижняя граница умения игрока: живой игрок сильнее.`,
 );
 L.push(`- Забеги: сиды 1…N, одинаковые для всех вариантов — сравнения парные (одни и те же карты, одни и те же развилки, пока решения не разойдутся).`);
 L.push(
-  `- Лаборатория: из забегов жадного бота берутся реальные сборки перед каждым боем (колода, предметы, здоровье) — ${LAB_ACTS.map((a) => `${ACTS[a].name}: ${POOLS[a].all.length}`).join(', ')}. В лаборатории бой переигрывается с изменением сборки и тем же сидом.`,
+  `- Лаборатория: из забегов жадного бота берутся реальные сборки перед каждым боем (вещи, предметы, здоровье) — ${LAB_ACTS.map((a) => `${ACTS[a].name}: ${POOLS[a].all.length}`).join(', ')}. В лаборатории бой переигрывается с изменением сборки и тем же сидом.`,
 );
 L.push('- «± N» — стандартная ошибка; разница меньше двух ошибок — шум.');
 L.push(
-  `- Размеры выборок: забеги ${N.runs}, другие политики ${N.others}, герои ${N.heroes}, предметы ${N.items}, фишки ${N.cards}, сборок на отдел в лаборатории ${N.snaps}, на встречу ${N.enc}.`,
+  `- Размеры выборок: забеги ${N.runs}, другие политики ${N.others}, герои ${N.heroes}, предметы ${N.items}, вещи ${N.gear}, сборок на отдел в лаборатории ${N.snaps}, на встречу ${N.enc}.`,
 );
 L.push('');
 
@@ -1404,7 +1353,7 @@ const baseline = {
   quick: QUICK,
   metrics,
   items: Object.fromEntries(itemRows.map((r) => [r.id, { win: r.run?.win ?? null, fight: r.fight.hp, dps: r.dps }])),
-  cards: Object.fromEntries(cardRows.map((r) => [r.id, { rule: r.rule.hp, take: r.take.hp, win: r.run?.win ?? null, dps: r.dps }])),
+  gear: Object.fromEntries(gearRows.map((r) => [r.id, { rule: r.rule.hp, take: r.take.hp, win: r.run?.win ?? null, dps: r.dps }])),
   encounters: Object.fromEntries(encounters.map((e) => [`${e.act}:${e.enemies.join('+')}`, { loss: e.loss, hurt: e.hurt, moves: e.moves }])),
 };
 // A what-if run writes next to the main report and compares itself with the main baseline.
@@ -1431,10 +1380,10 @@ if (prev) {
     if (!p) changes.push(`- новый предмет: ${itemName(id)}`);
     else if (p.win !== null && v.win !== null && Math.abs(v.win - p.win) > 0.08) changes.push(`- ${itemName(id)}: победы ${pp(p.win)} → ${pp(v.win)}`);
   }
-  for (const [id, v] of Object.entries(baseline.cards)) {
-    const p = prev.cards?.[id];
-    if (!p) changes.push(`- новая фишка: ${cardName(id)}`);
-    else if (Math.abs(v.rule - p.rule) > 0.03) changes.push(`- ${cardName(id)}: правило ${signed(p.rule * 100, 1, '%')} → ${signed(v.rule * 100, 1, '%')}`);
+  for (const [id, v] of Object.entries(baseline.gear)) {
+    const p = prev.gear?.[id];
+    if (!p) changes.push(`- новая вещь: ${gearName(id)}`);
+    else if (Math.abs(v.rule - p.rule) > 0.03) changes.push(`- ${gearName(id)}: правило ${signed(p.rule * 100, 1, '%')} → ${signed(v.rule * 100, 1, '%')}`);
   }
   L.splice(
     L.indexOf('## Забеги'),
@@ -1452,7 +1401,7 @@ if (ONLY) {
     '## Урон за ход против здоровья врагов': 'bench',
     '## Встречи': 'encounters',
     '## Предметы': ['lab', 'runab'],
-    '## Фишки': ['lab', 'runab'],
+    '## Вещи': ['lab', 'runab'],
     '## Связки предметов (урон)': 'bench',
     '## Архетипы сборок (GDD §6)': 'archetypes',
     '## События': 'events',

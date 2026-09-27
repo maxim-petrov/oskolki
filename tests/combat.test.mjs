@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dispatch } from '../game/run.ts';
-import { combatRun, idx, setCard } from './helpers.mjs';
+import { combatRun, idx, setTile } from './helpers.mjs';
 import { foe, line, play, ready, scene } from './scene.mjs';
-import { energyCap } from '../game/combat.ts';
 
 /** Swapping (0,2) down into (1,2) completes the blade line in row 1 on this board. */
 const ROWS = ['sibcsi', 'bbiccs', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'];
@@ -26,31 +25,33 @@ test('three red tiles strike with the knife: 6 damage, +100% against paper', () 
 test('every tile of a group scores on the tally, one line per tile', () => {
   const run = combatRun({ rows: ROWS });
   const wave = dispatch(run, DOWN).events.find((e) => e.t === 'wave');
-  assert.equal(wave.scores.filter((s) => s.card === 'fist').length, 3);
+  assert.equal(wave.scores.filter((s) => s.fam === 'blade').length, 3);
   assert.ok(wave.scores.every((s) => s.dmg === 2));
 });
 
-test('bonus cards add damage per tile; a gold clip adds +30% once per move', () => {
-  const run = combatRun({ rows: ['sicbsi', 'ccbisb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'] });
-  // Row 1: c c _ → swap (0,2) coin? Build a gold line: put coins at (1,0),(1,1) and drop a coin into (1,2).
-  run.combat.board.cells[idx(0, 2)] = { id: 9000, kind: 'coin', card: 'bonus' };
-  setCard(run, idx(1, 0), 'clip');
-  run.combat.board.cells[idx(1, 1)] = { id: 9001, kind: 'coin', card: 'goldclip' };
-  const s = strikeOf(dispatch(run, DOWN).events);
-  assert.equal(s.tally.dmg, 3, 'the bonus card: +3 damage');
-  assert.equal(s.tally.bonus, 0.3);
-  assert.equal(s.damage, 4, '3 damage +30%');
+test('the held yellow item decides what gold tiles do: the bonus adds damage per tile', () => {
+  const rows = ['sicbsi', 'ccbisb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'];
+  const plain = combatRun({ rows });
+  setTile(plain, idx(0, 2), 'coin');
+  const s = strikeOf(dispatch(plain, DOWN).events);
+  assert.deepEqual([s.tally.dmg, s.tally.coins], [0, 1], 'монетка: монета за группу');
+  const bonus = combatRun({ rows });
+  setTile(bonus, idx(0, 2), 'coin');
+  bonus.hero.gear.coin.push('bonus');
+  bonus.hero.equip.coin = 'bonus';
+  const b = strikeOf(dispatch(bonus, DOWN).events);
+  assert.deepEqual([b.tally.dmg, b.tally.coins], [9, 1], 'премия: +3 урона с фишки');
 });
 
 test('a blue group blocks half a heart and the armour is spent after the enemies act', () => {
   const run = combatRun({ rows: ['sicbsi', 'issbcb', 'sicbsi', 'cbsicb', 'sicbsi', 'cbsicb'], enemies: ['rat'] });
-  // Drop a sealed shield (+2 damage) from (0,3) into (1,3): s s s in row 1.
-  run.combat.board.cells[idx(0, 3)] = { id: 9100, kind: 'shield', card: 'folder', finish: 'seal' };
+  // Drop a stamped shield from (0,3) into (1,3): s s s in row 1, a super block.
+  run.combat.board.cells[idx(0, 3)] = { id: 9100, kind: 'shield', seal: true };
   run.combat.enemies[0].countdown = 1;
   const res = dispatch(run, { type: 'move', move: { from: idx(0, 3), to: idx(1, 3) } });
   const s = strikeOf(res.events);
-  assert.equal(s.tally.dmg, 2, 'the seal');
-  assert.equal(s.armor, 1, 'a group of three folders: half a heart');
+  assert.equal(s.tally.dmg, 0);
+  assert.equal(s.armor, 2, 'a group of three shields with the stamp: half a heart and its super half');
   const act = res.events.find((e) => e.t === 'enemyAct');
   assert.equal(act.hurt.armor, act.hurt.amount, 'armor soaks the blow');
   assert.equal(act.hurt.red, 0);
@@ -62,7 +63,7 @@ test('armor holds at most two hearts (and no more than the health): heavier blow
   const run = scene({ hp: 3, maxHp: 3, enemies: ['rat'], enemyHp: 999 });
   ready(run, 'attack');
   foe(run).dmgMul = 30; // a rat that hits for 15 hearts
-  const res = play(run, line(run, ['vest', 'vest', 'vest']));
+  const res = play(run, line(run, ['foldervest', 'foldervest', 'foldervest']));
   assert.equal(res.strike.armor, 3, 'четыре половинки брони, влезло три — здоровья меньше потолка');
   assert.ok(res.strike.notes.some((n) => n.startsWith('Броня: не больше')));
   const blow = res.acts[0].hurt;
@@ -72,8 +73,8 @@ test('armor holds at most two hearts (and no more than the health): heavier blow
 
 /** Armour a move of three upgraded vests leaves the hero (3 half-hearts × 2), under the cap. */
 function hit4Armor(opts) {
-  const run = scene({ enemyHp: 999, ...opts });
-  return play(run, line(run, [{ card: 'vest', up: true }, { card: 'vest', up: true }, { card: 'vest', up: true }])).strike.armor;
+  const run = scene({ enemyHp: 999, ups: ['foldervest'], ...opts });
+  return play(run, line(run, ['foldervest', 'foldervest', 'foldervest'])).strike.armor;
 }
 
 test('armor does not carry over a non-attacking enemy action', () => {
@@ -96,18 +97,8 @@ test('red tape turns tiles into paperwork and slips into the bag', () => {
   const act = res.events.find((x) => x.t === 'enemyAct');
   assert.equal(act.intent.kind, 'tape');
   assert.equal(act.cells.length, 2);
-  for (const i of act.cells) assert.equal(act.board[i].card, 'redtape');
-  assert.ok(res.run.combat.board.source.some((t) => t.card === 'redtape'));
-});
-
-test('laminated tiles are not spoiled', () => {
-  const run = combatRun({ rows: ROWS, enemies: ['kipa'] });
-  for (const t of run.combat.board.cells) t.finish = 'laminate';
-  const e = run.combat.enemies[0];
-  e.cycle = 1;
-  e.countdown = 1;
-  const act = dispatch(run, DOWN).events.find((x) => x.t === 'enemyAct');
-  assert.equal(act.cells.length, 0);
+  for (const i of act.cells) assert.deepEqual([act.board[i].kind, act.board[i].tape], ['junk', true]);
+  assert.ok(res.run.combat.board.source.some((t) => t.kind === 'junk' && t.tape));
 });
 
 test('a stunned enemy skips once and cannot be stunned again right away', () => {
@@ -130,7 +121,7 @@ test('invalid moves change nothing and spend no time', () => {
 
 test('a swapped rocket fires where it lands and pays only in the tiles it clears', () => {
   const run = combatRun({ enemies: ['anchor'] });
-  run.combat.board.cells[idx(2, 1)] = { id: 5000, kind: 'blade', card: 'fist', special: 'rocketH' };
+  run.combat.board.cells[idx(2, 1)] = { id: 5000, kind: 'blade', special: 'rocketH' };
   const res = dispatch(run, { type: 'move', move: { from: idx(2, 1), to: idx(2, 2) } });
   const wave = res.events.find((e) => e.t === 'wave');
   const rocket = wave.blasts.find((b) => b.kind === 'rocketH');
@@ -168,26 +159,4 @@ test('the fight is deterministic for a seed', () => {
   const a = dispatch(combatRun({ rows: ROWS, seed: 9 }), DOWN);
   const b = dispatch(combatRun({ rows: ROWS, seed: 9 }), DOWN);
   assert.deepEqual(a.events, b.events);
-});
-
-test('weapons: swapping costs energy in a fight, nothing between fights; three at most', () => {
-  const run = scene({ weapons: ['knife', 'scissors'], charge: 2 });
-  const swapped = dispatch(run, { type: 'weapon', id: 'scissors' });
-  assert.deepEqual([swapped.run.hero.weapon, swapped.run.hero.charge], ['scissors', 0], '2 энергии');
-  assert.ok(swapped.events.some((e) => e.t === 'weapon' && e.id === 'scissors'));
-  assert.equal(swapped.run.combat.moves, 0, 'смена не тратит ход');
-  const broke = dispatch(swapped.run, { type: 'weapon', id: 'knife' });
-  assert.equal(broke.events.find((e) => e.t === 'invalid')?.reason, 'Нужно 2 энергии');
-  const calm = { ...swapped.run, combat: null, phase: 'map' };
-  assert.equal(dispatch(calm, { type: 'weapon', id: 'knife' }).run.hero.weapon, 'knife', 'вне боя — бесплатно');
-  // Red tiles strike with the new weapon at once.
-  const cut = scene({ weapons: ['knife', 'awl'], charge: 2, enemyHp: 999 });
-  const awl = dispatch(cut, { type: 'weapon', id: 'awl' }).run;
-  assert.equal(play(awl, line(awl, ['fist', 'fist', 'fist'])).strike.tally.dmg, 12, 'шило: 4 за фишку');
-});
-
-test('energy holds as much as the skill or a weapon swap needs', () => {
-  assert.equal(energyCap(scene({})), 0, 'ни навыка, ни второго оружия — энергия не копится');
-  assert.equal(energyCap(scene({ weapons: ['knife', 'scissors'] })), 2);
-  assert.equal(energyCap(scene({ active: 'stapler', weapons: ['knife', 'scissors'] })), 6);
 });

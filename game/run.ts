@@ -1,30 +1,16 @@
 import { derive, int, pick, range, rng, shuffle, weighted } from './rng.ts';
-import { MAX_ENEMIES, alive, armorCap, deckTokens, energyCap, playerActive, playerMove, playerPocket, setTarget, startCombat, swapCost } from './combat.ts';
+import { MAX_ENEMIES, alive, armorCap, bagTokens, energyCap, playerActive, playerMove, playerPocket, setTarget, startCombat, swapCost } from './combat.ts';
 import { ACTS, CHARACTERS } from './content/acts.ts';
-import { CARDS, RARITY_PRICE, STARTER_DECKS, rewardPool, type Rarity } from './content/cards.ts';
+import { BASE_GEAR, GEAR, GEAR_PRICE, MAX_GEAR, gearPoolOf } from './content/gear.ts';
 import { ENEMIES } from './content/enemies.ts';
 import { EVENTS, EVENT_BY_ID, type EventApi } from './content/events.ts';
-import { ITEMS, MAX_WEAPONS, POCKETS, RELIC_PRICE, computeMods, relicPool, type Mods } from './content/items.ts';
+import { FINDS, FIND_KINDS } from './content/finds.ts';
+import { ITEMS, POCKETS, RELIC_PRICE, computeMods, relicPool, type Mods, type Pool } from './content/items.ts';
 import { generateActMap, reachable } from './actmap.ts';
-import type {
-  Action,
-  CharId,
-  Combat,
-  DeckCard,
-  DevOp,
-  Fam,
-  Finish,
-  GameEvent,
-  MapNode,
-  PickState,
-  RewardOption,
-  RunState,
-  ShopState,
-} from './types.ts';
+import { FAMS } from './types.ts';
+import type { Action, CharId, Combat, DevOp, Fam, GameEvent, MapNode, PickState, RewardOption, RunState, ShopState } from './types.ts';
 
-export const RULES = 'office-4';
-/** A deck never gets thinner than this. */
-export const MIN_DECK = 5;
+export const RULES = 'gear-1';
 
 export function modsOf(run: RunState): Mods {
   return computeMods(run.hero.relics);
@@ -58,10 +44,10 @@ export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[
   const seed = opts.seed >>> 0;
   const ch = CHARACTERS[opts.char ?? 'intern'];
   const unlocked = opts.unlocked ?? [];
-  let uid = 1;
-  const deck: DeckCard[] = STARTER_DECKS[ch.id].map((id) => ({ uid: uid++, id, up: false }));
+  // Only the plain items (a hero may bring one of its own): every colour of the board is one item.
+  const start = (f: Fam) => ch.gear?.[f] ?? BASE_GEAR[f];
   const run: RunState = {
-    v: 3,
+    v: 4,
     seed,
     customSeed: !!opts.customSeed,
     act: 0,
@@ -83,11 +69,14 @@ export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[
       charge: 0,
       coins: ch.coins + (opts.coins ?? 0),
       active: ch.active,
-      weapons: ['knife'],
-      weapon: 'knife',
+      gear: { blade: [start('blade')], shield: [start('shield')], ink: [start('ink')], coin: [start('coin')] },
+      equip: { blade: start('blade'), shield: start('shield'), ink: start('ink'), coin: start('coin') },
+      ups: [],
+      tape: 0,
+      keys: 0,
+      finds: 0,
       relics: [ch.relic],
       pockets: [],
-      deck,
       flashUsed: false,
     },
     map: { nodes: [], rows: 0, cols: 0, boss: 0 },
@@ -100,12 +89,12 @@ export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[
     pick: null,
     bossRelics: [],
     relicPool: relicPool(unlocked, [ch.relic]),
-    cardPool: rewardPool(unlocked),
+    gearPool: gearPoolOf(unlocked),
     seenEvents: [],
     treasure: null,
     fightsInAct: 0,
     lastEncounter: '',
-    removals: 0,
+    shreds: 0,
     eventRelic: null,
     stats: {
       moves: 0,
@@ -121,7 +110,7 @@ export function newRun(opts: NewRunOptions): { run: RunState; events: GameEvent[
       elites: 0,
       floors: 0,
       bossesNoHit: 0,
-      cardsTaken: 0,
+      gearTaken: 0,
       relicsTaken: 0,
       deathCause: '',
       bossesKilled: [],
@@ -152,23 +141,48 @@ function enterAct(run: RunState, act: number, ev: GameEvent[]) {
   ev.push({ t: 'act', act });
 }
 
-// ── Deck, relics, pockets ────────────────────────────────────────────
+// ── Gear, relics, pockets ────────────────────────────────────────────
 
-function nextUid(run: RunState) {
-  return Math.max(0, ...run.hero.deck.map((c) => c.uid)) + 1;
+export function gearName(id: string, up = false) {
+  return (ITEMS[id]?.name ?? id) + (up ? '+' : '');
 }
 
-export function cardName(id: string) {
-  return CARDS[id]?.name ?? id;
+/** The colour of an item of gear (undefined for anything else). */
+export function famOf(id: string): Fam | undefined {
+  return ITEMS[id]?.gear?.fam;
 }
 
-export function addCard(run: RunState, id: string, up: boolean, source: string, ev: GameEvent[], finish?: Finish) {
-  run.hero.deck.push({ uid: nextUid(run), id, up, ...(finish ? { finish } : {}) });
-  if (CARDS[id]?.rarity !== 'status') run.stats.cardsTaken++;
-  ev.push({ t: 'card', card: id, source });
+/** A colour can take one more item. */
+export function handRoom(run: RunState, fam: Fam): boolean {
+  return (run.hero.gear[fam]?.length ?? 0) < MAX_GEAR;
 }
 
-const CARD_ODDS: Record<'fight' | 'elite' | 'boss' | 'shop' | 'intro', [Rarity, number][]> = {
+/**
+ * A new item goes into its colour's hand and is held at once (outside a fight a swap back is
+ * free). A full hand or an item already carried takes nothing.
+ */
+export function gainGear(run: RunState, id: string, source: string, ev: GameEvent[]): boolean {
+  const fam = famOf(id);
+  const hero = run.hero;
+  if (!fam || hero.gear[fam].includes(id) || !handRoom(run, fam)) return false;
+  hero.gear[fam].push(id);
+  if (!run.combat) hero.equip[fam] = id;
+  run.gearPool = run.gearPool.filter((x) => x !== id);
+  run.stats.gearTaken++;
+  hero.charge = Math.min(hero.charge, energyCap(run));
+  ev.push({ t: 'gearGained', id, source });
+  return true;
+}
+
+export function upgradeGear(run: RunState, id: string, ev: GameEvent[]): boolean {
+  if (!famOf(id) || run.hero.ups.includes(id)) return false;
+  run.hero.ups.push(id);
+  ev.push({ t: 'gearUpgraded', id });
+  return true;
+}
+
+/** Gear odds by source: fights mostly offer common items, bosses rare ones. */
+const GEAR_ODDS: Record<'fight' | 'elite' | 'boss' | 'shop' | 'intro', [Pool, number][]> = {
   intro: [['common', 1]],
   fight: [
     ['common', 62],
@@ -191,21 +205,33 @@ const CARD_ODDS: Record<'fight' | 'elite' | 'boss' | 'shop' | 'intro', [Rarity, 
   ],
 };
 
-/** Distinct cards for a reward or the till. */
-export function rollCards(run: RunState, n: number, kind: keyof typeof CARD_ODDS, fam?: Fam): { id: string; up: boolean }[] {
-  const out: { id: string; up: boolean }[] = [];
-  const upChance = [0, 0.12, 0.25, 0.3][Math.min(run.act, 3)];
+/**
+ * Distinct items for a reward or the till: never one already carried, never a colour whose hand is
+ * full (a full hand has nowhere to put it); `fam` asks for one colour.
+ */
+export function rollGear(run: RunState, n: number, kind: keyof typeof GEAR_ODDS, fam?: Fam): string[] {
+  const out: string[] = [];
+  const owned = new Set(FAMS.flatMap((f) => run.hero.gear[f]));
   for (let k = 0; k < n; k++) {
-    const rarity = weighted(run.rng.loot, CARD_ODDS[kind]);
-    const taken = new Set(out.map((c) => c.id));
-    const fits = (id: string) => !taken.has(id) && (!fam || CARDS[id].fam === fam);
-    let pool = run.cardPool.filter((id) => CARDS[id].rarity === rarity && fits(id));
-    if (!pool.length) pool = run.cardPool.filter(fits);
+    const rarity = weighted(run.rng.loot, GEAR_ODDS[kind]);
+    const fits = (id: string) => {
+      const f = famOf(id)!;
+      return !out.includes(id) && !owned.has(id) && handRoom(run, f) && (!fam || f === fam);
+    };
+    let pool = run.gearPool.filter((id) => GEAR[id]?.pool === rarity && fits(id));
+    if (!pool.length) pool = run.gearPool.filter(fits);
     if (!pool.length) break;
-    const id = pick(run.rng.loot, pool);
-    out.push({ id, up: kind !== 'shop' && int(run.rng.loot, 1000) < upChance * 1000 });
+    out.push(pick(run.rng.loot, pool));
   }
   return out;
+}
+
+/** Gear the hero could still upgrade (the held items first). */
+export function upgradable(run: RunState, fam?: Fam): string[] {
+  const hero = run.hero;
+  return FAMS.filter((f) => !fam || f === fam)
+    .flatMap((f) => [hero.equip[f], ...hero.gear[f].filter((id) => id !== hero.equip[f])])
+    .filter((id) => !hero.ups.includes(id));
 }
 
 export function relicName(id: string) {
@@ -221,10 +247,8 @@ const RELIC_ODDS: [('common' | 'uncommon' | 'rare'), number][] = [
 /** A relic from the pool (removed from it); null when nothing is left. */
 export function rollRelic(run: RunState, tier?: 'common' | 'uncommon' | 'rare' | 'boss'): string | null {
   const want = tier ?? weighted(run.rng.loot, RELIC_ODDS);
-  // Weapons only while a slot is free (and never one already in the bag).
-  const fits = (id: string) => ITEMS[id].kind !== 'weapon' || (run.hero.weapons.length < MAX_WEAPONS && !run.hero.weapons.includes(id));
-  let pool = run.relicPool.filter((id) => ITEMS[id].pool === want && fits(id));
-  if (!pool.length && want !== 'boss') pool = run.relicPool.filter((id) => ITEMS[id].pool !== 'boss' && fits(id));
+  let pool = run.relicPool.filter((id) => ITEMS[id].pool === want);
+  if (!pool.length && want !== 'boss') pool = run.relicPool.filter((id) => ITEMS[id].pool !== 'boss');
   if (!pool.length) return null;
   const id = pick(run.rng.loot, pool);
   run.relicPool = run.relicPool.filter((x) => x !== id);
@@ -241,13 +265,9 @@ function activePool(run: RunState): string[] {
 export function gainRelic(run: RunState, id: string, source: string, ev: GameEvent[]) {
   const def = ITEMS[id];
   const hero = run.hero;
-  if (def.kind === 'weapon') {
-    // A new weapon goes into a free slot and into the hand (the pools stop offering weapons when the
-    // slots are full); outside a fight the old one is a free swap back.
-    if (!hero.weapons.includes(id) && hero.weapons.length < MAX_WEAPONS) {
-      hero.weapons.push(id);
-      if (!run.combat) hero.weapon = id;
-    }
+  if (def.kind === 'gear') {
+    gainGear(run, id, source, ev);
+    return;
   } else if (def.kind === 'active') {
     hero.active = id;
     hero.charge = Math.min(hero.charge, energyCap(run));
@@ -357,7 +377,9 @@ function enterNode(run: RunState, node: MapNode, ev: GameEvent[]) {
   }
 }
 
-const FINISH_PRICE: Record<Finish, number> = { sharp: 50, gild: 45, seal: 60, copy: 95, laminate: 35 };
+/** «Мастерская» (one upgrade) and the shredder (one red tape curse out) at the till. */
+const UPGRADE_PRICE = 50;
+const SHRED_PRICE = 40;
 
 /** Prices at the till grow from act to act, so coins keep their weight to the end of a shift. */
 export const PRICE_ACT = [1, 1.3, 1.6, 1.9];
@@ -371,35 +393,36 @@ export function rerollPrice(run: RunState): number {
   return Math.round((20 + 20 * (run.shop?.rerolls ?? 0)) * priceScale(run));
 }
 
-/** Cards, items, pockets and the finish on offer (the services stay). */
-function stockShop(run: RunState): Pick<ShopState, 'cards' | 'relics' | 'pockets' | 'finish'> {
+/** Gear, items, pockets and the services on offer. */
+function stockShop(run: RunState): Pick<ShopState, 'gear' | 'relics' | 'pockets' | 'upgrade'> {
   const scale = priceScale(run);
   const vary = (p: number) => Math.round(p * scale * (0.9 + int(run.rng.loot, 21) / 100));
-  const cards = rollCards(run, 5, 'shop').map((c) => ({ id: c.id, up: false, price: vary(RARITY_PRICE[CARDS[c.id].rarity]), sold: false }));
-  if (cards.length) {
-    const sale = int(run.rng.loot, cards.length);
-    cards[sale].price = Math.round(cards[sale].price / 2);
+  const gear = rollGear(run, 3, 'shop').map((id) => ({ id, price: vary(GEAR_PRICE[GEAR[id].pool]), sold: false }));
+  if (gear.length) {
+    const sale = int(run.rng.loot, gear.length);
+    gear[sale].price = Math.round(gear[sale].price / 2);
   }
   const relics: { id: string; price: number; sold: boolean }[] = [];
   for (let k = 0; k < 2; k++) {
     const id = rollRelic(run);
     if (id) relics.push({ id, price: vary(RELIC_PRICE[ITEMS[id].pool]), sold: false });
   }
+  // A skill in half the shops: skills are rare, and every one changes how a fight goes.
   const actives = activePool(run);
-  if (actives.length) {
+  if (actives.length && int(run.rng.loot, 100) < 50) {
     const id = pick(run.rng.loot, actives);
     relics.push({ id, price: vary(RELIC_PRICE.shop), sold: false });
   }
   const pockets = shuffle(run.rng.loot, Object.keys(POCKETS))
     .slice(0, 3)
     .map((id) => ({ id, price: vary(POCKETS[id].price), sold: false }));
-  const finishes: Finish[] = ['sharp', 'gild', 'seal', 'laminate', 'copy'];
-  const kind = weighted(run.rng.loot, finishes.map((f) => [f, f === 'copy' ? 1 : 3] as const));
-  return { cards, relics, pockets, finish: { kind, price: vary(FINISH_PRICE[kind]), sold: false } };
+  const upgrade = upgradable(run).length ? { price: vary(UPGRADE_PRICE), sold: false } : null;
+  return { gear, relics, pockets, upgrade };
 }
 
 function openShop(run: RunState) {
-  run.shop = { ...stockShop(run), removePrice: Math.round((40 + 20 * run.removals) * priceScale(run)), removed: false, rerolls: 0 };
+  const shred = run.hero.tape > 0 ? { price: Math.round((SHRED_PRICE + 20 * run.shreds) * priceScale(run)), used: false } : null;
+  run.shop = { ...stockShop(run), shred, rerolls: 0 };
 }
 
 // ── Combat end ──────────────────────────────────────────────────────
@@ -442,16 +465,21 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   }
   // Rewards.
   const rewards: RewardOption[] = [];
-  // Things are short: a plain fight pays coins half the time, and little, and offers two tiles
-  // most of the time; the bosses and the upper management pay in full.
+  // Things are short: a plain fight pays coins half the time, and little, and offers a choice of
+  // gear now and then; the bosses and the upper management pay in full.
   const coinRange: Record<Combat['kind'], [number, number]> = { intro: [6, 6], fight: [4, 8], elite: [10, 15], boss: [25, 35] };
   const [lo, hi] = coinRange[kind];
   const paid = kind !== 'fight' || int(run.rng.loot, 100) < 50;
   const coins = (paid ? range(run.rng.loot, lo, hi) : 0) + c.bonusCoins;
   if (coins > 0) rewards.push({ kind: 'coins', amount: coins });
-  const offered = kind !== 'fight' || int(run.rng.loot, 100) < 70;
-  const cards = offered ? rollCards(run, kind === 'fight' ? 2 : 3, kind === 'intro' ? 'intro' : kind) : [];
-  if (cards.length) rewards.push({ kind: 'card', cards: cards.map((x) => x.id), ups: cards.map((x) => x.up) });
+  const offered = kind !== 'fight' || int(run.rng.loot, 100) < 40;
+  if (offered) {
+    const gear = rollGear(run, kind === 'fight' || kind === 'intro' ? 2 : 3, kind === 'intro' ? 'intro' : kind);
+    // Nowhere to put an item (every hand full): an upgrade instead.
+    if (gear.length) rewards.push({ kind: 'gear', gear });
+    else if (upgradable(run).length) rewards.push({ kind: 'upgrade' });
+  }
+  if (kind === 'boss' && upgradable(run).length) rewards.push({ kind: 'upgrade' });
   if (kind === 'elite') {
     const r = rollRelic(run);
     if (r) rewards.push({ kind: 'relic', relic: r });
@@ -490,22 +518,17 @@ function nextAct(run: RunState, ev: GameEvent[]) {
   enterAct(run, run.act + 1, ev);
 }
 
-// ── Picks (remove / upgrade / finish / transform / copy) ─────────────
+// ── Picks (upgrade / transform an item of gear) ─────────────────────
 
-export function pickable(run: RunState, p: PickState, card: DeckCard): boolean {
-  const def = CARDS[card.id];
-  if (!def) return false;
+export function pickable(run: RunState, p: PickState, id: string): boolean {
+  const fam = famOf(id);
+  if (!fam || !run.hero.gear[fam].includes(id) || (p.fam && p.fam !== fam)) return false;
   switch (p.purpose) {
-    case 'remove':
-      return run.hero.deck.length > MIN_DECK;
     case 'upgrade':
-      return !card.up && def.rarity !== 'status' && def.v !== def.vUp;
-    case 'finish':
-      return def.rarity !== 'status' && card.finish !== p.finish;
-    case 'copy':
-      return def.rarity !== 'status';
+      return !run.hero.ups.includes(id);
     case 'transform':
-      return true;
+      // Something else of the colour must be on offer.
+      return run.gearPool.some((x) => famOf(x) === fam && !run.hero.gear[fam].includes(x));
   }
 }
 
@@ -520,34 +543,26 @@ function endPick(run: RunState) {
   run.phase = from === 'rest' ? 'map' : from;
 }
 
-function applyPick(run: RunState, card: DeckCard, ev: GameEvent[]) {
+function applyPick(run: RunState, id: string, ev: GameEvent[]) {
   const p = run.pick!;
   const hero = run.hero;
   switch (p.purpose) {
-    case 'remove':
-      hero.deck = hero.deck.filter((c) => c.uid !== card.uid);
-      ev.push({ t: 'cardRemoved', card: card.id });
-      break;
     case 'upgrade':
-      card.up = true;
-      ev.push({ t: 'cardUpgraded', card: card.id });
-      break;
-    case 'finish':
-      card.finish = p.finish;
-      ev.push({ t: 'cardFinished', card: card.id, finish: p.finish! });
-      break;
-    case 'copy':
-      addCard(run, card.id, card.up, 'copy', ev, card.finish);
+      upgradeGear(run, id, ev);
       break;
     case 'transform': {
-      const def = CARDS[card.id];
-      const rarity: Rarity = def.rarity === 'starter' || def.rarity === 'status' ? 'common' : def.rarity;
-      let pool = run.cardPool.filter((id) => id !== card.id && CARDS[id].rarity === rarity);
-      if (!pool.length) pool = run.cardPool.filter((id) => id !== card.id);
-      const id = pick(run.rng.loot, pool);
-      ev.push({ t: 'cardRemoved', card: card.id });
-      card.id = id;
-      ev.push({ t: 'card', card: id, source: 'transform' });
+      // The item is traded for another of its colour (same rarity if there is one), held if it was.
+      const fam = famOf(id)!;
+      const rarity = GEAR[id]?.pool === 'starter' ? 'common' : GEAR[id]?.pool;
+      const fresh = run.gearPool.filter((x) => famOf(x) === fam && !hero.gear[fam].includes(x));
+      const same = fresh.filter((x) => GEAR[x]?.pool === rarity);
+      const next = pick(run.rng.loot, same.length ? same : fresh);
+      hero.gear[fam] = hero.gear[fam].map((x) => (x === id ? next : x));
+      if (hero.equip[fam] === id) hero.equip[fam] = next;
+      hero.ups = hero.ups.filter((x) => x !== id);
+      run.gearPool = run.gearPool.filter((x) => x !== next);
+      ev.push({ t: 'gearDropped', id });
+      ev.push({ t: 'gearGained', id: next, source: 'transform' });
       break;
     }
   }
@@ -575,28 +590,34 @@ function eventApi(run: RunState, ev: GameEvent[]): EventApi {
       run.hero.hp = Math.min(run.hero.maxHp, run.hero.hp + Math.max(0, n));
       ev.push({ t: 'maxHp', amount: n });
     },
-    card: (id, up = false) => {
-      addCard(run, id, up, 'event', ev);
-      return cardName(id);
+    gear: (id) => (gainGear(run, id, 'event', ev) ? gearName(id) : null),
+    randomGear: (rarity, fam) => {
+      const owned = new Set(FAMS.flatMap((f) => run.hero.gear[f]));
+      const fits = (id: string) => !owned.has(id) && handRoom(run, famOf(id)!) && (!fam || famOf(id) === fam);
+      const pool = run.gearPool.filter((id) => fits(id) && (!rarity || GEAR[id]?.pool === rarity));
+      const list = pool.length ? pool : run.gearPool.filter(fits);
+      if (!list.length) return null;
+      const id = pick(run.rng.loot, list);
+      gainGear(run, id, 'event', ev);
+      return gearName(id);
     },
-    randomCard: (rarity, fam) => {
-      const pool = run.cardPool.filter((id) => (!rarity || CARDS[id].rarity === rarity) && (!fam || CARDS[id].fam === fam));
-      const id = pick(run.rng.loot, pool.length ? pool : run.cardPool);
-      addCard(run, id, false, 'event', ev);
-      return cardName(id);
+    curse: () => {
+      run.hero.tape++;
+      ev.push({ t: 'tape', amount: 1 });
     },
-    curse: () => addCard(run, 'redtape', false, 'curse', ev),
+    uncurse: () => {
+      if (run.hero.tape <= 0) return false;
+      run.hero.tape--;
+      ev.push({ t: 'tape', amount: -1 });
+      return true;
+    },
     relic: (tier) => {
       const id = rollRelic(run, tier);
       if (!id) return null;
       gainRelic(run, id, 'event', ev);
       return relicName(id);
     },
-    weapon: (id) => {
-      if (run.hero.weapons.includes(id) || run.hero.weapons.length >= MAX_WEAPONS) return null;
-      gainRelic(run, id, 'event', ev);
-      return relicName(id);
-    },
+
     pocket: () => {
       const id = rollPocket(run);
       if (!givePocket(run, id)) return null;
@@ -604,22 +625,27 @@ function eventApi(run: RunState, ev: GameEvent[]): EventApi {
       return POCKETS[id].name;
     },
     shards: (n) => gainShards(run, n, ev),
-    pick: (purpose, count, finish) => startPick(run, { purpose, count, from: 'event', ...(finish ? { finish } : {}) }),
-    upgradeRandom: (n) => {
-      const list = shuffle(run.rng.loot, run.hero.deck.filter((c) => !c.up && CARDS[c.id].rarity !== 'status'));
-      return list.slice(0, n).map((c) => {
-        c.up = true;
-        ev.push({ t: 'cardUpgraded', card: c.id });
-        return cardName(c.id);
-      });
+    pick: (purpose, count, fam) => startPick(run, { purpose, count, from: 'event', ...(fam ? { fam } : {}) }),
+    upgradeRandom: (n, fam) =>
+      shuffle(run.rng.loot, upgradable(run, fam))
+        .slice(0, n)
+        .map((id) => {
+          upgradeGear(run, id, ev);
+          return gearName(id, true);
+        }),
+    upgradeEquipped: (fam) => {
+      const id = run.hero.equip[fam];
+      return upgradeGear(run, id, ev) ? gearName(id, true) : null;
     },
-    finishRandom: (finish, n) => {
-      const list = shuffle(run.rng.loot, run.hero.deck.filter((c) => c.finish !== finish && CARDS[c.id].rarity !== 'status'));
-      return list.slice(0, n).map((c) => {
-        c.finish = finish;
-        ev.push({ t: 'cardFinished', card: c.id, finish });
-        return cardName(c.id);
-      });
+    key: (n) => {
+      run.hero.keys = Math.max(0, Math.min(9, run.hero.keys + n));
+      ev.push({ t: 'keys', amount: n });
+    },
+    findSoon: () => {
+      run.hero.findNext ??= weighted(
+        run.rng.loot,
+        FIND_KINDS.map((k) => [k, FINDS[k].weight]),
+      );
     },
     eliteFight: () => {
       run.eventRelic = rollRelic(run);
@@ -655,18 +681,32 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       if (!inCombat) return fail(run, ev, 'Только в бою');
       playerActive(run, mods, action, ev);
       break;
-    case 'weapon': {
-      // Another weapon in hand: free between fights, energy in a fight; it spends no time.
-      const hero = run.hero;
-      if (!hero.weapons.includes(action.id)) return fail(run, ev, 'Нет такого оружия');
-      if (hero.weapon === action.id) return fail(run, ev, 'Уже в руке');
+    case 'gear': {
+      // Another carried item of its colour in hand: free between fights, energy in a fight; it spends no time.
+      const fam = famOf(action.id);
+      if (!fam || !hero.gear[fam].includes(action.id)) return fail(run, ev, 'Нет такой вещи');
+      if (hero.equip[fam] === action.id) return fail(run, ev, 'Уже в руке');
       if (inCombat) {
         const cost = swapCost(run);
         if (hero.charge < cost) return fail(run, ev, `Нужно ${cost} энергии`);
         hero.charge -= cost;
       }
-      hero.weapon = action.id;
-      ev.push({ t: 'weapon', id: action.id });
+      hero.equip[fam] = action.id;
+      ev.push({ t: 'gear', id: action.id, fam });
+      break;
+    }
+    case 'dropGear': {
+      // Putting an item down makes room in its colour; it may turn up again later.
+      const fam = famOf(action.id);
+      if (inCombat) return fail(run, ev, 'Не в бою');
+      if (!fam || !hero.gear[fam].includes(action.id)) return fail(run, ev, 'Нет такой вещи');
+      if (hero.gear[fam].length <= 1) return fail(run, ev, 'Без вещи цвета нельзя');
+      hero.gear[fam] = hero.gear[fam].filter((x) => x !== action.id);
+      hero.ups = hero.ups.filter((x) => x !== action.id);
+      if (hero.equip[fam] === action.id) hero.equip[fam] = hero.gear[fam][0];
+      if (GEAR[action.id]?.pool !== 'starter' && !run.gearPool.includes(action.id)) run.gearPool.push(action.id);
+      hero.charge = Math.min(hero.charge, energyCap(run));
+      ev.push({ t: 'gearDropped', id: action.id });
       break;
     }
     case 'pocket':
@@ -690,12 +730,20 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
         hero.coins = Math.min(999, hero.coins + (r.amount ?? 0));
         run.stats.coinsEarned += r.amount ?? 0;
         ev.push({ t: 'coins', amount: r.amount ?? 0 });
-      } else if (r.kind === 'card') {
-        const k = action.card ?? -1;
-        const id = r.cards?.[k];
-        if (!id) return fail(run, ev, 'Выбери фишку');
-        addCard(run, id, !!r.ups?.[k], 'reward', ev);
-      } else if (r.kind === 'relic' && r.relic) gainRelic(run, r.relic, 'reward', ev);
+      } else if (r.kind === 'gear') {
+        const id = r.gear?.[action.pick ?? -1];
+        if (!id) return fail(run, ev, 'Выбери вещь');
+        if (!gainGear(run, id, 'reward', ev)) return fail(run, ev, `Руки заняты: вещей цвета не больше ${MAX_GEAR}`);
+      } else if (r.kind === 'upgrade') {
+        // The row is taken when the item is chosen: backing out of the choice keeps it.
+        if (!upgradable(run).length) return fail(run, ev, 'Улучшать нечего');
+        startPick(run, { purpose: 'upgrade', count: 1, from: 'reward', reward: action.index });
+        break;
+      } else if (r.kind === 'key') {
+        hero.keys = Math.min(9, hero.keys + (r.amount ?? 1));
+        ev.push({ t: 'keys', amount: r.amount ?? 1 });
+      } else if (r.kind === 'shards') gainShards(run, r.amount ?? 1, ev);
+      else if (r.kind === 'relic' && r.relic) gainRelic(run, r.relic, 'reward', ev);
       else if (r.kind === 'pocket' && r.pocket) {
         if (!givePocket(run, r.pocket)) return fail(run, ev, 'Карманы полны');
         ev.push({ t: 'pocket', pocket: r.pocket });
@@ -706,26 +754,24 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
     case 'buy': {
       const shop = run.shop;
       if (run.phase !== 'shop' || !shop) return fail(run, ev, 'Здесь не касса');
-      if (action.kind === 'finish') {
-        const f = shop.finish;
-        if (!f || f.sold) return fail(run, ev, 'Продано');
-        if (hero.coins < f.price) return fail(run, ev, 'Не хватает монет');
-        startPick(run, { purpose: 'finish', finish: f.kind, count: 1, from: 'shop', cost: f.price });
+      if (action.kind === 'upgrade') {
+        const u = shop.upgrade;
+        if (!u || u.sold) return fail(run, ev, 'Продано');
+        if (hero.coins < u.price) return fail(run, ev, 'Не хватает монет');
+        if (!upgradable(run).length) return fail(run, ev, 'Улучшать нечего');
+        startPick(run, { purpose: 'upgrade', count: 1, from: 'shop', cost: u.price });
         break;
       }
-      const list = action.kind === 'card' ? shop.cards : action.kind === 'relic' ? shop.relics : shop.pockets;
+      const list = action.kind === 'gear' ? shop.gear : action.kind === 'relic' ? shop.relics : shop.pockets;
       const slot = list[action.index];
       if (!slot || slot.sold) return fail(run, ev, 'Продано');
       if (hero.coins < slot.price) return fail(run, ev, 'Не хватает монет');
       if (action.kind === 'pocket') {
         if (!givePocket(run, slot.id)) return fail(run, ev, 'Карманы полны');
         ev.push({ t: 'pocket', pocket: slot.id });
-      } else if (action.kind === 'card') addCard(run, slot.id, false, 'shop', ev);
-      else {
-        if (ITEMS[slot.id]?.kind === 'weapon' && (hero.weapons.length >= MAX_WEAPONS || hero.weapons.includes(slot.id)))
-          return fail(run, ev, `Руки заняты: оружия не больше ${MAX_WEAPONS}`);
-        gainRelic(run, slot.id, 'shop', ev);
-      }
+      } else if (action.kind === 'gear') {
+        if (!gainGear(run, slot.id, 'shop', ev)) return fail(run, ev, `Руки заняты: вещей цвета не больше ${MAX_GEAR}`);
+      } else gainRelic(run, slot.id, 'shop', ev);
       hero.coins -= slot.price;
       slot.sold = true;
       break;
@@ -737,7 +783,7 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       if (hero.coins < price) return fail(run, ev, 'Не хватает монет');
       hero.coins -= price;
       // Items not bought go back to the pool: a reprint shows new ones, it does not burn them.
-      for (const r of shop.relics) if (!r.sold && (ITEMS[r.id]?.kind === 'passive' || ITEMS[r.id]?.kind === 'weapon') && !run.relicPool.includes(r.id)) run.relicPool.push(r.id);
+      for (const r of shop.relics) if (!r.sold && ITEMS[r.id]?.kind === 'passive' && !run.relicPool.includes(r.id)) run.relicPool.push(r.id);
       run.shop = { ...shop, ...stockShop(run), rerolls: (shop.rerolls ?? 0) + 1 };
       ev.push({ t: 'coins', amount: -price });
       break;
@@ -745,10 +791,15 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
     case 'remove': {
       const shop = run.shop;
       if (run.phase !== 'shop' || !shop) return fail(run, ev, 'Здесь не касса');
-      if (shop.removed) return fail(run, ev, 'Шредер уже занят');
-      if (hero.coins < shop.removePrice) return fail(run, ev, 'Не хватает монет');
-      if (hero.deck.length <= MIN_DECK) return fail(run, ev, 'Колода слишком тонкая');
-      startPick(run, { purpose: 'remove', count: 1, from: 'shop', cost: shop.removePrice });
+      const s = shop.shred;
+      if (!s || s.used) return fail(run, ev, 'Шредер уже занят');
+      if (hero.tape <= 0) return fail(run, ev, 'Волокиты нет');
+      if (hero.coins < s.price) return fail(run, ev, 'Не хватает монет');
+      hero.coins -= s.price;
+      hero.tape--;
+      s.used = true;
+      run.shreds++;
+      ev.push({ t: 'tape', amount: -1 });
       break;
     }
     case 'rest': {
@@ -757,31 +808,25 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
         heal(run, Math.round(hero.maxHp * 0.3), ev);
         run.phase = 'map';
       } else {
-        const p: PickState = { purpose: 'upgrade', count: 1, from: 'rest' };
-        if (!hero.deck.some((c) => pickable(run, p, c))) return fail(run, ev, 'Нечего повышать');
-        startPick(run, p);
+        if (!upgradable(run).length) return fail(run, ev, 'Улучшать нечего');
+        startPick(run, { purpose: 'upgrade', count: 1, from: 'rest' });
       }
       break;
     }
     case 'pick': {
       const p = run.pick;
       if (run.phase !== 'pick' || !p) return fail(run, ev, 'Нечего выбирать');
-      const card = hero.deck.find((c) => c.uid === action.uid);
-      if (!card || !pickable(run, p, card)) return fail(run, ev, 'Эту фишку нельзя');
+      if (!pickable(run, p, action.id)) return fail(run, ev, 'Эту вещь нельзя');
       if (p.cost) {
         if (hero.coins < p.cost) return fail(run, ev, 'Не хватает монет');
         hero.coins -= p.cost;
-        if (p.from === 'shop' && run.shop) {
-          if (p.purpose === 'remove') {
-            run.shop.removed = true;
-            run.removals++;
-          } else if (run.shop.finish) run.shop.finish.sold = true;
-        }
+        if (p.from === 'shop' && run.shop?.upgrade) run.shop.upgrade.sold = true;
         p.cost = 0;
       }
-      applyPick(run, card, ev);
+      applyPick(run, action.id, ev);
+      if (p.reward !== undefined && run.rewards[p.reward]) run.rewards[p.reward].taken = true;
       p.count--;
-      if (p.count <= 0 || !hero.deck.some((c) => pickable(run, p, c))) endPick(run);
+      if (p.count <= 0 || !FAMS.some((f) => hero.gear[f].some((id) => pickable(run, p, id)))) endPick(run);
       break;
     }
     case 'open': {
@@ -867,21 +912,29 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
       if (op.coins !== undefined) hero.coins = Math.max(0, Math.min(999, Math.round(op.coins)));
       if (op.charge !== undefined) hero.charge = Math.max(0, Math.min(energyCap(run), Math.round(op.charge)));
       if (op.armor !== undefined) hero.armor = Math.max(0, Math.min(armorCap(run), Math.round(op.armor)));
+      if (op.keys !== undefined) hero.keys = Math.max(0, Math.min(9, Math.round(op.keys)));
+      if (op.finds !== undefined) hero.finds = Math.max(0, Math.round(op.finds));
       break;
     case 'build': {
-      if (op.deck) {
-        let uid = 1;
-        hero.deck = op.deck.filter((c) => CARDS[c.id]).map((c) => ({ uid: uid++, id: c.id, up: !!c.up, finish: c.finish }));
+      // Gear may come in its own list or among the items (the dev panel picks them there); a colour
+      // left out gets the hero's plain item.
+      const gearIds = [...(op.gear ?? []), ...(op.relics ?? [])].filter((id, k, all) => famOf(id) && all.indexOf(id) === k);
+      if (op.gear || gearIds.length) {
+        const start = (f: Fam) => CHARACTERS[hero.char].gear?.[f] ?? BASE_GEAR[f];
+        for (const f of FAMS) {
+          const list = gearIds.filter((id) => famOf(id) === f).slice(0, MAX_GEAR);
+          hero.gear[f] = list.length ? list : [start(f)];
+          if (!hero.gear[f].includes(hero.equip[f])) hero.equip[f] = hero.gear[f][0];
+        }
       }
+      for (const id of op.equip ?? []) {
+        const f = famOf(id);
+        if (f && hero.gear[f].includes(id)) hero.equip[f] = id;
+      }
+      if (op.ups) hero.ups = op.ups.filter((id, k, all) => famOf(id) && all.indexOf(id) === k);
+      hero.ups = hero.ups.filter((id) => FAMS.some((f) => hero.gear[f].includes(id)));
+      if (op.tape !== undefined) hero.tape = Math.max(0, Math.min(9, Math.round(op.tape)));
       if (op.relics) hero.relics = op.relics.filter((id, k, all) => ITEMS[id]?.kind === 'passive' && all.indexOf(id) === k);
-      // Weapons may come in their own list or among the items (the dev panel picks them there).
-      const weapons = op.weapons ?? (op.relics?.some((id) => ITEMS[id]?.kind === 'weapon') ? op.relics : undefined);
-      if (weapons) {
-        const list = weapons.filter((id, k, all) => ITEMS[id]?.kind === 'weapon' && all.indexOf(id) === k).slice(0, MAX_WEAPONS);
-        hero.weapons = list.length ? list : ['knife'];
-        if (op.weapon && hero.weapons.includes(op.weapon)) hero.weapon = op.weapon;
-        if (!hero.weapons.includes(hero.weapon)) hero.weapon = hero.weapons[0];
-      }
       if (op.active !== undefined) hero.active = op.active && ITEMS[op.active]?.kind === 'active' ? op.active : null;
       const slots = modsOf(run).pockets;
       const wanted = op.pockets ?? hero.pockets;
@@ -890,9 +943,9 @@ function applyDev(run: RunState, op: DevOp, ev: GameEvent[]) {
         return id && POCKETS[id] ? id : null;
       });
       hero.charge = run.dev?.ink ? energyCap(run) : Math.min(hero.charge, energyCap(run));
-      // A fight in progress draws from the new deck from now on.
+      // A fight in progress draws from the new kit from now on.
       if (run.combat) {
-        run.combat.board.source = deckTokens(run);
+        run.combat.board.source = bagTokens(run);
         run.combat.board.bag = [];
       }
       break;
@@ -994,7 +1047,7 @@ export function saveRun(run: RunState): string {
 export function loadRun(raw: string): RunState | null {
   try {
     const data = JSON.parse(raw);
-    if (data?.rules !== RULES || data.run?.v !== 3) return null;
+    if (data?.rules !== RULES || data.run?.v !== 4) return null;
     const run = data.run as RunState;
     // Saves from before boards had a size: they were all 6×6.
     if (run.combat && !run.combat.board.w) Object.assign(run.combat.board, { w: 6, h: 6 });

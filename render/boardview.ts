@@ -1,4 +1,4 @@
-import { H, W, type Group, type Move, type Tile } from '../game/types.ts';
+import { H, W, type Fam, type Group, type Move, type Tile } from '../game/types.ts';
 import { text } from './font.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { draw, drawScaled, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
@@ -45,14 +45,6 @@ const CARD: Record<string, [string, string, string]> = {
   prism: ['grey1', 'grey3', 'ink2'],
 };
 
-/** Corner signs of red cards with a rule of their own (5×5): the tile face is the weapon. */
-const RED_SIGNS: Record<string, string[]> = {
-  pins: ['.RRR.', '.RPR.', '..y..', '..y..', '.....'],
-  redpen: ['....R', '...R.', '..R..', '.y...', 'y....'],
-  alarm: ['..Z..', '..Z..', '..Z..', '.....', '..Z..'],
-};
-const SIGN_COLORS: Record<string, string> = { R: 'red4', P: 'red5', y: 'grey4', Z: 'gold4' };
-
 export class BoardView {
   /** Geometry from the layout: tile size and the grid's top-left corner. */
   T = 26;
@@ -74,8 +66,9 @@ export class BoardView {
   rowLock: number[] = Array(H).fill(0);
   /** The ring binder: edge tiles swap with the opposite edge. */
   wrap = false;
-  /** Art of the weapon in hand: every red tile shows it. */
-  weaponArt = 'card_knife';
+  /** Art of the item held in every colour: each tile of the colour shows it (a plus when upgraded). */
+  gearArt: Record<Fam, string> = { blade: 'card_knife', shield: 'tile_shield', ink: 'tile_ink', coin: 'tile_coin' };
+  gearUp: Record<Fam, boolean> = { blade: false, shield: false, ink: false, coin: false };
   /** Move rules of the fight: slides along a line, diagonal swaps, only up and down. */
   slide = false;
   diagonal = false;
@@ -669,7 +662,7 @@ export class BoardView {
     ctx.clip();
     if (tile.kind === 'junk') {
       // Paperwork (red tape) and ink blots: dead tiles that only a match next to them clears.
-      const id = tile.card === 'redtape' && hasSprite('card_redtape') ? 'card_redtape' : 'tile_junk';
+      const id = tile.tape && hasSprite('card_redtape') ? 'card_redtape' : 'tile_junk';
       ctx.fillStyle = hex('ink1');
       ctx.fillRect(x + inset, y + inset, w, w);
       this.icon(ctx, id, x + T / 2, y + T / 2);
@@ -699,9 +692,9 @@ export class BoardView {
         ctx.fillStyle = hex('grey2');
         ctx.fillRect(x + 6, y + 11, T - 12, 1);
       } else {
-        // Red tiles are the weapon in hand; the others show their card.
-        const id =
-          tile.kind === 'blade' && hasSprite(this.weaponArt) ? this.weaponArt : tile.card && hasSprite(`card_${tile.card}`) ? `card_${tile.card}` : `tile_${tile.kind}`;
+        // Every tile of a colour is the item held for it.
+        const art = tile.kind === 'prism' ? undefined : this.gearArt[tile.kind];
+        const id = art && hasSprite(art) ? art : `tile_${tile.kind}`;
         this.icon(ctx, id, x + T / 2, y + T / 2);
         this.drawMarks(ctx, tile, x + inset, y + inset, w, t);
       }
@@ -745,54 +738,23 @@ export class BoardView {
     else drawScaled(ctx, f, Math.round(cx - f.w + f.ox * 2), Math.round(cy - f.h + f.oy * 2), 2);
   }
 
-  /** Upgrade plus and finish marks (Balatro-like enhancements) on a tile. */
+  /** The upgrade plus of the colour's item and the department's stamp on a tile. */
   private drawMarks(ctx: Ctx2D, tile: Tile, x: number, y: number, w: number, t: number) {
     const px = (c: string, dx: number, dy: number, pw = 1, ph = 1) => {
       ctx.fillStyle = hex(c);
       ctx.fillRect(x + dx, y + dy, pw, ph);
     };
-    if (tile.up) {
+    if (tile.kind !== 'prism' && tile.kind !== 'junk' && this.gearUp[tile.kind]) {
       // A gold plus in the top-right corner.
       px('ink0', w - 7, 1, 5, 5);
       px('gold4', w - 6, 3, 3, 1);
       px('gold4', w - 5, 2, 1, 3);
     }
-    // Red tiles show the weapon in hand; a red card with its own rule gets a sign in the corner.
-    const sign = tile.kind === 'blade' && tile.card ? RED_SIGNS[tile.card] : undefined;
-    if (sign) {
-      px('ink0', w - 8, w - 8, 7, 7);
-      sign.forEach((row, dy) => row.split('').forEach((ch, dx) => ch !== '.' && px(SIGN_COLORS[ch], w - 7 + dx, w - 7 + dy)));
-    }
-    switch (tile.finish) {
-      case 'sharp':
-        // A bright steel edge along the top.
-        px('white', 2, 1, w - 4, 1);
-        px('grey4', 2, 2, w - 4, 1);
-        break;
-      case 'gild': {
-        const c = Math.floor(t * 4) % 2 ? 'gold4' : 'gold3';
-        px(c, 1, 1, w - 2, 1);
-        px(c, 1, w - 2, w - 2, 1);
-        px(c, 1, 1, 1, w - 2);
-        px(c, w - 2, 1, 1, w - 2);
-        break;
-      }
-      case 'seal':
-        // A red stamp in the bottom-left corner.
-        px('ink0', 1, w - 7, 6, 6);
-        px('red3', 2, w - 6, 4, 4);
-        px('red5', 3, w - 5, 2, 1);
-        break;
-      case 'copy':
-        px('cold5', 2, w - 3, w - 4, 1);
-        px('cold3', 3, w - 4, w - 6, 1);
-        break;
-      case 'laminate':
-        // A glossy sheen on the top-left corner.
-        px('white', 2, 2, 4, 1);
-        px('white', 2, 3, 1, 3);
-        px('cold6', 3, 3, 1, 1);
-        break;
+    if (tile.seal) {
+      // A red stamp in the bottom-left corner, pulsing: its group is a super.
+      px('ink0', 1, w - 7, 6, 6);
+      px(Math.floor(t * 3) % 2 ? 'red3' : 'red4', 2, w - 6, 4, 4);
+      px('red5', 3, w - 5, 2, 1);
     }
   }
 

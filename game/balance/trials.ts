@@ -1,9 +1,10 @@
 /**
  * Event trials for the balance report: one option of one event, taken by a hero with a given build,
- * played out to the end (a card to pick, a fight to win), measured as what the hero gained or lost.
+ * played out to the end (an item to pick, a fight to win), measured as what the hero gained or lost.
  */
 import { decide } from '../bot.ts';
 import { dispatch, newRun } from '../run.ts';
+import { FAMS } from '../types.ts';
 import type { DevOp, RunState } from '../types.ts';
 import type { Build } from './lab.ts';
 
@@ -21,10 +22,10 @@ export interface EventTrialResult {
   hp: number;
   maxHp: number;
   coins: number;
-  deck: number;
+  gear: number;
   ups: number;
-  finishes: number;
   curses: number;
+  keys: number;
   relics: number;
   pockets: number;
   shards: number;
@@ -36,10 +37,10 @@ const count = (run: RunState) => ({
   hp: run.hero.hp,
   maxHp: run.hero.maxHp,
   coins: run.hero.coins,
-  deck: run.hero.deck.filter((c) => c.id !== 'redtape').length,
-  ups: run.hero.deck.filter((c) => c.up).length,
-  finishes: run.hero.deck.filter((c) => c.finish).length,
-  curses: run.hero.deck.filter((c) => c.id === 'redtape').length,
+  gear: FAMS.reduce((n, f) => n + run.hero.gear[f].length, 0),
+  ups: run.hero.ups.length,
+  curses: run.hero.tape,
+  keys: run.hero.keys,
   relics: run.hero.relics.length,
   pockets: run.hero.pockets.filter(Boolean).length,
   shards: run.stats.shards,
@@ -59,7 +60,10 @@ export function eventTrial(spec: EventTrialSpec): EventTrialResult {
   dev({ op: 'act', act: spec.act });
   dev({
     op: 'build',
-    deck: b.deck,
+    gear: b.gear,
+    equip: b.equip,
+    ups: b.ups,
+    tape: b.tape,
     relics: b.relics,
     active: b.active,
     pockets: b.pockets,
@@ -73,10 +77,10 @@ export function eventTrial(spec: EventTrialSpec): EventTrialResult {
     hp: 0,
     maxHp: 0,
     coins: 0,
-    deck: 0,
+    gear: 0,
     ups: 0,
-    finishes: 0,
     curses: 0,
+    keys: 0,
     relics: 0,
     pockets: 0,
     shards: 0,

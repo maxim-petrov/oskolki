@@ -4,7 +4,7 @@ import * as B from '../game/board.ts';
 import { createBoard, gravity, isValidMove, lineFree, swapBlock, swapCells, validMoves } from '../game/board.ts';
 import { rng } from '../game/rng.ts';
 import { QUEUE_LEN } from '../game/types.ts';
-import { STARTER_BAG } from './helpers.mjs';
+import { STARTER_BAG, TAPE } from './helpers.mjs';
 
 // The usual 6×6 board; the size tests below pass their own.
 const D6 = { w: 6, h: 6 };
@@ -129,26 +129,26 @@ test('staples, anchors and water block swaps', () => {
   assert.equal(isValidMove(b, { from: idx(5, 1), to: idx(5, 2) }, false), false);
 });
 
-test('the board is dealt from the deck bag and refills from it', () => {
-  const bag = [...Array(18).fill({ card: 'fist', up: false }), ...Array(18).fill({ card: 'folder', up: false })];
+test('the board is dealt from the bag and refills from it', () => {
+  const bag = [...Array(18).fill({ kind: 'blade' }), ...Array(18).fill({ kind: 'shield' })];
   const b = createBoard(rng(5), bag);
-  assert.ok(b.cells.every((t) => t.card === 'fist' || t.card === 'folder'), 'only deck cards on the board');
-  assert.ok(b.cells.every((t) => (t.card === 'fist' ? t.kind === 'blade' : t.kind === 'shield')));
-  assert.ok(b.queue.flat().every((t) => t.card === 'fist' || t.card === 'folder'), 'the queue comes from the bag too');
-  const redtape = createBoard(rng(5), [...bag, { card: 'redtape', up: false }]);
-  assert.ok(redtape.cells.concat(redtape.queue.flat()).filter((t) => t.card === 'redtape').every((t) => t.kind === 'junk'), 'status cards become junk');
+  assert.ok(b.cells.every((t) => t.kind === 'blade' || t.kind === 'shield'), 'only the bag colours on the board');
+  assert.ok(b.queue.flat().every((t) => t.kind === 'blade' || t.kind === 'shield'), 'the queue comes from the bag too');
+  const redtape = createBoard(rng(5), [...bag, TAPE, TAPE, TAPE]);
+  const tape = redtape.cells.concat(redtape.queue.flat()).filter((t) => t.tape);
+  assert.ok(tape.length > 0 && tape.every((t) => t.kind === 'junk'), 'red tape is junk');
 });
 
-test('a fight never starts with ready lines, even with a deck heavy in one family', () => {
-  const tokens = (list) => list.flatMap(([card, n]) => Array(n * 3).fill({ card, up: false }));
-  // Eight red cards and two folders (24 red tiles to 6 blue in the bag).
+test('a fight never starts with ready lines, even with a bag heavy in one colour', () => {
+  const tokens = (list) => list.flatMap(([kind, n]) => Array(n * 3).fill({ kind }));
+  // 24 red tiles to 6 blue in the bag.
   const redHeavy = tokens([
-    ['fist', 8],
-    ['folder', 2],
+    ['blade', 8],
+    ['shield', 2],
   ]);
   const twoFam = tokens([
-    ['fist', 5],
-    ['folder', 5],
+    ['blade', 5],
+    ['shield', 5],
   ]);
   for (let seed = 1; seed <= 60; seed++) {
     for (const [name, bag] of [
@@ -164,8 +164,8 @@ test('a fight never starts with ready lines, even with a deck heavy in one famil
   }
 });
 
-test('a one-family deck still gets a board (lines are its payoff)', () => {
-  const b = createBoard(rng(7), Array(15).fill({ card: 'fist', up: false }));
+test('a one-colour bag still gets a board (lines are its payoff)', () => {
+  const b = createBoard(rng(7), Array(15).fill({ kind: 'blade' }));
   assert.equal(b.cells.length, 36);
   assert.ok(b.cells.every((t) => t.kind === 'blade'));
 });

@@ -16,14 +16,10 @@ test('a test run takes a build, a place and cheats', () => {
   run = dev(run, { op: 'set', dev: { god: true, ink: true, enemyHp: 2 } }).run;
   run = dev(run, { op: 'act', act: 2 }).run;
   assert.equal(run.act, 2);
-  run = dev(run, { op: 'build', deck: [{ id: 'fist' }, { id: 'fist', up: true }, { id: 'nope' }], relics: ['mop', 'mop'], active: 'corrector', pockets: ['bomb'] }).run;
-  assert.deepEqual(
-    run.hero.deck.map((c) => [c.id, c.up]),
-    [
-      ['fist', false],
-      ['fist', true],
-    ],
-  );
+  run = dev(run, { op: 'build', gear: ['knife', 'scissors', 'nope', 'binder'], equip: ['scissors'], ups: ['scissors', 'awl'], tape: 2, relics: ['mop', 'mop', 'umbrella'], active: 'corrector', pockets: ['bomb'] }).run;
+  assert.deepEqual(run.hero.gear, { blade: ['knife', 'scissors'], shield: ['binder', 'umbrella'], ink: ['battery'], coin: ['penny'] }, 'вещи из списка предметов тоже идут в руки; уборщик без синих — не файлик');
+  assert.deepEqual([run.hero.equip.blade, run.hero.equip.shield], ['scissors', 'binder']);
+  assert.deepEqual([run.hero.ups, run.hero.tape], [['scissors'], 2], 'улучшить можно только то, что есть');
   assert.deepEqual(run.hero.relics, ['mop']);
   assert.equal(run.hero.pockets[0], 'bomb');
   run = dev(run, { op: 'enter', kind: 'boss' }).run;
@@ -64,7 +60,7 @@ test('god mode: enemies hit for nothing', () => {
 
 test('every ready-made dev test uses real content and starts', async () => {
   const { DEV_SUITES } = await import('../render/dev-presets.ts');
-  const { CARDS } = await import('../game/content/cards.ts');
+  const { GEAR } = await import('../game/content/gear.ts');
   const { ITEMS, POCKETS } = await import('../game/content/items.ts');
   const { ENEMIES } = await import('../game/content/enemies.ts');
   let n = 0;
@@ -73,10 +69,10 @@ test('every ready-made dev test uses real content and starts', async () => {
       const c = item.cfg;
       for (const e of c.enemies ?? []) assert.ok(ENEMIES[e], `${item.id}: enemy ${e}`);
       if (c.build) {
-        for (const card of c.build.deck) assert.ok(CARDS[card.id], `${item.id}: card ${card.id}`);
-        // Items and weapons share the list: the build op puts weapons in the hands.
-        for (const r of c.build.relics) assert.ok(['passive', 'weapon'].includes(ITEMS[r]?.kind), `${item.id}: relic ${r}`);
-        assert.ok(c.build.relics.filter((r) => ITEMS[r]?.kind === 'weapon').length <= 3, `${item.id}: не больше трёх оружий`);
+        for (const id of c.build.gear) assert.ok(GEAR[id], `${item.id}: gear ${id}`);
+        for (const id of c.build.ups ?? []) assert.ok(c.build.gear.includes(id) || Object.values(GEAR).some((g) => g.id === id && g.pool === 'starter'), `${item.id}: upgrade ${id}`);
+        for (const fam of ['blade', 'shield', 'ink', 'coin']) assert.ok(c.build.gear.filter((id) => GEAR[id].gear.fam === fam).length <= 3, `${item.id}: не больше трёх вещей цвета ${fam}`);
+        for (const r of c.build.relics) assert.equal(ITEMS[r]?.kind, 'passive', `${item.id}: relic ${r}`);
         if (c.build.active) assert.equal(ITEMS[c.build.active]?.kind, 'active', `${item.id}: active ${c.build.active}`);
         for (const p of c.build.pockets) if (p) assert.ok(POCKETS[p], `${item.id}: pocket ${p}`);
       }

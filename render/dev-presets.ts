@@ -1,6 +1,6 @@
 import { ITEMS } from '../game/content/items.ts';
 import { cheatList } from './dev-cheats.ts';
-import type { DevBuild, DevCard, DevStart } from './dev.ts';
+import type { DevBuild, DevStart } from './dev.ts';
 
 /**
  * Ready-made tests for the dev panel: every boss and elite with a build that fits its act, item
@@ -20,36 +20,37 @@ export interface DevSuite {
   items: DevSuiteItem[];
 }
 
-/** Cards: [id, count, upgraded?]. */
-function deck(...entries: [string, number, boolean?][]): DevCard[] {
-  return entries.flatMap(([id, n, up]) => Array.from({ length: n }, () => ({ id, up: !!up })));
-}
-
-/** Items and weapons go in one list: the build op puts the weapons in the hands (no weapon — the knife). */
-function build(cards: DevCard[], relics: string[], active: string | null, pockets: (string | null)[] = []): DevBuild {
-  return { deck: cards, relics, active, pockets: [...pockets, null, null, null].slice(0, 3) };
+/**
+ * A kit: gear (a colour left out keeps the plain item; the last listed of a colour is held),
+ * upgrades, items, the skill and pockets.
+ */
+function build(gear: string[], relics: string[], active: string | null, pockets: (string | null)[] = [], ups: string[] = [], tape = 0): DevBuild {
+  return { gear, equip: gear, ups, tape, relics, active, pockets: [...pockets, null, null, null].slice(0, 3) };
 }
 
 /** A build that belongs to each act: the first three are what a decent run holds by then. */
 const ACT_BUILD: DevBuild[] = [
-  build(deck(['fist', 4], ['folder', 2], ['binder', 1], ['ink', 2], ['quill', 1], ['clip', 2], ['bonus', 1]), ['knife', 'scissors', 'badge', 'coffee', 'vestrelic'], 'eraser', ['coffee', 'bomb']),
+  build(['knife', 'scissors', 'shield', 'binder', 'battery', 'quill', 'penny', 'bonus'], ['badge', 'coffee', 'vestrelic'], 'eraser', ['coffee', 'bomb']),
   build(
-    deck(['fist', 3], ['fist', 1, true], ['folder', 1], ['binder', 1], ['drawer', 1], ['laminator', 1], ['ink', 1], ['quill', 2], ['carbon', 1], ['clip', 1], ['bonus', 2], ['report', 1]),
-    ['knife', 'staplegun', 'scissors', 'badge', 'coffee', 'binderclip', 'poster', 'lucky', 'timesheet'],
+    ['knife', 'staplegun', 'scissors', 'shield', 'laminator', 'drawer', 'battery', 'carbon', 'quill', 'penny', 'bonus', 'report'],
+    ['badge', 'coffee', 'binderclip', 'poster', 'lucky', 'timesheet'],
     'stapler',
     ['bomb', 'choco', 'coffee'],
+    ['scissors'],
   ),
   build(
-    deck(['fist', 5, true], ['drawer', 2], ['vest', 1], ['laminator', 1], ['quill', 2], ['carbon', 1], ['copystamp', 1], ['bonus', 2], ['goldclip', 1], ['report', 1], ['card', 1]),
-    ['scissors', 'cutter', 'punch', 'badge', 'espresso', 'poster', 'award', 'coffeemachine', 'carbonpack', 'puncher'],
+    ['scissors', 'punch', 'cutter', 'drawer', 'laminator', 'foldervest', 'quill', 'carbon', 'copystamp', 'bonus', 'report', 'goldclip'],
+    ['badge', 'espresso', 'poster', 'award', 'coffeemachine', 'carbonpack', 'puncher'],
     'shredder',
     ['bomb', 'bomb', 'choco'],
+    ['cutter', 'drawer'],
   ),
   build(
-    deck(['fist', 5, true], ['drawer', 2], ['vest', 1, true], ['quill', 2, true], ['carbon', 2], ['copystamp', 1], ['bonus', 2, true], ['goldclip', 1, true], ['report', 1, true], ['card', 1]),
-    ['cutter', 'awl', 'scissors', 'badge', 'espresso', 'poster', 'award', 'coffeemachine', 'carbonpack', 'puncher', 'lamp', 'stamprelic', 'pen', 'lucky'],
+    ['cutter', 'scissors', 'awl', 'drawer', 'clipboard', 'foldervest', 'quill', 'copystamp', 'carbon', 'bonus', 'report', 'goldclip'],
+    ['badge', 'espresso', 'poster', 'award', 'coffeemachine', 'carbonpack', 'puncher', 'lamp', 'stamprelic', 'pen', 'lucky'],
     'giftbox',
     ['bomb', 'choco', 'sticker'],
+    ['awl', 'foldervest', 'quill', 'goldclip', 'report'],
   ),
 ];
 
@@ -110,69 +111,79 @@ const SUITES: DevSuite[] = [
       {
         id: 'combo-cascade',
         name: 'Каскады',
-        desc: 'Плакат (+15% урона за волну), радужная скрепка, бесконечная ручка, динамит, гирлянда; точилка в руке бьёт вчетверо в каскаде.',
-        cfg: combo(build(deck(['fist', 6], ['bonus', 2], ['folder', 2], ['ink', 1]), ['sharpener', 'knife', 'poster', 'prismpact', 'pen', 'dynamite', 'garland'], 'giftbox', ['bomb'])),
+        desc: 'Плакат (+15% урона за волну), радужная скрепка, бесконечная ручка, динамит, гирлянда; точилка в руке бьёт втрое в каскаде.',
+        cfg: combo(build(['knife', 'sharpener', 'bonus'], ['poster', 'prismpact', 'pen', 'dynamite', 'garland'], 'giftbox', ['bomb'])),
       },
       {
         id: 'combo-gold',
         name: 'Золото бьёт',
-        desc: 'Кассовый аппарат (золотые фишки бьют), кошелёк, калькулятор, книга; колода из монет, чеков, золотой скрепки и отчёта.',
-        cfg: combo(build(deck(['coin', 3], ['receipt', 3], ['goldclip', 1], ['report', 1], ['card', 1], ['folder', 2]), ['register', 'wallet', 'calculator', 'ledger'], 'megaphone')),
+        desc: 'Кассовый аппарат (золотые фишки бьют), кошелёк, калькулятор, книга; в жёлтой руке чек, отчёт и золотая скрепка.',
+        cfg: combo(build(['receipt', 'report', 'goldclip'], ['register', 'wallet', 'calculator', 'ledger'], 'megaphone')),
       },
       {
         id: 'combo-ink',
         name: 'Чернила и навык',
-        desc: 'Чернильница (фиолетовые бьют), картридж, батарейка, лампа; перья, кляксы, копирка и шредер.',
-        cfg: combo(build(deck(['ink', 3], ['quill', 2], ['blotcurse', 2], ['carbon', 1], ['weight', 1], ['fist', 2]), ['inkwell', 'inkpot', 'powerbank', 'lamp'], 'shredder')),
+        desc: 'Чернильница (фиолетовые бьют), картридж, пауэрбанк, лампа; в фиолетовой руке перо, копирка и клякса, навык — шредер.',
+        cfg: combo(build(['quill', 'carbon', 'blotcurse'], ['inkwell', 'inkpot', 'powerbank', 'lamp'], 'shredder')),
       },
       {
         id: 'combo-armor',
         name: 'Броня бьёт',
-        desc: 'Двусторонний скотч (броня хода бьёт цель), зажим, жилет охранника, кактус; бронежилет удваивает броню хода.',
-        cfg: combo(build(deck(['binder', 3], ['vest', 1], ['laminator', 2], ['drawer', 1], ['archivebox', 1], ['clipboard', 1], ['fist', 2]), ['tape', 'binderclip', 'vestrelic', 'cactus'], 'corrector')),
+        desc: 'Двусторонний скотч (броня хода бьёт цель), зажим, жилет охранника, кактус; бронежилет из папок удваивает броню хода.',
+        cfg: combo(build(['laminator', 'archivebox', 'foldervest'], ['tape', 'binderclip', 'vestrelic', 'cactus'], 'corrector')),
       },
       {
         id: 'combo-bleed',
         name: 'Кровь и огонь',
         desc: 'Ржавое лезвие (кровотечение), спичка (поджог), самолётик (урон всем), двойной эспрессо; ножницы в руке.',
-        cfg: combo(build(deck(['fist', 5], ['folder', 2]), ['scissors', 'rustyblade', 'match', 'plane', 'espresso', 'coffee'], 'stapler'), ['rat', 'rat', 'drop']),
+        cfg: combo(build(['knife', 'scissors'], ['rustyblade', 'match', 'plane', 'espresso', 'coffee'], 'stapler'), ['rat', 'rat', 'drop']),
       },
       {
         id: 'combo-luck',
         name: 'Удача и хаос',
         desc: 'Счастливая монетка, кривой калькулятор (урон −50%…+100%), кофемашина, грамота, пачка копирки.',
-        cfg: combo(build(deck(['fist', 3], ['bonus', 2], ['goldclip', 1], ['card', 1], ['folder', 2], ['clip', 2]), ['lucky', 'calc2', 'coffeemachine', 'award', 'carbonpack'], 'coffeeToGo')),
+        cfg: combo(build(['bonus', 'creditcard', 'goldclip'], ['lucky', 'calc2', 'coffeemachine', 'award', 'carbonpack'], 'coffeeToGo')),
       },
       {
         id: 'combo-time',
         name: 'Контроль времени',
-        desc: 'Сломанные часы, ночная смена, ведро льда, кофе с собой, стикеры «Срочно»: враги почти не ходят.',
-        cfg: combo(build(deck(['urgent', 2], ['weight', 2], ['umbrella', 2], ['binder', 2], ['fist', 2]), ['clock', 'nightshift', 'ice'], 'coffeeToGo', ['sticker', 'sticker', 'coffee']), ['bell', 'eraser']),
+        desc: 'Сломанные часы, ночная смена, ведро льда, кофе с собой; печать «Срочно» и зонтик в руках: враги почти не ходят.',
+        cfg: combo(build(['weight', 'urgent', 'binder', 'umbrella'], ['clock', 'nightshift', 'ice'], 'coffeeToGo', ['sticker', 'sticker', 'coffee']), ['bell', 'eraser']),
       },
       {
         id: 'combo-paper',
         name: 'Бумажный убийца',
         desc: 'Нож и резак (по бумаге +100% и +200%), табель, пробойник — против бумажных врагов.',
-        cfg: combo(build(deck(['fist', 5], ['folder', 2]), ['cutter', 'knife', 'timesheet', 'puncher'], 'eraser'), ['rat', 'moth', 'kipa']),
+        cfg: combo(build(['knife', 'cutter'], ['timesheet', 'puncher'], 'eraser'), ['rat', 'moth', 'kipa']),
       },
       {
         id: 'combo-ring',
         name: 'Кольцо и ракеты',
         desc: 'Кольцевая скоба (предмет босса: края поля соединены), ручка (ракеты крестом), динамит 5×5: проверка обменов через край.',
-        cfg: combo(build(deck(['fist', 5], ['folder', 2], ['ink', 1]), ['ruler', 'ring', 'pen', 'dynamite'], 'eraser', ['bomb'])),
+        cfg: combo(build(['ruler'], ['ring', 'pen', 'dynamite'], 'eraser', ['bomb'])),
       },
       {
         id: 'combo-weapons',
-        name: 'Три оружия',
-        desc: 'Нож, ножницы и шило в руках, пропуск (смена за 1 энергию) и картридж: меняй оружие посреди боя.',
-        cfg: combo(build(deck(['fist', 4], ['ink', 4], ['folder', 2], ['clip', 1]), ['knife', 'scissors', 'awl', 'badge', 'inkpot'], 'eraser')),
+        name: 'Полные руки',
+        desc: 'По три вещи каждого цвета, пропуск (смена за 1 энергию) и картридж: меняй вещи посреди боя.',
+        cfg: combo(build(['scissors', 'awl', 'knife', 'umbrella', 'clipboard', 'shield', 'quill', 'weight', 'battery', 'bonus', 'piggy', 'penny'], ['badge', 'inkpot'], 'eraser')),
       },
       {
         id: 'combo-pockets',
         name: 'Бомбы и карманы',
         desc: 'Портфель (+2 кармана), три бомбы, динамит, гирлянда и коробка с сюрпризом.',
-        cfg: combo(build(deck(['fist', 3], ['folder', 2], ['ink', 2], ['clip', 2]), ['pocketbag', 'dynamite', 'garland'], 'giftbox', ['bomb', 'bomb', 'bomb'])),
+        cfg: combo(build([], ['pocketbag', 'dynamite', 'garland'], 'giftbox', ['bomb', 'bomb', 'bomb'])),
       },
+    ],
+  },
+  {
+    group: 'Снаряжение',
+    items: [
+      { id: 'gear-red', name: 'Красные: ножницы', desc: 'Ножницы в руке: кровотечение с каждой красной группы, двойное лезвие из четырёх.', cfg: combo(build(['knife', 'scissors'], [], 'eraser')) },
+      { id: 'gear-blue', name: 'Синие: планшет', desc: 'Планшет в руке: следующий удар врага бьёт и его.', cfg: combo(build(['shield', 'clipboard'], [], 'eraser'), ['bell', 'rat']) },
+      { id: 'gear-violet', name: 'Фиолетовые: клякса', desc: 'Клякса в руке: фиолетовые бьют всех вместо энергии.', cfg: combo(build(['battery', 'blotcurse'], [], 'eraser'), ['rat', 'rat', 'drop']) },
+      { id: 'gear-gold', name: 'Жёлтые: кредитка', desc: 'Кредитка в руке: жёлтая группа — +6 урона за фишку, но стоит монету.', cfg: combo(build(['penny', 'creditcard'], [], 'eraser'), undefined, { hero: { coins: 40 } }) },
+      { id: 'gear-ups', name: 'Всё улучшено', desc: 'Простые вещи, все улучшены: нож+, щит+, батарейка+, монетка+.', cfg: combo(build([], [], 'eraser', [], ['knife', 'shield', 'battery', 'penny'])) },
     ],
   },
   {
@@ -182,19 +193,19 @@ const SUITES: DevSuite[] = [
         id: 'board-big',
         name: 'Поле 8×7',
         desc: 'Удлинитель и раскладной стол: поле шире на два столбца и выше на строку; брошюровщик даёт +50% урона за группу из 5.',
-        cfg: combo(build(deck(['fist', 5], ['folder', 2], ['ink', 2], ['clip', 2]), ['knife', 'extension', 'foldtable', 'binding'], 'eraser')),
+        cfg: combo(build([], ['extension', 'foldtable', 'binding'], 'eraser')),
       },
       {
         id: 'board-small',
         name: 'Тесная каморка',
         desc: 'Поле уже на столбец, зато урон +100%: меньше ходов, крупнее удар.',
-        cfg: combo(build(deck(['fist', 5], ['folder', 2], ['ink', 2], ['clip', 2]), ['knife', 'closet'], 'eraser')),
+        cfg: combo(build([], ['closet'], 'eraser')),
       },
       {
         id: 'board-moves',
         name: 'Рулетка и угольник',
         desc: 'Фишку можно протащить по всему ряду, меняться можно и по диагонали; скрепочница кладёт две ракеты в начале боя.',
-        cfg: combo(build(deck(['fist', 5], ['folder', 2], ['ink', 2], ['clip', 2]), ['knife', 'tapemeasure', 'setsquare', 'clipholder'], 'eraser')),
+        cfg: combo(build([], ['tapemeasure', 'setsquare', 'clipholder'], 'eraser')),
       },
       {
         id: 'board-turnstile',
@@ -218,7 +229,7 @@ const SUITES: DevSuite[] = [
         id: 'board-abacus',
         name: 'Счёты и золото',
         desc: 'Счёты (+10% урона следующему удару за золотую фишку) без калькулятора: проверка, что золото работает у любого героя.',
-        cfg: combo(build(deck(['coin', 3], ['receipt', 2], ['bonus', 2], ['fist', 3], ['folder', 2]), ['knife', 'abacus', 'calendar'], 'eraser')),
+        cfg: combo(build(['receipt', 'bonus'], ['abacus', 'calendar'], 'eraser')),
       },
     ],
   },
@@ -245,7 +256,7 @@ const SUITES: DevSuite[] = [
     group: 'Места',
     items: [
       { id: 'place-shop', name: 'Касса, 500 монет', desc: 'Магазин 2-го отдела с полным кошельком.', cfg: { char: 'intern', act: 1, place: 'shop', hero: { coins: 500 }, build: ACT_BUILD[1] } },
-      { id: 'place-rest', name: 'Кулер', desc: 'Отдых: вылечиться или улучшить фишку.', cfg: { char: 'intern', act: 0, place: 'rest', hero: { hp: 3 }, build: ACT_BUILD[0] } },
+      { id: 'place-rest', name: 'Кулер', desc: 'Отдых: вылечиться или улучшить вещь.', cfg: { char: 'intern', act: 0, place: 'rest', hero: { hp: 3 }, build: ACT_BUILD[0] } },
       { id: 'place-treasure', name: 'Сейф', desc: 'Сокровище: предмет и монеты.', cfg: { char: 'intern', act: 0, place: 'treasure' } },
       { id: 'place-bossreward', name: 'Награда босса', desc: 'Выбор одного из трёх предметов босса.', cfg: { char: 'intern', act: 0, place: 'bossReward' } },
       { id: 'place-event', name: 'Случайное событие', desc: 'Служебная записка с выбором.', cfg: { char: 'intern', act: 0, place: 'event', hero: { coins: 200 } } },
@@ -259,14 +270,14 @@ const SUITES: DevSuite[] = [
       { id: 'stress-three', name: 'Три сильных врага', desc: 'С читом «бессмертие». Сейф, звонарь и кочегар в 3-м отделе: плотность эффектов на экране.', cfg: fight(2, 'fight', ['safe', 'bell', 'stoker'], { cheats: { god: true } }) },
       { id: 'stress-long', name: 'Долгий бой', desc: 'С читами «здоровье врагов ×10» и «бессмертие»: бой тянется до сверхурочных после 20 ходов.', cfg: fight(0, 'fight', ['copier', 'rat'], { cheats: { god: true, enemyHp: 10 } }) },
       { id: 'stress-lowhp', name: 'На волоске', desc: 'Половинка сердца и флешка: смертельный удар оставляет половинку.', cfg: { ...fight(0, 'fight', ['rat', 'rat']), hero: { hp: 1 }, build: { ...ACT_BUILD[0], relics: [...ACT_BUILD[0].relics, 'flash'] } } },
-      { id: 'stress-thin', name: 'Тонкая колода', desc: 'Пять фишек — минимум колоды.', cfg: combo(build(deck(['fist', 2], ['folder', 1], ['ink', 1], ['clip', 1]), ['knife'], 'eraser')) },
-      { id: 'stress-fat', name: 'Толстая колода', desc: '30 фишек всех семейств: мешок и поле на большой колоде.', cfg: combo(build(deck(['fist', 11], ['folder', 4], ['binder', 3], ['ink', 4], ['quill', 2], ['clip', 3], ['coin', 3]), ['knife'], 'eraser')) },
+      { id: 'stress-thin', name: 'Только простые вещи', desc: 'Нож, щит, батарейка и монетка без предметов: так начинается каждая смена.', cfg: combo(build([], [], 'eraser')) },
+      { id: 'stress-fat', name: 'Волокита', desc: 'Три Волокиты в мешке: треть поля — мусор, который убирают только соседние группы.', cfg: combo(build([], [], 'eraser', [], [], 3)) },
       {
         id: 'stress-all',
         name: 'Все предметы сразу',
-        desc: 'Каждый пассивный предмет игры и три оружия на одном герое: проверка, что они уживаются вместе.',
+        desc: 'Каждый пассивный предмет игры и полные руки вещей на одном герое: проверка, что они уживаются вместе.',
         cfg: combo(
-          build(ACT_BUILD[2].deck, [...Object.values(ITEMS).filter((i) => i.kind === 'passive').map((i) => i.id), 'knife', 'scissors', 'awl'], 'giftbox', ['bomb', 'choco', 'coffee']),
+          build(ACT_BUILD[2].gear, Object.values(ITEMS).filter((i) => i.kind === 'passive').map((i) => i.id), 'giftbox', ['bomb', 'choco', 'coffee'], ACT_BUILD[2].ups),
           ['copier', 'rat', 'blot'],
         ),
       },
@@ -275,9 +286,9 @@ const SUITES: DevSuite[] = [
   {
     group: 'Герои',
     items: [
-      { id: 'hero-intern', name: 'Стажёр · старт', desc: 'Стартовая колода стажёра против первой встречи.', cfg: { char: 'intern', act: 0, place: 'fight', enemies: ['rat'] } },
-      { id: 'hero-accountant', name: 'Бухгалтер · старт', desc: 'Стартовая колода бухгалтера: калькулятор, золотые группы добавляют урон.', cfg: { char: 'accountant', act: 0, place: 'fight', enemies: ['rat'] } },
-      { id: 'hero-janitor', name: 'Уборщик · старт', desc: 'Стартовая колода уборщика: грязь на поле — броня.', cfg: { char: 'janitor', act: 0, place: 'fight', enemies: ['copier'] } },
+      { id: 'hero-intern', name: 'Стажёр · старт', desc: 'Простые вещи стажёра против первой встречи.', cfg: { char: 'intern', act: 0, place: 'fight', enemies: ['rat'] } },
+      { id: 'hero-accountant', name: 'Бухгалтер · старт', desc: 'Бухгалтер: калькулятор, в мешке больше жёлтых.', cfg: { char: 'accountant', act: 0, place: 'fight', enemies: ['rat'] } },
+      { id: 'hero-janitor', name: 'Уборщик · старт', desc: 'Уборщик: файлик вместо щита, грязь на поле — броня.', cfg: { char: 'janitor', act: 0, place: 'fight', enemies: ['copier'] } },
     ],
   },
 ];

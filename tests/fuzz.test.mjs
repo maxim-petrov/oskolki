@@ -7,14 +7,14 @@ import { checkRun } from '../game/balance/invariants.ts';
 import { decide } from '../game/bot.ts';
 import { dispatch, loadRun, saveRun } from '../game/run.ts';
 import { ACTS } from '../game/content/acts.ts';
-import { CARDS } from '../game/content/cards.ts';
+import { GEAR } from '../game/content/gear.ts';
 import { ENEMIES } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import { REQUESTS } from '../render/profile.ts';
 import { derive, int, rng, shuffle } from '../game/rng.ts';
 
 const HEROES = ['intern', 'accountant', 'janitor'];
-const POLICIES = ['greedy', 'random', 'randomCards', 'noCards'];
+const POLICIES = ['greedy', 'random', 'randomGear', 'noGear'];
 const UNLOCKS = REQUESTS.map((r) => r.id);
 
 test('whole runs keep the engine sound: random heroes, unlocks, bots and lengths', () => {
@@ -35,10 +35,10 @@ test('whole runs keep the engine sound: random heroes, unlocks, bots and lengths
   }
 });
 
-/** A random build: any cards (upgraded, finished, curses), any items, any skill and pockets. */
+/** A random build: any gear (upgraded, held or spare), red tape, any items, any skill and pockets. */
 function chaosSpec(k) {
   const r = rng(derive(k, 'fuzz-chaos'));
-  const cards = Object.keys(CARDS);
+  const gear = shuffle(r, Object.keys(GEAR)).slice(0, int(r, 13));
   const passives = Object.values(ITEMS)
     .filter((d) => d.kind === 'passive')
     .map((d) => d.id);
@@ -54,11 +54,10 @@ function chaosSpec(k) {
     enemies: int(r, 2) ? Array.from({ length: 1 + int(r, 3) }, () => enemyIds[int(r, enemyIds.length)]) : [],
     build: {
       char: HEROES[int(r, 3)],
-      deck: Array.from({ length: 5 + int(r, 30) }, () => ({
-        id: cards[int(r, cards.length)],
-        up: int(r, 3) === 0,
-        ...(int(r, 5) === 0 ? { finish: ['sharp', 'gild', 'seal', 'copy', 'laminate'][int(r, 5)] } : {}),
-      })),
+      gear,
+      equip: shuffle(r, [...gear]).slice(0, int(r, 5)),
+      ups: gear.filter(() => int(r, 3) === 0),
+      tape: int(r, 4) ? 0 : 1 + int(r, 4),
       relics: shuffle(r, [...passives]).slice(0, int(r, 14)),
       active: int(r, 4) ? actives[int(r, actives.length)] : null,
       pockets: Array.from({ length: 5 }, () => (int(r, 2) ? pockets[int(r, pockets.length)] : null)),
@@ -76,7 +75,7 @@ test('fights with random builds against any enemies of any act keep the engine s
   for (let k = 0; k < 80; k++) {
     const spec = chaosSpec(k);
     const res = labFight(spec);
-    const what = `#${k} отдел ${spec.act + 1}, ${spec.enemies.join('+') || spec.kind}, колода ${spec.build.deck.length}, предметы ${spec.build.relics.join(',')}`;
+    const what = `#${k} отдел ${spec.act + 1}, ${spec.enemies.join('+') || spec.kind}, вещи ${spec.build.gear.join(',')}, предметы ${spec.build.relics.join(',')}`;
     assert.deepEqual(res.violations.slice(0, 5), [], what);
     assert.equal(res.stuck, false, `завис: ${what}`);
     // A build without damage may stall a boss for hundreds of moves: that is balance, not the engine.

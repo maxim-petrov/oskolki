@@ -1,6 +1,6 @@
 import { activeCost, energyCap } from '../game/combat.ts';
 import { ACTS } from '../game/content/acts.ts';
-import { CARDS, FINISH_TEXT } from '../game/content/cards.ts';
+import { FAM_ROLE } from '../game/content/gear.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
 import { dispatch, modsOf, saveRun } from '../game/run.ts';
 import type { Action, GameEvent, RunState } from '../game/types.ts';
@@ -236,26 +236,36 @@ export class RunView implements CombatHost {
         });
         break;
       }
-      case 'card':
+      case 'gearGained': {
+        const def = ITEMS[e.id];
+        if (!def?.gear) break;
         S.push({
-          dur: e.source === 'reward' || e.source === 'shop' ? 0.35 : 0.2,
+          dur: e.source === 'test' ? 0.2 : 1,
           begin: () => {
-            const def = CARDS[e.card];
-            if (!def) return;
-            this.toast(e.source === 'curse' ? `В колоду подброшена «${def.name}»` : `В колоде: ${def.name}`, 1.4);
-            this.audio.play('card');
-            if (!this.app.profile.seenCards.includes(e.card)) this.app.profile.seenCards.push(e.card);
+            // A new item goes straight into hand: the hero holds it up.
+            this.banner(def.name, `${FAM_ROLE[def.gear!.fam][0].toUpperCase()}${FAM_ROLE[def.gear!.fam].slice(1)}. ${def.gear!.strikeText}`, 'gold4', false, def.icon);
+            this.combat.hero.set('hold', 1);
+            this.combat.hero.holdItem = def.icon;
+            this.audio.play('item');
+            if (!this.app.profile.seenRelics.includes(e.id)) this.app.profile.seenRelics.push(e.id);
           },
         });
         break;
-      case 'cardRemoved':
-        S.push({ dur: 0.25, begin: () => (this.toast(`Уничтожено: ${CARDS[e.card]?.name ?? e.card}`), this.audio.play('paper')) });
+      }
+      case 'gearUpgraded':
+        S.push({ dur: 0.25, begin: () => (this.toast(`Улучшено: ${ITEMS[e.id]?.name ?? e.id}+`), this.audio.play('item')) });
         break;
-      case 'cardUpgraded':
-        S.push({ dur: 0.25, begin: () => (this.toast(`Повышено: ${CARDS[e.card]?.name ?? e.card}+`), this.audio.play('item')) });
+      case 'gearDropped':
+        S.push({ dur: 0.2, begin: () => (this.toast(`Отложено: ${ITEMS[e.id]?.name ?? e.id}`), this.audio.play('paper')) });
         break;
-      case 'cardFinished':
-        S.push({ dur: 0.25, begin: () => (this.toast(`${FINISH_TEXT[e.finish].name}: ${CARDS[e.card]?.name ?? e.card}`), this.audio.play('item')) });
+      case 'tape':
+        S.push({
+          dur: 0.25,
+          begin: () => (this.toast(e.amount > 0 ? 'Волокита: в мешке больше мусора' : 'Волокита снята', 1.4), this.audio.play(e.amount > 0 ? 'card' : 'paper')),
+        });
+        break;
+      case 'keys':
+        S.push({ dur: 0.25, begin: () => (this.toast(e.amount > 0 ? 'Ключ от сейфа' : 'Сейф открыт ключом'), this.audio.play('pickup')) });
         break;
       case 'pocket':
         S.push({ dur: 0.2, begin: () => (this.toast(`В кармане: ${POCKETS[e.pocket]?.name ?? e.pocket}`), this.audio.play('pickup')) });
@@ -395,7 +405,7 @@ export class RunView implements CombatHost {
       return;
     }
     if (this.paused) return;
-    if (k === 'd' && !this.run.combat) this.deckOpen = !this.deckOpen;
+    if (k === 'd' || k === 'в') this.deckOpen = !this.deckOpen;
     if ((k === 'm' || k === 'ь') && this.run.phase !== 'map') this.mapOpen = !this.mapOpen;
     if (this.busy()) {
       this.app.fastForward = true;
@@ -476,7 +486,7 @@ export class RunView implements CombatHost {
     if (click === 'pause') this.paused = !this.paused;
     if (click === 'deck') this.deckOpen = !this.deckOpen;
     if (click === 'map') this.mapOpen = !this.mapOpen;
-    if (this.deckOpen && drawDeckViewer(ctx, ui, this.run, this.grid, t, this.takeWheel())) this.deckOpen = false;
+    if (this.deckOpen && drawDeckViewer(ctx, ui, this, this.grid, t, this.takeWheel())) this.deckOpen = false;
     if (this.mapOpen) {
       this.map.viewOnly = true;
       this.map.draw(ctx, ui, this.run, t);

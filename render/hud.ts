@@ -1,7 +1,8 @@
 import { ACTS } from '../game/content/acts.ts';
 import { heartText, heartsText } from '../game/text.ts';
+import { FAM_ROLE } from '../game/content/gear.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
-import type { RunState } from '../game/types.ts';
+import { FAMS, type Fam, type RunState } from '../game/types.ts';
 import { bigText, text } from './font.ts';
 import { hex } from './palette.ts';
 import { draw, drawScaled, getFrame, hasSprite, type Ctx2D } from './sprite.ts';
@@ -13,7 +14,7 @@ export interface Disp {
   hp: number;
   maxHp: number;
   armor: number;
-  /** Energy now, the skill's cost and how much energy the meter holds (skill and weapon swaps). */
+  /** Energy now, the skill's cost and how much energy the meter holds (skill and gear swaps). */
   charge: number;
   cost: number;
   cap: number;
@@ -35,7 +36,7 @@ function bar(ctx: Ctx2D, x: number, y: number, w: number, h: number, k: number, 
 }
 
 /**
- * Top bar: health with armor, coins, act and floor, buttons for the map, the deck and pause.
+ * Top bar: health with armor, coins, act and floor, buttons for the map, the gear and pause.
  * Returns the id of a clicked button.
  */
 export function drawTopBar(ctx: Ctx2D, ui: UI, run: RunState, d: Disp, t: number, pulse: number, incoming: number): string | null {
@@ -103,7 +104,7 @@ export function drawTopBar(ctx: Ctx2D, ui: UI, run: RunState, d: Disp, t: number
     bx -= 16;
   };
   btn('pause', 'ui_pause', 'Пауза · Esc');
-  btn('deck', 'ui_deck', `Колода: ${run.hero.deck.length} · D`);
+  btn('deck', 'ui_deck', 'Снаряжение · D');
   btn('map', 'ui_map', 'План эвакуации · M');
   // Act and floor.
   const act = ACTS[Math.min(run.act, ACTS.length - 1)];
@@ -133,7 +134,7 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
       bar(ctx, r.x + 6, r.y + r.h - 9, r.w - 12, 4, d.charge / d.cap, ['vio5', 'vio4', 'vio2'], 'ink1');
       text(ctx, `${d.charge}/${d.cap}`, r.x + r.w - 5, r.y + 4, 'cold3', { align: 'right' });
     }
-    if (hot) ui.tooltip('Нет навыка', 'Энергия фиолетовых фишек идёт на смену оружия, а лишняя бьёт сама: 1 урона за деление.', ui.p.x, ui.p.y - 50, 'vio5');
+    if (hot) ui.tooltip('Нет навыка', 'Энергия фиолетовых фишек идёт на смену вещей, а лишняя бьёт сама: 1 урона за деление.', ui.p.x, ui.p.y - 50, 'vio5');
     return false;
   }
   const icon = getFrame(def.icon);
@@ -154,45 +155,65 @@ export function drawSkill(ctx: Ctx2D, ui: UI, r: Rect, run: RunState, d: Disp, t
   return clicked;
 }
 
+/** Slot colours of every colour of the board: face, light edge, dark edge. */
+const GEAR_SLOT: Record<Fam, [string, string, string]> = {
+  blade: ['red1', 'red2', 'red0'],
+  shield: ['cold1', 'cold2', 'ink3'],
+  ink: ['vio1', 'vio2', 'vio0'],
+  coin: ['gold1', 'gold2', 'wood1'],
+};
+const GEAR_TIP: Record<Fam, string> = { blade: 'red4', shield: 'cold5', ink: 'vio5', coin: 'gold4' };
+
 /**
- * Weapon slots: the one in hand is framed in gold; a click on another takes it in hand (energy in
- * a fight). `compact` draws only the weapon in hand (a tap swaps to the next one). Returns the
- * weapon to take in hand, or null.
+ * The items held, one slot per colour: every tile of the colour is that item. A click takes the
+ * next carried item of the colour in hand (energy in a fight). `grid` packs the four slots 2×2 into
+ * one square (phones). Returns the item to take in hand, or null.
  */
-export function drawWeapons(ctx: Ctx2D, ui: UI, x: number, y: number, size: number, run: RunState, d: Disp, cost: number, compact = false): string | null {
+export function drawGear(ctx: Ctx2D, ui: UI, x: number, y: number, size: number, run: RunState, d: Disp, cost: number, grid = false): string | null {
   const hero = run.hero;
   let picked: string | null = null;
-  const list = compact ? [hero.weapon] : hero.weapons;
-  list.forEach((id, k) => {
+  const cell = grid ? Math.floor((size - 1) / 2) : size;
+  FAMS.forEach((fam, k) => {
+    const list = hero.gear[fam];
+    const id = hero.equip[fam];
     const def = ITEMS[id];
-    if (!def?.weapon) return;
-    const sx = x + k * (size + 3);
-    const key = `weapon-${k}`;
-    const inHand = id === hero.weapon;
-    const next = compact ? hero.weapons[(hero.weapons.indexOf(id) + 1) % hero.weapons.length] : id;
-    const can = next !== hero.weapon && d.charge >= cost;
-    if (ui.area(key, sx, y, size, size) && can) picked = next;
+    if (!def) return;
+    const sx = grid ? x + (k % 2) * (cell + 1) : x + k * (size + 3);
+    const sy = grid ? y + Math.floor(k / 2) * (cell + 1) : y;
+    const key = `gear-${fam}`;
+    const next = list[(list.indexOf(id) + 1) % list.length];
+    const can = list.length > 1 && d.charge >= cost;
+    if (ui.area(key, sx, sy, cell, cell) && can) picked = next;
     const hot = ui.hovered === key;
-    ctx.fillStyle = hex(inHand ? 'gold4' : 'ink0');
-    ctx.fillRect(sx, y, size, size);
-    ctx.fillStyle = hex(inHand ? 'red1' : hot && can ? 'ink3' : 'ink2');
-    ctx.fillRect(sx + 1, y + 1, size - 2, size - 2);
-    const f = getFrame(def.icon);
-    if (size >= 36) drawScaled(ctx, f, sx + size / 2 - f.w + f.ox * 2, Math.round(y + size / 2) + f.oy * 2 - f.h, 2);
-    else draw(ctx, f, Math.round(sx + size / 2 - f.w / 2 + f.ox), Math.round(y + size / 2 - f.h / 2 + f.oy));
-    if (!inHand && !compact) text(ctx, `${cost}`, sx + size - 5, y + size - 9, can ? 'vio5' : 'grey2', { outline: 'ink0' });
-    // On a phone one slot: a tap takes the next weapon (the arrow and the price say so).
-    if (compact && hero.weapons.length > 1) text(ctx, `→${cost}`, sx + size - 2, y + 1, can ? 'vio5' : 'grey2', { outline: 'ink0', align: 'right' });
+    const [face, light, dark] = GEAR_SLOT[fam];
+    ctx.fillStyle = hex('ink0');
+    ctx.fillRect(sx, sy, cell, cell);
+    ctx.fillStyle = hex(hot && can ? light : face);
+    ctx.fillRect(sx + 1, sy + 1, cell - 2, cell - 2);
+    ctx.fillStyle = hex(light);
+    ctx.fillRect(sx + 1, sy + 1, cell - 2, 1);
+    ctx.fillStyle = hex(dark);
+    ctx.fillRect(sx + 1, sy + cell - 2, cell - 2, 1);
+    const f = getFrame(hasSprite(def.icon) ? def.icon : `tile_${fam}`);
+    if (cell >= 36) drawScaled(ctx, f, sx + cell / 2 - f.w + f.ox * 2, Math.round(sy + cell / 2) + f.oy * 2 - f.h, 2);
+    else draw(ctx, f, Math.round(sx + cell / 2 - f.w / 2 + f.ox), Math.round(sy + cell / 2 - f.h / 2 + f.oy));
+    if (hero.ups.includes(id)) {
+      ctx.fillStyle = hex('ink0');
+      ctx.fillRect(sx + cell - 6, sy + 1, 5, 5);
+      ctx.fillStyle = hex('gold4');
+      ctx.fillRect(sx + cell - 5, sy + 3, 3, 1);
+      ctx.fillRect(sx + cell - 4, sy + 2, 1, 3);
+    }
+    // Spares: how many items the colour carries (a click takes the next one).
+    if (list.length > 1) text(ctx, `${list.length}`, sx + 2, sy + cell - 9, can ? 'vio5' : 'grey2', { outline: 'ink0' });
     if (hot) {
-      const w = def.weapon;
-      const swap = compact
-        ? hero.weapons.length > 1
-          ? `В руке. Тап — ${ITEMS[next]?.name ?? next} за ${cost} энергии.`
-          : 'В руке.'
-        : inHand
-          ? 'В руке.'
-          : `Взять в руку: ${cost} энергии.`;
-      ui.tooltip(def.name, `Удар: ${w.strikeText}\nСупер-удар (группа из 4+): ${w.superText}\n${swap}`, ui.p.x, ui.p.y - 60, 'red4');
+      const others = list.filter((x) => x !== id).map((x) => ITEMS[x]?.name ?? x);
+      const price = cost === 1 ? '1 энергию' : `${cost} энергии`;
+      const swap = list.length > 1 ? `\nЕщё: ${others.join(', ')}. ${L.touch ? 'Тап' : 'Клик'} — ${ITEMS[next]?.name ?? next} за ${price}.` : '';
+      const g = def.gear;
+      const up = g && hero.ups.includes(id) ? `\nУлучшено: ${g.upText[0].toLowerCase()}${g.upText.slice(1)}` : '';
+      const body = g ? `${g.strikeText}\nГруппа из 4+: ${g.superText[0].toLowerCase()}${g.superText.slice(1)}${up}${swap}` : def.desc;
+      ui.tooltip(`${def.name}${hero.ups.includes(id) ? '+' : ''} · ${FAM_ROLE[fam]}`, body, ui.p.x, ui.p.y - 60, GEAR_TIP[fam]);
     }
   });
   return picked;

@@ -4,25 +4,22 @@
  * the same spec always gives the same result.
  */
 import { decide, type BotOptions, type Policy } from '../bot.ts';
-import { addCard, dispatch, gainRelic, newRun } from '../run.ts';
-import type { CharId, DevOp, DevState, Finish, GameEvent, RunState } from '../types.ts';
+import { dispatch, gainGear, gainRelic, newRun, upgradeGear } from '../run.ts';
+import { FAMS } from '../types.ts';
+import type { CharId, DevOp, DevState, GameEvent, RunState } from '../types.ts';
 import { checkRun } from './invariants.ts';
 import { ITEMS } from '../content/items.ts';
-
-export interface CardSpec {
-  id: string;
-  up?: boolean;
-  finish?: Finish;
-}
 
 /** The hero's kit at some moment: what a fight is played with. */
 export interface Build {
   char: CharId;
-  deck: CardSpec[];
+  /** Gear carried, any colour (a colour left out: the hero's plain item), the items held, upgrades. */
+  gear: string[];
+  equip: string[];
+  ups: string[];
+  /** Red tape curses. */
+  tape: number;
   relics: string[];
-  /** Weapons in hand and the one held (absent: the knife). */
-  weapons?: string[];
-  weapon?: string;
   active: string | null;
   pockets: (string | null)[];
   hp: number;
@@ -48,14 +45,11 @@ export function buildOf(run: RunState): Build {
   const h = run.hero;
   return {
     char: h.char,
-    deck: h.deck.map((c) => ({
-      id: c.id,
-      ...(c.up ? { up: true } : {}),
-      ...(c.finish ? { finish: c.finish } : {}),
-    })),
+    gear: FAMS.flatMap((f) => h.gear[f]),
+    equip: FAMS.map((f) => h.equip[f]),
+    ups: [...h.ups],
+    tape: h.tape,
     relics: [...h.relics],
-    weapons: [...h.weapons],
-    weapon: h.weapon,
     active: h.active,
     pockets: [...h.pockets],
     hp: h.hp,
@@ -118,15 +112,15 @@ export function setupFight(spec: FightSpec): RunState {
   dev({ op: 'act', act: spec.act });
   if (spec.dev) dev({ op: 'set', dev: spec.dev });
   const b = spec.build;
-  // Items and weapons: a weapon listed among the items (a lab test) joins the hands of the build.
-  const extra = b.relics.filter((id) => ITEMS[id]?.kind === 'weapon');
-  const weapons = [...new Set([...(b.weapons ?? ['knife']), ...extra])].slice(-3);
+  // Gear listed among the items (a lab test) joins its colour's hand and is held.
+  const extra = b.relics.filter((id) => ITEMS[id]?.kind === 'gear');
   dev({
     op: 'build',
-    deck: b.deck,
-    relics: b.relics.filter((id) => ITEMS[id]?.kind !== 'weapon'),
-    weapons,
-    weapon: extra.at(-1) ?? b.weapon,
+    gear: [...extra, ...b.gear],
+    equip: [...b.equip, ...extra],
+    ups: b.ups,
+    tape: b.tape,
+    relics: b.relics.filter((id) => ITEMS[id]?.kind !== 'gear'),
     active: b.active,
     pockets: b.pockets,
   });
@@ -247,15 +241,15 @@ export interface RunSpec {
   unlocked?: string[];
   lastAct?: number;
   intro?: boolean;
-  /** Given at the start, as if found: passive items or an active skill. */
+  /** Given at the start, as if found: passive items, an active skill or gear (held at once). */
   relics?: string[];
-  /** Added to the deck at the start. */
-  cards?: CardSpec[];
-  /** Starter cards taken out of the deck at the start (one copy per entry). */
-  without?: string[];
+  /** Gear upgraded at the start (the plain items too). */
+  ups?: string[];
+  /** Red tape curses at the start. */
+  tape?: number;
   pockets?: string[];
   coins?: number;
-  /** Cards left out of rewards and the till: what the game would be without them. */
+  /** Gear left out of rewards and the till: what the game would be without it. */
   ban?: string[];
   check?: boolean;
   /** Keep the build before every fight (for the fight lab). */
@@ -304,7 +298,9 @@ export interface RunResult {
   actHp: number[];
   bossHp: number[];
   coinsEnd: number;
-  deck: number;
+  /** Gear carried at the end and how much of it upgraded. */
+  gear: number;
+  ups: number;
   relics: string[];
   maxMult: number;
   maxHit: number;
@@ -332,13 +328,10 @@ export function startRun(spec: RunSpec): RunState {
     coins: spec.coins,
   });
   const ev: GameEvent[] = [];
-  if (spec.ban?.length) run.cardPool = run.cardPool.filter((id) => !spec.ban!.includes(id));
-  for (const id of spec.without ?? []) {
-    const k = run.hero.deck.findIndex((c) => c.id === id);
-    if (k >= 0) run.hero.deck.splice(k, 1);
-  }
-  for (const c of spec.cards ?? []) addCard(run, c.id, !!c.up, 'test', ev, c.finish);
-  for (const id of spec.relics ?? []) gainRelic(run, id, 'test', ev);
+  if (spec.ban?.length) run.gearPool = run.gearPool.filter((id) => !spec.ban!.includes(id));
+  for (const id of spec.relics ?? []) (ITEMS[id]?.kind === 'gear' ? gainGear : gainRelic)(run, id, 'test', ev);
+  for (const id of spec.ups ?? []) upgradeGear(run, id, ev);
+  run.hero.tape += spec.tape ?? 0;
   return run;
 }
 
@@ -363,7 +356,8 @@ export function simRun(spec: RunSpec): RunResult {
     actHp: [run.hero.hp / run.hero.maxHp],
     bossHp: [],
     coinsEnd: 0,
-    deck: 0,
+    gear: 0,
+    ups: 0,
     relics: [],
     maxMult: 0,
     maxHit: 0,
@@ -416,7 +410,7 @@ export function simRun(spec: RunSpec): RunResult {
         option: action.option,
       });
     if (action.type === 'buy' && shop && !res.events.some((e) => e.t === 'invalid')) shop.bought.push(action.kind);
-    if (action.type === 'pick' && run.pick?.from === 'shop' && run.pick.purpose === 'remove' && shop) shop.bought.push('remove');
+    if (action.type === 'remove' && shop && !res.events.some((e) => e.t === 'invalid')) shop.bought.push('shred');
     for (const e of res.events) {
       if (e.t === 'combatStart') {
         fight = newLog(run, next, e.kind);
@@ -460,7 +454,8 @@ export function simRun(spec: RunSpec): RunResult {
   out.floors = run.stats.floors;
   out.cause = run.stats.deathCause;
   out.coinsEnd = run.hero.coins;
-  out.deck = run.hero.deck.length;
+  out.gear = FAMS.reduce((n, f) => n + run.hero.gear[f].length, 0);
+  out.ups = run.hero.ups.length;
   out.relics = [...run.hero.relics];
   out.maxMult = run.stats.maxMult;
   out.maxHit = run.stats.maxHit;

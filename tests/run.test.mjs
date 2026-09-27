@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dispatch, newRun, saveRun, loadRun, MIN_DECK, PRICE_ACT, rerollPrice } from '../game/run.ts';
+import { dispatch, newRun, saveRun, loadRun, PRICE_ACT, rerollPrice } from '../game/run.ts';
 import { ITEMS } from '../game/content/items.ts';
 import { armorCap, energyCap } from '../game/combat.ts';
-import { RARITY_PRICE } from '../game/content/cards.ts';
+import { GEAR_PRICE } from '../game/content/gear.ts';
 import { reachable } from '../game/actmap.ts';
 import { playRun } from '../game/bot.ts';
 import { EVENTS } from '../game/content/events.ts';
@@ -16,11 +16,13 @@ test('dev hero op keeps energy and armour within their caps', () => {
   assert.equal(r.hero.armor, armorCap(r));
 });
 
-test('a new run: starter deck, the paper knife in hand, map of the first act', () => {
+test('a new run: only the plain items, one per colour, map of the first act', () => {
   const { run } = newRun({ seed: 1 });
-  assert.equal(run.hero.deck.length, 12);
+  assert.deepEqual(run.hero.gear, { blade: ['knife'], shield: ['shield'], ink: ['battery'], coin: ['penny'] });
+  assert.deepEqual(run.hero.equip, { blade: 'knife', shield: 'shield', ink: 'battery', coin: 'penny' });
+  assert.deepEqual([run.hero.ups, run.hero.tape], [[], 0]);
   assert.deepEqual(run.hero.relics, ['badge']);
-  assert.deepEqual([run.hero.weapons, run.hero.weapon], [['knife'], 'knife']);
+  assert.ok(!run.gearPool.some((id) => ['knife', 'shield', 'battery', 'penny'].includes(id)), 'простые вещи в награды не попадают');
   assert.equal(run.hero.hp, 8, '4 сердца');
   assert.equal(run.phase, 'map');
   assert.ok(reachable(run.map, -1).length >= 2, 'several ways to start');
@@ -74,26 +76,40 @@ function fightRewards(seed) {
   return playUntilWon(r);
 }
 
-test('things are short: a plain fight pays coins half the time and offers two tiles most of the time', () => {
+test('things are short: a plain fight pays coins half the time and offers gear now and then', () => {
   const all = Array.from({ length: 40 }, (_, k) => fightRewards(100 + k));
   const coins = all.map((r) => r.rewards.find((x) => x.kind === 'coins')).filter(Boolean);
-  const cards = all.map((r) => r.rewards.find((x) => x.kind === 'card')).filter(Boolean);
+  const gear = all.map((r) => r.rewards.find((x) => x.kind === 'gear')).filter(Boolean);
   assert.ok(coins.length >= 10 && coins.length <= 30, `монеты в ${coins.length} боях из 40`);
   assert.ok(coins.every((x) => x.amount >= 4 && x.amount <= 8), 'по 4–8 монет');
-  assert.ok(cards.length >= 20 && cards.length <= 36, `фишки в ${cards.length} боях из 40`);
-  assert.ok(cards.every((x) => x.cards.length === 2), 'две фишки на выбор');
+  assert.ok(gear.length >= 8 && gear.length <= 26, `вещи в ${gear.length} боях из 40`);
+  assert.ok(gear.every((x) => x.gear.length === 2 && new Set(x.gear).size === 2), 'две разные вещи на выбор');
 });
 
-test('winning a fight: the reward row takes a card into the deck', () => {
+test('winning a fight: the chosen item of gear goes straight into hand, the old one stays a spare', () => {
   let res = fightRewards(4);
-  for (let seed = 5; !res.rewards.some((x) => x.kind === 'card'); seed++) res = fightRewards(seed);
+  for (let seed = 5; !res.rewards.some((x) => x.kind === 'gear'); seed++) res = fightRewards(seed);
   assert.equal(res.phase, 'reward');
-  const card = res.rewards.find((x) => x.kind === 'card');
-  const before = res.hero.deck.length;
-  const took = dispatch(res, { type: 'reward', index: res.rewards.indexOf(card), card: 1 }).run;
-  assert.equal(took.hero.deck.length, before + 1);
-  assert.equal(took.hero.deck.at(-1).id, card.cards[1]);
+  const row = res.rewards.find((x) => x.kind === 'gear');
+  const id = row.gear[1];
+  const fam = ITEMS[id].gear.fam;
+  const took = dispatch(res, { type: 'reward', index: res.rewards.indexOf(row), pick: 1 }).run;
+  assert.deepEqual(took.hero.gear[fam], [res.hero.gear[fam][0], id]);
+  assert.equal(took.hero.equip[fam], id);
+  assert.ok(!took.gearPool.includes(id), 'взятая вещь больше не выпадает');
   assert.equal(dispatch(took, { type: 'leave' }).run.phase, 'map');
+});
+
+test('an upgrade row is taken only when an item is chosen', () => {
+  const { run } = newRun({ seed: 4 });
+  run.phase = 'reward';
+  run.rewards = [{ kind: 'upgrade' }];
+  const pick = dispatch(run, { type: 'reward', index: 0 }).run;
+  assert.equal(pick.phase, 'pick');
+  const back = dispatch(pick, { type: 'leave' }).run;
+  assert.deepEqual([back.phase, back.rewards[0].taken], ['reward', undefined], 'отмена оставляет награду');
+  const done = dispatch(pick, { type: 'pick', id: 'knife' }).run;
+  assert.deepEqual([done.phase, done.rewards[0].taken, done.hero.ups], ['reward', true, ['knife']]);
 });
 
 function playUntilWon(run) {
@@ -114,56 +130,50 @@ function playUntilWon(run) {
   return r;
 }
 
-test('the till sells cards and removes one for a rising price', () => {
-  const { run } = newRun({ seed: 5 });
-  run.phase = 'shop';
-  run.hero.coins = 500;
-  // Open a shop through a node of that kind.
-  const shopNode = run.map.nodes.find((n) => n.kind === 'shop');
-  assert.ok(shopNode, 'the map has a till');
-  run.node = shopNode.id;
-  const opened = dispatch({ ...run, phase: 'map', node: -1 }, { type: 'travel', node: reachable(run.map, -1)[0] });
-  void opened;
-  // Direct shop test via a synthetic state.
+test('the till sells gear, the workshop upgrades an item, the shredder takes red tape', () => {
   const s = newRun({ seed: 5 }).run;
   s.hero.coins = 500;
+  s.hero.tape = 1;
   s.phase = 'shop';
-  s.shop = { cards: [{ id: 'binder', up: false, price: 70, sold: false }], relics: [], pockets: [], finish: { kind: 'sharp', price: 60, sold: false }, removePrice: 50, removed: false };
-  const bought = dispatch(s, { type: 'buy', kind: 'card', index: 0 }).run;
+  s.shop = { gear: [{ id: 'binder', price: 70, sold: false }], relics: [], pockets: [], upgrade: { price: 50, sold: false }, shred: { price: 40, used: false }, rerolls: 0 };
+  const bought = dispatch(s, { type: 'buy', kind: 'gear', index: 0 }).run;
   assert.equal(bought.hero.coins, 430);
-  assert.equal(bought.hero.deck.at(-1).id, 'binder');
-  const picking = dispatch(bought, { type: 'remove' }).run;
+  assert.deepEqual([bought.hero.gear.shield, bought.hero.equip.shield], [['shield', 'binder'], 'binder']);
+  const picking = dispatch(bought, { type: 'buy', kind: 'upgrade', index: 0 }).run;
   assert.equal(picking.phase, 'pick');
-  const victim = picking.hero.deck.find((c) => c.id === 'clip');
-  const removed = dispatch(picking, { type: 'pick', uid: victim.uid }).run;
-  assert.equal(removed.phase, 'shop');
-  assert.equal(removed.hero.coins, 380);
-  assert.equal(removed.hero.deck.length, bought.hero.deck.length - 1);
-  assert.equal(removed.removals, 1);
-  const finish = dispatch(removed, { type: 'buy', kind: 'finish', index: 0 }).run;
-  const target = finish.hero.deck.find((c) => c.id === 'fist');
-  const done = dispatch(finish, { type: 'pick', uid: target.uid }).run;
-  assert.equal(done.hero.deck.find((c) => c.uid === target.uid).finish, 'sharp');
-  assert.equal(done.hero.coins, 320);
+  assert.equal(picking.hero.coins, 430, 'платят, когда выбрали');
+  const upgraded = dispatch(picking, { type: 'pick', id: 'binder' }).run;
+  assert.deepEqual([upgraded.phase, upgraded.hero.ups, upgraded.hero.coins, upgraded.shop.upgrade.sold], ['shop', ['binder'], 380, true]);
+  const shredded = dispatch(upgraded, { type: 'remove' }).run;
+  assert.deepEqual([shredded.hero.tape, shredded.hero.coins, shredded.shreds], [0, 340, 1]);
+  assert.ok(dispatch(shredded, { type: 'remove' }).events.some((e) => e.t === 'invalid'), 'шредер один раз');
 });
 
-test('the deck never gets thinner than the minimum', () => {
+test('a pick takes only gear that fits it: an upgraded item is not upgraded again', () => {
   const { run } = newRun({ seed: 6 });
-  run.hero.deck = run.hero.deck.slice(0, MIN_DECK);
+  run.hero.ups = ['knife'];
   run.phase = 'pick';
-  run.pick = { purpose: 'remove', count: 1, from: 'map' };
-  assert.ok(dispatch(run, { type: 'pick', uid: run.hero.deck[0].uid }).events.some((e) => e.t === 'invalid'));
+  run.pick = { purpose: 'upgrade', count: 1, from: 'map' };
+  assert.equal(dispatch(run, { type: 'pick', id: 'knife' }).events.find((e) => e.t === 'invalid')?.reason, 'Эту вещь нельзя');
+  assert.equal(dispatch(run, { type: 'pick', id: 'scissors' }).events.find((e) => e.t === 'invalid')?.reason, 'Эту вещь нельзя', 'не своя вещь');
+  // A trade: another item of the colour, held if the old one was.
+  run.pick = { purpose: 'transform', count: 1, from: 'map' };
+  const traded = dispatch(run, { type: 'pick', id: 'shield' }).run;
+  assert.equal(traded.hero.gear.shield.length, 1);
+  assert.notEqual(traded.hero.gear.shield[0], 'shield');
+  assert.equal(traded.hero.equip.shield, traded.hero.gear.shield[0]);
+  assert.equal(ITEMS[traded.hero.equip.shield].gear.fam, 'shield');
 });
 
-test('the cooler heals 30% or upgrades a card', () => {
+test('the cooler heals 30% or upgrades an item', () => {
   const { run } = newRun({ seed: 8 });
   run.phase = 'rest';
   run.hero.hp = 2;
   assert.equal(dispatch(run, { type: 'rest', choice: 'heal' }).run.hero.hp, 4, '30% от 4 сердец — сердце');
   const pick = dispatch(run, { type: 'rest', choice: 'upgrade' }).run;
   assert.equal(pick.phase, 'pick');
-  const up = dispatch(pick, { type: 'pick', uid: pick.hero.deck[0].uid }).run;
-  assert.equal(up.hero.deck[0].up, true);
+  const up = dispatch(pick, { type: 'pick', id: 'shield' }).run;
+  assert.deepEqual(up.hero.ups, ['shield']);
   assert.equal(up.phase, 'map');
   assert.equal(dispatch(pick, { type: 'leave' }).run.phase, 'rest', 'cancel returns to the cooler');
 });
@@ -173,8 +183,10 @@ test('every event option resolves without errors', () => {
     def.options.forEach((_, k) => {
       const { run } = newRun({ seed: 11 });
       run.hero.coins = 100;
+      run.hero.tape = 1;
       run.phase = 'event';
       run.event = { id: def.id };
+      assert.equal(def.options[k].locked?.(run) ?? null, null, `${def.id}#${k} закрыт у нового героя`);
       const res = dispatch(run, { type: 'event', option: k });
       assert.ok(!res.events.some((e) => e.t === 'invalid'), `${def.id}#${k}`);
       assert.equal(typeof res.run.event.result, 'string');
@@ -226,11 +238,11 @@ test('the till can be reprinted: new stock, unsold items back to the pool, a ris
   assert.equal(res.run.hero.coins, 480);
   assert.equal(res.run.shop.rerolls, 1);
   assert.equal(rerollPrice(res.run), 40, 'каждый раз дороже');
-  assert.equal(res.run.shop.removePrice, first.removePrice, 'шредер тот же');
+  assert.deepEqual(res.run.shop.shred, first.shred, 'шредер тот же');
   for (const id of shown) assert.ok(res.run.relicPool.includes(id) || res.run.shop.relics.some((r) => r.id === id), 'непроданное вернулось в пул');
   assert.notDeepEqual(
-    res.run.shop.cards.map((c) => c.id),
-    first.cards.map((c) => c.id),
+    res.run.shop.gear.map((c) => c.id),
+    first.gear.map((c) => c.id),
   );
   const broke = dispatch(dispatch(res.run, { type: 'dev', op: { op: 'hero', coins: 10 } }).run, { type: 'reroll' });
   assert.ok(broke.events.some((e) => e.t === 'invalid'), 'без денег не перепечатать');
@@ -240,26 +252,44 @@ test('prices at the till grow from act to act', () => {
   const shopAt = (act) => {
     let { run } = newRun({ seed: 32, customSeed: true });
     run = dispatch(run, { type: 'dev', op: { op: 'act', act } }).run;
+    run = dispatch(run, { type: 'dev', op: { op: 'build', tape: 1 } }).run;
     return dispatch(run, { type: 'dev', op: { op: 'enter', kind: 'shop' } }).run;
   };
   const a0 = shopAt(0);
   const a2 = shopAt(2);
-  assert.equal(a0.shop.removePrice, 40);
-  assert.equal(a2.shop.removePrice, Math.round(40 * PRICE_ACT[2]));
+  assert.equal(a0.shop.shred.price, 40);
+  assert.equal(a2.shop.shred.price, Math.round(40 * PRICE_ACT[2]));
   assert.equal(rerollPrice(a2), Math.round(20 * PRICE_ACT[2]));
-  const lo = (run) => Math.min(...run.shop.cards.map((c) => c.price));
-  assert.ok(lo(a2) >= Math.round(RARITY_PRICE.common * 0.5 * 0.9 * PRICE_ACT[2]) - 1, 'фишки дороже');
+  const lo = (run) => Math.min(...run.shop.gear.map((c) => c.price));
+  assert.ok(lo(a2) >= Math.round(GEAR_PRICE.common * 0.5 * 0.9 * PRICE_ACT[2]) - 1, 'вещи дороже');
 });
 
-test('weapons: a new one goes into the hand; with three in hand the till does not sell a fourth', () => {
+test('without red tape the till has no shredder', () => {
+  let { run } = newRun({ seed: 33, customSeed: true });
+  run = dispatch(run, { type: 'dev', op: { op: 'enter', kind: 'shop' } }).run;
+  assert.equal(run.shop.shred, null);
+  assert.equal(dispatch(run, { type: 'remove' }).events.find((e) => e.t === 'invalid')?.reason, 'Шредер уже занят');
+});
+
+test('gear: a new item goes into hand; a colour with three items is not sold a fourth', () => {
   const { run } = newRun({ seed: 5 });
   run.hero.coins = 500;
   run.phase = 'shop';
-  run.shop = { cards: [], relics: [{ id: 'scissors', price: 100, sold: false }, { id: 'awl', price: 100, sold: false }, { id: 'ruler', price: 100, sold: false }], pockets: [], finish: null, removePrice: 40, removed: false, rerolls: 0 };
-  let s = dispatch(run, { type: 'buy', kind: 'relic', index: 0 }).run;
-  assert.deepEqual([s.hero.weapons, s.hero.weapon], [['knife', 'scissors'], 'scissors'], 'новое оружие — сразу в руке');
-  s = dispatch(s, { type: 'buy', kind: 'relic', index: 1 }).run;
-  const full = dispatch(s, { type: 'buy', kind: 'relic', index: 2 });
-  assert.equal(full.events.find((e) => e.t === 'invalid')?.reason, 'Руки заняты: оружия не больше 3');
+  run.shop = { gear: [{ id: 'scissors', price: 100, sold: false }, { id: 'awl', price: 100, sold: false }, { id: 'ruler', price: 100, sold: false }], relics: [], pockets: [], upgrade: null, shred: null, rerolls: 0 };
+  let s = dispatch(run, { type: 'buy', kind: 'gear', index: 0 }).run;
+  assert.deepEqual([s.hero.gear.blade, s.hero.equip.blade], [['knife', 'scissors'], 'scissors'], 'новая вещь — сразу в руке');
+  s = dispatch(s, { type: 'buy', kind: 'gear', index: 1 }).run;
+  const full = dispatch(s, { type: 'buy', kind: 'gear', index: 2 });
+  assert.equal(full.events.find((e) => e.t === 'invalid')?.reason, 'Руки заняты: вещей цвета не больше 3');
   assert.equal(full.run.hero.coins, s.hero.coins, 'монеты не списаны');
+});
+
+test('rewards and the till never offer an item for a full colour, nor one already carried', () => {
+  const { run } = newRun({ seed: 9, customSeed: true });
+  run.hero.gear.blade = ['knife', 'scissors', 'awl'];
+  let r = dispatch(run, { type: 'dev', op: { op: 'enter', kind: 'shop' } }).run;
+  for (let k = 0; k < 10; k++) {
+    assert.ok(r.shop.gear.every((g) => ITEMS[g.id].gear.fam !== 'blade'), 'красные руки полны');
+    r = dispatch(dispatch(r, { type: 'dev', op: { op: 'hero', coins: 999 } }).run, { type: 'reroll' }).run;
+  }
 });

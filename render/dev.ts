@@ -1,11 +1,11 @@
 import { ACTS, CHARACTERS } from '../game/content/acts.ts';
-import { CARDS, FINISH_TEXT, STARTER_DECKS, cardText } from '../game/content/cards.ts';
 import { ENEMIES, INTENT_TEXT, MATERIAL_NAME } from '../game/content/enemies.ts';
 import { EVENTS } from '../game/content/events.ts';
+import { BASE_GEAR, FAM_ROLE, GEAR } from '../game/content/gear.ts';
 import { ITEMS, POCKETS } from '../game/content/items.ts';
 import { activeCost } from '../game/combat.ts';
 import { dispatch, newRun } from '../game/run.ts';
-import type { CharId, DevOp, DevState, Finish, GameEvent, RunState } from '../game/types.ts';
+import { FAMS, type CharId, type DevOp, type DevState, type GameEvent, type RunState } from '../game/types.ts';
 import type { App } from './app.ts';
 import { REQUESTS, blankProfile, saveProfile } from './profile.ts';
 import { RunView } from './runview.ts';
@@ -22,14 +22,15 @@ export { cheatList } from './dev-cheats.ts';
 
 export type DevPlace = 'map' | 'fight' | 'elite' | 'boss' | 'event' | 'shop' | 'rest' | 'treasure' | 'bossReward';
 
-export interface DevCard {
-  id: string;
-  up?: boolean;
-  finish?: Finish;
-}
-
 export interface DevBuild {
-  deck: DevCard[];
+  /** Gear carried, any colour (a colour left out: the hero's plain item); up to 3 a colour. */
+  gear: string[];
+  /** Items held (the first carried of a colour otherwise). */
+  equip?: string[];
+  /** Upgraded gear. */
+  ups?: string[];
+  /** Red tape curses. */
+  tape?: number;
   relics: string[];
   active: string | null;
   pockets: (string | null)[];
@@ -102,6 +103,30 @@ export const ROOM_NAME: Record<string, string> = {
   bo_mirrors: 'Комната зеркал',
 };
 
+/**
+ * A build from storage or a link, made whole: saves from before gear (a deck of cards, weapons among
+ * the items) keep their items, skill and pockets; gear found among the items goes into the hands.
+ */
+export function fixBuild(b: Partial<DevBuild> | undefined): DevBuild | undefined {
+  if (!b) return undefined;
+  const relics = Array.isArray(b.relics) ? b.relics : [];
+  return {
+    gear: [...(Array.isArray(b.gear) ? b.gear : []), ...relics.filter((id) => GEAR[id])].filter((id, k, all) => GEAR[id] && all.indexOf(id) === k),
+    equip: (Array.isArray(b.equip) ? b.equip : []).filter((id) => GEAR[id]),
+    ups: (Array.isArray(b.ups) ? b.ups : []).filter((id) => GEAR[id]),
+    tape: Math.max(0, Math.min(9, Math.round(Number(b.tape) || 0))),
+    relics: relics.filter((id) => ITEMS[id]?.kind === 'passive'),
+    active: b.active && ITEMS[b.active]?.kind === 'active' ? b.active : null,
+    pockets: Array.isArray(b.pockets) ? b.pockets.map((p) => (p && POCKETS[p] ? p : null)) : [],
+  };
+}
+
+function fixStart(cfg: DevStart | null): DevStart | null {
+  if (!cfg) return null;
+  const build = fixBuild(cfg.build);
+  return build ? { ...cfg, build } : { ...cfg, build: undefined };
+}
+
 const PRESETS_KEY = 'oskolki.dev.presets';
 const LAST_KEY = 'oskolki.dev.last';
 
@@ -149,12 +174,20 @@ export class DevApi {
         pockets: c.pockets.map((p) => POCKETS[p]?.name ?? p),
       })),
       acts: ACTS.map((a, k) => ({ index: k, name: a.name, boss: a.boss, weak: a.weak, strong: a.strong, elites: a.elites, room: roomFor(k, 0, 'fight').id })),
-      cards: Object.values(CARDS).map((c) => ({ id: c.id, name: c.name, fam: c.fam, rarity: c.rarity, text: cardText(c.id, false), textUp: cardText(c.id, true) })),
-      finishText: FINISH_TEXT,
-      // Weapons are picked among the items (pool «оружие»): the build puts them in the hands.
+      gear: Object.values(GEAR).map((g) => ({
+        id: g.id,
+        name: g.name,
+        fam: g.gear.fam,
+        role: FAM_ROLE[g.gear.fam],
+        pool: g.pool,
+        icon: g.icon,
+        strike: g.gear.strikeText,
+        super: g.gear.superText,
+        up: g.gear.upText,
+      })),
       relics: Object.values(ITEMS)
-        .filter((i) => i.kind === 'passive' || i.kind === 'weapon')
-        .map((i) => ({ id: i.id, name: i.name, pool: i.kind === 'weapon' ? 'weapon' : i.pool, desc: i.desc, icon: i.icon })),
+        .filter((i) => i.kind === 'passive')
+        .map((i) => ({ id: i.id, name: i.name, pool: i.pool, desc: i.desc, icon: i.icon })),
       actives: Object.values(ITEMS)
         .filter((i) => i.kind === 'active')
         .map((i) => ({ id: i.id, name: i.name, desc: i.desc, charge: i.charge ?? 0, icon: i.icon })),
@@ -179,7 +212,6 @@ export class DevApi {
       rooms: DEV_ROOMS,
       places: DEV_PLACES,
       roomNames: ROOM_NAME,
-      finishes: ['sharp', 'gild', 'seal', 'copy', 'laminate'] as Finish[],
       requests: REQUESTS.map((r) => ({ id: r.id, title: r.title })),
     };
   }
@@ -187,9 +219,13 @@ export class DevApi {
   /** The hero's starting build. */
   starter(char: CharId): DevBuild {
     const ch = CHARACTERS[char];
+    const gear = FAMS.map((f) => ch.gear?.[f] ?? BASE_GEAR[f]);
     return {
-      deck: STARTER_DECKS[char].map((id) => ({ id, up: false })),
-      relics: [ch.relic, 'knife'],
+      gear,
+      equip: gear,
+      ups: [],
+      tape: 0,
+      relics: [ch.relic],
       active: ch.active,
       pockets: [...ch.pockets, null, null, null].slice(0, 3),
     };
@@ -210,7 +246,8 @@ export class DevApi {
     };
     step({ op: 'set', dev: { ...cfg.cheats, room: cfg.room || undefined, dark: cfg.room ? (cfg.dark ?? true) : undefined } });
     if (cfg.act > 0) step({ op: 'act', act: cfg.act });
-    if (cfg.build) step({ op: 'build', ...cfg.build });
+    const build = fixBuild(cfg.build);
+    if (build) step({ op: 'build', ...build });
     if (cfg.hero) step({ op: 'hero', ...cfg.hero });
     if (cfg.place !== 'map') step({ op: 'enter', kind: cfg.place, enemies: cfg.enemies, event: cfg.event });
     else events = [{ t: 'act', act: run.act }];
@@ -227,7 +264,7 @@ export class DevApi {
   last(): DevStart | null {
     try {
       const raw = localStorage.getItem(LAST_KEY);
-      return raw ? (JSON.parse(raw) as DevStart) : null;
+      return raw ? fixStart(JSON.parse(raw) as DevStart) : null;
     } catch {
       return null;
     }
@@ -300,10 +337,13 @@ export class DevApi {
             charge: run.hero.charge,
             cost: activeCost(run),
             armor: run.hero.armor,
-            deck: run.hero.deck.map((c) => ({ id: c.id, up: c.up, finish: c.finish })),
+            gear: FAMS.flatMap((f) => run.hero.gear[f]),
+            equip: FAMS.map((f) => run.hero.equip[f]),
+            ups: [...run.hero.ups],
+            tape: run.hero.tape,
+            keys: run.hero.keys,
+            finds: run.hero.finds,
             relics: [...run.hero.relics],
-            weapons: [...run.hero.weapons],
-            weapon: run.hero.weapon,
             active: run.hero.active,
             pockets: [...run.hero.pockets],
             dev: { ...run.dev },
@@ -318,8 +358,11 @@ export class DevApi {
     const run = this.run();
     if (!run) return null;
     return {
-      deck: run.hero.deck.map((c) => ({ id: c.id, up: c.up, finish: c.finish })),
-      relics: [...run.hero.relics, ...run.hero.weapons],
+      gear: FAMS.flatMap((f) => run.hero.gear[f]),
+      equip: FAMS.map((f) => run.hero.equip[f]),
+      ups: [...run.hero.ups],
+      tape: run.hero.tape,
+      relics: [...run.hero.relics],
       active: run.hero.active,
       pockets: [...run.hero.pockets],
     };
@@ -329,7 +372,8 @@ export class DevApi {
 
   presets(): Record<string, DevStart> {
     try {
-      return JSON.parse(localStorage.getItem(PRESETS_KEY) ?? '{}') as Record<string, DevStart>;
+      const all = JSON.parse(localStorage.getItem(PRESETS_KEY) ?? '{}') as Record<string, DevStart>;
+      return Object.fromEntries(Object.entries(all).map(([k, v]) => [k, fixStart(v)!]));
     } catch {
       return {};
     }
@@ -365,7 +409,7 @@ export class DevApi {
     const m = /#test=([^&]+)/.exec(location.hash);
     if (!m) return null;
     try {
-      return JSON.parse(fromB64(m[1])) as DevStart;
+      return fixStart(JSON.parse(fromB64(m[1])) as DevStart);
     } catch {
       return null;
     }
