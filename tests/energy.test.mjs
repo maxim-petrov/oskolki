@@ -7,7 +7,7 @@ import { CHARGE_COST, ENERGY_MAX, RUSH_COST, energyCap, previewMove } from '../g
 import { computeMods } from '../game/content/items.ts';
 import { dispatch, newRun } from '../game/run.ts';
 import { decide } from '../game/bot.ts';
-import { BLUE3, RED3, act, foe, line, play, put, queue, ready, scene } from './scene.mjs';
+import { BLUE3, RED3, act, fightWon, foe, line, play, put, queue, ready, scene } from './scene.mjs';
 
 const arm = (run, what) => act(run, { type: 'arm', what });
 
@@ -16,7 +16,7 @@ test('the meter holds 10 and keeps its charge between fights', () => {
   assert.equal(energyCap(scene({})), 10, 'и без навыка, и без запасных вещей');
   const run = scene({ charge: 6, enemies: ['drop'], enemyHp: 1 });
   const won = play(run, line(run, RED3)).run;
-  assert.equal(won.phase, 'reward');
+  assert.ok(fightWon(won));
   assert.equal(won.hero.charge, 6, 'заряд остаётся после боя');
 });
 
@@ -93,7 +93,7 @@ test('energy readied for a move that never came goes back when the fight ends', 
   assert.equal(armed.hero.charge, 3);
   // A bomb from the pocket ends the fight without a move.
   const res = act(armed, { type: 'pocket', slot: 0, cell: 0 });
-  assert.equal(res.run.phase, 'reward');
+  assert.ok(fightWon(res.run));
   assert.equal(res.run.hero.charge, 10, 'энергия вернулась');
 });
 

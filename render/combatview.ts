@@ -2,6 +2,7 @@ import { area, isValidMove, lineCells, moveBlock, moveKind } from '../game/board
 import { activeCost, alive, armBlock, intentDamage, moveRules, previewMove, swapCost } from '../game/combat.ts';
 import { BAG_COPIES } from '../game/types.ts';
 import { heartText, heartsText } from '../game/text.ts';
+import { MAX_COINS } from '../game/economy.ts';
 import { ENEMIES, INTENT_TEXT } from '../game/content/enemies.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
 import { FAMS, type Blast, type Effect, type GameEvent, type Move, type RunState, type TileScore } from '../game/types.ts';
@@ -9,7 +10,7 @@ import { EnemyView, HeroView, enemySlots, heroX } from './actors.ts';
 import { gearRules, gearTitle } from './gearview.ts';
 import { BoardView } from './boardview.ts';
 import { paragraph, text } from './font.ts';
-import { closeSpares, drawArm, drawGear, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
+import { HUD_AT, closeSpares, drawArm, drawGear, drawPockets, drawRelics, drawSkill, type Disp } from './hud.ts';
 import type { Juice } from './juice.ts';
 import { FAM_COLORS, hex } from './palette.ts';
 import { Particles, burst, rand } from './particles.ts';
@@ -20,7 +21,7 @@ import type { UI } from './ui.ts';
 import { L, STAGE_FEET, setBoardSize } from './view.ts';
 import type { Audio } from './audio.ts';
 
-const FAM_TRAIL: Record<string, string[]> = {
+export const FAM_TRAIL: Record<string, string[]> = {
   blade: ['cream', 'red4', 'red3', 'red2'],
   shield: ['cold6', 'cold5', 'cold4', 'cold3'],
   ink: ['vio5', 'vio4', 'vio3', 'vio2'],
@@ -821,8 +822,8 @@ export class CombatView {
             juice.shoot({
               x0: sx + rand(-6, 6),
               y0: sy + rand(-6, 6),
-              x1: 60,
-              y1: 8,
+              x1: HUD_AT.coins.x,
+              y1: HUD_AT.coins.y,
               dur: 0.4 + k * 0.05,
               arc: 40,
               kind: 'sprite',
@@ -830,7 +831,7 @@ export class CombatView {
               color: 'gold3',
               trail: FAM_TRAIL.coin,
               onArrive: () => {
-                if (k === 0) this.h.disp.coins = Math.min(999, this.h.disp.coins + f.amount);
+                if (k === 0) this.h.disp.coins = Math.min(MAX_COINS, this.h.disp.coins + f.amount);
                 au.play('coin', 1 + k * 0.08);
               },
             });

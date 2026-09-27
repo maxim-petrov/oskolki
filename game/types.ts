@@ -275,9 +275,9 @@ export interface RunStats {
   shards: number;
 }
 
+/** A row of the reward screen: only what is to be chosen (coins and keys go straight in). */
 export interface RewardOption {
-  kind: 'coins' | 'gear' | 'upgrade' | 'relic' | 'pocket' | 'key' | 'shards';
-  amount?: number;
+  kind: 'gear' | 'upgrade' | 'relic' | 'pocket';
   /** Gear on offer: take one (or none). */
   gear?: string[];
   relic?: string;
@@ -552,6 +552,8 @@ export type GameEvent =
   | { t: 'pocket'; pocket: string }
   | { t: 'pocketUsed'; pocket: string }
   | { t: 'coins'; amount: number }
+  /** A won fight's pay, already in the wallet and on the key ring (`lost`: what the full wallet left). */
+  | { t: 'loot'; coins: number; lost: number; key: boolean }
   | { t: 'heal'; amount: number }
   | { t: 'hurt'; amount: number; cause: string }
   | { t: 'maxHp'; amount: number }

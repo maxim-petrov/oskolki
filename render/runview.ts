@@ -4,13 +4,14 @@ import { FAM_ROLE } from '../game/content/gear.ts';
 import { FINDS } from '../game/content/finds.ts';
 import { ITEMS, POCKETS, type Mods } from '../game/content/items.ts';
 import { dispatch, modsOf, saveRun } from '../game/run.ts';
+import { plural } from '../game/text.ts';
 import type { Action, GameEvent, RunState } from '../game/types.ts';
 import type { App } from './app.ts';
-import { CombatView, type CombatHost } from './combatview.ts';
+import { CombatView, FAM_TRAIL, type CombatHost } from './combatview.ts';
 import { bigText, measure, text } from './font.ts';
 import { cheatList } from './dev-cheats.ts';
 import { ditherFade, drawDanger, drawVignette } from './fx.ts';
-import { drawTopBar, type Disp } from './hud.ts';
+import { HUD_AT, drawTopBar, type Disp } from './hud.ts';
 import { Juice } from './juice.ts';
 import { LIGHT_STYLE, Lighting } from './lighting.ts';
 import { MapView } from './mapview.ts';
@@ -90,7 +91,7 @@ export class RunView implements CombatHost {
 
   heroDisp(): Disp {
     const h = this.run.hero;
-    return { hp: h.hp, maxHp: h.maxHp, armor: h.armor, charge: h.charge, cost: activeCost(this.run), cap: energyCap(this.run), coins: h.coins };
+    return { hp: h.hp, maxHp: h.maxHp, armor: h.armor, charge: h.charge, cost: activeCost(this.run), cap: energyCap(this.run), coins: h.coins, keys: h.keys };
   }
 
   busy() {
@@ -151,6 +152,51 @@ export class RunView implements CombatHost {
     this.steps.at(() => this.settle());
     this.persist();
     return true;
+  }
+
+  private flyLoot(e: { coins: number; lost: number; key: boolean }) {
+    const [sx, sy] = this.combat.enemyPos(-1);
+    const n = Math.min(8, e.coins);
+    for (let k = 0; k < n; k++) {
+      // Each coin carries its share of the sum.
+      const share = Math.floor((e.coins * (k + 1)) / n) - Math.floor((e.coins * k) / n);
+      this.juice.shoot({
+        x0: sx + rand(-12, 12),
+        y0: sy + rand(-10, 10),
+        x1: HUD_AT.coins.x,
+        y1: HUD_AT.coins.y,
+        dur: 0.45 + k * 0.07,
+        arc: 50,
+        kind: 'sprite',
+        sprite: 'ui_coin',
+        color: 'gold3',
+        trail: FAM_TRAIL.coin,
+        onArrive: () => {
+          this.disp.coins += share;
+          this.audio.play('coin', 1 + k * 0.06);
+        },
+      });
+    }
+    if (e.coins > 0) this.juice.float(`+${e.coins} ${plural(e.coins, 'монета', 'монеты', 'монет')}`, sx, sy - 16, 'gold4', { outline: 'ink0', max: 1.2 });
+    if (e.key)
+      this.juice.shoot({
+        x0: sx,
+        y0: sy,
+        x1: HUD_AT.keys.x,
+        y1: HUD_AT.keys.y,
+        dur: 0.6,
+        arc: 60,
+        kind: 'sprite',
+        sprite: 'find_key',
+        color: 'gold4',
+        trail: FAM_TRAIL.coin,
+        onArrive: () => {
+          this.disp.keys += 1;
+          this.audio.play('pickup');
+        },
+      });
+    const note = [e.key ? 'Ключ от сейфа' : '', e.lost > 0 ? `кошелёк полон: ${e.lost} ${plural(e.lost, 'монета', 'монеты', 'монет')} мимо` : ''].filter(Boolean).join(' · ');
+    if (note) this.toast(note.charAt(0).toUpperCase() + note.slice(1), 1.8);
   }
 
   fail(reason: string) {
@@ -266,7 +312,14 @@ export class RunView implements CombatHost {
         });
         break;
       case 'keys':
-        S.push({ dur: 0.25, begin: () => (this.toast(e.amount > 0 ? 'Ключ от сейфа' : 'Сейф открыт ключом'), this.audio.play('pickup')) });
+        S.push({
+          dur: 0.25,
+          begin: () => {
+            this.disp.keys = Math.max(0, this.disp.keys + e.amount);
+            this.toast(e.amount > 0 ? 'Ключ от сейфа' : 'Сейф открыт ключом');
+            this.audio.play('pickup');
+          },
+        });
         break;
       case 'findSpawn':
         S.push({
@@ -292,6 +345,11 @@ export class RunView implements CombatHost {
         break;
       case 'pocket':
         S.push({ dur: 0.2, begin: () => (this.toast(`В кармане: ${POCKETS[e.pocket]?.name ?? e.pocket}`), this.audio.play('pickup')) });
+        break;
+      case 'loot':
+        // The pay of a won fight: the coins fly from where the enemies stood into the wallet (the
+        // counter counts up as they land), the key onto the key ring. Nothing to click.
+        S.push({ dur: e.coins > 0 ? 1.05 : 0.7, begin: () => this.flyLoot(e) });
         break;
       case 'coins':
         S.push({

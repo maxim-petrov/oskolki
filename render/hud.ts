@@ -22,6 +22,8 @@ export interface Disp {
   cost: number;
   cap: number;
   coins: number;
+  /** Keys to the safe: a key of a won fight lands on the ring before it counts. */
+  keys: number;
 }
 
 function bar(ctx: Ctx2D, x: number, y: number, w: number, h: number, k: number, colors: [string, string, string], back = 'ink2') {
@@ -37,6 +39,9 @@ function bar(ctx: Ctx2D, x: number, y: number, w: number, h: number, k: number, 
   ctx.fillStyle = hex(colors[2]);
   ctx.fillRect(x, y + h - 1, fw, 1);
 }
+
+/** Where the wallet and the key ring sit in the top bar (kept up to date as it draws): loot flies there. */
+export const HUD_AT = { coins: { x: 60, y: 8 }, keys: { x: 84, y: 8 } };
 
 /**
  * Top bar: health with armor, coins, act and floor, buttons for the map, the gear and pause.
@@ -91,6 +96,7 @@ export function drawTopBar(ctx: Ctx2D, ui: UI, run: RunState, d: Disp, t: number
   }
   x += 4;
   const cx0 = x;
+  HUD_AT.coins = { x: x + 4, y: y + 6 };
   draw(ctx, getFrame('ui_coin'), x + 4, y + 6);
   x += 10 + text(ctx, `${d.coins}`, x + 10, y + 2, d.coins >= MAX_COINS ? 'orange4' : 'gold4', { outline: 'ink0' }) + 4;
   // The finds meter under the coins: yellow tiles fill it, a full one puts a find on the board.
@@ -111,9 +117,10 @@ export function drawTopBar(ctx: Ctx2D, ui: UI, run: RunState, d: Disp, t: number
     );
   }
   // Keys to the safe on the sixth floor.
-  if (run.hero.keys > 0) {
+  HUD_AT.keys = { x: x + 6, y: y + 6 };
+  if (d.keys > 0) {
     draw(ctx, getFrame('find_key'), x + 6, y + 12);
-    x += 12 + text(ctx, `${run.hero.keys}`, x + 12, y + 2, 'gold4', { outline: 'ink0' }) + 6;
+    x += 12 + text(ctx, `${d.keys}`, x + 12, y + 2, 'gold4', { outline: 'ink0' }) + 6;
     ui.area('keys', x - 22, y, 20, 12);
     if (ui.hovered === 'keys') ui.tooltip('Ключи от сейфа', 'Сейф на 6-м этаже откроется на выбор из трёх предметов ступенью выше.', ui.p.x, ui.p.y + 24, 'gold4');
   }

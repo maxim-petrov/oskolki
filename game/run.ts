@@ -13,7 +13,7 @@ import { generateActMap, reachable } from './actmap.ts';
 import { FAMS } from './types.ts';
 import type { Action, CharId, Combat, DevOp, Fam, GameEvent, MapNode, PickState, RewardOption, RunState, ShopState } from './types.ts';
 
-export const RULES = 'gear-1';
+export const RULES = 'gear-2';
 
 export function modsOf(run: RunState): Mods {
   return computeMods(run.hero.relics);
@@ -479,7 +479,8 @@ function winCombat(run: RunState, ev: GameEvent[]) {
     ev.push({ t: 'won' });
     return;
   }
-  // Rewards.
+  // Rewards: only what is to be chosen waits on the reward screen. Coins and a key are nobody's
+  // choice — they go straight into the wallet and on the key ring (the screen flies them there).
   const rewards: RewardOption[] = [];
   // Things are short (the wallet holds 99): a plain fight pays a few coins half the time and offers
   // a choice of gear now and then; the bosses and the upper management pay more.
@@ -487,7 +488,7 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   const [lo, hi] = coinRange[kind];
   const paid = kind !== 'fight' || int(run.rng.loot, 100) < 50;
   const coins = (paid ? range(run.rng.loot, lo, hi) : 0) + c.bonusCoins;
-  if (coins > 0) rewards.push({ kind: 'coins', amount: coins });
+  let key = false;
   const offered = kind !== 'fight' || int(run.rng.loot, 100) < 40;
   if (offered) {
     const gear = rollGear(run, kind === 'fight' || kind === 'intro' ? 2 : 3, kind === 'intro' ? 'intro' : kind);
@@ -500,7 +501,7 @@ function winCombat(run: RunState, ev: GameEvent[]) {
     const r = rollRelic(run);
     if (r) rewards.push({ kind: 'relic', relic: r });
     // A key to the safe from a quarter of the upper management.
-    if (int(run.rng.loot, 100) < 25) rewards.push({ kind: 'key', amount: 1 });
+    key = int(run.rng.loot, 100) < 25;
   }
   if (run.eventRelic) {
     rewards.push({ kind: 'relic', relic: run.eventRelic });
@@ -508,8 +509,13 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   }
   const pocketChance = kind === 'elite' ? 0.3 : kind === 'fight' ? 0.15 : 0;
   if (pocketChance && int(run.rng.loot, 100) < pocketChance * 100) rewards.push({ kind: 'pocket', pocket: rollPocket(run) });
+  const got = gainCoins(run, coins);
+  if (key) hero.keys = Math.min(9, hero.keys + 1);
+  if (coins > 0 || key) ev.push({ t: 'loot', coins: got, lost: coins - got, key });
   run.rewards = rewards;
   run.phase = 'reward';
+  // Nothing to choose: straight on, as if the screen was left.
+  if (!rewards.length) afterReward(run, ev);
   void node;
 }
 
@@ -748,7 +754,7 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
       if (run.phase !== 'reward') return fail(run, ev, 'Наград нет');
       const r = run.rewards[action.index];
       if (!r || r.taken) return fail(run, ev, 'Уже взято');
-      if (r.kind === 'coins') ev.push({ t: 'coins', amount: gainCoins(run, r.amount ?? 0) }); else if (r.kind === 'gear') {
+      if (r.kind === 'gear') {
         const id = r.gear?.[action.pick ?? -1];
         if (!id) return fail(run, ev, 'Выбери вещь');
         if (!gainGear(run, id, 'reward', ev)) return fail(run, ev, `Руки заняты: вещей цвета не больше ${MAX_GEAR}`);
@@ -757,11 +763,7 @@ export function dispatch(state: RunState, action: Action): { run: RunState; even
         if (!upgradable(run).length) return fail(run, ev, 'Улучшать нечего');
         startPick(run, { purpose: 'upgrade', count: 1, from: 'reward', reward: action.index });
         break;
-      } else if (r.kind === 'key') {
-        hero.keys = Math.min(9, hero.keys + (r.amount ?? 1));
-        ev.push({ t: 'keys', amount: r.amount ?? 1 });
-      } else if (r.kind === 'shards') gainShards(run, r.amount ?? 1, ev);
-      else if (r.kind === 'relic' && r.relic) gainRelic(run, r.relic, 'reward', ev);
+      } else if (r.kind === 'relic' && r.relic) gainRelic(run, r.relic, 'reward', ev);
       else if (r.kind === 'pocket' && r.pocket) {
         if (!givePocket(run, r.pocket)) return fail(run, ev, 'Карманы полны');
         ev.push({ t: 'pocket', pocket: r.pocket });

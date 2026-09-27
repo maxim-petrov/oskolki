@@ -8,7 +8,7 @@ import { MAX_COINS, gainCoins } from '../game/economy.ts';
 import { rollFind } from '../game/combat.ts';
 import { dispatch, newRun } from '../game/run.ts';
 import { ITEMS } from '../game/content/items.ts';
-import { GOLD3, RED3, act, idx, line, play, put, scene } from './scene.mjs';
+import { GOLD3, RED3, act, fightWon, idx, line, play, put, scene } from './scene.mjs';
 
 test('the wallet holds 99: coins beyond it are lost and not counted as earned', () => {
   const { run } = newRun({ seed: 1 });
@@ -84,7 +84,7 @@ test('a find nobody picked up waits on the next board', () => {
   const move = line(run, RED3);
   run.combat.board.cells[idx(4, 4)].find = 'key';
   const won = play(run, move).run;
-  assert.equal(won.phase, 'reward');
+  assert.ok(fightWon(won));
   assert.equal(won.hero.findNext, 'key');
   let custom = newRun({ seed: 3, customSeed: true }).run;
   custom.hero.findNext = 'bomb';

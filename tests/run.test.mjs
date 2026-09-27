@@ -8,6 +8,7 @@ import { reachable } from '../game/actmap.ts';
 import { playRun } from '../game/bot.ts';
 import { EVENTS } from '../game/content/events.ts';
 import { ACTS } from '../game/content/acts.ts';
+import { RED3, line, play, scene } from './scene.mjs';
 
 test('dev hero op keeps energy and armour within their caps', () => {
   const { run } = newRun({ seed: 3, customSeed: true });
@@ -67,7 +68,7 @@ test('travel goes only to reachable nodes and starts a fight', () => {
   assert.ok(res.run.map.nodes[first].visited);
 });
 
-/** A plain fight of the first act won at once: its rewards. */
+/** A plain fight of the first act won at once: the run after it and the events of the last move. */
 function fightRewards(seed) {
   const { run } = newRun({ seed });
   const r = dispatch(run, { type: 'travel', node: reachable(run.map, -1)[0] }).run;
@@ -78,17 +79,41 @@ function fightRewards(seed) {
 
 test('things are short: a plain fight pays coins half the time and offers gear now and then', () => {
   const all = Array.from({ length: 40 }, (_, k) => fightRewards(100 + k));
-  const coins = all.map((r) => r.rewards.find((x) => x.kind === 'coins')).filter(Boolean);
-  const gear = all.map((r) => r.rewards.find((x) => x.kind === 'gear')).filter(Boolean);
-  assert.ok(coins.length >= 10 && coins.length <= 30, `монеты в ${coins.length} боях из 40`);
-  assert.ok(coins.every((x) => x.amount >= 3 && x.amount <= 5), 'по 3–5 монет');
+  const pay = all.map((x) => x.events.find((e) => e.t === 'loot')).filter(Boolean);
+  const gear = all.map((x) => x.run.rewards.find((r) => r.kind === 'gear')).filter(Boolean);
+  assert.ok(pay.length >= 10 && pay.length <= 30, `монеты в ${pay.length} боях из 40`);
+  assert.ok(pay.every((e) => e.coins >= 3 && e.coins <= 5 && !e.key), 'по 3–5 монет, без ключа');
   assert.ok(gear.length >= 8 && gear.length <= 26, `вещи в ${gear.length} боях из 40`);
   assert.ok(gear.every((x) => x.gear.length === 2 && new Set(x.gear).size === 2), 'две разные вещи на выбор');
+  // Nothing to choose: no reward screen, the map at once.
+  const won = all.filter((x) => x.run.phase !== 'dead');
+  for (const x of won) assert.equal(x.run.phase, x.run.rewards.length ? 'reward' : 'map');
+  assert.ok(won.some((x) => x.run.phase === 'map') && won.some((x) => x.run.phase === 'reward'));
+});
+
+test('the pay of a fight goes straight into the wallet and a key onto the key ring, no row to click', () => {
+  const scenes = Array.from({ length: 40 }, (_, k) => scene({ seed: 1 + k, kind: 'elite', enemies: ['drop'], enemyHp: 1, coins: 10 }));
+  const won = scenes.map((run) => play(run, line(run, RED3)));
+  for (const { run, events } of won) {
+    const loot = events.find((e) => e.t === 'loot');
+    assert.ok(loot && loot.coins >= 5 && loot.coins <= 8 && loot.lost === 0, 'начальство платит 5–8 монет');
+    assert.equal(run.hero.coins, 10 + loot.coins, 'сразу в кошельке');
+    assert.equal(run.hero.keys, loot.key ? 1 : 0);
+    assert.ok(run.rewards.every((r) => ['gear', 'upgrade', 'relic', 'pocket'].includes(r.kind)), 'на экране только выбор');
+  }
+  const keys = won.filter(({ events }) => events.find((e) => e.t === 'loot').key).length;
+  assert.ok(keys >= 3 && keys <= 20, `ключ в ${keys} боях из 40`);
+  // A full wallet: what does not fit goes by.
+  const rich = scene({ seed: 1, kind: 'elite', enemies: ['drop'], enemyHp: 1, coins: 97 });
+  const res = play(rich, line(rich, RED3));
+  const loot = res.events.find((e) => e.t === 'loot');
+  assert.deepEqual([loot.coins, res.run.hero.coins, res.run.stats.coinsLost], [2, 99, loot.lost]);
+  assert.ok(loot.lost >= 3);
 });
 
 test('winning a fight: the chosen item of gear goes straight into hand, the old one stays a spare', () => {
-  let res = fightRewards(4);
-  for (let seed = 5; !res.rewards.some((x) => x.kind === 'gear'); seed++) res = fightRewards(seed);
+  let res = fightRewards(4).run;
+  for (let seed = 5; !res.rewards.some((x) => x.kind === 'gear'); seed++) res = fightRewards(seed).run;
   assert.equal(res.phase, 'reward');
   const row = res.rewards.find((x) => x.kind === 'gear');
   const id = row.gear[1];
@@ -114,6 +139,7 @@ test('an upgrade row is taken only when an item is chosen', () => {
 
 function playUntilWon(run) {
   let r = run;
+  let events = [];
   for (let k = 0; k < 200 && r.phase === 'combat'; k++) {
     const res = playRun(r, { policy: 'greedy', seed: 1 }, 1);
     void res;
@@ -123,11 +149,12 @@ function playUntilWon(run) {
       const next = dispatch(r, { type: 'move', move: m });
       if (!next.events.some((e) => e.t === 'invalid')) {
         r = next.run;
+        events = next.events;
         break;
       }
     }
   }
-  return r;
+  return { run: r, events };
 }
 
 test('the till sells gear, the workshop upgrades an item, the shredder takes red tape', () => {

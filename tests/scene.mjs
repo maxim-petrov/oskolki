@@ -182,6 +182,9 @@ function withEvents(res) {
 /** The first enemy (the default target). */
 export const foe = (run, k = 0) => run.combat.enemies[k];
 
+/** The fight is over and won: the reward screen, or straight the map when there was nothing to choose. */
+export const fightWon = (run) => run.combat === null && (run.phase === 'reward' || run.phase === 'map');
+
 /** Makes enemy k do its action of this kind on the next tick. */
 export function ready(run, kind, k = 0) {
   const e = run.combat.enemies[k];

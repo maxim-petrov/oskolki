@@ -8,7 +8,7 @@ import { ARMOR_CAP, activeCost, swapCost } from '../game/combat.ts';
 import { QUEUE_LEN } from '../game/types.ts';
 import { ACTS } from '../game/content/acts.ts';
 import { playFight } from '../game/balance/lab.ts';
-import { BLUE3, GOLD3, RED3, VIOLET3, act, blowOf, byBlows, cascade, foe, hit, idx, line, moves, play, put, queue, ready, scene, tile } from './scene.mjs';
+import { BLUE3, GOLD3, RED3, VIOLET3, act, blowOf, byBlows, cascade, fightWon, foe, hit, idx, line, moves, play, put, queue, ready, scene, tile } from './scene.mjs';
 
 /**
  * Removes the tile under a lifted red tile: it drops into a ready pair and completes a line.
@@ -192,7 +192,7 @@ const ITEM_CHECKS = {
       enemyHp: 1,
     });
     const res = play(run, line(run, RED3));
-    assert.equal(res.run.phase, 'reward');
+    assert.ok(fightWon(res.run));
     assert.equal(res.run.hero.hp, 31);
   },
   gum() {

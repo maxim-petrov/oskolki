@@ -78,10 +78,7 @@ export class RewardScreen {
       let icon = '';
       let label = '';
       let sub = '';
-      if (row.kind === 'coins') {
-        icon = 'ui_coin';
-        label = `${row.amount} монет`;
-      } else if (row.kind === 'gear') {
+      if (row.kind === 'gear') {
         icon = GEAR[row.gear?.[0] ?? '']?.icon ?? 'ui_deck';
         label = 'Выбрать вещь';
         sub = (row.gear?.length ?? 3) === 2 ? 'одна из двух: сразу в руку' : 'одна из трёх: сразу в руку';
@@ -89,13 +86,6 @@ export class RewardScreen {
         icon = 'ui_deck';
         label = 'Улучшить вещь';
         sub = 'одна вещь на выбор';
-      } else if (row.kind === 'key') {
-        icon = hasSprite('item_key') ? 'item_key' : 'ui_coin';
-        label = 'Ключ от сейфа';
-        sub = 'сейф откроется на выбор из трёх';
-      } else if (row.kind === 'shards') {
-        icon = 'ui_shard';
-        label = `Осколки: ${row.amount ?? 1}`;
       } else if (row.kind === 'relic' && row.relic) {
         icon = ITEMS[row.relic].icon;
         label = ITEMS[row.relic].name;
