@@ -24,6 +24,7 @@ import {
   reshuffle,
   rowOf,
   shiftCells,
+  hasValidMove,
   validMoves,
   type MoveRules,
 } from './board.ts';
@@ -246,9 +247,19 @@ export function intentDamage(c: Combat, e: EnemyState): number {
  * and their shields, armour and heals grow with enemy health; the hero's flat armour grows with
  * enemy blows. A flat 3 means the same in the last act as in the first.
  */
+/**
+ * How the hero's effects outside the strike grow with the act (bleed, fire, thorns, the mop's
+ * armour…): like enemy health and blows, counted from the first act, so an item's text names its
+ * first-act number.
+ */
 export function actScale(run: RunState): { hp: number; dmg: number } {
   const act = ACTS[Math.min(run.act, ACTS.length - 1)];
-  return { hp: act.hpMul, dmg: act.dmgMul };
+  return { hp: act.hpMul / ACTS[0].hpMul, dmg: act.dmgMul / ACTS[0].dmgMul };
+}
+
+/** What enemies' own shields and heals grow by: their health multiplier of the act. */
+export function enemyScale(run: RunState): number {
+  return ACTS[Math.min(run.act, ACTS.length - 1)].hpMul;
 }
 
 /** Ticks an enemy can be held back between two of its actions: then it acts whatever you stamp. */
@@ -428,6 +439,10 @@ export function activeCost(run: RunState): number {
 export function swapCost(run: RunState): number {
   return Math.max(0, GEAR_SWAP_COST - modsOfRelics(run).swapDiscount);
 }
+
+/** The janitor's clean-up: damage to every enemy, and more for every blot it washes away. */
+export const CLEANUP_DMG = 5;
+export const CLEANUP_PER_BLOT = 3;
 
 /** The energy meter: it holds this much (items add room) and keeps its charge between fights. */
 export const ENERGY_MAX = 10;
@@ -750,7 +765,7 @@ export function scoreTile(ctx: Ctx, tile: Tile, i: number, g: Group | null, wave
       // The coin: coins per group (and per tile for the receipt), damage for some, the abacus's savings;
       // every yellow tile fills the finds meter.
       if (mods.bankPer) ms.bank += mods.bankPer;
-      ms.findPts += 1 + (st.finds ?? 0);
+      ms.findPts += 1 + (st.finds ?? 0) + (su?.finds ?? 0);
       if (st.coinsPerTile) add('coins', st.coinsPerTile);
       const paidKey = `paid:${wave}:${g.cells[0]}:${rep}`;
       if (once('coin')) {
@@ -1021,16 +1036,11 @@ export function resolve(ctx: Ctx, prefer: number[], forced?: Blast, spent: numbe
       ms.blueBlasted = 0;
       ms.coinBlasted = 0;
       for (const i of blasted) scoreTile(ctx, cells[i], i, null, wave, scores);
-      // Blasted blue and yellow tiles work like a group: half a heart, a coin, for every three.
+      // Blasted blue tiles work like a group: half a heart for every three (blasted yellow ones fill the finds meter).
       const blue = Math.floor(ms.blueBlasted / 3);
       if (blue > 0) {
         ms.tally.armor += blue;
         scores.push({ i: -1, id: -1, fam: 'shield', armor: blue, note: 'синие во взрыве' });
-      }
-      const gold = Math.floor(ms.coinBlasted / 3);
-      if (gold > 0) {
-        ms.tally.coins += gold;
-        scores.push({ i: -1, id: -1, fam: 'coin', coins: gold, note: 'жёлтые во взрыве' });
       }
     }
 
@@ -1342,7 +1352,7 @@ function moveEnd(ctx: Ctx) {
   batch(ctx, () => {
     for (const e of alive(c)) {
       if (e.bleed > 0) {
-        hitEnemy(ctx, e.uid, e.bleed * actScale(run).hp, { source: 'bleed', pierce: true });
+        hitEnemy(ctx, e.uid, Math.round(e.bleed * actScale(run).hp), { source: 'bleed', pierce: true });
         e.bleed = Math.max(0, e.bleed - 1);
       }
       if (e.hp > 0 && e.burnTurns > 0) {
@@ -1352,7 +1362,7 @@ function moveEnd(ctx: Ctx) {
     }
     if (mods.spider > 0) {
       const weakest = alive(c).sort((a, b) => a.hp - b.hp)[0];
-      if (weakest) hitEnemy(ctx, weakest.uid, mods.spider * actScale(run).hp, { source: 'spider', pierce: true });
+      if (weakest) hitEnemy(ctx, weakest.uid, Math.round(mods.spider * actScale(run).hp), { source: 'spider', pierce: true });
     }
     if (mods.energyPerMove > 0 && energyCap(run) > 0) {
       const before = run.hero.charge;
@@ -1417,7 +1427,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     ctx.ev.push(act);
     if (list.length) ctx.ev.push({ t: 'effects', effects: list });
     flushDeaths(ctx);
-    if (mods.cactus > 0 && !isDead(run) && e.hp > 0) batch(ctx, () => hitEnemy(ctx, e.uid, mods.cactus * actScale(run).hp, { source: 'cactus', pierce: true }));
+    if (mods.cactus > 0 && !isDead(run) && e.hp > 0) batch(ctx, () => hitEnemy(ctx, e.uid, Math.round(mods.cactus * actScale(run).hp), { source: 'cactus', pierce: true }));
   };
   const blow = (v: number) => Math.round(v * e.dmgMul) + overtimeBonus(c);
   switch (intent.kind) {
@@ -1435,7 +1445,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
     }
     case 'block':
       // Shields and heals are about enemy health: they grow with it.
-      e.block = Math.round(intent.value * actScale(run).hp);
+      e.block = Math.round(intent.value * enemyScale(run));
       act.block = e.block;
       ctx.ev.push(act);
       break;
@@ -1444,7 +1454,7 @@ function enemyAct(ctx: Ctx, e: EnemyState) {
         .filter((x) => x.hp < x.maxHp)
         .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
       if (hurt) {
-        const amount = Math.min(Math.round(intent.value * actScale(run).hp), hurt.maxHp - hurt.hp);
+        const amount = Math.min(Math.round(intent.value * enemyScale(run)), hurt.maxHp - hurt.hp);
         hurt.hp += amount;
         act.healed = { uid: hurt.uid, amount };
       }
@@ -1682,7 +1692,7 @@ export function ensurePlayable(ctx: Ctx) {
   const { c, mods, run } = ctx;
   if (!alive(c).length) return;
   const rules = moveRules(run, mods);
-  if (validMoves(c.board, rules).length === 0) {
+  if (!hasValidMove(c.board, rules)) {
     reshuffle(c.board, run.rng.board, rules);
     syncIds(run, c);
     ctx.ev.push({ t: 'board', reason: 'reshuffle', board: snap(c.board.cells), queue: snapQueue(c) });
@@ -1978,13 +1988,12 @@ export function playerActive(run: RunState, mods: Mods, arg: { cell?: number; co
       c.board.rowLock.fill(0);
       c.board.flood = 0;
       ev.push({ t: 'board', reason: 'active', board: snap(cells) });
-      // Every blot washed away hurts every enemy (grows with the act like every effect outside the strike).
-      if (washed) {
-        const per = Math.round(3 * actScale(run).hp);
-        batch(ctx, () => {
-          for (const e of alive(c)) hitEnemy(ctx, e.uid, washed * per, { source: 'cleanup', pierce: true });
-        });
-      }
+      // The clean-up hurts every enemy, and more for every blot washed away (grows with the act like
+      // every effect outside the strike).
+      const hurt = Math.round((CLEANUP_DMG + CLEANUP_PER_BLOT * washed) * actScale(run).hp);
+      batch(ctx, () => {
+        for (const e of alive(c)) hitEnemy(ctx, e.uid, hurt, { source: 'cleanup', pierce: true });
+      });
       resolve(ctx, [], undefined, [], false);
       break;
     }
@@ -2062,11 +2071,11 @@ export interface MovePreview {
  * What a move would do, first wave only. `armed` asks «as if readied» (a bot weighing «Заряд» or the
  * double entry); by default the move takes what is readied now.
  */
-export function previewMove(run: RunState, mods: Mods, move: Move, armed?: { charge?: boolean; double?: boolean }): MovePreview {
+export function previewMove(run: RunState, mods: Mods, move: Move, armed?: { charge?: boolean; double?: boolean }, known = false): MovePreview {
   const c = run.combat;
   const empty: MovePreview = { valid: false, groups: [], blast: null, tally: newTally(), damage: 0, armor: 0, charge: 0, coins: 0, specials: 0, bank: 0, aoe: 0, bleed: 0, stun: false, delay: 0, pierce: false, hpPct: 0, finds: 0 };
   const rules = c ? moveRules(run, mods) : null;
-  if (!c || !rules || !isValidMove(c.board, move, rules)) return empty;
+  if (!c || !rules || (!known && !isValidMove(c.board, move, rules))) return empty;
   const kind = moveKind(c.board, move, rules)!;
   const cells = applyMove(c.board, c.board.cells, move, kind);
   const groups = findGroups(c.board, cells, mods.wrap, moveCells(move));

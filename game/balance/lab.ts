@@ -238,6 +238,8 @@ export interface RunSpec {
   char?: CharId;
   policy?: Policy;
   erase?: BotOptions['erase'];
+  /** Energy spends the bot leaves alone. */
+  skip?: BotOptions['skip'];
   unlocked?: string[];
   lastAct?: number;
   intro?: boolean;
@@ -309,6 +311,14 @@ export interface RunResult {
   dmgFree: number;
   moves: number;
   freeActions: number;
+  /** Energy spent on the next move: moves made out of turn and charged moves; skills used. */
+  rushMoves: number;
+  chargedMoves: number;
+  skills: number;
+  /** Finds that came onto the board, coins earned and coins lost to the wallet's top. */
+  finds: number;
+  coinsEarned: number;
+  coinsLost: number;
   shards: number;
   steps: number;
   stuck: boolean;
@@ -365,6 +375,12 @@ export function simRun(spec: RunSpec): RunResult {
     dmgFree: 0,
     moves: 0,
     freeActions: 0,
+    rushMoves: 0,
+    chargedMoves: 0,
+    skills: 0,
+    finds: 0,
+    coinsEarned: 0,
+    coinsLost: 0,
     shards: 0,
     steps: 0,
     stuck: false,
@@ -375,7 +391,7 @@ export function simRun(spec: RunSpec): RunResult {
   let shop: ShopLog | null = null;
   let stuck = 0;
   while (out.steps < RUN_STEPS && run.phase !== 'dead' && run.phase !== 'won') {
-    const action = decide(run, { policy, seed: spec.seed, erase: spec.erase }, r);
+    const action = decide(run, { policy, seed: spec.seed, erase: spec.erase, skip: spec.skip }, r);
     if (!action) {
       out.stuck = true;
       break;
@@ -397,9 +413,12 @@ export function simRun(spec: RunSpec): RunResult {
     const struck = res.events.reduce((s, e) => s + (e.t === 'strike' ? e.damage : 0), 0);
     if (action.type === 'move' && !res.events.some((e) => e.t === 'invalid')) {
       out.moves++;
+      if (run.combat?.armed?.rush) out.rushMoves++;
+      if (run.combat?.armed?.charge) out.chargedMoves++;
       out.dmgMoves += struck;
     } else if ((action.type === 'active' || action.type === 'pocket') && !res.events.some((e) => e.t === 'invalid')) {
       out.freeActions++;
+      if (action.type === 'active') out.skills++;
       out.dmgFree += struck;
     }
     if (action.type === 'rest' && run.phase === 'rest') out.rests[action.choice]++;
@@ -460,6 +479,9 @@ export function simRun(spec: RunSpec): RunResult {
   out.maxMult = run.stats.maxMult;
   out.maxHit = run.stats.maxHit;
   out.shards = run.stats.shards;
+  out.finds = run.stats.finds ?? 0;
+  out.coinsEarned = run.stats.coinsEarned;
+  out.coinsLost = run.stats.coinsLost ?? 0;
   if (out.steps >= RUN_STEPS) out.stuck = true;
   return out;
 }

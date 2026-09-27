@@ -23,7 +23,7 @@ export const FINDS: Record<FindKind, FindDef> = {
 export const FIND_KINDS = Object.keys(FINDS) as FindKind[];
 
 /** Yellow tiles fill the meter (one point each, some items more); a full meter puts a find on the board. */
-export const FIND_METER = 65;
+export const FIND_METER = 90;
 /** A handful of coins; the battery's energy; coins for a bomb with every pocket full. */
 export const FIND_COINS = 5;
 export const FIND_ENERGY = 5;

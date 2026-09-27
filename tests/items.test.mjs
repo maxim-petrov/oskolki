@@ -235,8 +235,8 @@ const ITEM_CHECKS = {
   spider() {
     const run = scene({ relics: ['spider'], enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, BLUE3));
-    assert.equal(foe(res.run, 1).hp, 21, 'кусает самого слабого на 3');
-    assert.equal(foe(res.run, 0).hp, 64);
+    assert.equal(foe(res.run, 1).hp, foe(run, 1).maxHp - 3, 'кусает самого слабого на 3');
+    assert.equal(foe(res.run, 0).hp, foe(run, 0).maxHp);
   },
   cactus() {
     const run = scene({ relics: ['cactus'], enemies: ['rat'], enemyHp: 999 });
@@ -276,7 +276,7 @@ const ITEM_CHECKS = {
   plane() {
     const run = scene({ relics: ['plane'], gear: ['staplegun'], enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, [...RED3, 'blade']));
-    assert.equal(foe(res.run, 1).hp, 18, '6 урона каждому врагу');
+    assert.equal(foe(res.run, 1).hp, foe(run, 1).maxHp - 6, '6 урона каждому врагу');
   },
   lucky() {
     const { rate } = noteRate('lucky', 'Удача');
@@ -346,7 +346,7 @@ const ITEM_CHECKS = {
   },
   puncher() {
     const dealt = (relics) => 999 - foe(hit({ relics, enemies: ['eraser'] }).run).hp;
-    assert.equal(dealt([]), 4, 'резина: броня 2');
+    assert.equal(dealt([]), 6 - foe(scene({ enemies: ['eraser'] })).armor, 'резина: броня гасит');
     assert.equal(dealt(['puncher']), 6);
   },
   poster() {
@@ -489,9 +489,11 @@ const ITEM_CHECKS = {
   },
   coffeeToGo() {
     // Two uses do not stack: the quiet lasts two ticks.
-    const twice = act(act(scene({ active: 'coffeeToGo', charge: 12, enemyHp: 9999 }), { type: 'active' }).run, { type: 'active' }).run;
+    const once = act(scene({ active: 'coffeeToGo', charge: 10, enemyHp: 9999 }), { type: 'active' }).run;
+    once.hero.charge = 8;
+    const twice = act(once, { type: 'active' }).run;
     assert.equal(twice.combat.freeTicks, 2);
-    const run = act(scene({ active: 'coffeeToGo', charge: 6, real: true, enemyHp: 9999 }), { type: 'active' }).run;
+    const run = act(scene({ active: 'coffeeToGo', charge: 8, real: true, enemyHp: 9999 }), { type: 'active' }).run;
     const start = foe(run).countdown;
     const res = moves(run, 3);
     assert.deepEqual(
@@ -513,7 +515,7 @@ const ITEM_CHECKS = {
     const after = res.run.combat.board;
     assert.ok(!after.cells.some((t) => t.kind === 'junk' || t.pin || t.fuse || t.hidden));
     assert.deepEqual([after.colLock[5], after.flood], [0, 0], 'якоря и вода ушли');
-    assert.deepEqual(res.run.combat.enemies.map((e) => e.hp), [99 - 6, 99 - 6], 'по 3 урона каждому за каждую кляксу');
+    assert.deepEqual(res.run.combat.enemies.map((e) => e.hp), [99 - 5 - 6, 99 - 5 - 6], '5 урона каждому и ещё по 3 за каждую кляксу');
     assert.equal(res.strike, undefined, 'новые фишки, сложившиеся в ряд, сгорают впустую');
   },
   shredder() {
@@ -582,8 +584,8 @@ for (const [id, check] of Object.entries(POCKET_CHECKS)) test(`карман «${
 
 test('effects outside the strike grow with the act: damage with enemy health, armour with enemy blows', () => {
   const act = 2;
-  const HP = ACTS[act].hpMul;
-  const DMG = ACTS[act].dmgMul;
+  const HP = ACTS[act].hpMul / ACTS[0].hpMul;
+  const DMG = ACTS[act].dmgMul / ACTS[0].dmgMul;
   const hurt = (relics, tiles, k = 1) => {
     const run = scene({ act, relics, gear: ['staplegun'], enemies: ['anchor', 'drop'] });
     const before = foe(run, k).hp;
@@ -596,7 +598,7 @@ test('effects outside the strike grow with the act: damage with enemy health, ar
   const res = play(run, line(run, [...RED3, 'blade']));
   const ticks = res.effects.filter((f) => f.source === 'burn' || f.source === 'bleed').map((f) => [f.source, f.amount]);
   assert.deepEqual(ticks.sort(), [
-    ['bleed', 2 * HP],
+    ['bleed', Math.round(2 * HP)],
     ['burn', Math.round(4 * HP)],
   ]);
   // A tough hero: a rat of the boiler room hits hard, and thorns only answer a blow that was survived.

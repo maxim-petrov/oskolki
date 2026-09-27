@@ -483,7 +483,7 @@ function winCombat(run: RunState, ev: GameEvent[]) {
   const rewards: RewardOption[] = [];
   // Things are short (the wallet holds 99): a plain fight pays a few coins half the time and offers
   // a choice of gear now and then; the bosses and the upper management pay more.
-  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [2, 2], fight: [2, 4], elite: [5, 8], boss: [10, 15] };
+  const coinRange: Record<Combat['kind'], [number, number]> = { intro: [2, 2], fight: [3, 5], elite: [5, 8], boss: [10, 15] };
   const [lo, hi] = coinRange[kind];
   const paid = kind !== 'fight' || int(run.rng.loot, 100) < 50;
   const coins = (paid ? range(run.rng.loot, lo, hi) : 0) + c.bonusCoins;

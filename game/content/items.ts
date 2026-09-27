@@ -273,8 +273,8 @@ export const ITEMS: Record<string, ItemDef> = {
   eraser: i({ id: 'eraser', name: 'Ластик', desc: 'Стирает все фишки цвета выбранной: они срабатывают, как от взрыва (сложившееся следом сгорает впустую). Время не тратит.', kind: 'active', icon: 'item_eraser', pool: 'shop', charge: 8, aim: 'cell' }),
   doubleentry: i({ id: 'doubleentry', name: 'Двойная запись', desc: 'Группы первой волны следующего хода срабатывают дважды.', kind: 'active', icon: 'item_doubleentry', pool: 'shop', charge: 7 }),
   stapler: i({ id: 'stapler', name: 'Степлер', desc: 'Выбранный враг пропускает следующее действие.', kind: 'active', icon: 'item_stapler', pool: 'uncommon', charge: 6, aim: 'enemy' }),
-  coffeeToGo: i({ id: 'coffeeToGo', name: 'Кофе с собой', desc: 'Следующие 2 хода враги не тикают.', kind: 'active', icon: 'item_coffeeToGo', pool: 'uncommon', charge: 6 }),
-  corrector: i({ id: 'corrector', name: 'Генеральная уборка', desc: 'Снимает с поля кляксы, волокиту, скобы, угольки, цензуру, якоря и воду; каждый враг получает 3 урона за каждую убранную кляксу (растёт с отделом). Сложившиеся ряды сгорают впустую.', kind: 'active', icon: 'item_corrector', pool: 'common', charge: 6 }),
+  coffeeToGo: i({ id: 'coffeeToGo', name: 'Кофе с собой', desc: 'Следующие 2 хода враги не тикают.', kind: 'active', icon: 'item_coffeeToGo', pool: 'uncommon', charge: 8 }),
+  corrector: i({ id: 'corrector', name: 'Генеральная уборка', desc: 'Снимает с поля кляксы, волокиту, скобы, угольки, цензуру, якоря и воду; каждый враг получает 5 урона и ещё 3 за каждую убранную кляксу (растёт с отделом). Сложившиеся ряды сгорают впустую.', kind: 'active', icon: 'item_corrector', pool: 'common', charge: 6 }),
   shredder: i({ id: 'shredder', name: 'Шредер', desc: 'Очищает выбранный столбец, фишки срабатывают.', kind: 'active', icon: 'item_shredder', pool: 'rare', charge: 8, aim: 'col' }),
   megaphone: i({ id: 'megaphone', name: 'Мегафон', desc: 'Таймеры всех врагов +2.', kind: 'active', icon: 'item_megaphone', pool: 'uncommon', charge: 8 }),
   giftbox: i({ id: 'giftbox', name: 'Коробка с сюрпризом', desc: 'Две бомбы и призма появляются на поле.', kind: 'active', icon: 'item_giftbox', pool: 'rare', charge: 10 }),
@@ -300,9 +300,18 @@ export const POCKETS: Record<string, PocketDef> = {
   choco: { id: 'choco', name: 'Шоколадка', desc: 'Следующий ход: урон +100%.', icon: 'pocket_energy', price: 4 },
 };
 
+/** Mods of a set of items, computed once per set (callers read them, never write). */
+const MODS = new Map<string, Mods>();
+
 export function computeMods(relics: readonly string[]): Mods {
-  const m = baseMods();
-  for (const id of relics) ITEMS[id]?.apply?.(m);
+  const key = relics.join(',');
+  let m = MODS.get(key);
+  if (!m) {
+    m = baseMods();
+    for (const id of relics) ITEMS[id]?.apply?.(m);
+    if (MODS.size > 500) MODS.clear();
+    MODS.set(key, m);
+  }
   return m;
 }
 

@@ -362,31 +362,55 @@ export function allMoves(d: Dims, rules: MoveRules): readonly Move[] {
   return list;
 }
 
-/** Is there a line of three or more of one family anywhere (prisms are wild)? Faster than findGroups. */
-function anyMatch(d: Dims, cells: Tile[], wrap: boolean): boolean {
+/**
+ * Is there a line of three or more of one family (prisms are wild)? Faster than findGroups. With
+ * `changed`, only the rows and columns through those cells are looked at.
+ */
+function anyMatch(d: Dims, cells: Tile[], wrap: boolean, changed?: number[]): boolean {
   const { rows, cols } = linesOf(d);
+  const rs = changed ? [...new Set(changed.map((i) => rowOf(d, i)))].map((r) => rows[r]) : rows;
+  const cs = changed ? [...new Set(changed.map((i) => colOf(d, i)))].map((c) => cols[c]) : cols;
   for (const fam of FAMS) {
     const ok = (i: number) => {
       const t = cells[i];
       return !!t && (t.kind === fam || t.kind === 'prism');
     };
     const real = (i: number) => cells[i]?.kind === fam;
-    for (const line of rows) if (runsInLine(line, ok, real, wrap).length) return true;
-    for (const line of cols) if (runsInLine(line, ok, real, false).length) return true;
+    for (const line of rs) if (runsInLine(line, ok, real, wrap).length) return true;
+    for (const line of cs) if (runsInLine(line, ok, real, false).length) return true;
   }
   return false;
 }
 
-/** A move is valid when it builds a match or sets off a special tile it carries. */
-export function isValidMove(b: BoardState, m: Move, rules: MoveRules): boolean {
+/**
+ * A move is valid when it builds a match or sets off a special tile it carries. `settled` says the
+ * board before the move has no line (the usual case): then only the lines the move touched can
+ * hold one. An unsettled board (an enemy or an item made a line) lets every move through.
+ */
+function validMove(b: BoardState, m: Move, rules: MoveRules, settled: boolean): boolean {
   if (moveBlock(b, m, rules)) return false;
   const kind = moveKind(b, m, rules)!;
   if (isSpecialTile(b.cells[m.from]) || (kind === 'swap' && isSpecialTile(b.cells[m.to]))) return true;
-  return anyMatch(b, applyMove(b, b.cells, m, kind), rules.wrap);
+  if (!settled) return true;
+  const after = applyMove(b, b.cells, m, kind);
+  const changed: number[] = [];
+  for (let i = 0; i < after.length; i++) if (after[i] !== b.cells[i]) changed.push(i);
+  return anyMatch(b, after, rules.wrap, changed);
+}
+
+export function isValidMove(b: BoardState, m: Move, rules: MoveRules): boolean {
+  return validMove(b, m, rules, !anyMatch(b, b.cells, rules.wrap));
 }
 
 export function validMoves(b: BoardState, rules: MoveRules): Move[] {
-  return allMoves(b, rules).filter((m) => isValidMove(b, m, rules));
+  const settled = !anyMatch(b, b.cells, rules.wrap);
+  return allMoves(b, rules).filter((m) => validMove(b, m, rules, settled));
+}
+
+/** Is there any valid move (stops at the first)? */
+export function hasValidMove(b: BoardState, rules: MoveRules): boolean {
+  const settled = !anyMatch(b, b.cells, rules.wrap);
+  return allMoves(b, rules).some((m) => validMove(b, m, rules, settled));
 }
 
 /** Where a created special prefers to appear: the dropped tile first, then its partner. */

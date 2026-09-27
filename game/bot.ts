@@ -25,6 +25,8 @@ export interface BotOptions {
    * matches it sets off are resolved and scored without spending time.
    */
   erase?: 'junk' | 'match';
+  /** Energy spends the bot leaves alone (the balance report measures what each one is worth). */
+  skip?: ('rush' | 'charge' | 'skill' | 'swap')[];
 }
 
 /**
@@ -34,37 +36,37 @@ export interface BotOptions {
  */
 export const GEAR_SCORE: Record<string, number> = {
   knife: 0,
-  staplegun: 6,
-  scissors: 7,
-  punch: 7,
-  ruler: 8,
-  sharpener: 7,
-  awl: 9,
-  cutter: 8,
+  staplegun: 7,
+  scissors: 3,
+  punch: 4,
+  ruler: 5,
+  sharpener: 2,
+  awl: 7,
+  cutter: 5,
   shield: 0,
-  binder: 5,
-  sleeve: 3,
-  umbrella: 4,
-  drawer: 6,
-  laminator: 4,
-  archivebox: 6,
-  foldervest: 6,
-  clipboard: 5,
+  binder: 2,
+  sleeve: 1,
+  umbrella: 7,
+  drawer: 2,
+  laminator: 1,
+  archivebox: 7,
+  foldervest: 4,
+  clipboard: 1,
   battery: 0,
-  whiteout: 3,
+  whiteout: 1,
   urgent: 4,
-  blotcurse: 5,
-  quill: 6,
-  copystamp: 8,
-  carbon: 6,
-  weight: 6,
+  blotcurse: 3,
+  quill: 5,
+  copystamp: 3,
+  carbon: 2,
+  weight: 4,
   penny: 0,
   receipt: 2,
-  bonus: 4,
-  creditcard: 4,
+  bonus: 2,
+  creditcard: 2,
   piggy: 2,
-  report: 4,
-  goldclip: 6,
+  report: 1,
+  goldclip: 2,
 };
 
 /** An upgrade adds about this much to an item. */
@@ -149,7 +151,7 @@ function scoreMove(run: RunState, p: MovePreview, w: Worth): number {
 /** The best move's score with the gear in hand (moves and previews for this kit). */
 function bestScore(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, w: Worth): number {
   let best = 0;
-  for (const m of moves) best = Math.max(best, scoreMove(run, previewMove(run, mods, m), w));
+  for (const m of moves) best = Math.max(best, scoreMove(run, previewMove(run, mods, m, undefined, true), w));
   return best;
 }
 
@@ -158,14 +160,18 @@ function bestScore(run: RunState, mods: Mods, moves: ReturnType<typeof validMove
  * with a group of that colour) and swaps when one scores clearly better, worth the energy. Returns
  * the item to swap to, or null.
  */
-function gearSwap(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, previews: MovePreview[], current: number, w: Worth): string | null {
+function gearSwap(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, previews: MovePreview[], order: number[], current: number, w: Worth): string | null {
   const hero = run.hero;
   const cost = swapCost(run);
   if (hero.charge < cost) return null;
   let best: { id: string; s: number } | null = null;
   for (const fam of FAMS) {
     if (hero.gear[fam].length < 2) continue;
-    const touched = moves.filter((_, k) => previews[k].groups.some((g) => g.fam === fam));
+    // The best moves with a group of the colour (the rest would not win with any item).
+    const touched = order
+      .filter((k) => previews[k].groups.some((g) => g.fam === fam))
+      .slice(0, 8)
+      .map((k) => moves[k]);
     if (!touched.length) continue;
     for (const id of hero.gear[fam]) {
       if (id === hero.equip[fam]) continue;
@@ -184,8 +190,11 @@ const FAM_WEIGHT: Record<string, number> = { blade: 2, shield: 1.5, ink: 1, coin
  * strikes, blue blocks when a blow is coming, violet refills the meter). A cell of that colour, or null.
  */
 function wipeTarget(run: RunState, danger: number): number | null {
-  const cells = run.combat!.board.cells;
-  const worth: Record<string, number> = { blade: 3, shield: danger > 0 ? 2.5 : 0.3, ink: 0.8, coin: 0.5 };
+  const c = run.combat!;
+  const cells = c.board.cells;
+  // A shining mirror sends every blow back: then only blue (armour, no damage) is worth wiping.
+  const shining = alive(c).some((e) => e.shining && !e.submerged);
+  const worth: Record<string, number> = shining ? { shield: danger > 0 ? 2.5 : 0 } : { blade: 3, shield: danger > 0 ? 2.5 : 0.3, ink: 0.8, coin: 0.5 };
   const count: Record<string, number> = {};
   for (const t of cells) if (t.kind in worth && !t.hidden) count[t.kind] = (count[t.kind] ?? 0) + 1;
   const best = Object.keys(count).sort((a, b) => count[b] * worth[b] - count[a] * worth[a])[0];
@@ -194,10 +203,9 @@ function wipeTarget(run: RunState, danger: number): number | null {
 }
 
 /** The best move's score with energy readied (a sample of the best plain moves: the charged ones differ little). */
-function armedBest(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, previews: MovePreview[], w: Worth, armed: { charge?: boolean; double?: boolean }): number {
-  const order = moves.map((_, k) => k).sort((a, b) => scoreMove(run, previews[b], w) - scoreMove(run, previews[a], w));
+function armedBest(run: RunState, mods: Mods, moves: ReturnType<typeof validMoves>, order: number[], w: Worth, armed: { charge?: boolean; double?: boolean }): number {
   let best = 0;
-  for (const k of order.slice(0, 6)) best = Math.max(best, scoreMove(run, previewMove(run, mods, moves[k], armed), w));
+  for (const k of order.slice(0, 6)) best = Math.max(best, scoreMove(run, previewMove(run, mods, moves[k], armed, true), w));
   return best;
 }
 
@@ -239,7 +247,7 @@ function pickTarget(run: RunState): number | null {
   return list.sort((a, b) => rank(b) - rank(a))[0].uid;
 }
 
-function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['erase'] = 'junk'): Action | null {
+function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['erase'] = 'junk', skip: BotOptions['skip'] = []): Action | null {
   const c = run.combat!;
   const mods = modsOf(run);
   const hero = run.hero;
@@ -263,12 +271,12 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
     }
   }
   // «Вне очереди» before a heavy blow the move cannot block: the enemies wait one move.
-  if (!armed.rush && !armBlock(run, 'rush') && hero.charge >= RUSH_COST) {
+  if (!skip.includes('rush') && !armed.rush && !armBlock(run, 'rush') && hero.charge >= RUSH_COST) {
     const heavy = danger >= Math.max(3, Math.ceil(hero.hp / 2)) || danger >= hero.hp;
     if (heavy) return { type: 'arm', what: 'rush' };
   }
   // Active skill.
-  const id = hero.active;
+  const id = skip.includes('skill') ? null : hero.active;
   if (id && hero.charge >= activeCost(run)) {
     const cells = c.board.cells;
     // The hot key pays for every skill used: then the board tools are worth pressing anyway.
@@ -282,9 +290,13 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
       case 'doubleentry':
         if (!armed.double) return { type: 'active' };
         break;
-      case 'corrector':
-        if (eager || c.board.flood > 0 || cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3) return { type: 'active' };
+      case 'corrector': {
+        // The clean-up hurts every enemy anyway; with a blow coming the energy waits for «Вне
+        // очереди», unless the board is dirty or the skill is paid for twice (the hot key).
+        const dirty = c.board.flood > 0 || cells.filter((x) => x.kind === 'junk' || x.pin || x.fuse).length >= 3;
+        if (eager || dirty) return { type: 'active' };
         break;
+      }
       case 'stapler': {
         // Only an enemy that can be stunned now (not stunned, not just out of a stun).
         const e = alive(c)
@@ -309,23 +321,25 @@ function combatAction(run: RunState, policy: Policy, r: Rng, erase: BotOptions['
   if (policy === 'greedy' || policy === 'randomGear' || policy === 'noGear') {
     let best = moves[0];
     let top = -Infinity;
-    const previews = moves.map((m) => previewMove(run, mods, m));
+    const previews = moves.map((m) => previewMove(run, mods, m, undefined, true));
     const w = worthOf(previews);
     if (!mods.bankPer) w.bank = 0;
     // «Заряд»: every group of the move a super, when that is clearly worth 4 energy.
-    if (policy === 'greedy' && !armed.charge && !armBlock(run, 'charge')) {
-      const plain = Math.max(...previews.map((p) => scoreMove(run, p, w)));
-      if (armedBest(run, mods, moves, previews, w, { charge: true }) - plain >= 10) return { type: 'arm', what: 'charge' };
+    const scores = previews.map((p) => scoreMove(run, p, w));
+    const order = moves.map((_, k) => k).sort((a, b) => scores[b] - scores[a]);
+    if (policy === 'greedy' && !skip.includes('charge') && !armed.charge && !armBlock(run, 'charge')) {
+      const plain = scores[order[0]] ?? 0;
+      if (armedBest(run, mods, moves, order, w, { charge: true }) - plain >= 10) return { type: 'arm', what: 'charge' };
     }
     for (let k = 0; k < moves.length; k++) {
       const m = moves[k];
-      const s = scoreMove(run, previews[k], w) + next(r) * 0.01;
+      const s = scores[k] + next(r) * 0.01;
       if (s > top) {
         top = s;
         best = m;
       }
     }
-    const swap = gearSwap(run, mods, moves, previews, top, w);
+    const swap = skip.includes('swap') ? null : gearSwap(run, mods, moves, previews, order, top, w);
     if (swap) return { type: 'gear', id: swap };
     return { type: 'move', move: best };
   }
@@ -342,7 +356,8 @@ function mapAction(run: RunState, r: Rng): Action {
       case 'rest':
         return ratio < 0.5 ? 8 : 1;
       case 'shop':
-        return run.hero.coins >= 20 ? 6 : 0;
+        // The wallet holds 99: a full one wants a till.
+        return run.hero.coins >= 60 ? 10 : run.hero.coins >= 20 ? 6 : 0;
       case 'treasure':
         return 7;
       case 'event':
@@ -393,7 +408,7 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
   const policy = opts.policy;
   switch (run.phase) {
     case 'combat':
-      return combatAction(run, policy, r, opts.erase);
+      return combatAction(run, policy, r, opts.erase, opts.skip);
     case 'map':
       // Between fights a swap is free: the bot takes its best item of every colour into the next fight.
       if (policy !== 'random')
@@ -428,12 +443,14 @@ export function decide(run: RunState, opts: BotOptions, r: Rng): Action | null {
         if (s.shred && !s.shred.used && run.hero.tape > 0 && coins >= s.shred.price) return { type: 'remove' };
         const relic = s.relics.findIndex((x) => !x.sold && x.price <= coins && ITEMS[x.id].kind === 'passive');
         if (relic >= 0) return { type: 'buy', kind: 'relic', index: relic };
+        // A nearly full wallet (it holds 99) is spent rather than wasted: the bar for gear drops.
+        const rich = coins >= 70;
         if (policy === 'greedy') {
-          const gear = s.gear.findIndex((x) => !x.sold && x.price <= coins && gearGain(run, x.id) >= 3);
+          const gear = s.gear.findIndex((x) => !x.sold && x.price <= coins && gearGain(run, x.id) >= (rich ? 0.5 : 3));
           if (gear >= 0) return { type: 'buy', kind: 'gear', index: gear };
         }
         if (s.upgrade && !s.upgrade.sold && coins >= s.upgrade.price + 3 && upgradable(run).length) return { type: 'buy', kind: 'upgrade', index: 0 };
-        const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - 6);
+        const pocket = s.pockets.findIndex((x) => !x.sold && x.price <= coins - (rich ? 0 : 6));
         if (pocket >= 0 && run.hero.pockets.includes(null)) return { type: 'buy', kind: 'pocket', index: pocket };
         // Plenty left: reprint the till for another look.
         if (coins >= rerollPrice(run) + 20) return { type: 'reroll' };

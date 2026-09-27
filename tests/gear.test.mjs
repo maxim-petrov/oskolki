@@ -23,7 +23,7 @@ const GEAR_CHECKS = {
     const run = scene({ enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, four('blade')));
     assert.equal(res.strike.aoe, 8, 'супер: 2 за фишку каждому');
-    assert.equal(foe(res.run, 1).hp, 24 - 8);
+    assert.equal(foe(res.run, 1).hp, foe(run, 1).maxHp - 8);
   },
   staplegun() {
     const res = hit({ gear: ['staplegun'] });
@@ -40,7 +40,7 @@ const GEAR_CHECKS = {
   },
   punch() {
     const dealt = (gear, tiles = RED3) => 999 - foe(hit({ gear, enemies: ['eraser'] }, tiles).run).hp;
-    assert.equal(dealt(['knife']), 4, 'резиновый ластик: броня 2');
+    assert.equal(dealt(['knife']), 6 - foe(scene({ enemies: ['eraser'] })).armor, 'резиновый ластик: броня гасит');
     assert.equal(dealt(['punch']), 6, 'дырокол пробивает');
     assert.equal(foe(hit({ gear: ['punch'] }, four('blade')).run).stunned, true, 'супер: цель пропускает действие');
   },
@@ -48,7 +48,7 @@ const GEAR_CHECKS = {
     const run = scene({ gear: ['ruler'], enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, RED3));
     assert.deepEqual([res.strike.damage, res.strike.aoe], [6, 9], '2 за фишку цели и 3 — каждому');
-    assert.equal(foe(res.run, 1).hp, 24 - 9);
+    assert.equal(foe(res.run, 1).hp, foe(run, 1).maxHp - 9);
     assert.equal(hit({ gear: ['ruler'] }, four('blade')).strike.aoe, 12 + 12, 'супер: ещё 3 за фишку всем');
   },
   sharpener() {
@@ -149,9 +149,10 @@ const GEAR_CHECKS = {
   blotcurse() {
     const run = scene({ enemies: ['anchor', 'drop'] });
     const res = play(run, line(run, three('blotcurse')));
-    assert.equal(res.strike.aoe, 6);
-    assert.equal(res.strike.tally.charge, 0, 'вместо энергии');
-    assert.equal(foe(res.run, 1).hp, 18);
+    assert.equal(res.strike.aoe, 3, '1 урона за фишку всем');
+    assert.equal(res.strike.tally.charge, 3, 'и энергия');
+    assert.equal(foe(res.run, 1).hp, foe(run, 1).maxHp - 3);
+    assert.equal(hit({}, four('blotcurse')).strike.aoe, 4 + 8, 'разлив: ещё 2 за фишку');
   },
   quill() {
     assert.equal(hit({ charge: 4 }, three('quill')).strike.tally.dmg, 3, 'шкала заполнилась — +3 урона');
@@ -189,8 +190,11 @@ const GEAR_CHECKS = {
     assert.equal(hit({ ups: ['penny'] }, GOLD3).strike.tally.coins, 1, 'монетка+: монета за группу');
   },
   receipt() {
-    assert.equal(findPts({}, three('receipt')), 6, 'находки вдвое');
-    assert.equal(hit({}, four('receipt')).strike.tally.coins, 1, 'супер: монета');
+    assert.equal(findPts({}, three('receipt')), 3, 'деление за фишку');
+    const big = hit({}, four('receipt'));
+    assert.equal(big.run.hero.finds, 12, 'супер: три деления за фишку');
+    assert.equal(big.strike.tally.coins, 1, 'и монета');
+    assert.equal(findPts({ ups: ['receipt'] }, three('receipt')), 6, 'чек+: находки вдвое');
   },
   bonus() {
     const s = hit({}, three('bonus')).strike;

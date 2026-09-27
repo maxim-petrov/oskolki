@@ -81,7 +81,7 @@ test('things are short: a plain fight pays coins half the time and offers gear n
   const coins = all.map((r) => r.rewards.find((x) => x.kind === 'coins')).filter(Boolean);
   const gear = all.map((r) => r.rewards.find((x) => x.kind === 'gear')).filter(Boolean);
   assert.ok(coins.length >= 10 && coins.length <= 30, `монеты в ${coins.length} боях из 40`);
-  assert.ok(coins.every((x) => x.amount >= 2 && x.amount <= 4), 'по 2–4 монеты');
+  assert.ok(coins.every((x) => x.amount >= 3 && x.amount <= 5), 'по 3–5 монет');
   assert.ok(gear.length >= 8 && gear.length <= 26, `вещи в ${gear.length} боях из 40`);
   assert.ok(gear.every((x) => x.gear.length === 2 && new Set(x.gear).size === 2), 'две разные вещи на выбор');
 });

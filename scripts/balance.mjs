@@ -198,6 +198,11 @@ const RUN_CONFIGS = {
     spec: { policy: 'greedy', erase: 'match' },
     n: N.others,
   },
+  noRush: { title: 'Без «Вне очереди»', spec: { policy: 'greedy', skip: ['rush'] }, n: N.others },
+  noCharge: { title: 'Без «Заряда»', spec: { policy: 'greedy', skip: ['charge'] }, n: N.others },
+  noSkill: { title: 'Без навыка', spec: { policy: 'greedy', skip: ['skill'] }, n: N.others },
+  noSwap: { title: 'Без смены вещей в бою', spec: { policy: 'greedy', skip: ['swap'] }, n: N.others },
+  noEnergy: { title: 'Энергия только сгорает уроном', spec: { policy: 'greedy', skip: ['rush', 'charge', 'skill', 'swap'] }, n: N.others },
   accountant: {
     title: 'Бухгалтер (без открытий)',
     spec: { policy: 'greedy', char: 'accountant' },
@@ -269,6 +274,17 @@ function summarize(results, lastAct = 2) {
         results.reduce((s, r) => s + r.moves, 0),
       ),
     coinsEnd: mean(results.map((r) => r.coinsEnd)),
+    // Energy and finds: how often moves are made out of turn or charged, finds and coins an act.
+    rushShare: results.reduce((s, r) => s + (r.rushMoves ?? 0), 0) / Math.max(1, results.reduce((s, r) => s + r.moves, 0)),
+    chargedShare: results.reduce((s, r) => s + (r.chargedMoves ?? 0), 0) / Math.max(1, results.reduce((s, r) => s + r.moves, 0)),
+    skillsPerFight: results.reduce((s, r) => s + (r.skills ?? 0), 0) / Math.max(1, results.reduce((s, r) => s + (r.fights?.length ?? 0), 0)),
+    findsPerAct: results.reduce((s, r) => s + (r.finds ?? 0), 0) / Math.max(1, results.reduce((s, r) => s + (r.won ? lastAct + 1 : r.act + 1), 0)),
+    coinsPerAct: results.reduce((s, r) => s + (r.coinsEarned ?? 0), 0) / Math.max(1, results.reduce((s, r) => s + (r.won ? lastAct + 1 : r.act + 1), 0)),
+    coinsLostShare: (() => {
+      const lost = results.reduce((s, r) => s + (r.coinsLost ?? 0), 0);
+      const all = lost + results.reduce((s, r) => s + (r.coinsEarned ?? 0), 0);
+      return all ? lost / all : 0;
+    })(),
     bossHp: acts.map((a) => mean(results.map((r) => r.bossHp[a]).filter((x) => x !== undefined))),
   };
   for (const a of acts)
@@ -312,6 +328,7 @@ function summarize(results, lastAct = 2) {
     };
   });
   s.shopBuy = shops.length ? shops.filter((x) => x.bought.length).length / shops.length : 0;
+  s.shopCoinsMed = median(shops.map((x) => x.coins));
   s.nodes = acts.map((a) => {
     const out = {};
     const inAct = results.filter((r) => r.won || r.act >= a);
@@ -910,6 +927,10 @@ metrics['heroes.spread'] = Math.max(...heroWins) - Math.min(...heroWins);
 metrics['eraser.gain'] = runSummary.eraserMatch.win - G.win;
 metrics['eraser.freeShare'] = runSummary.eraserMatch.freeShare;
 metrics['greedy.shops.buy'] = G.shopBuy;
+metrics['greedy.rushShare'] = G.rushShare;
+metrics['greedy.findsPerAct'] = G.findsPerAct;
+metrics['greedy.shopCoinsMed'] = G.shopCoinsMed;
+metrics['greedy.coinsLostShare'] = G.coinsLostShare;
 metrics['full4.deathRate.3'] = runSummary.full4.deathRate[3];
 
 const verdicts = TARGETS.map((t) => {
@@ -1269,6 +1290,40 @@ L.push(
       e.fight ? pctx(e.fight) : '',
       e.locked ? pctx(e.locked) : '',
     ]),
+  ),
+);
+L.push('');
+
+L.push('## Энергия и находки (жадный бот)');
+L.push('');
+L.push('Чего стоит каждая трата энергии: тот же жадный бот, который её не делает (разница побед с обычным ботом на тех же сидах).');
+L.push('');
+L.push(
+  table(
+    ['Без чего', 'Победы', 'Разница', 'Прошли 1-й отдел'],
+    ['noRush', 'noCharge', 'noSkill', 'noSwap', 'noEnergy'].map((k) => {
+      const s = runSummary[k];
+      const d = paired(
+        runs.greedy.slice(0, s.n).map((r) => (r.won ? 1 : 0)),
+        runs[k].map((r) => (r.won ? 1 : 0)),
+      );
+      return [RUN_CONFIGS[k].title, pctx(s.win, 1), `${pp(d.diff)} ± ${num(d.se * 100, 1)}`, pctx(s.clear[0], 1)];
+    }),
+  ),
+);
+L.push('');
+L.push(
+  table(
+    ['Что', 'Сколько'],
+    [
+      ['Ходов вне очереди', pctx(G.rushShare, 1)],
+      ['Ходов с «Зарядом»', pctx(G.chargedShare, 1)],
+      ['Навыков за бой', num(G.skillsPerFight, 2)],
+      ['Находок за отдел', num(G.findsPerAct, 2)],
+      ['Монет за отдел', num(G.coinsPerAct, 1)],
+      ['Монет сгорело на потолке кошелька', pctx(G.coinsLostShare, 1)],
+      ['Монет при входе в кассу (медиана)', num(G.shopCoinsMed, 0)],
+    ],
   ),
 );
 L.push('');

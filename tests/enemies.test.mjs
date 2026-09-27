@@ -29,7 +29,7 @@ const INTENT_CHECKS = {
   heavy: () => assert.equal(doing('heavy', { enemies: ['eraser'] }).a.hurt.amount, blowOf('eraser', 'heavy')),
   block() {
     const { run } = doing('block', { enemies: ['safe'] });
-    assert.equal(foe(run).block, 10);
+    assert.equal(foe(run).block, Math.round(10 * ACTS[0].hpMul), 'щит растёт с здоровьем врагов отдела');
   },
   heal() {
     // A move of coins: nobody is hit, the drop stays the most wounded.
@@ -37,7 +37,7 @@ const INTENT_CHECKS = {
     foe(run, 1).hp = 10;
     ready(run, 'heal');
     const a = play(run, line(run, GOLD3)).acts.find((x) => x.intent.kind === 'heal');
-    assert.deepEqual(a.healed, { uid: foe(run, 1).uid, amount: 6 }, 'лечит самого раненого');
+    assert.deepEqual(a.healed, { uid: foe(run, 1).uid, amount: Math.round(6 * ACTS[0].hpMul) }, 'лечит самого раненого');
   },
   summon() {
     const { run } = doing('summon', { enemies: ['supervisor'] });
@@ -263,13 +263,13 @@ test('a blow the mirror sends back can kill a hero on half a heart', () => {
   const res = play(run, line(run, RED3));
   assert.equal(res.run.phase, 'dead');
   assert.equal(res.run.hero.hp, 0);
-  // With armour from the same move the half heart is blocked.
+  // With armour from the same move the reflection is blocked (the folder vest's two hearts in the boiler room).
   const safe = scene({ enemies: ['mirror'], enemyHp: 99999, act: 2, hp: 1, maxHp: 50 });
   foe(safe).shining = true;
   for (const c of [0, 1]) put(safe, 2, c, 'blade');
   put(safe, 1, 2, 'blade');
-  put(safe, 2, 2, 'shield');
-  for (const c of [0, 1]) put(safe, 1, c, 'shield');
+  put(safe, 2, 2, 'foldervest');
+  for (const c of [0, 1]) put(safe, 1, c, 'foldervest');
   assert.equal(play(safe, { from: idx(1, 2), to: idx(2, 2) }).run.phase, 'combat');
 });
 

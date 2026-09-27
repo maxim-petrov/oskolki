@@ -63,7 +63,7 @@ export interface GearEffect {
   coins?: number;
   /** Coins per tile of the group. */
   coinsPerTile?: number;
-  /** Extra finds-meter points per tile. */
+  /** Extra finds-meter points per tile (in a super too). */
   finds?: number;
   /** Damage to the strike per tile. */
   dmgPerTile?: number;
@@ -348,13 +348,13 @@ export const GEAR: Record<string, GearItem> = {
   }),
   blotcurse: g('blotcurse', 'Клякса', 'uncommon', 'card_blotcurse', {
     fam: 'ink',
-    value: 0,
-    strike: { aoe: 2 },
+    value: 1,
+    strike: { aoe: 1 },
     super: { aoe: 2 },
-    up: { strike: { aoe: 3 } },
-    strikeText: 'Вместо энергии: 2 урона за фишку каждому врагу.',
+    up: { strike: { aoe: 2 } },
+    strikeText: '1 энергия и 1 урона за фишку каждому врагу.',
     superText: 'Разлив: ещё 2 урона за фишку каждому врагу.',
-    upText: '3 урона за фишку каждому врагу.',
+    upText: '2 урона за фишку каждому врагу.',
   }),
   quill: g('quill', 'Перо', 'uncommon', 'card_quill', {
     fam: 'ink',
@@ -432,12 +432,12 @@ export const GEAR: Record<string, GearItem> = {
   receipt: g('receipt', 'Чек', 'common', 'card_receipt', {
     fam: 'coin',
     value: 0,
-    strike: { finds: 1 },
-    super: { coins: 1 },
-    up: { value: 1 },
-    strikeText: 'Находки копятся вдвое: два деления шкалы за фишку.',
-    superText: 'Монета.',
-    upText: 'Монета за каждую группу.',
+    strike: {},
+    super: { coins: 1, finds: 2 },
+    up: { strike: { finds: 1 } },
+    strikeText: 'Копит находки: деление шкалы за фишку.',
+    superText: 'Монета и ещё два деления за фишку.',
+    upText: 'Находки вдвое: два деления за фишку.',
   }),
   bonus: g('bonus', 'Премия', 'uncommon', 'card_bonus', {
     fam: 'coin',
